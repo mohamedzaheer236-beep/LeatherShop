@@ -36,6 +36,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBroadcastService, BroadcastService>();
         services.AddScoped<IPaymentService, PaymentService>();
 
+        // Broadcast background processing (Channel + hosted service)
+        services.AddSingleton<BroadcastChannel>();
+        services.AddHostedService<BroadcastBackgroundService>();
+
         // Future registrations go here:
         // services.AddScoped<IAuthService, AuthService>();
         // services.AddScoped<IImageUploadService, ImageUploadService>();

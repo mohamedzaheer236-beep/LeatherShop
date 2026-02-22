@@ -10,15 +10,13 @@ public class BroadcastService : IBroadcastService
 {
     private readonly AppDbContext _db;
     private readonly IWhatsAppService _whatsApp;
-    private readonly ILogger<BroadcastService> _logger;
-    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly BroadcastChannel _channel;
 
-    public BroadcastService(AppDbContext db, IWhatsAppService whatsApp, ILogger<BroadcastService> logger, IServiceScopeFactory scopeFactory)
+    public BroadcastService(AppDbContext db, IWhatsAppService whatsApp, BroadcastChannel channel)
     {
         _db = db;
         _whatsApp = whatsApp;
-        _logger = logger;
-        _scopeFactory = scopeFactory;
+        _channel = channel;
     }
 
     public async Task<BroadcastResultDto> SendBroadcastAsync(BroadcastRequestDto dto)
@@ -55,42 +53,17 @@ public class BroadcastService : IBroadcastService
         _db.BroadcastMessages.Add(broadcast);
         await _db.SaveChangesAsync();
 
-        var broadcastId = broadcast.Id;
-
-        // Send messages in background with its own DbContext scope
-        _ = Task.Run(async () =>
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var whatsApp = scope.ServiceProvider.GetRequiredService<IWhatsAppService>();
-            var record = await db.BroadcastMessages.FindAsync(broadcastId);
-            if (record == null) return;
-
-            foreach (var phone in recipients)
-            {
-                try
-                {
-                    await whatsApp.SendTemplateMessage(
-                        phone,
-                        dto.TemplateName,
-                        dto.LanguageCode,
-                        dto.Parameters,
-                        dto.ImageUrl
-                    );
-                    record.SentCount++;
-                    await Task.Delay(15);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to send broadcast to {Phone}", phone);
-                    record.FailedCount++;
-                }
-            }
-
-            await db.SaveChangesAsync();
-            _logger.LogInformation("Broadcast {Id} completed. Sent: {Sent}, Failed: {Failed}",
-                record.Id, record.SentCount, record.FailedCount);
-        });
+        // Enqueue the job to the background service via Channel<T>.
+        // This is non-blocking and the background service picks it up
+        // with proper concurrency, DI scoping, and graceful shutdown.
+        await _channel.Writer.WriteAsync(new BroadcastJob(
+            BroadcastId: broadcast.Id,
+            Recipients: recipients,
+            TemplateName: dto.TemplateName,
+            LanguageCode: dto.LanguageCode,
+            Parameters: dto.Parameters?.ToList(),
+            ImageUrl: dto.ImageUrl
+        ));
 
         return new BroadcastResultDto
         {

@@ -665,12 +665,12 @@ These features are not built yet and would need to be added for production:
 | **Authentication / Authorization** | No login system. Admin panel is open to anyone. Need JWT or session-based auth for admin APIs. |
 | **Image Upload** | Products only store an image URL string. No actual file upload — need cloud storage (S3, Azure Blob, Cloudinary). |
 | **Razorpay Signature Verification** | Payment verify endpoint has a TODO — does not validate HMAC SHA256 signature. Unsafe for production. |
-| **Broadcast DB Update** | Broadcast runs fire-and-forget. The sent/failed counts are tracked in memory but never saved back to the database (DbContext scope issue). |
+| **Broadcast DB Update** | ~~Fixed~~ — see Recently Implemented below. |
 | **Logging to File/Service** | Uses default console logging only. Need Serilog or similar for production. |
 | **Rate Limiting** | No API rate limiting on admin endpoints. |
 | **Pagination** | Product and order lists return all records. Need pagination for large datasets. |
 | **Product Image in WhatsApp** | Chatbot sends text-only product details. Could send image messages using the WhatsApp media API. |
-| **Multi-quantity in Cart** | Customer can only add 1 at a time (tapping "Add to Cart" increments by 1). No way to set quantity directly. |
+| **Multi-quantity in Cart** | ~~Fixed~~ — see Recently Implemented below. |
 | **Customer Address Collection** | Checkout uses the stored address (usually empty). No chatbot flow to ask for shipping address. |
 | **Order Cancellation by Customer** | No WhatsApp flow for customers to cancel orders. |
 | **Webhook Security** | No signature verification on incoming WhatsApp webhook requests (should validate `X-Hub-Signature-256`). |
@@ -688,3 +688,6 @@ These features are not built yet and would need to be added for production:
 | **Toast Notification System** | ✅ `NotificationService` + `ToastComponent` — centralized pub/sub toast with auto-dismiss |
 | **Loading Spinner** | ✅ Reusable `LoadingSpinnerComponent` integrated into feature components |
 | **DI Extension Methods** | ✅ `ServiceCollectionExtensions` — grouped registration (`AddDatabase`, `AddApplicationServices`, `AddCorsPolicies`) |
+| **Broadcast Background Processing** | ✅ Replaced fire-and-forget `Task.Run` with proper `BackgroundService` + `Channel<T>` producer/consumer queue. `BroadcastService` enqueues a `BroadcastJob` → `BroadcastBackgroundService` (hosted) dequeues and processes one broadcast at a time. Uses `SemaphoreSlim(10)` for controlled concurrency (10 parallel sends). Saves progress every 50 messages. Supports graceful shutdown via `CancellationToken`. |
+| **Multi-quantity in Cart** | ✅ Chatbot asks "How many?" via `PendingProductId` state → customer types a number → validates against stock (including existing cart quantity) → adds with chosen quantity |
+| **Immediate Navigation** | ✅ Removed `setTimeout(() => navigate, 1500)` from product form — now navigates immediately after success. Toast notification persists across route changes by design. |

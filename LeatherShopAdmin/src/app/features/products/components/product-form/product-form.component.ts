@@ -64,7 +64,7 @@ export class ProductFormComponent implements OnInit {
         next: () => {
           this.saving = false;
           this.notification.success('Product updated successfully!');
-          setTimeout(() => this.router.navigate(['/products']), 1500);
+          this.router.navigate(['/products']);
         },
         error: () => this.saving = false
       });
@@ -73,7 +73,7 @@ export class ProductFormComponent implements OnInit {
         next: () => {
           this.saving = false;
           this.notification.success('Product created successfully!');
-          setTimeout(() => this.router.navigate(['/products']), 1500);
+          this.router.navigate(['/products']);
         },
         error: () => this.saving = false
       });
