@@ -403,6 +403,13 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 
 ## Developer Setup Guide
 
+### Clone the Repository
+
+```bash
+git clone https://github.com/mohamedzaheer236-beep/LeatherShop.git
+cd LeatherShop
+```
+
 ### Prerequisites — Install These First
 
 | # | Software | Version | Purpose | Download |
@@ -467,7 +474,7 @@ npx ng serve
 ```
 
 - Admin panel opens at **http://localhost:4200**
-- It calls the API at `http://localhost:5000` (configured in `api.service.ts`)
+- It calls the API at `http://localhost:5000` (configured in `src/environments/environment.ts`)
 
 ### Step 5: Verify Everything Works
 
