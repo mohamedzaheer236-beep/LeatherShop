@@ -34,6 +34,7 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 | **Controllers (thin)** | `ProductsController.cs`, `OrdersController.cs`, `CustomersController.cs`, `DashboardController.cs`, `BroadcastController.cs`, `PaymentController.cs`, `WhatsAppWebhookController.cs` | HTTP routing only — delegates all logic to service interfaces. Wraps responses in `ApiResponse<T>`. |
 | **Service Interfaces** | `Services/Interfaces/IProductService.cs`, `IOrderService.cs`, `ICustomerService.cs`, `IDashboardService.cs`, `IBroadcastService.cs`, `IPaymentService.cs`, `IWhatsAppService.cs`, `IChatBotService.cs` | Contracts for all business logic |
 | **Service Implementations** | `Services/ProductService.cs`, `OrderService.cs`, `CustomerService.cs`, `DashboardService.cs`, `BroadcastService.cs`, `PaymentService.cs`, `WhatsAppService.cs`, `ChatBotService.cs` | All business logic lives here — DB queries, WhatsApp API calls, chatbot state machine |
+| **Background Processing** | `Services/BroadcastBackgroundService.cs` | Hosted `BackgroundService` + `Channel<T>` producer/consumer queue — `BroadcastService` enqueues jobs, `BroadcastBackgroundService` dequeues and processes with `SemaphoreSlim(10)` concurrency. Saves progress every 50 messages. Graceful shutdown via `CancellationToken`. |
 | **Entity Configurations** | `Data/Configurations/ProductConfiguration.cs`, `CustomerConfiguration.cs`, `CartItemConfiguration.cs`, `OrderConfiguration.cs`, `OrderItemConfiguration.cs`, `BroadcastMessageConfiguration.cs` | Fluent API: relationships (1:1, 1:N, M:1), indexes, unique constraints, delete behavior, seed data |
 | **Split DTOs (validated)** | `DTOs/Product/`, `DTOs/Order/`, `DTOs/Customer/`, `DTOs/Dashboard/`, `DTOs/Broadcast/`, `DTOs/Payment/`, `DTOs/WhatsApp/` | Per-feature DTO files with `[Required]`, `[MaxLength]`, `[Range]`, `[Url]`, `[RegularExpression]` validation attributes |
 | **DI Extensions** | `Extensions/ServiceCollectionExtensions.cs` | Grouped DI registration: `AddDatabase()`, `AddApplicationServices()`, `AddCorsPolicies()` |
@@ -311,7 +312,10 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   ├── OrderService.cs                  # Implements IOrderService
 │   ├── CustomerService.cs               # Implements ICustomerService
 │   ├── DashboardService.cs              # Implements IDashboardService
-│   ├── BroadcastService.cs              # Implements IBroadcastService
+│   ├── BroadcastService.cs              # Implements IBroadcastService (enqueues to Channel)
+│   ├── BroadcastBackgroundService.cs    # Hosted BackgroundService — reads from Channel<T>,
+│   │                                    #   processes broadcasts with SemaphoreSlim(10)
+│   │                                    #   concurrency, saves progress every 50 messages
 │   └── PaymentService.cs                # Implements IPaymentService
 │
 ├── Data/
@@ -403,7 +407,9 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 
 ## Developer Setup Guide
 
-### Clone the Repository
+### Repository Access
+
+This repo is **private**. Only the owner and added collaborators can clone/push.
 
 ```bash
 git clone https://github.com/mohamedzaheer236-beep/LeatherShop.git
