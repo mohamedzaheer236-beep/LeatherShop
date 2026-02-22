@@ -1,0 +1,60 @@
+<div class="products-page">
+  <div class="page-header">
+    <h1>Products</h1>
+    <a routerLink="/products/new" class="btn btn-primary">+ Add Product</a>
+  </div>
+
+  <div class="filters">
+    <input type="text" placeholder="Search products..." [(ngModel)]="searchText" (input)="onFilterChange()" class="search-input" />
+    <select [(ngModel)]="filterCategory" (change)="onFilterChange()">
+      <option value="">All Categories</option>
+      <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+    </select>
+    <select [(ngModel)]="filterBrand" (change)="onFilterChange()">
+      <option value="">All Brands</option>
+      <option *ngFor="let brand of brands" [value]="brand">{{ brand }}</option>
+    </select>
+  </div>
+
+  <div class="loading" *ngIf="loading">Loading products...</div>
+
+  <table class="data-table" *ngIf="!loading && products.length > 0">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Brand</th>
+        <th>Category</th>
+        <th>Price</th>
+        <th>Stock</th>
+        <th>Active</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let product of products" [class.inactive]="!product.isActive">
+        <td class="product-name">{{ product.name }}</td>
+        <td>{{ product.brand }}</td>
+        <td>{{ product.category }}</td>
+        <td>&#8377;{{ product.price | number:'1.0-0' }}</td>
+        <td>
+          <span [class]="product.stockQuantity <= 5 ? 'stock-low' : 'stock-ok'">
+            {{ product.stockQuantity }}
+          </span>
+        </td>
+        <td>
+          <button class="toggle-btn" [class.active]="product.isActive" (click)="toggleActive(product)">
+            {{ product.isActive ? 'Active' : 'Inactive' }}
+          </button>
+        </td>
+        <td class="actions">
+          <a [routerLink]="['/products/edit', product.id]" class="btn btn-sm btn-edit">Edit</a>
+          <button class="btn btn-sm btn-delete" (click)="deleteProduct(product)">Delete</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="empty-state" *ngIf="!loading && products.length === 0">
+    <p>No products found. Add your first product!</p>
+  </div>
+</div>

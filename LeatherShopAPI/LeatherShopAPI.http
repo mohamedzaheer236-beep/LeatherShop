@@ -1,0 +1,6 @@
+@LeatherShopAPI_HostAddress = http://localhost:5282
+
+GET {{LeatherShopAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

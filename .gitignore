@@ -1,0 +1,36 @@
+# ── Root .gitignore ──
+
+# OS files
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# ── .NET (LeatherShopAPI) ──
+LeatherShopAPI/bin/
+LeatherShopAPI/obj/
+LeatherShopAPI/publish/
+LeatherShopAPI/*.user
+LeatherShopAPI/appsettings.*.local.json
+
+# ── Angular (LeatherShopAdmin) ──
+LeatherShopAdmin/node_modules/
+LeatherShopAdmin/dist/
+LeatherShopAdmin/.angular/
+LeatherShopAdmin/tmp/
+LeatherShopAdmin/out-tsc/
+LeatherShopAdmin/npm-debug.log
+LeatherShopAdmin/yarn-error.log
+
+# Logs
+*.log

@@ -1,0 +1,160 @@
+<div class="customers-page">
+  <div class="page-header">
+    <h1>Customers</h1>
+    <div class="customer-stats">
+      <span class="stat">Total: <strong>{{ totalCount }}</strong></span>
+      <span class="stat">Subscribers: <strong>{{ subscriberCount }}</strong></span>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <div class="search-box">
+        <input type="text" [(ngModel)]="searchTerm" placeholder="Search by phone or name..."
+               (keyup.enter)="onSearch()" />
+        <button class="btn btn-sm" (click)="onSearch()">Search</button>
+        <button class="btn btn-sm btn-outline" *ngIf="searchTerm" (click)="clearSearch()">Clear</button>
+      </div>
+      <label class="toggle-filter">
+        <input type="checkbox" [(ngModel)]="subscribedOnly" (change)="onFilterChange()" />
+        Subscribers only
+      </label>
+    </div>
+    <div class="toolbar-right">
+      <button class="btn btn-primary btn-sm" (click)="openAddForm()">+ Add Customer</button>
+      <button class="btn btn-sm btn-outline" (click)="openImportForm()">Import Bulk</button>
+    </div>
+  </div>
+
+  <!-- Add Customer Form -->
+  <div class="form-card slide-in" *ngIf="showAddForm">
+    <div class="form-card-header">
+      <h3>Add Customer</h3>
+      <button class="btn-close" (click)="closeAddForm()">&times;</button>
+    </div>
+    <div class="result-msg" *ngIf="addMessage" [ngClass]="addMessageType">{{ addMessage }}</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Phone Number *</label>
+        <input type="text" [(ngModel)]="newCustomer.phoneNumber" placeholder="e.g. 919876543210" />
+      </div>
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" [(ngModel)]="newCustomer.name" placeholder="Customer name (optional)" />
+      </div>
+      <div class="form-group form-action">
+        <button class="btn btn-primary" (click)="addCustomer()" [disabled]="addingCustomer">
+          {{ addingCustomer ? 'Adding...' : 'Add' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Import Form -->
+  <div class="form-card slide-in" *ngIf="showImportForm">
+    <div class="form-card-header">
+      <h3>Bulk Import Customers</h3>
+      <button class="btn-close" (click)="closeImportForm()">&times;</button>
+    </div>
+    <p class="info-text">Paste one customer per line. Format: <code>phone,name</code> (name is optional)</p>
+    <div class="result-msg" *ngIf="importMessage" [ngClass]="importMessageType">{{ importMessage }}</div>
+    <textarea [(ngModel)]="importText" rows="8"
+              placeholder="919876543210,John&#10;919876543211,Jane&#10;919876543212"></textarea>
+    <button class="btn btn-primary" style="margin-top: 12px;" (click)="importCustomers()" [disabled]="importing">
+      {{ importing ? 'Importing...' : 'Import Customers' }}
+    </button>
+  </div>
+
+  <!-- Selection Action Bar -->
+  <div class="selection-bar" *ngIf="selectedCount > 0">
+    <span class="selected-info">{{ selectedCount }} customer(s) selected</span>
+    <button class="btn btn-primary btn-sm" (click)="openBroadcastPanel()">
+      Send Broadcast to Selected
+    </button>
+  </div>
+
+  <!-- Broadcast to Selected Panel -->
+  <div class="form-card slide-in broadcast-panel" *ngIf="showBroadcastPanel">
+    <div class="form-card-header">
+      <h3>Broadcast to {{ selectedCount }} Selected</h3>
+      <button class="btn-close" (click)="closeBroadcastPanel()">&times;</button>
+    </div>
+    <div class="result-msg" *ngIf="broadcastMessage" [ngClass]="broadcastMessageType">{{ broadcastMessage }}</div>
+    <div class="form-group">
+      <label>Template Name *</label>
+      <select [(ngModel)]="broadcastTemplate" (change)="onBroadcastTemplateSelect()"
+              *ngIf="templatesLoaded && templates.length > 0">
+        <option value="">-- Select an approved template --</option>
+        <option *ngFor="let t of templates" [value]="t.name">
+          {{ t.name }} ({{ t.language }}) - {{ t.category }}
+        </option>
+      </select>
+      <input *ngIf="!templatesLoaded || templates.length === 0"
+             type="text" [(ngModel)]="broadcastTemplate" placeholder="e.g. new_product_launch" />
+    </div>
+    <div class="form-group">
+      <label>Parameters (comma separated)</label>
+      <input type="text" [(ngModel)]="broadcastParams" placeholder="param1, param2" />
+    </div>
+    <div class="form-group">
+      <label>Image URL (optional)</label>
+      <input type="text" [(ngModel)]="broadcastImageUrl" placeholder="https://..." />
+    </div>
+    <button class="btn btn-primary" (click)="sendToSelected()"
+            [disabled]="sendingBroadcast || !isValidBroadcastTemplate">
+      {{ sendingBroadcast ? 'Sending...' : 'Send to ' + selectedCount + ' Customers' }}
+    </button>
+    <small class="hint error-hint" *ngIf="broadcastTemplate && !isValidBroadcastTemplate">
+      This template is not approved. Select a valid template.
+    </small>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" *ngIf="loading">Loading customers...</div>
+
+  <!-- Customer Table -->
+  <table class="data-table" *ngIf="!loading && customers.length > 0">
+    <thead>
+      <tr>
+        <th class="col-check">
+          <input type="checkbox" [checked]="allSelected" (change)="toggleSelectAll()" title="Select All" />
+        </th>
+        <th>Phone Number</th>
+        <th>Name</th>
+        <th>Address</th>
+        <th>Subscribed</th>
+        <th>Orders</th>
+        <th>Joined</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let customer of customers" [class.row-selected]="customer.selected">
+        <td class="col-check">
+          <input type="checkbox" [(ngModel)]="customer.selected" (change)="onRowSelect()" />
+        </td>
+        <td class="phone">{{ customer.phoneNumber }}</td>
+        <td>{{ customer.name || '-' }}</td>
+        <td>{{ customer.address || '-' }}</td>
+        <td>
+          <span class="sub-badge" [class.sub-yes]="customer.isSubscribed" [class.sub-no]="!customer.isSubscribed"
+                (click)="toggleSubscription(customer)" title="Click to toggle">
+            {{ customer.isSubscribed ? 'Subscribed' : 'Unsubscribed' }}
+          </span>
+        </td>
+        <td>{{ customer.orderCount }}</td>
+        <td>{{ customer.createdAt | date:'dd MMM yyyy' }}</td>
+        <td>
+          <button class="btn btn-xs btn-outline" (click)="toggleSubscription(customer)">
+            {{ customer.isSubscribed ? 'Unsubscribe' : 'Subscribe' }}
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="empty-state" *ngIf="!loading && customers.length === 0">
+    <p>No customers found.</p>
+  </div>
+</div>

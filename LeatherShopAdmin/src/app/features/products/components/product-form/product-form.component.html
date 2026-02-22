@@ -1,0 +1,52 @@
+<div class="product-form-page">
+  <h1>{{ isEdit ? 'Edit Product' : 'Add New Product' }}</h1>
+
+  <form (ngSubmit)="onSubmit()" class="form-card">
+    <div class="form-group">
+      <label for="name">Product Name *</label>
+      <input id="name" type="text" [(ngModel)]="product.name" name="name" required placeholder="e.g. Classic Leather Wallet" />
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="brand">Brand *</label>
+        <input id="brand" type="text" [(ngModel)]="product.brand" name="brand" required placeholder="e.g. Royal Leather" />
+      </div>
+      <div class="form-group">
+        <label for="category">Category *</label>
+        <select id="category" [(ngModel)]="product.category" name="category" required>
+          <option value="">Select Category</option>
+          <option *ngFor="let cat of categoryOptions" [value]="cat">{{ cat }}</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="price">Price (INR) *</label>
+        <input id="price" type="number" [(ngModel)]="product.price" name="price" required min="1" />
+      </div>
+      <div class="form-group">
+        <label for="stock">Stock Quantity *</label>
+        <input id="stock" type="number" [(ngModel)]="product.stockQuantity" name="stockQuantity" required min="0" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="imageUrl">Image URL</label>
+      <input id="imageUrl" type="text" [(ngModel)]="product.imageUrl" name="imageUrl" placeholder="https://example.com/image.jpg" />
+    </div>
+
+    <div class="form-group">
+      <label for="description">Description</label>
+      <textarea id="description" [(ngModel)]="product.description" name="description" rows="4" placeholder="Describe the product..."></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn btn-secondary" routerLink="/products">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="saving">
+        {{ saving ? 'Saving...' : (isEdit ? 'Update Product' : 'Create Product') }}
+      </button>
+    </div>
+  </form>
+</div>

@@ -1,0 +1,81 @@
+<div class="dashboard">
+  <h1>Dashboard</h1>
+
+  <div class="loading" *ngIf="loading">Loading dashboard...</div>
+
+  <div *ngIf="dashboard && !loading">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon blue">&#128230;</div>
+        <div class="stat-info">
+          <span class="stat-value">{{ dashboard.totalProducts }}</span>
+          <span class="stat-label">Products</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">&#128100;</div>
+        <div class="stat-info">
+          <span class="stat-value">{{ dashboard.totalCustomers }}</span>
+          <span class="stat-label">Customers</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple">&#128196;</div>
+        <div class="stat-info">
+          <span class="stat-value">{{ dashboard.totalOrders }}</span>
+          <span class="stat-label">Orders</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon gold">&#8377;</div>
+        <div class="stat-info">
+          <span class="stat-value">{{ dashboard.totalRevenue | number:'1.0-0' }}</span>
+          <span class="stat-label">Revenue</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon orange">&#9203;</div>
+        <div class="stat-info">
+          <span class="stat-value">{{ dashboard.pendingOrders }}</span>
+          <span class="stat-label">Pending Orders</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red">&#9888;</div>
+        <div class="stat-info">
+          <span class="stat-value">{{ dashboard.lowStockProducts }}</span>
+          <span class="stat-label">Low Stock</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="recent-orders">
+      <div class="section-header">
+        <h2>Recent Orders</h2>
+        <a routerLink="/orders" class="view-all">View All &rarr;</a>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Order #</th>
+            <th>Customer</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Paid</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let order of dashboard.recentOrders">
+            <td class="order-number">{{ order.orderNumber }}</td>
+            <td>{{ order.customerName || order.customerPhone }}</td>
+            <td>&#8377;{{ order.totalAmount | number:'1.0-0' }}</td>
+            <td><span class="badge" [ngClass]="order.status.toLowerCase()">{{ order.status }}</span></td>
+            <td><span [class]="order.isPaid ? 'paid-yes' : 'paid-no'">{{ order.isPaid ? 'Yes' : 'No' }}</span></td>
+            <td>{{ order.createdAt | date:'dd MMM yyyy' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

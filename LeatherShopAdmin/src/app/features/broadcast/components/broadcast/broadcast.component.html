@@ -1,0 +1,83 @@
+<div class="broadcast-page">
+  <div class="page-header">
+    <h1>Broadcast Message</h1>
+    <span class="subscriber-badge">{{ subscriberCount }} Subscribers</span>
+  </div>
+
+  <div class="broadcast-form form-card">
+    <p class="info-text">
+      Send a WhatsApp template message to <strong>all</strong> subscribed customers.
+      Templates must be pre-approved in your Meta Business Manager.
+    </p>
+    <p class="info-text tip-text">
+      &#x1F4A1; <strong>Tip:</strong> To send to specific customers only, go to
+      <strong>Customers</strong> page &#x2192; select with checkboxes &#x2192; Send Broadcast to Selected.
+    </p>
+
+    <div class="result-msg" *ngIf="resultMessage" [ngClass]="resultType">
+      {{ resultMessage }}
+    </div>
+
+    <div class="form-group">
+      <label for="templateName">Template Name *</label>
+      <select id="templateName" [(ngModel)]="templateName" (change)="onTemplateSelect()"
+              *ngIf="templatesLoaded && templates.length > 0">
+        <option value="">-- Select an approved template --</option>
+        <option *ngFor="let t of templates" [value]="t.name">
+          {{ t.name }} ({{ t.language }}) - {{ t.category }}
+        </option>
+      </select>
+      <input *ngIf="!templatesLoaded || templates.length === 0"
+             id="templateNameInput" type="text" [(ngModel)]="templateName"
+             placeholder="e.g. new_product_launch" />
+      <small class="hint" *ngIf="loadingTemplates">Loading templates from Meta...</small>
+      <small class="hint" *ngIf="templatesLoaded && templates.length === 0 && !loadingTemplates">
+        &#x26A0; Could not fetch templates. Add your Business Account ID in appsettings.json, or type the template name manually.
+      </small>
+    </div>
+
+    <div class="form-group">
+      <label for="parameters">Template Parameters (comma separated)</label>
+      <input id="parameters" type="text" [(ngModel)]="parameters"
+             placeholder="e.g. Classic Wallet, 899, 50% OFF" />
+    </div>
+
+    <div class="form-group">
+      <label for="broadcastImage">Image URL (optional, for header image)</label>
+      <input id="broadcastImage" type="text" [(ngModel)]="imageUrl"
+             placeholder="https://example.com/product.jpg" />
+    </div>
+
+    <button class="btn btn-primary btn-lg" (click)="sendBroadcast()"
+            [disabled]="sending || !isValidTemplate">
+      {{ sending ? 'Sending...' : 'Send to All Subscribers' }}
+    </button>
+    <small class="hint error-hint" *ngIf="templateName && !isValidTemplate">
+      &#x274C; This template is not approved. Select a valid template from the dropdown.
+    </small>
+  </div>
+
+  <div class="history-section" *ngIf="history.length > 0">
+    <h2>Broadcast History</h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Template</th>
+          <th>Recipients</th>
+          <th>Sent</th>
+          <th>Failed</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let b of history">
+          <td class="template-name">{{ b.messageTemplate }}</td>
+          <td>{{ b.totalRecipients }}</td>
+          <td class="sent-count">{{ b.sentCount }}</td>
+          <td class="failed-count">{{ b.failedCount }}</td>
+          <td>{{ b.sentAt | date:'dd MMM yyyy HH:mm' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

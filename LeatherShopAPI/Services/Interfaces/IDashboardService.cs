@@ -1,0 +1,8 @@
+using LeatherShopAPI.DTOs.Dashboard;
+
+namespace LeatherShopAPI.Services.Interfaces;
+
+public interface IDashboardService
+{
+    Task<DashboardDto> GetDashboardAsync();
+}
