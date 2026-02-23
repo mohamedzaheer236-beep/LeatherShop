@@ -40,6 +40,7 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 | **Entity Configurations** | `Data/Configurations/ProductConfiguration.cs`, `CustomerConfiguration.cs`, `CartItemConfiguration.cs`, `OrderConfiguration.cs`, `OrderItemConfiguration.cs`, `BroadcastMessageConfiguration.cs` | Fluent API: relationships (1:1, 1:N, M:1), indexes, unique constraints, delete behavior, seed data |
 | **Split DTOs (validated)** | `DTOs/Product/`, `DTOs/Order/`, `DTOs/Customer/`, `DTOs/Dashboard/`, `DTOs/Broadcast/`, `DTOs/Payment/`, `DTOs/WhatsApp/` | Per-feature DTO files with `[Required]`, `[MaxLength]`, `[Range]`, `[Url]`, `[RegularExpression]` validation attributes |
 | **DI Extensions** | `Extensions/ServiceCollectionExtensions.cs` | Grouped DI registration: `AddDatabase()`, `AddApplicationServices()`, `AddCorsPolicies()` |
+| **Mapping Extensions** | `Extensions/MappingExtensions.cs` | `Product.ToDto()`, `Order.ToDto()`, `OrderItem.ToDto()` — shared entity-to-DTO mapping used by ProductService, OrderService, DashboardService |
 | **Config** | `appsettings.json`, `appsettings.Development.json`, `appsettings.Production.json` | Environment-specific configuration files |
 | **Data Models** | `Models/Product.cs`, `Customer.cs`, `CartItem.cs`, `Order.cs`, `OrderItem.cs`, `BroadcastMessage.cs` | Entity classes with navigation properties |
 | **Database** | `AppDbContext.cs` | EF Core DbContext — uses `ApplyConfigurationsFromAssembly()` for auto-discovering entity configs |
@@ -56,7 +57,7 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 | **Customers** | `/customers` (lazy) | `features/customers/` — `customer.service.ts`, `customer.model.ts`, `customers.routes.ts`, `components/customers/` |
 | **Broadcast** | `/broadcast` (lazy) | `features/broadcast/` — `broadcast.service.ts`, `broadcast.model.ts`, `broadcast.routes.ts`, `components/broadcast/` |
 | **Core** | _(app-wide)_ | `core/interceptors/error.interceptor.ts` — HTTP error interceptor with toast notifications |
-| **Shared** | _(all pages)_ | `shared/components/navbar/`, `shared/components/toast/`, `shared/components/loading-spinner/`, `shared/services/notification.service.ts` |
+| **Shared** | _(all pages)_ | `shared/components/navbar/`, `shared/components/toast/`, `shared/components/loading-spinner/`, `shared/services/notification.service.ts`, `shared/services/template-loader.service.ts`, `shared/utils/severity.utils.ts` |
 | **Environments** | _(build-time)_ | `environments/environment.ts` (dev), `environments/environment.prod.ts` (prod) — API URL config |
 | **App Shell** | — | `app.routes.ts` (lazy loading via `loadChildren`), `app.config.ts` (interceptors), `app.component.ts` (toast + navbar + outlet) |
 
@@ -259,7 +260,10 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 ├── appsettings.Production.json          # Production template (placeholder secrets)
 │
 ├── Extensions/
-│   └── ServiceCollectionExtensions.cs   # Grouped DI registration
+│   ├── ServiceCollectionExtensions.cs   # Grouped DI registration
+│   └── MappingExtensions.cs             # Entity → DTO extension methods
+│                                        #   Product.ToDto(), Order.ToDto(), OrderItem.ToDto()
+│                                        #   Eliminates duplicate mapping across services
 │                                        #   - AddDatabase() — PostgreSQL context
 │                                        #   - AddApplicationServices() — all 8 services
 │                                        #   - AddCorsPolicies() — CORS for Angular
@@ -365,8 +369,13 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 │       │                                #   errors, shows toast notifications
 │       │
 │       ├── shared/
+│       │   ├── utils/
+│       │   │   └── severity.utils.ts         # Shared getStatusSeverity() + getStatusButtonSeverity()
+│       │   │                                 #   Used by dashboard + orders components
 │       │   ├── services/
-│       │   │   └── notification.service.ts  # Centralized toast notification service
+│       │   │   ├── notification.service.ts    # Centralized toast notification service
+│       │   │   └── template-loader.service.ts # Shared WhatsApp template loading + validation
+│       │   │                                  #   Used by broadcast + customers components
 │       │   └── components/
 │       │       ├── navbar/              # Navigation bar (ts, html, scss)
 │       │       ├── toast/               # Toast notification component (auto-dismiss)
@@ -740,9 +749,9 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 | L3 | **No ESLint / Prettier** | `package.json` | Zero static code analysis or formatting enforcement on the frontend. |
 | L4 | **No Tests** | `angular.json` | `skipTests: true` everywhere. Zero test files in the entire project. |
 | L5 | **Hardcoded Currency `₹`** | All templates with prices | Uses `&#8377;` directly. Should use Angular's `currency` pipe for i18n support. |
-| L6 | **60+ `!important` in Styles** | `styles.scss` | Over-reliance on specificity overrides for PrimeNG customization. |
-| L7 | **No CSS Variables** | `styles.scss` | Colors like `#6366f1`, `#1e293b` repeated 20+ times with no theming support via custom properties. |
-| L8 | **Code Duplication** | Multiple files | `getSeverity()` duplicated in 2 components, template loading logic in 2 components, DTO-to-model mapping in 3+ services, `.form-field` styles in 3 SCSS files. |
+| L6 | ~~**60+ `!important` in Styles**~~ | `styles.scss` | **FIXED** — All 60+ `!important` removed. PrimeNG overrides now use `body .p-*` prefix for natural specificity. |
+| L7 | ~~**No CSS Variables**~~ | `styles.scss` | **FIXED** — Added 75+ `--ls-*` CSS custom properties in `:root` (brand, accent, text, surface, border, radius, shadow, font tokens). Full theming support. |
+| L8 | ~~**Code Duplication**~~ | Multiple files | **FIXED** — `getSeverity()` extracted to `shared/utils/severity.utils.ts` (used by dashboard + orders). Template loading extracted to `shared/services/template-loader.service.ts` (used by broadcast + customers). DTO mapping extracted to `Extensions/MappingExtensions.cs` with `Product.ToDto()`, `Order.ToDto()`, `OrderItem.ToDto()` (used by ProductService, OrderService, DashboardService). |
 | L9 | **Accessibility Gaps** | Multiple templates | Clickable `<p-tag>` elements lack `role="button"`/`tabindex`, order expand lacks keyboard support, spinner lacks `aria-live`, no skip-to-content link. |
 | L10 | **No Form Validation Messages** | `product-form.component.html` | User can submit empty form with no visible error feedback. No `aria-required` or `aria-describedby`. |
 | L11 | **No Unsaved Changes Guard** | `product-form.component.ts` | Navigating away from a dirty form loses data silently. Need a `CanDeactivate` route guard. |
@@ -942,3 +951,5 @@ The API **must run 24/7** for WhatsApp to work — Meta sends webhook events whe
 | **Button & Input Refinements** | ✅ Buttons: 10px/20px padding, font-weight 600, 8px gap between icon and label. Search input: icon at 14px with 40px left padding. Dropdowns: polished label padding, hover border color, rounded panel items with highlight. |
 | **Contained Filter Bars** | ✅ `.filters-bar` component — white background container with border, rounded corners, shadow for products and customers pages. Replaced floating loose filters with a contained card feel. |
 | **Broadcast Page Redesign** | ✅ Complete redesign with 2-column layout: form card on left with section header + form grid + send action area, stats sidebar on right (active subscribers, total broadcasts, messages sent). History section with proper header. Responsive grid collapses to single column under 900px. |
+| **CSS Design Tokens (L6/L7 Fix)** | ✅ Rewrote `styles.scss` with 75+ CSS custom properties (`--ls-brand-gold`, `--ls-accent`, `--ls-bg-card`, `--ls-shadow-md`, `--ls-radius-xl`, etc.). Removed all 60+ `!important` declarations — PrimeNG overrides now use `body .p-*` prefix for natural specificity instead of brute-force `!important`. Full theming support via `:root` variables. |
+| **Shared Utilities (L8 Fix)** | ✅ Eliminated code duplication across frontend and backend: (1) `shared/utils/severity.utils.ts` — shared `getStatusSeverity()` + `getStatusButtonSeverity()` used by dashboard + orders. (2) `shared/services/template-loader.service.ts` — shared `TemplateLoaderService` with caching, validation, language lookup, used by broadcast + customers. (3) `Extensions/MappingExtensions.cs` — `Product.ToDto()`, `Order.ToDto()`, `OrderItem.ToDto()` extension methods used by ProductService, OrderService, DashboardService. |
