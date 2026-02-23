@@ -1,42 +1,25 @@
-import { Injectable } from '@angular/core';
-import { Subject } from 'rxjs';
+﻿import { Injectable } from '@angular/core';
+import { MessageService } from 'primeng/api';
 
-export interface Notification {
-  type: 'success' | 'error' | 'info' | 'warning';
-  message: string;
-  id: number;
-}
-
-/**
- * Centralized notification/toast service.
- * Components subscribe to notifications$ to display toasts.
- */
 @Injectable({
   providedIn: 'root'
 })
 export class NotificationService {
-  private _notifications = new Subject<Notification>();
-  private _counter = 0;
-
-  notifications$ = this._notifications.asObservable();
+  constructor(private messageService: MessageService) {}
 
   success(message: string): void {
-    this._emit('success', message);
+    this.messageService.add({ severity: 'success', summary: 'Success', detail: message });
   }
 
   error(message: string): void {
-    this._emit('error', message);
+    this.messageService.add({ severity: 'error', summary: 'Error', detail: message });
   }
 
   info(message: string): void {
-    this._emit('info', message);
+    this.messageService.add({ severity: 'info', summary: 'Info', detail: message });
   }
 
   warning(message: string): void {
-    this._emit('warning', message);
-  }
-
-  private _emit(type: Notification['type'], message: string): void {
-    this._notifications.next({ type, message, id: ++this._counter });
+    this.messageService.add({ severity: 'warn', summary: 'Warning', detail: message });
   }
 }

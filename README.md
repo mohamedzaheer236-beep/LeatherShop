@@ -2,7 +2,7 @@
 
 A complete WhatsApp Business ordering system for a leather goods seller. Customers browse products, add to cart, and pay — all inside WhatsApp. The shop owner manages everything from an Angular admin panel.
 
-**Tech Stack:** Angular 18 · .NET 8 Web API · Entity Framework Core · PostgreSQL · WhatsApp Cloud API · Razorpay
+**Tech Stack:** Angular 18 · PrimeNG 17 · .NET 8 Web API · Entity Framework Core · PostgreSQL · WhatsApp Cloud API · Razorpay
 
 ---
 
@@ -844,3 +844,4 @@ The API **must run 24/7** for WhatsApp to work — Meta sends webhook events whe
 | **Broadcast Background Processing** | ✅ Replaced fire-and-forget `Task.Run` with proper `BackgroundService` + `Channel<T>` producer/consumer queue. `BroadcastService` enqueues a `BroadcastJob` → `BroadcastBackgroundService` (hosted) dequeues and processes one broadcast at a time. Uses `SemaphoreSlim(10)` for controlled concurrency (10 parallel sends). Saves progress every 50 messages. Supports graceful shutdown via `CancellationToken`. |
 | **Multi-quantity in Cart** | ✅ Chatbot asks "How many?" via `PendingProductId` state → customer types a number → validates against stock (including existing cart quantity) → adds with chosen quantity |
 | **Immediate Navigation** | ✅ Removed `setTimeout(() => navigate, 1500)` from product form — now navigates immediately after success. Toast notification persists across route changes by design. |
+| **PrimeNG UI Migration** | ✅ Replaced all custom CSS/SCSS with PrimeNG component library (v17.18.15). Migrated every component: Navbar → `p-menubar`, Toast → `p-toast`, Spinner → `p-progressSpinner`, Dashboard → `p-card`/`p-table`/`p-tag`, Products → `p-table`/`p-toolbar`/`p-dropdown`/`p-confirmDialog`/`p-inputNumber`, Orders → `p-card`/`p-table`/`p-tag`/`p-dropdown`, Customers → `p-table`/`p-dialog`/`p-checkbox`/`p-toolbar`, Broadcast → `p-card`/`p-dropdown`/`p-table`/`p-message`. Theme: Lara Light Indigo. Minimal custom SCSS retained only for layout. |

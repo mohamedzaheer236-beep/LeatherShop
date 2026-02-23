@@ -1,66 +1,83 @@
 <div class="broadcast-page">
-  <div class="page-header">
-    <h1>Broadcast Message</h1>
-    <span class="subscriber-badge">{{ subscriberCount }} Subscribers</span>
-  </div>
-
-  <div class="broadcast-form form-card">
-    <p class="info-text">
-      Send a WhatsApp template message to <strong>all</strong> subscribed customers.
-      Templates must be pre-approved in your Meta Business Manager.
-    </p>
-    <p class="info-text tip-text">
-      &#x1F4A1; <strong>Tip:</strong> To send to specific customers only, go to
-      <strong>Customers</strong> page &#x2192; select with checkboxes &#x2192; Send Broadcast to Selected.
-    </p>
-
-    <div class="result-msg" *ngIf="resultMessage" [ngClass]="resultType">
-      {{ resultMessage }}
+  <p-toolbar>
+    <div class="p-toolbar-group-start">
+      <h2 style="margin: 0;">Broadcast Message</h2>
     </div>
+    <div class="p-toolbar-group-end">
+      <p-tag [value]="subscriberCount + ' Subscribers'" severity="success" icon="pi pi-users"></p-tag>
+    </div>
+  </p-toolbar>
 
-    <div class="form-group">
+  <p-card styleClass="broadcast-card">
+    <p-message severity="info" text="Send a WhatsApp template message to all subscribed customers. Templates must be pre-approved in your Meta Business Manager." styleClass="mb-3"></p-message>
+
+    <p-message severity="warn" styleClass="mb-3">
+      <ng-template pTemplate>
+        <span><strong>Tip:</strong> To send to specific customers only, go to <strong>Customers</strong> page &rarr; select with checkboxes &rarr; Send Broadcast to Selected.</span>
+      </ng-template>
+    </p-message>
+
+    <p-message *ngIf="resultMessage" [severity]="getResultSeverity()" [text]="resultMessage" styleClass="mb-3"></p-message>
+
+    <div class="form-field">
       <label for="templateName">Template Name *</label>
-      <select id="templateName" [(ngModel)]="templateName" (change)="onTemplateSelect()"
-              *ngIf="templatesLoaded && templates.length > 0">
-        <option value="">-- Select an approved template --</option>
-        <option *ngFor="let t of templates" [value]="t.name">
-          {{ t.name }} ({{ t.language }}) - {{ t.category }}
-        </option>
-      </select>
+      <p-dropdown *ngIf="templatesLoaded && templates.length > 0"
+                  id="templateName"
+                  [options]="templateOptions"
+                  [(ngModel)]="templateName"
+                  (onChange)="onTemplateSelect()"
+                  placeholder="Select an approved template"
+                  [style]="{'width': '100%'}"
+                  [filter]="true"
+                  filterPlaceholder="Search templates...">
+      </p-dropdown>
       <input *ngIf="!templatesLoaded || templates.length === 0"
-             id="templateNameInput" type="text" [(ngModel)]="templateName"
-             placeholder="e.g. new_product_launch" />
-      <small class="hint" *ngIf="loadingTemplates">Loading templates from Meta...</small>
-      <small class="hint" *ngIf="templatesLoaded && templates.length === 0 && !loadingTemplates">
-        &#x26A0; Could not fetch templates. Add your Business Account ID in appsettings.json, or type the template name manually.
+             pInputText id="templateNameInput"
+             [(ngModel)]="templateName"
+             placeholder="e.g. new_product_launch"
+             style="width: 100%;" />
+      <small *ngIf="loadingTemplates" class="hint">
+        <i class="pi pi-spin pi-spinner"></i> Loading templates from Meta...
+      </small>
+      <small *ngIf="templatesLoaded && templates.length === 0 && !loadingTemplates" class="hint warn">
+        <i class="pi pi-exclamation-triangle"></i> Could not fetch templates. Add your Business Account ID in appsettings.json, or type the template name manually.
       </small>
     </div>
 
-    <div class="form-group">
+    <div class="form-field">
       <label for="parameters">Template Parameters (comma separated)</label>
-      <input id="parameters" type="text" [(ngModel)]="parameters"
-             placeholder="e.g. Classic Wallet, 899, 50% OFF" />
+      <input pInputText id="parameters"
+             [(ngModel)]="parameters"
+             placeholder="e.g. Classic Wallet, 899, 50% OFF"
+             style="width: 100%;" />
     </div>
 
-    <div class="form-group">
+    <div class="form-field">
       <label for="broadcastImage">Image URL (optional, for header image)</label>
-      <input id="broadcastImage" type="text" [(ngModel)]="imageUrl"
-             placeholder="https://example.com/product.jpg" />
+      <input pInputText id="broadcastImage"
+             [(ngModel)]="imageUrl"
+             placeholder="https://example.com/product.jpg"
+             style="width: 100%;" />
     </div>
 
-    <button class="btn btn-primary btn-lg" (click)="sendBroadcast()"
-            [disabled]="sending || !isValidTemplate">
-      {{ sending ? 'Sending...' : 'Send to All Subscribers' }}
-    </button>
-    <small class="hint error-hint" *ngIf="templateName && !isValidTemplate">
-      &#x274C; This template is not approved. Select a valid template from the dropdown.
+    <p-button label="Send to All Subscribers"
+              icon="pi pi-send"
+              [loading]="sending"
+              [disabled]="!isValidTemplate"
+              (onClick)="sendBroadcast()"
+              styleClass="w-full mt-2">
+    </p-button>
+
+    <small *ngIf="templateName && !isValidTemplate" class="hint error">
+      <i class="pi pi-times-circle"></i> This template is not approved. Select a valid template from the dropdown.
     </small>
-  </div>
+  </p-card>
 
   <div class="history-section" *ngIf="history.length > 0">
-    <h2>Broadcast History</h2>
-    <table class="data-table">
-      <thead>
+    <h3>Broadcast History</h3>
+    <p-table [value]="history" [paginator]="history.length > 10" [rows]="10"
+             styleClass="p-datatable-striped" [tableStyle]="{'min-width': '50rem'}">
+      <ng-template pTemplate="header">
         <tr>
           <th>Template</th>
           <th>Recipients</th>
@@ -68,16 +85,21 @@
           <th>Failed</th>
           <th>Date</th>
         </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let b of history">
-          <td class="template-name">{{ b.messageTemplate }}</td>
+      </ng-template>
+      <ng-template pTemplate="body" let-b>
+        <tr>
+          <td><strong style="font-family: monospace;">{{ b.messageTemplate }}</strong></td>
           <td>{{ b.totalRecipients }}</td>
-          <td class="sent-count">{{ b.sentCount }}</td>
-          <td class="failed-count">{{ b.failedCount }}</td>
+          <td><p-tag [value]="b.sentCount.toString()" severity="success"></p-tag></td>
+          <td><p-tag [value]="b.failedCount.toString()" [severity]="b.failedCount > 0 ? 'danger' : 'info'"></p-tag></td>
           <td>{{ b.sentAt | date:'dd MMM yyyy HH:mm' }}</td>
         </tr>
-      </tbody>
-    </table>
+      </ng-template>
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="5" style="text-align: center;">No broadcast history found.</td>
+        </tr>
+      </ng-template>
+    </p-table>
   </div>
 </div>

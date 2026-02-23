@@ -1,61 +1,73 @@
-<div class="dashboard">
+﻿<div class="dashboard">
   <h1>Dashboard</h1>
 
-  <div class="loading" *ngIf="loading">Loading dashboard...</div>
+  <app-loading-spinner [loading]="loading" message="Loading dashboard..."></app-loading-spinner>
 
   <div *ngIf="dashboard && !loading">
     <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon blue">&#128230;</div>
-        <div class="stat-info">
-          <span class="stat-value">{{ dashboard.totalProducts }}</span>
-          <span class="stat-label">Products</span>
+      <p-card styleClass="stat-card">
+        <div class="stat-content">
+          <div class="stat-icon blue"><i class="pi pi-box"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ dashboard.totalProducts }}</span>
+            <span class="stat-label">Products</span>
+          </div>
         </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon green">&#128100;</div>
-        <div class="stat-info">
-          <span class="stat-value">{{ dashboard.totalCustomers }}</span>
-          <span class="stat-label">Customers</span>
+      </p-card>
+      <p-card styleClass="stat-card">
+        <div class="stat-content">
+          <div class="stat-icon green"><i class="pi pi-users"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ dashboard.totalCustomers }}</span>
+            <span class="stat-label">Customers</span>
+          </div>
         </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon purple">&#128196;</div>
-        <div class="stat-info">
-          <span class="stat-value">{{ dashboard.totalOrders }}</span>
-          <span class="stat-label">Orders</span>
+      </p-card>
+      <p-card styleClass="stat-card">
+        <div class="stat-content">
+          <div class="stat-icon purple"><i class="pi pi-shopping-cart"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ dashboard.totalOrders }}</span>
+            <span class="stat-label">Orders</span>
+          </div>
         </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon gold">&#8377;</div>
-        <div class="stat-info">
-          <span class="stat-value">{{ dashboard.totalRevenue | number:'1.0-0' }}</span>
-          <span class="stat-label">Revenue</span>
+      </p-card>
+      <p-card styleClass="stat-card">
+        <div class="stat-content">
+          <div class="stat-icon gold"><i class="pi pi-indian-rupee"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ dashboard.totalRevenue | number:'1.0-0' }}</span>
+            <span class="stat-label">Revenue</span>
+          </div>
         </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon orange">&#9203;</div>
-        <div class="stat-info">
-          <span class="stat-value">{{ dashboard.pendingOrders }}</span>
-          <span class="stat-label">Pending Orders</span>
+      </p-card>
+      <p-card styleClass="stat-card">
+        <div class="stat-content">
+          <div class="stat-icon orange"><i class="pi pi-clock"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ dashboard.pendingOrders }}</span>
+            <span class="stat-label">Pending Orders</span>
+          </div>
         </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon red">&#9888;</div>
-        <div class="stat-info">
-          <span class="stat-value">{{ dashboard.lowStockProducts }}</span>
-          <span class="stat-label">Low Stock</span>
+      </p-card>
+      <p-card styleClass="stat-card">
+        <div class="stat-content">
+          <div class="stat-icon red"><i class="pi pi-exclamation-triangle"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ dashboard.lowStockProducts }}</span>
+            <span class="stat-label">Low Stock</span>
+          </div>
         </div>
-      </div>
+      </p-card>
     </div>
 
     <div class="recent-orders">
       <div class="section-header">
         <h2>Recent Orders</h2>
-        <a routerLink="/orders" class="view-all">View All &rarr;</a>
+        <a routerLink="/orders"><p-button label="View All" icon="pi pi-arrow-right" [text]="true"></p-button></a>
       </div>
-      <table class="data-table">
-        <thead>
+      <p-table [value]="dashboard.recentOrders" [tableStyle]="{'min-width': '50rem'}" styleClass="p-datatable-striped">
+        <ng-template pTemplate="header">
           <tr>
             <th>Order #</th>
             <th>Customer</th>
@@ -64,18 +76,21 @@
             <th>Paid</th>
             <th>Date</th>
           </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let order of dashboard.recentOrders">
-            <td class="order-number">{{ order.orderNumber }}</td>
+        </ng-template>
+        <ng-template pTemplate="body" let-order>
+          <tr>
+            <td><strong style="font-family: monospace;">{{ order.orderNumber }}</strong></td>
             <td>{{ order.customerName || order.customerPhone }}</td>
             <td>&#8377;{{ order.totalAmount | number:'1.0-0' }}</td>
-            <td><span class="badge" [ngClass]="order.status.toLowerCase()">{{ order.status }}</span></td>
-            <td><span [class]="order.isPaid ? 'paid-yes' : 'paid-no'">{{ order.isPaid ? 'Yes' : 'No' }}</span></td>
+            <td><p-tag [value]="order.status" [severity]="getSeverity(order.status)"></p-tag></td>
+            <td><p-tag [value]="order.isPaid ? 'Paid' : 'Unpaid'" [severity]="order.isPaid ? 'success' : 'danger'"></p-tag></td>
             <td>{{ order.createdAt | date:'dd MMM yyyy' }}</td>
           </tr>
-        </tbody>
-      </table>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td colspan="6" style="text-align:center; padding:24px; color:#999;">No recent orders.</td></tr>
+        </ng-template>
+      </p-table>
     </div>
   </div>
 </div>

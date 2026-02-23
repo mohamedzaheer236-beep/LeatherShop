@@ -1,52 +1,59 @@
-<div class="product-form-page">
-  <h1>{{ isEdit ? 'Edit Product' : 'Add New Product' }}</h1>
+﻿<div class="product-form-page">
+  <h1 style="margin-bottom:24px; font-size:28px; font-weight:700; color:#1a1a2e;">{{ isEdit ? 'Edit Product' : 'Add New Product' }}</h1>
 
-  <form (ngSubmit)="onSubmit()" class="form-card">
-    <div class="form-group">
-      <label for="name">Product Name *</label>
-      <input id="name" type="text" [(ngModel)]="product.name" name="name" required placeholder="e.g. Classic Leather Wallet" />
-    </div>
+  <p-card>
+    <form (ngSubmit)="onSubmit()">
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="name">Product Name *</label>
+          <input id="name" type="text" pInputText [(ngModel)]="product.name" name="name" required
+                 placeholder="e.g. Classic Leather Wallet" class="w-full" />
+        </div>
 
-    <div class="form-row">
-      <div class="form-group">
-        <label for="brand">Brand *</label>
-        <input id="brand" type="text" [(ngModel)]="product.brand" name="brand" required placeholder="e.g. Royal Leather" />
+        <div class="form-row">
+          <div class="form-field">
+            <label for="brand">Brand *</label>
+            <input id="brand" type="text" pInputText [(ngModel)]="product.brand" name="brand" required
+                   placeholder="e.g. Royal Leather" class="w-full" />
+          </div>
+          <div class="form-field">
+            <label for="category">Category *</label>
+            <p-dropdown id="category" [options]="categoryOptions" [(ngModel)]="product.category" name="category"
+                        placeholder="Select Category" [style]="{'width': '100%'}"></p-dropdown>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label for="price">Price (INR) *</label>
+            <p-inputNumber id="price" [(ngModel)]="product.price" name="price" mode="currency" currency="INR"
+                          locale="en-IN" [min]="1" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"></p-inputNumber>
+          </div>
+          <div class="form-field">
+            <label for="stock">Stock Quantity *</label>
+            <p-inputNumber id="stock" [(ngModel)]="product.stockQuantity" name="stockQuantity"
+                          [min]="0" [showButtons]="true" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"></p-inputNumber>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="imageUrl">Image URL</label>
+          <input id="imageUrl" type="text" pInputText [(ngModel)]="product.imageUrl" name="imageUrl"
+                 placeholder="https://example.com/image.jpg" class="w-full" />
+        </div>
+
+        <div class="form-field">
+          <label for="description">Description</label>
+          <textarea id="description" pInputTextarea [(ngModel)]="product.description" name="description"
+                    rows="4" placeholder="Describe the product..." class="w-full" [autoResize]="true"></textarea>
+        </div>
       </div>
-      <div class="form-group">
-        <label for="category">Category *</label>
-        <select id="category" [(ngModel)]="product.category" name="category" required>
-          <option value="">Select Category</option>
-          <option *ngFor="let cat of categoryOptions" [value]="cat">{{ cat }}</option>
-        </select>
+
+      <div class="form-actions">
+        <p-button label="Cancel" severity="secondary" [outlined]="true" routerLink="/products" icon="pi pi-times"></p-button>
+        <p-button [label]="saving ? 'Saving...' : (isEdit ? 'Update Product' : 'Create Product')"
+                  type="submit" icon="pi pi-check" [disabled]="saving" [loading]="saving"></p-button>
       </div>
-    </div>
-
-    <div class="form-row">
-      <div class="form-group">
-        <label for="price">Price (INR) *</label>
-        <input id="price" type="number" [(ngModel)]="product.price" name="price" required min="1" />
-      </div>
-      <div class="form-group">
-        <label for="stock">Stock Quantity *</label>
-        <input id="stock" type="number" [(ngModel)]="product.stockQuantity" name="stockQuantity" required min="0" />
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label for="imageUrl">Image URL</label>
-      <input id="imageUrl" type="text" [(ngModel)]="product.imageUrl" name="imageUrl" placeholder="https://example.com/image.jpg" />
-    </div>
-
-    <div class="form-group">
-      <label for="description">Description</label>
-      <textarea id="description" [(ngModel)]="product.description" name="description" rows="4" placeholder="Describe the product..."></textarea>
-    </div>
-
-    <div class="form-actions">
-      <button type="button" class="btn btn-secondary" routerLink="/products">Cancel</button>
-      <button type="submit" class="btn btn-primary" [disabled]="saving">
-        {{ saving ? 'Saving...' : (isEdit ? 'Update Product' : 'Create Product') }}
-      </button>
-    </div>
-  </form>
+    </form>
+  </p-card>
 </div>

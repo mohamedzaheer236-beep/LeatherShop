@@ -5,10 +5,32 @@ import { BroadcastService } from '../../services/broadcast.service';
 import { BroadcastHistory, WhatsAppTemplate } from '../../models/broadcast.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 
+import { CardModule } from 'primeng/card';
+import { DropdownModule } from 'primeng/dropdown';
+import { InputTextModule } from 'primeng/inputtext';
+import { ButtonModule } from 'primeng/button';
+import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
+import { ToolbarModule } from 'primeng/toolbar';
+import { MessageModule } from 'primeng/message';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+
 @Component({
   selector: 'app-broadcast',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    CardModule,
+    DropdownModule,
+    InputTextModule,
+    ButtonModule,
+    TableModule,
+    TagModule,
+    ToolbarModule,
+    MessageModule,
+    ProgressSpinnerModule
+  ],
   templateUrl: './broadcast.component.html',
   styleUrl: './broadcast.component.scss'
 })
@@ -26,6 +48,7 @@ export class BroadcastComponent implements OnInit {
 
   // Templates
   templates: WhatsAppTemplate[] = [];
+  templateOptions: { label: string; value: string }[] = [];
   loadingTemplates = false;
   templatesLoaded = false;
 
@@ -47,6 +70,10 @@ export class BroadcastComponent implements OnInit {
     this.broadcastService.getApprovedTemplates().subscribe({
       next: (data) => {
         this.templates = data;
+        this.templateOptions = data.map(t => ({
+          label: `${t.name} (${t.language}) - ${t.category}`,
+          value: t.name
+        }));
         this.templatesLoaded = true;
         this.loadingTemplates = false;
       },
@@ -72,6 +99,10 @@ export class BroadcastComponent implements OnInit {
       return this.templates.some(t => t.name === this.templateName);
     }
     return true;
+  }
+
+  getResultSeverity(): 'success' | 'error' {
+    return this.resultType === 'success' ? 'success' : 'error';
   }
 
   loadHistory(): void {

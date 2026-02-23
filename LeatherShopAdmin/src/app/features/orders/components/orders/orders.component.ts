@@ -1,15 +1,21 @@
-import { Component, OnInit } from '@angular/core';
+﻿import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { OrderService } from '../../services/order.service';
 import { Order } from '../../models/order.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
+import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
+import { ButtonModule } from 'primeng/button';
+import { DropdownModule } from 'primeng/dropdown';
+import { CardModule } from 'primeng/card';
+import { ToolbarModule } from 'primeng/toolbar';
 
 @Component({
   selector: 'app-orders',
   standalone: true,
-  imports: [CommonModule, FormsModule, LoadingSpinnerComponent],
+  imports: [CommonModule, FormsModule, LoadingSpinnerComponent, TableModule, TagModule, ButtonModule, DropdownModule, CardModule, ToolbarModule],
   templateUrl: './orders.component.html',
   styleUrl: './orders.component.scss'
 })
@@ -17,6 +23,14 @@ export class OrdersComponent implements OnInit {
   orders: Order[] = [];
   loading = true;
   filterStatus = '';
+  statusDropdownOptions = [
+    { label: 'All Statuses', value: '' },
+    { label: 'Pending', value: 'Pending' },
+    { label: 'Confirmed', value: 'Confirmed' },
+    { label: 'Shipped', value: 'Shipped' },
+    { label: 'Delivered', value: 'Delivered' },
+    { label: 'Cancelled', value: 'Cancelled' }
+  ];
   statusOptions = ['Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'];
   expandedOrderId: number | null = null;
 
@@ -25,24 +39,17 @@ export class OrdersComponent implements OnInit {
     private notification: NotificationService
   ) {}
 
-  ngOnInit(): void {
-    this.loadOrders();
-  }
+  ngOnInit(): void { this.loadOrders(); }
 
   loadOrders(): void {
     this.loading = true;
     this.orderService.getOrders(this.filterStatus).subscribe({
-      next: (data) => {
-        this.orders = data;
-        this.loading = false;
-      },
+      next: (data) => { this.orders = data; this.loading = false; },
       error: () => this.loading = false
     });
   }
 
-  onFilterChange(): void {
-    this.loadOrders();
-  }
+  onFilterChange(): void { this.loadOrders(); }
 
   toggleExpand(orderId: number): void {
     this.expandedOrderId = this.expandedOrderId === orderId ? null : orderId;
@@ -55,5 +62,21 @@ export class OrdersComponent implements OnInit {
         this.notification.success(`Order status updated to ${newStatus}.`);
       }
     });
+  }
+
+  getSeverity(status: string): "success" | "secondary" | "info" | "warning" | "danger" | "contrast" | undefined {
+    switch (status.toLowerCase()) {
+      case 'pending': return 'warning';
+      case 'confirmed': return 'info';
+      case 'shipped': return 'info';
+      case 'delivered': return 'success';
+      case 'cancelled': return 'danger';
+      default: return 'secondary';
+    }
+  }
+
+  getStatusButtonSeverity(status: string, currentStatus: string): "success" | "secondary" | "info" | "warning" | "danger" | "contrast" | undefined {
+    if (status === currentStatus) return 'primary' as any;
+    return 'secondary';
   }
 }
