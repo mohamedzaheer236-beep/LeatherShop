@@ -76,7 +76,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
       name: ['', [Validators.required]],
       brand: ['', [Validators.required]],
       category: ['', [Validators.required]],
-      price: [0, [Validators.required, Validators.min(1)]],
+      price: [null, [Validators.required, Validators.min(1)]],
       stockQuantity: [0, [Validators.required, Validators.min(0)]],
       imageUrl: [''],
       description: ['']
