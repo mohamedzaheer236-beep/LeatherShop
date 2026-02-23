@@ -3,12 +3,13 @@ import { CommonModule } from '@angular/common';
 import { MenuItem } from 'primeng/api';
 import { MenubarModule } from 'primeng/menubar';
 import { ButtonModule } from 'primeng/button';
+import { TooltipModule } from 'primeng/tooltip';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, MenubarModule, ButtonModule],
+  imports: [CommonModule, MenubarModule, ButtonModule, TooltipModule],
   template: `
     <p-menubar [model]="items" styleClass="navbar-menubar">
       <ng-template pTemplate="start">
@@ -19,9 +20,14 @@ import { AuthService } from '../../../core/services/auth.service';
       </ng-template>
       <ng-template pTemplate="end">
         <div class="navbar-end">
-          <span class="navbar-user"><i class="pi pi-user"></i> {{ username }}</span>
-          <button pButton icon="pi pi-sign-out" label="Logout"
-                  class="p-button-text p-button-sm navbar-logout"
+          <div class="navbar-user-badge">
+            <i class="pi pi-user"></i>
+            <span>{{ username }}</span>
+          </div>
+          <div class="navbar-divider"></div>
+          <button pButton icon="pi pi-power-off"
+                  class="p-button-rounded p-button-sm navbar-logout-btn"
+                  pTooltip="Logout" tooltipPosition="bottom"
                   (click)="logout()"></button>
         </div>
       </ng-template>
@@ -32,20 +38,41 @@ import { AuthService } from '../../../core/services/auth.service';
       display: flex;
       align-items: center;
       gap: 0.75rem;
+      margin-left: auto;
     }
-    .navbar-user {
-      font-size: 0.85rem;
-      color: #6b7280;
+    .navbar-user-badge {
       display: flex;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.4rem;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.35rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      color: rgba(255, 255, 255, 0.85);
+      font-weight: 500;
+      letter-spacing: 0.3px;
     }
-    .navbar-logout {
-      color: #dc2626 !important;
-      font-size: 0.85rem;
+    .navbar-user-badge i {
+      font-size: 0.8rem;
+      color: var(--ls-brand-gold, #c8a951);
     }
-    .navbar-logout:hover {
-      background: rgba(220, 38, 38, 0.08) !important;
+    .navbar-divider {
+      width: 1px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.15);
+    }
+    .navbar-logout-btn {
+      background: rgba(220, 38, 38, 0.15) !important;
+      border: 1px solid rgba(220, 38, 38, 0.3) !important;
+      color: #fca5a5 !important;
+      width: 34px !important;
+      height: 34px !important;
+      transition: all 0.2s ease !important;
+    }
+    .navbar-logout-btn:hover {
+      background: rgba(220, 38, 38, 0.35) !important;
+      border-color: rgba(220, 38, 38, 0.5) !important;
+      color: #fff !important;
     }
   `]
 })

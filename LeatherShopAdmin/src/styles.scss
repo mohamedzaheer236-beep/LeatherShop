@@ -188,6 +188,10 @@ body .navbar-menubar .p-menubar-button {
   color: var(--ls-brand-gold);
 }
 
+body .navbar-menubar .p-menubar-end {
+  margin-left: auto;
+}
+
 .navbar-brand {
   display: flex;
   align-items: center;

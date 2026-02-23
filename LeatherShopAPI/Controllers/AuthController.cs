@@ -1,9 +1,11 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Auth;
 using LeatherShopAPI.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace LeatherShopAPI.Controllers;
@@ -13,23 +15,25 @@ namespace LeatherShopAPI.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IConfiguration _config;
+    private readonly AppDbContext _db;
 
-    public AuthController(IConfiguration config)
+    public AuthController(IConfiguration config, AppDbContext db)
     {
         _config = config;
+        _db = db;
     }
 
     /// <summary>
     /// Admin login — validates credentials and returns a JWT token.
     /// </summary>
     [HttpPost("login")]
-    public IActionResult Login([FromBody] LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var adminUsername = _config["Admin:Username"] ?? "admin";
-        var adminPasswordHash = _config["Admin:PasswordHash"] ?? "";
+        // Case-sensitive exact match on username
+        var admin = await _db.AdminUsers
+            .FirstOrDefaultAsync(a => a.Username == request.Username);
 
-        // Validate credentials
-        if (!string.Equals(request.Username, adminUsername, StringComparison.OrdinalIgnoreCase))
+        if (admin == null || !BCrypt.Net.BCrypt.Verify(request.Password, admin.PasswordHash))
         {
             return Unauthorized(new ApiResponse<object>
             {
@@ -38,17 +42,12 @@ public class AuthController : ControllerBase
             });
         }
 
-        if (!BCrypt.Net.BCrypt.Verify(request.Password, adminPasswordHash))
-        {
-            return Unauthorized(new ApiResponse<object>
-            {
-                Success = false,
-                Message = "Invalid username or password."
-            });
-        }
+        // Update last login timestamp
+        admin.LastLoginAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
 
         // Generate JWT
-        var token = GenerateJwtToken(adminUsername);
+        var token = GenerateJwtToken(admin.Username);
         var expiresAt = DateTime.UtcNow.AddHours(24);
 
         return Ok(new ApiResponse<LoginResponse>
@@ -58,7 +57,7 @@ public class AuthController : ControllerBase
             Data = new LoginResponse
             {
                 Token = token,
-                Username = adminUsername,
+                Username = admin.Username,
                 ExpiresAt = expiresAt
             }
         });
