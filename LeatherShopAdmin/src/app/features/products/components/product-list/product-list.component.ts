@@ -14,11 +14,12 @@ import { TagModule } from 'primeng/tag';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService } from 'primeng/api';
 import { ToolbarModule } from 'primeng/toolbar';
+import { TooltipModule } from 'primeng/tooltip';
 
 @Component({
   selector: 'app-product-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, LoadingSpinnerComponent, TableModule, ButtonModule, InputTextModule, DropdownModule, TagModule, ConfirmDialogModule, ToolbarModule],
+  imports: [CommonModule, RouterLink, FormsModule, LoadingSpinnerComponent, TableModule, ButtonModule, InputTextModule, DropdownModule, TagModule, ConfirmDialogModule, ToolbarModule, TooltipModule],
   templateUrl: './product-list.component.html',
   styleUrl: './product-list.component.scss',
   providers: [ConfirmationService]

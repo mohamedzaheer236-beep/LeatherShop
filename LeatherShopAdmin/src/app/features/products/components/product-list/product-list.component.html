@@ -3,7 +3,7 @@
 <div class="products-page">
   <p-toolbar styleClass="mb-4">
     <ng-template pTemplate="left">
-      <h1 style="margin:0; font-size:28px; font-weight:700; color:#1a1a2e;">Products</h1>
+      <h1 class="page-title">Products</h1>
     </ng-template>
     <ng-template pTemplate="right">
       <a routerLink="/products/new">
@@ -58,9 +58,11 @@
         <td>
           <div class="action-buttons">
             <a [routerLink]="['/products/edit', product.id]">
-              <p-button icon="pi pi-pencil" severity="warning" [outlined]="true" size="small" [rounded]="true"></p-button>
+              <p-button icon="pi pi-pencil" severity="info" [text]="true" [rounded]="true"
+                        pTooltip="Edit" tooltipPosition="top"></p-button>
             </a>
-            <p-button icon="pi pi-trash" severity="danger" [outlined]="true" size="small" [rounded]="true"
+            <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
+                      pTooltip="Delete" tooltipPosition="top"
                       (onClick)="deleteProduct(product)"></p-button>
           </div>
         </td>
@@ -71,8 +73,8 @@
     </ng-template>
   </p-table>
 
-  <div *ngIf="!loading && products.length === 0" style="text-align:center; padding:60px; color:#999;">
-    <i class="pi pi-box" style="font-size:3rem; margin-bottom:16px; display:block;"></i>
+  <div *ngIf="!loading && products.length === 0" class="empty-state">
+    <i class="pi pi-box"></i>
     <p>No products found. Add your first product!</p>
   </div>
 </div>

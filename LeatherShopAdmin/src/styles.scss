@@ -1,31 +1,316 @@
-/* Global Styles - Leather Shop Admin (PrimeNG) */
+/* =============================================
+   Global Styles - Leather Shop Admin (PrimeNG)
+   ============================================= */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
   font-family: 'Inter', sans-serif;
-  background: #f5f5f5;
+  background: #f0f2f5;
   color: #333;
   min-height: 100vh;
 }
 
 .main-content {
-  padding: 24px 32px;
-  padding-top: 80px;
+  padding: 28px 36px;
+  padding-top: 84px;
   max-width: 1400px;
   margin: 0 auto;
 }
 
 a { text-decoration: none; color: inherit; }
 
-/* PrimeNG global overrides */
-.p-component {
-  font-family: 'Inter', sans-serif;
-}
-
 /* Scrollbar */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: #f1f1f1; }
 ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+/* =============================================
+   PrimeNG Global Overrides
+   ============================================= */
+.p-component {
+  font-family: 'Inter', sans-serif;
+}
+
+/* ----- NAVBAR ----- */
+.navbar-menubar {
+  background: #1a1a2e !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 28px !important;
+  height: 60px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+.navbar-menubar .p-menubar-root-list {
+  gap: 4px;
+}
+
+.navbar-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-content {
+  background: transparent !important;
+  border-radius: 8px;
+  transition: all 0.25s ease;
+  padding: 2px 4px;
+}
+
+.navbar-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-content:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.navbar-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-content .p-menuitem-link {
+  padding: 8px 16px !important;
+  gap: 8px;
+}
+
+.navbar-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-content .p-menuitem-link .p-menuitem-text {
+  color: #9a9ab0;
+  font-weight: 500;
+  font-size: 14px;
+  transition: color 0.25s ease;
+}
+
+.navbar-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-content:hover .p-menuitem-link .p-menuitem-text,
+.navbar-menubar .p-menubar-root-list > .p-menuitem.p-menuitem-active > .p-menuitem-content .p-menuitem-link .p-menuitem-text {
+  color: #ffffff;
+}
+
+.navbar-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-content .p-menuitem-link .p-menuitem-icon {
+  color: #9a9ab0;
+  font-size: 15px;
+  transition: color 0.25s ease;
+}
+
+.navbar-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-content:hover .p-menuitem-link .p-menuitem-icon,
+.navbar-menubar .p-menubar-root-list > .p-menuitem.p-menuitem-active > .p-menuitem-content .p-menuitem-link .p-menuitem-icon {
+  color: #e0c097;
+}
+
+.navbar-menubar .p-menubar-button {
+  color: #e0c097 !important;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: 28px;
+}
+
+.navbar-logo {
+  font-size: 22px;
+  color: #e0c097;
+}
+
+.navbar-brand-text {
+  color: #e0c097;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+/* ----- TOOLBAR ----- */
+.p-toolbar {
+  background: #ffffff !important;
+  border: 1px solid #e8e8e8 !important;
+  border-radius: 12px !important;
+  padding: 14px 20px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* ----- CARD ----- */
+.p-card {
+  border-radius: 12px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid #eee;
+  transition: box-shadow 0.25s ease;
+}
+
+.p-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+}
+
+.p-card .p-card-content {
+  padding: 0 !important;
+}
+
+/* Stat cards on dashboard */
+.stat-card .p-card-body {
+  padding: 18px 20px !important;
+}
+
+.stat-card .p-card-content {
+  padding: 0 !important;
+}
+
+/* Order cards */
+.order-card .p-card-body {
+  padding: 16px 20px !important;
+}
+
+.order-card .p-card-content {
+  padding: 0 !important;
+}
+
+/* Broadcast card */
+.broadcast-card {
+  max-width: 640px;
+  margin-top: 1rem;
+}
+
+.broadcast-card .p-card-body {
+  padding: 24px !important;
+}
+
+/* ----- TABLE ----- */
+.p-datatable .p-datatable-thead > tr > th {
+  background: #f8f9fb !important;
+  color: #64748b !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  padding: 12px 16px !important;
+  border-color: #f0f0f0 !important;
+}
+
+.p-datatable .p-datatable-tbody > tr > td {
+  padding: 12px 16px !important;
+  border-color: #f5f5f5 !important;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.p-datatable .p-datatable-tbody > tr:hover > td {
+  background: #f8f9fb !important;
+}
+
+.p-datatable-striped .p-datatable-tbody > tr:nth-child(even) > td {
+  background: #fafbfc !important;
+}
+
+.p-datatable-striped .p-datatable-tbody > tr:nth-child(even):hover > td {
+  background: #f0f2f5 !important;
+}
+
+/* ----- TAG ----- */
+.p-tag {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  padding: 4px 10px !important;
+  border-radius: 6px !important;
+}
+
+/* ----- BUTTON ----- */
+.p-button {
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+}
+
+.p-button:not(.p-button-rounded):not(.p-button-text):not(.p-button-outlined) {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* ----- DROPDOWN ----- */
+.p-dropdown {
+  border-radius: 8px !important;
+}
+
+/* ----- INPUT ----- */
+.p-inputtext {
+  border-radius: 8px !important;
+}
+
+/* ----- DIALOG ----- */
+.p-dialog {
+  border-radius: 16px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;
+}
+
+.p-dialog .p-dialog-header {
+  border-radius: 16px 16px 0 0 !important;
+  padding: 20px 24px !important;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.p-dialog .p-dialog-header .p-dialog-title {
+  font-weight: 700 !important;
+  font-size: 18px !important;
+}
+
+.p-dialog .p-dialog-content {
+  padding: 24px !important;
+}
+
+.p-dialog .p-dialog-footer {
+  border-radius: 0 0 16px 16px !important;
+  padding: 16px 24px !important;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* ----- CONFIRM DIALOG ----- */
+.p-confirm-dialog .p-dialog-content {
+  padding: 24px !important;
+}
+
+/* ----- MESSAGE (p-message) ----- */
+.p-message {
+  border-radius: 10px !important;
+  margin: 0 !important;
+}
+
+/* ----- CHECKBOX ----- */
+.p-checkbox .p-checkbox-box {
+  border-radius: 4px !important;
+}
+
+/* ----- PROGRESS SPINNER ----- */
+.p-progress-spinner {
+  width: 50px !important;
+  height: 50px !important;
+}
+
+/* =============================================
+   Utility Classes
+   ============================================= */
+.mb-3 { margin-bottom: 12px !important; }
+.mb-4 { margin-bottom: 16px !important; }
+.mt-2 { margin-top: 8px !important; }
+.w-full { width: 100%; }
+
+/* =============================================
+   Page Title
+   ============================================= */
+.page-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+/* =============================================
+   Empty State
+   ============================================= */
+.empty-state {
+  text-align: center;
+  padding: 60px;
+  color: #94a3b8;
+}
+
+.empty-state i {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  display: block;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  font-size: 15px;
+}

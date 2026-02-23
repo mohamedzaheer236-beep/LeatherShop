@@ -1,11 +1,21 @@
-﻿.filters {
-  display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;
+.products-page {
+  h1 { margin: 0; }
+}
+
+.filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .action-buttons {
-  display: flex; gap: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
-.inactive-row { opacity: 0.5; }
-
-.mb-4 { margin-bottom: 16px; }
+.inactive-row {
+  opacity: 0.5;
+}

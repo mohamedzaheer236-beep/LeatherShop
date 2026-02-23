@@ -57,7 +57,7 @@
 <div class="customers-page">
   <p-toolbar styleClass="mb-4">
     <ng-template pTemplate="left">
-      <h1 style="margin:0; font-size:28px; font-weight:700; color:#1a1a2e;">Customers</h1>
+      <h1 class="page-title">Customers</h1>
       <div class="customer-stats">
         <p-tag value="Total: {{totalCount}}" severity="info"></p-tag>
         <p-tag value="Subscribers: {{subscriberCount}}" severity="success"></p-tag>
@@ -136,8 +136,8 @@
     </ng-template>
   </p-table>
 
-  <div *ngIf="!loading && customers.length === 0" style="text-align:center; padding:60px; color:#999;">
-    <i class="pi pi-users" style="font-size:3rem; margin-bottom:16px; display:block;"></i>
+  <div *ngIf="!loading && customers.length === 0" class="empty-state">
+    <i class="pi pi-users"></i>
     <p>No customers found.</p>
   </div>
 </div>

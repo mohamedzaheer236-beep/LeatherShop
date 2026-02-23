@@ -1,7 +1,7 @@
 ﻿<div class="orders-page">
   <p-toolbar styleClass="mb-4">
     <ng-template pTemplate="left">
-      <h1 style="margin:0; font-size:28px; font-weight:700; color:#1a1a2e;">Orders</h1>
+      <h1 class="page-title">Orders</h1>
     </ng-template>
     <ng-template pTemplate="right">
       <p-dropdown [options]="statusDropdownOptions" [(ngModel)]="filterStatus" (onChange)="onFilterChange()"
@@ -61,8 +61,8 @@
       </div>
     </p-card>
 
-    <div *ngIf="orders.length === 0" style="text-align:center; padding:60px; color:#999;">
-      <i class="pi pi-shopping-cart" style="font-size:3rem; margin-bottom:16px; display:block;"></i>
+    <div *ngIf="orders.length === 0" class="empty-state">
+      <i class="pi pi-shopping-cart"></i>
       <p>No orders found.</p>
     </div>
   </div>
