@@ -407,6 +407,41 @@ body .p-dropdown-panel .p-dropdown-items .p-dropdown-item:hover:not(.p-highlight
   background: #f8fafc;
 }
 
+/* Dropdown filter fix — prevent icon overlay */
+body .p-dropdown-panel .p-dropdown-header {
+  padding: 8px 12px;
+}
+
+body .p-dropdown-panel .p-dropdown-filter-container {
+  width: 100%;
+}
+
+body .p-dropdown-panel .p-dropdown-filter {
+  padding-right: 32px;
+}
+
+body .p-dropdown-panel .p-dropdown-filter-icon {
+  right: 12px;
+  left: auto;
+}
+
+/* Invalid field styling */
+body .p-dropdown.invalid-field {
+  border-color: #ef4444;
+}
+
+body .p-dropdown.invalid-field:hover {
+  border-color: #ef4444;
+}
+
+body .p-inputtext.invalid-field {
+  border-color: #ef4444;
+}
+
+body .p-inputtext.invalid-field:hover {
+  border-color: #ef4444;
+}
+
 /* ----- INPUT ----- */
 body .p-inputtext {
   border-radius: var(--ls-radius-md);

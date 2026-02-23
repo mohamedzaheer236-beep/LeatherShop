@@ -26,7 +26,7 @@
 
         <div class="form-grid">
           <div class="form-field">
-            <label for="templateName"><i class="pi pi-file-edit field-icon"></i> Template Name *</label>
+            <label for="templateName">Template Name *</label>
             <p-dropdown *ngIf="templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length > 0"
                         id="templateName"
                         [options]="templateLoader.getState().templateOptions"
@@ -35,18 +35,21 @@
                         placeholder="Select an approved template"
                         [style]="{'width': '100%'}"
                         [filter]="true"
-                        filterPlaceholder="Search templates...">
+                        filterPlaceholder="Search templates..."
+                        [showClear]="true"
+                        [class.invalid-field]="templateName && !isValidTemplate">
             </p-dropdown>
             <input *ngIf="!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0"
                    pInputText id="templateNameInput"
                    [(ngModel)]="templateName"
                    placeholder="e.g. new_product_launch"
-                   class="w-full" />
+                   class="w-full"
+                   [class.invalid-field]="templateName && !isValidTemplate" />
             <small *ngIf="templateLoader.getState().loadingTemplates" class="hint">
               <i class="pi pi-spin pi-spinner"></i> Loading templates from Meta...
             </small>
             <small *ngIf="templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length === 0 && !templateLoader.getState().loadingTemplates" class="hint warn">
-              <i class="pi pi-exclamation-triangle"></i> Could not fetch templates. Add your Business Account ID in appsettings.json, or type the template name manually.
+              <i class="pi pi-exclamation-triangle"></i> Could not fetch templates. Type the template name manually.
             </small>
             <small *ngIf="templateName && !isValidTemplate" class="hint error">
               <i class="pi pi-times-circle"></i> This template is not approved. Select a valid template.
@@ -54,7 +57,7 @@
           </div>
 
           <div class="form-field">
-            <label for="parameters"><i class="pi pi-list field-icon"></i> Template Parameters (comma separated)</label>
+            <label for="parameters">Template Parameters (comma separated)</label>
             <input pInputText id="parameters"
                    [(ngModel)]="parameters"
                    placeholder="e.g. Classic Wallet, 899, 50% OFF"
@@ -62,7 +65,7 @@
           </div>
 
           <div class="form-field">
-            <label for="broadcastImage"><i class="pi pi-image field-icon"></i> Image URL (optional, for header image)</label>
+            <label for="broadcastImage">Image URL (optional, for header image)</label>
             <input pInputText id="broadcastImage"
                    [(ngModel)]="imageUrl"
                    placeholder="https://example.com/product.jpg"
