@@ -81,6 +81,9 @@
           </div>
 
           <div class="send-action">
+            <small class="form-warning" *ngIf="broadcastForm.invalid">
+              <i class="pi pi-exclamation-triangle"></i> Please select a valid template to enable sending.
+            </small>
             <p-button type="submit"
                       label="Send to All Subscribers"
                       icon="pi pi-send"

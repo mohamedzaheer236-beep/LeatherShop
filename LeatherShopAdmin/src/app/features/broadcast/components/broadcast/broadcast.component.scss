@@ -98,6 +98,26 @@
 .send-action {
   margin-top: 8px;
 
+  .form-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+    border-radius: var(--ls-radius-md, 8px);
+    color: #92400e;
+    font-size: 0.8rem;
+    font-weight: 500;
+
+    i {
+      color: #d97706;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+  }
+
   .send-hint {
     display: block;
     margin-top: 12px;
