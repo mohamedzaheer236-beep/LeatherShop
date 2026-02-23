@@ -20,11 +20,7 @@
           </div>
         </div>
 
-        <p-message severity="info" styleClass="mb-3">
-          <ng-template pTemplate>
-            <span><i class="pi pi-info-circle" style="margin-right:8px;"></i>Templates must be pre-approved in your <strong>Meta Business Manager</strong> before sending.</span>
-          </ng-template>
-        </p-message>
+        <p-message severity="info" text="Templates must be pre-approved in your Meta Business Manager before sending." styleClass="mb-3"></p-message>
 
         <p-message *ngIf="resultMessage" [severity]="getResultSeverity()" [text]="resultMessage" styleClass="mb-3"></p-message>
 
