@@ -682,6 +682,8 @@ These features are not built yet and would need to be added for production:
 | **Order Cancellation by Customer** | No WhatsApp flow for customers to cancel orders. |
 | **Webhook Security** | No signature verification on incoming WhatsApp webhook requests (should validate `X-Hub-Signature-256`). |
 | **HTTPS in Production** | API runs on HTTP. Needs reverse proxy (nginx) with SSL for production. |
+| **Permanent WhatsApp Access Token** | Currently using a **temporary test token** from Meta dashboard that **expires every 24 hours**. Need to create a System User in Meta Business Suite → generate a permanent token with `whatsapp_business_messaging` and `whatsapp_business_management` permissions. |
+| **WhatsApp Message Templates** | Broadcast messages currently send plain text — this **only works within 24 hours** of the customer's last message. For production, need to: (1) Create an approved Message Template in Meta WhatsApp Manager with `{{1}}` (customer name) and `{{2}}` (custom message) placeholders, (2) Update `WhatsAppService` to send template-format messages for broadcasts and order status updates. Category: Marketing for broadcasts, Utility for order updates. |
 | **Production Deployment** | Currently runs on localhost only. Need to deploy API + DB + Angular to cloud for 24/7 WhatsApp webhook availability. See [Deployment Guide](#deployment-guide-pending) below. |
 
 ---
