@@ -23,7 +23,8 @@
                 placeholder="All Categories" [style]="{'min-width': '190px'}"
                 [filter]="true" filterBy="label" [showClear]="true" appendTo="body"
                 [resetFilterOnHide]="true"
-                emptyFilterMessage="No results found">
+                emptyFilterMessage="No results found"
+                (onShow)="onDropdownShow(catDropdown, 'categoryFilter')">
       <ng-template pTemplate="filtericon">
         <i class="pi pi-times filter-clear-icon" (click)="clearDropdownFilter(catDropdown)"></i>
       </ng-template>
@@ -33,7 +34,8 @@
                 placeholder="All Brands" [style]="{'min-width': '190px'}"
                 [filter]="true" filterBy="label" [showClear]="true" appendTo="body"
                 [resetFilterOnHide]="true"
-                emptyFilterMessage="No results found">
+                emptyFilterMessage="No results found"
+                (onShow)="onDropdownShow(brandDropdown, 'brandFilter')">
       <ng-template pTemplate="filtericon">
         <i class="pi pi-times filter-clear-icon" (click)="clearDropdownFilter(brandDropdown)"></i>
       </ng-template>

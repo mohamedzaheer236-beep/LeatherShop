@@ -1,4 +1,4 @@
-﻿import { Component, OnInit, ViewChild } from '@angular/core';
+﻿import { Component, OnInit, Renderer2, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
@@ -38,7 +38,8 @@ export class ProductListComponent implements OnInit {
     private fb: FormBuilder,
     private productService: ProductService,
     private notification: NotificationService,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private renderer: Renderer2
   ) {}
 
   ngOnInit(): void {
@@ -65,6 +66,15 @@ export class ProductListComponent implements OnInit {
       dropdown.filterValue = '';
       dropdown.filterBy = 'label';
       dropdown.onFilterInputChange({ target: { value: '' } });
+    }
+  }
+
+  /** Set id/name on PrimeNG's internal filter input (fixes Chrome DevTools warning) */
+  onDropdownShow(dropdown: any, filterId: string): void {
+    const filterInput = dropdown?.filterViewChild?.nativeElement;
+    if (filterInput) {
+      this.renderer.setAttribute(filterInput, 'id', filterId);
+      this.renderer.setAttribute(filterInput, 'name', filterId);
     }
   }
 

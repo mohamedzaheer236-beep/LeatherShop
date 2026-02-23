@@ -53,7 +53,7 @@
 .form-field {
   margin-bottom: 1.25rem;
 
-  label {
+  label, .field-label {
     display: block;
     font-weight: 600;
     font-size: 0.875rem;
@@ -321,4 +321,15 @@
   .broadcast-layout {
     grid-template-columns: 1fr;
   }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }

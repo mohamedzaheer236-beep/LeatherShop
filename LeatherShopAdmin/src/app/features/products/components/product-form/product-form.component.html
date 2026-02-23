@@ -47,7 +47,7 @@
               </small>
             </div>
             <div class="form-field">
-              <label id="category-label">Category <span [class]="isFieldInvalid('category') ? 'req-star error' : 'req-star'">*</span></label>
+              <span class="field-label" id="category-label">Category <span [class]="isFieldInvalid('category') ? 'req-star error' : 'req-star'">*</span></span>
               <p-dropdown inputId="category" [options]="categoryOptions" formControlName="category"
                           placeholder="Select Category" [style]="{'width': '100%'}" appendTo="body"
                           ariaLabelledBy="category-label"

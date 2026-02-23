@@ -118,11 +118,12 @@
         <form [formGroup]="broadcastForm" (ngSubmit)="sendBroadcast()">
           <div class="form-grid">
             <div class="form-field">
-              <label for="templateName">Template Name <span [class]="isFieldInvalid('templateName') ? 'req-star error' : 'req-star'">*</span></label>
+              <span class="field-label" id="templateName-label">Template Name <span [class]="isFieldInvalid('templateName') ? 'req-star error' : 'req-star'">*</span></span>
 
               <!-- Dropdown when templates are available -->
               <p-dropdown *ngIf="templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length > 0"
-                          id="templateName"
+                          inputId="templateName"
+                          ariaLabelledBy="templateName-label"
                           [options]="templateLoader.getState().templateOptions"
                           formControlName="templateName"
                           (onChange)="onTemplateSelect()"
@@ -134,11 +135,13 @@
               </p-dropdown>
 
               <!-- Fallback text input when templates are not loaded -->
+              <label *ngIf="!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0"
+                     for="templateNameInput" class="sr-only">Template Name</label>
               <input *ngIf="!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0"
                      pInputText id="templateNameInput"
                      formControlName="templateName"
                      placeholder="e.g. new_product_launch"
-                     class="w-full" />
+                     class="w-full" aria-labelledby="templateName-label" />
 
               <small *ngIf="templateLoader.getState().loadingTemplates" class="hint">
                 <i class="pi pi-spin pi-spinner"></i> Loading templates from Meta...
