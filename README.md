@@ -18,6 +18,7 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 8. [API Endpoints Reference](#api-endpoints-reference)
 9. [Database Schema](#database-schema)
 10. [What Is NOT Yet Implemented](#what-is-not-yet-implemented)
+11. [Deployment Guide (Pending)](#deployment-guide-pending)
 
 ---
 
@@ -681,6 +682,150 @@ These features are not built yet and would need to be added for production:
 | **Order Cancellation by Customer** | No WhatsApp flow for customers to cancel orders. |
 | **Webhook Security** | No signature verification on incoming WhatsApp webhook requests (should validate `X-Hub-Signature-256`). |
 | **HTTPS in Production** | API runs on HTTP. Needs reverse proxy (nginx) with SSL for production. |
+| **Production Deployment** | Currently runs on localhost only. Need to deploy API + DB + Angular to cloud for 24/7 WhatsApp webhook availability. See [Deployment Guide](#deployment-guide-pending) below. |
+
+---
+
+## Deployment Guide (Pending)
+
+The API **must run 24/7** for WhatsApp to work — Meta sends webhook events whenever a customer messages, and if the API is offline, those messages are lost after retry expiry. Currently everything runs on localhost which stops when the PC is off.
+
+### Recommended Architecture
+
+```
+┌──────────────┐     ┌──────────────────┐     ┌────────────────────┐
+│  Angular SPA │     │  .NET 8 Web API  │     │  PostgreSQL DB     │
+│  (Static)    │     │  (Always Running)│     │  (Managed)         │
+│              │     │                  │     │                    │
+│  Vercel /    │────▶│  Railway /       │────▶│  Railway Postgres /│
+│  Netlify /   │     │  Azure App Svc / │     │  Supabase /        │
+│  Azure SWA   │     │  DigitalOcean /  │     │  Azure PostgreSQL /│
+│              │     │  AWS App Runner  │     │  AWS RDS           │
+└──────────────┘     └──────────────────┘     └────────────────────┘
+                            │
+                     Meta WhatsApp Cloud API
+                     (webhook URL = your API)
+```
+
+### Step-by-Step Deployment Plan
+
+#### 1. Database — Managed PostgreSQL
+
+| Option | Free Tier | Notes |
+|--------|-----------|-------|
+| **Railway** | 500 hrs/month, 1 GB | Easiest — same platform as API |
+| **Supabase** | 500 MB, 2 projects | Has dashboard UI, REST API |
+| **Neon** | 0.5 GB, auto-suspend | Serverless Postgres, great free tier |
+| **Azure Database for PostgreSQL** | Flexible Server B1ms | 750 hrs free (12 months) |
+
+**Steps:**
+1. Create a managed PostgreSQL instance on chosen provider
+2. Get the connection string (host, port, database, user, password)
+3. Update `appsettings.Production.json` with the production connection string
+4. EF Core auto-migrates on startup (`context.Database.Migrate()` in `Program.cs`)
+
+#### 2. Backend API — .NET 8 (Must Be Always Running)
+
+| Option | Free Tier | Notes |
+|--------|-----------|-------|
+| **Railway** | 500 hrs/month ($5 credit) | Deploy from GitHub, auto-builds .NET |
+| **Azure App Service** | F1 free tier (60 min/day CPU) | Best for .NET, but free tier sleeps |
+| **DigitalOcean App Platform** | $5/mo Starter | No free tier, but very reliable |
+| **AWS App Runner** | ~750 hrs free (12 months) | Auto-scaling, container-based |
+| **Render** | Free tier (spins down after 15 min) | Not ideal — webhook misses during cold start |
+
+> **Important:** Free tiers that "sleep" (Render, Azure F1) will miss WhatsApp webhooks. For production, use a paid tier or Railway (stays awake within free credits).
+
+**Steps:**
+1. Add a `Dockerfile` to `LeatherShopAPI/`:
+   ```dockerfile
+   FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+   WORKDIR /app
+   EXPOSE 8080
+
+   FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+   WORKDIR /src
+   COPY ["LeatherShopAPI.csproj", "."]
+   RUN dotnet restore
+   COPY . .
+   RUN dotnet publish -c Release -o /app/publish
+
+   FROM base AS final
+   WORKDIR /app
+   COPY --from=build /app/publish .
+   ENV ASPNETCORE_URLS=http://+:8080
+   ENTRYPOINT ["dotnet", "LeatherShopAPI.dll"]
+   ```
+2. Set environment variables on the hosting platform:
+   - `ConnectionStrings__DefaultConnection` = production PostgreSQL connection string
+   - `WhatsApp__PhoneNumberId` = your Meta phone number ID
+   - `WhatsApp__AccessToken` = your Meta access token
+   - `WhatsApp__VerifyToken` = your webhook verify token
+   - `Razorpay__KeyId` = your Razorpay key
+   - `Razorpay__KeySecret` = your Razorpay secret
+   - `ASPNETCORE_ENVIRONMENT` = `Production`
+3. Deploy from GitHub (most platforms auto-detect Dockerfile)
+4. Note the deployed API URL (e.g., `https://leathershop-api.up.railway.app`)
+
+#### 3. Frontend — Angular Static Site
+
+| Option | Free Tier | Notes |
+|--------|-----------|-------|
+| **Vercel** | Unlimited static sites | Best DX, auto-deploys from GitHub |
+| **Netlify** | 100 GB bandwidth | Great for SPAs with redirect rules |
+| **Azure Static Web Apps** | Free tier | Integrated with Azure |
+| **GitHub Pages** | Unlimited | Manual build step needed |
+
+**Steps:**
+1. Update `environment.prod.ts` → set `apiUrl` to the deployed API URL:
+   ```typescript
+   export const environment = {
+     production: true,
+     apiUrl: 'https://your-api-url.railway.app'
+   };
+   ```
+2. Build for production:
+   ```bash
+   cd LeatherShopAdmin
+   ng build --configuration production
+   ```
+3. Deploy the `dist/leather-shop-admin/browser/` folder to chosen hosting
+4. Configure SPA redirect rules (all routes → `index.html`)
+
+#### 4. WhatsApp Webhook — Update Meta Developer Console
+
+1. Go to [Meta for Developers](https://developers.facebook.com/) → Your App → WhatsApp → Configuration
+2. Change the **Callback URL** from `ngrok` to your deployed API:
+   ```
+   https://your-api-url.railway.app/api/whatsapp/webhook
+   ```
+3. Keep the same **Verify token** as your environment variable
+4. Test by sending a WhatsApp message — Meta should hit your deployed API
+
+#### 5. Post-Deployment Checklist
+
+- [ ] WhatsApp webhook URL updated to production API URL
+- [ ] All environment variables set (DB connection, WhatsApp tokens, Razorpay keys)
+- [ ] CORS updated in API for production Angular URL
+- [ ] HTTPS working (most platforms provide it automatically)
+- [ ] Database migration ran successfully on first startup
+- [ ] Test WhatsApp message flow end-to-end
+- [ ] Test admin panel CRUD operations
+- [ ] Test payment flow with Razorpay
+- [ ] Monitor logs for errors (check platform's log viewer)
+- [ ] Set up health check endpoint for uptime monitoring
+
+### Estimated Cost (Budget Option)
+
+| Component | Provider | Cost |
+|-----------|----------|------|
+| Angular SPA | Vercel | **Free** |
+| .NET 8 API | Railway | **Free** (500 hrs/month) or **$5/month** |
+| PostgreSQL | Railway / Supabase | **Free** (within limits) |
+| Domain (optional) | Namecheap / GoDaddy | ~$10/year |
+| **Total** | | **$0–$5/month** |
+
+---
 
 ### Recently Implemented (Enterprise Patterns)
 
