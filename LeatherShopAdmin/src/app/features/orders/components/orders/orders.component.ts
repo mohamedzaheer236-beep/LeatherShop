@@ -1,11 +1,11 @@
 ﻿import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { OrderService } from '../../services/order.service';
 import { Order } from '../../models/order.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
-import { getStatusSeverity, getStatusButtonSeverity as sharedButtonSeverity, TagSeverity } from '../../../../shared/utils/severity.utils';
+import { getStatusSeverity, getStatusButtonSeverity, TagSeverity } from '../../../../shared/utils/severity.utils';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
@@ -16,14 +16,14 @@ import { ToolbarModule } from 'primeng/toolbar';
 @Component({
   selector: 'app-orders',
   standalone: true,
-  imports: [CommonModule, FormsModule, LoadingSpinnerComponent, TableModule, TagModule, ButtonModule, DropdownModule, CardModule, ToolbarModule],
+  imports: [CommonModule, ReactiveFormsModule, LoadingSpinnerComponent, TableModule, TagModule, ButtonModule, DropdownModule, CardModule, ToolbarModule],
   templateUrl: './orders.component.html',
   styleUrl: './orders.component.scss'
 })
 export class OrdersComponent implements OnInit {
   orders: Order[] = [];
   loading = true;
-  filterStatus = '';
+  filterForm!: FormGroup;
   statusDropdownOptions = [
     { label: 'All Statuses', value: '' },
     { label: 'Pending', value: 'Pending' },
@@ -36,15 +36,22 @@ export class OrdersComponent implements OnInit {
   expandedOrderId: number | null = null;
 
   constructor(
+    private fb: FormBuilder,
     private orderService: OrderService,
     private notification: NotificationService
   ) {}
 
-  ngOnInit(): void { this.loadOrders(); }
+  ngOnInit(): void {
+    this.filterForm = this.fb.group({
+      filterStatus: ['']
+    });
+    this.loadOrders();
+  }
 
   loadOrders(): void {
     this.loading = true;
-    this.orderService.getOrders(this.filterStatus).subscribe({
+    const filterStatus = this.filterForm.get('filterStatus')?.value || '';
+    this.orderService.getOrders(filterStatus).subscribe({
       next: (data) => { this.orders = data; this.loading = false; },
       error: () => this.loading = false
     });
@@ -70,6 +77,6 @@ export class OrdersComponent implements OnInit {
   }
 
   getStatusButtonSeverity(status: string, currentStatus: string): TagSeverity {
-    return sharedButtonSeverity(status, currentStatus);
+    return getStatusButtonSeverity(status, currentStatus);
   }
 }

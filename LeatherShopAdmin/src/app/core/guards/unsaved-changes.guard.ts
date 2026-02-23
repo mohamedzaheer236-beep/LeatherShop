@@ -1,7 +1,8 @@
 import { CanDeactivateFn } from '@angular/router';
+import { Observable } from 'rxjs';
 
 export interface HasUnsavedChanges {
-  canDeactivate(): boolean;
+  canDeactivate(): boolean | Observable<boolean>;
 }
 
 export const unsavedChangesGuard: CanDeactivateFn<HasUnsavedChanges> = (component) => {

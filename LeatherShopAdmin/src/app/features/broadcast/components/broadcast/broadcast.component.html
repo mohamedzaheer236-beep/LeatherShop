@@ -24,68 +24,76 @@
 
         <p-message *ngIf="resultMessage" [severity]="getResultSeverity()" [text]="resultMessage" styleClass="mb-3"></p-message>
 
-        <div class="form-grid">
-          <div class="form-field">
-            <label for="templateName">Template Name *</label>
-            <p-dropdown *ngIf="templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length > 0"
-                        id="templateName"
-                        [options]="templateLoader.getState().templateOptions"
-                        [(ngModel)]="templateName"
-                        (onChange)="onTemplateSelect()"
-                        placeholder="Select an approved template"
-                        [style]="{'width': '100%'}"
-                        [filter]="true"
-                        filterPlaceholder="Search templates..."
-                        [showClear]="true"
-                        [class.invalid-field]="templateName && !isValidTemplate">
-            </p-dropdown>
-            <input *ngIf="!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0"
-                   pInputText id="templateNameInput"
-                   [(ngModel)]="templateName"
-                   placeholder="e.g. new_product_launch"
-                   class="w-full"
-                   [class.invalid-field]="templateName && !isValidTemplate" />
-            <small *ngIf="templateLoader.getState().loadingTemplates" class="hint">
-              <i class="pi pi-spin pi-spinner"></i> Loading templates from Meta...
-            </small>
-            <small *ngIf="templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length === 0 && !templateLoader.getState().loadingTemplates" class="hint warn">
-              <i class="pi pi-exclamation-triangle"></i> Could not fetch templates. Type the template name manually.
-            </small>
-            <small *ngIf="templateName && !isValidTemplate" class="hint error">
-              <i class="pi pi-times-circle"></i> This template is not approved. Select a valid template.
-            </small>
+        <form [formGroup]="broadcastForm" (ngSubmit)="sendBroadcast()">
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="templateName">Template Name <span [class]="isFieldInvalid('templateName') ? 'req-star error' : 'req-star'">*</span></label>
+
+              <!-- Dropdown when templates are available -->
+              <p-dropdown *ngIf="templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length > 0"
+                          id="templateName"
+                          [options]="templateLoader.getState().templateOptions"
+                          formControlName="templateName"
+                          (onChange)="onTemplateSelect()"
+                          (onHide)="onDropdownHide()"
+                          placeholder="Select a template"
+                          [style]="{'width': '100%'}"
+                          [showClear]="true"
+                          appendTo="body">
+              </p-dropdown>
+
+              <!-- Fallback text input when templates are not loaded -->
+              <input *ngIf="!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0"
+                     pInputText id="templateNameInput"
+                     formControlName="templateName"
+                     placeholder="e.g. new_product_launch"
+                     class="w-full" />
+
+              <small *ngIf="templateLoader.getState().loadingTemplates" class="hint">
+                <i class="pi pi-spin pi-spinner"></i> Loading templates from Meta...
+              </small>
+              <small *ngIf="templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length === 0 && !templateLoader.getState().loadingTemplates" class="hint warn">
+                <i class="pi pi-exclamation-triangle"></i> Could not fetch templates. Type the template name manually.
+              </small>
+              <small *ngIf="isFieldInvalid('templateName') && f['templateName'].errors?.['required']" class="p-error">
+                <i class="pi pi-exclamation-circle"></i> Template name is required.
+              </small>
+              <small *ngIf="isFieldInvalid('templateName') && f['templateName'].errors?.['invalidTemplate']" class="p-error">
+                <i class="pi pi-times-circle"></i> Invalid template. Select from the list or type an approved name.
+              </small>
+            </div>
+
+            <div class="form-field">
+              <label for="parameters">Template Parameters (comma separated)</label>
+              <input pInputText id="parameters"
+                     formControlName="parameters"
+                     placeholder="e.g. Classic Wallet, 899, 50% OFF"
+                     class="w-full" />
+            </div>
+
+            <div class="form-field">
+              <label for="broadcastImage">Image URL (optional, for header image)</label>
+              <input pInputText id="broadcastImage"
+                     formControlName="imageUrl"
+                     placeholder="https://example.com/product.jpg"
+                     class="w-full" />
+            </div>
           </div>
 
-          <div class="form-field">
-            <label for="parameters">Template Parameters (comma separated)</label>
-            <input pInputText id="parameters"
-                   [(ngModel)]="parameters"
-                   placeholder="e.g. Classic Wallet, 899, 50% OFF"
-                   class="w-full" />
+          <div class="send-action">
+            <p-button type="submit"
+                      label="Send to All Subscribers"
+                      icon="pi pi-send"
+                      [loading]="sending"
+                      [disabled]="sending"
+                      styleClass="w-full">
+            </p-button>
+            <small class="send-hint">
+              <i class="pi pi-info-circle"></i>
+              Tip: To send to specific customers, go to <strong>Customers</strong> page, select them, and use "Send Broadcast to Selected".
+            </small>
           </div>
-
-          <div class="form-field">
-            <label for="broadcastImage">Image URL (optional, for header image)</label>
-            <input pInputText id="broadcastImage"
-                   [(ngModel)]="imageUrl"
-                   placeholder="https://example.com/product.jpg"
-                   class="w-full" />
-          </div>
-        </div>
-
-        <div class="send-action">
-          <p-button label="Send to All Subscribers"
-                    icon="pi pi-send"
-                    [loading]="sending"
-                    [disabled]="!isValidTemplate"
-                    (onClick)="sendBroadcast()"
-                    styleClass="w-full send-btn">
-          </p-button>
-          <small class="send-hint">
-            <i class="pi pi-info-circle"></i>
-            Tip: To send to specific customers, go to <strong>Customers</strong> page, select them, and use "Send Broadcast to Selected".
-          </small>
-        </div>
+        </form>
       </p-card>
     </div>
 

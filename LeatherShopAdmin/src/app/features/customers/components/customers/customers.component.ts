@@ -1,14 +1,20 @@
 ﻿import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import {
+  FormsModule,
+  ReactiveFormsModule,
+  FormBuilder,
+  FormGroup,
+  Validators,
+  AbstractControl,
+  ValidationErrors
+} from '@angular/forms';
 import { CustomerService } from '../../services/customer.service';
 import { Customer, CreateCustomer } from '../../models/customer.model';
 import { BroadcastService } from '../../../broadcast/services/broadcast.service';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { TemplateLoaderService } from '../../../../shared/services/template-loader.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
-import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { TagModule } from 'primeng/tag';
@@ -21,64 +27,107 @@ import { ToolbarModule } from 'primeng/toolbar';
 import { DividerModule } from 'primeng/divider';
 import { BadgeModule } from 'primeng/badge';
 import { MessageModule } from 'primeng/message';
+import { TableModule } from 'primeng/table';
 
 @Component({
   selector: 'app-customers',
   standalone: true,
-  imports: [CommonModule, FormsModule, LoadingSpinnerComponent, TableModule, ButtonModule, InputTextModule, TagModule, CardModule, CheckboxModule, DialogModule, DropdownModule, InputTextareaModule, ToolbarModule, DividerModule, BadgeModule, MessageModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, LoadingSpinnerComponent, TableModule, ButtonModule, InputTextModule, TagModule, CardModule, CheckboxModule, DialogModule, DropdownModule, InputTextareaModule, ToolbarModule, DividerModule, BadgeModule, MessageModule],
   templateUrl: './customers.component.html',
   styleUrl: './customers.component.scss'
 })
 export class CustomersComponent implements OnInit {
   customers: Customer[] = [];
-  filteredCustomers: Customer[] = [];
   loading = true;
-  subscribedOnly = false;
   subscriberCount = 0;
   totalCount = 0;
-  searchTerm = '';
+
+  // Reactive forms
+  addCustomerForm!: FormGroup;
+  importForm!: FormGroup;
+  broadcastForm!: FormGroup;
+  filterForm!: FormGroup;
 
   // Add customer dialog
   showAddDialog = false;
-  newCustomer: CreateCustomer = { phoneNumber: '', name: '' };
   addingCustomer = false;
+  addSubmitted = false;
 
   // Bulk import dialog
   showImportDialog = false;
-  importText = '';
   importing = false;
 
-  // Selection
+  // Selection — kept with ngModel for dynamic row binding
   allSelected = false;
 
   // Broadcast from selection
   showBroadcastDialog = false;
-  broadcastTemplate = '';
   broadcastLang = '';
-  broadcastParams = '';
-  broadcastImageUrl = '';
   sendingBroadcast = false;
+  broadcastSubmitted = false;
 
   constructor(
+    private fb: FormBuilder,
     private customerService: CustomerService,
     private broadcastService: BroadcastService,
-    private router: Router,
     private notification: NotificationService,
     public templateLoader: TemplateLoaderService
   ) {}
 
   ngOnInit(): void {
+    this.initForms();
     this.loadCustomers();
     this.loadCounts();
     this.templateLoader.loadTemplates();
   }
 
+  private initForms(): void {
+    this.addCustomerForm = this.fb.group({
+      phoneNumber: ['', [Validators.required, Validators.pattern(/^\d{10,15}$/)]],
+      name: ['']
+    });
+
+    this.importForm = this.fb.group({
+      importText: ['', [Validators.required]]
+    });
+
+    this.broadcastForm = this.fb.group({
+      broadcastTemplate: ['', [Validators.required, this.broadcastTemplateValidator.bind(this)]],
+      broadcastParams: [''],
+      broadcastImageUrl: ['']
+    });
+
+    this.filterForm = this.fb.group({
+      searchTerm: [''],
+      subscribedOnly: [false]
+    });
+  }
+
+  /** Custom validator for broadcast template */
+  private broadcastTemplateValidator(control: AbstractControl): ValidationErrors | null {
+    const value = control.value;
+    if (!value) return null;
+    if (!this.templateLoader.isValidTemplate(value)) {
+      return { invalidTemplate: true };
+    }
+    return null;
+  }
+
   get isValidBroadcastTemplate(): boolean {
-    return this.templateLoader.isValidTemplate(this.broadcastTemplate);
+    return this.templateLoader.isValidTemplate(this.broadcastForm.get('broadcastTemplate')?.value);
   }
 
   onBroadcastTemplateSelect(): void {
-    this.broadcastLang = this.templateLoader.getLanguageCode(this.broadcastTemplate);
+    const name = this.broadcastForm.get('broadcastTemplate')?.value;
+    this.broadcastLang = this.templateLoader.getLanguageCode(name);
+    this.broadcastForm.get('broadcastTemplate')?.updateValueAndValidity();
+  }
+
+  onBroadcastTemplateFilter(event: { originalEvent: Event; filter: string }): void {
+    if (event.filter && event.filter.trim()) {
+      this.broadcastForm.get('broadcastTemplate')?.markAsDirty();
+      this.broadcastForm.get('broadcastTemplate')?.markAsTouched();
+    }
   }
 
   loadCounts(): void {
@@ -90,10 +139,10 @@ export class CustomersComponent implements OnInit {
 
   loadCustomers(): void {
     this.loading = true;
-    this.customerService.getCustomers(this.subscribedOnly, this.searchTerm || undefined).subscribe({
+    const { searchTerm, subscribedOnly } = this.filterForm.value;
+    this.customerService.getCustomers(subscribedOnly, searchTerm || undefined).subscribe({
       next: (data) => {
         this.customers = data.map(c => ({ ...c, selected: false }));
-        this.filteredCustomers = this.customers;
         this.allSelected = false;
         this.loading = false;
       },
@@ -103,13 +152,17 @@ export class CustomersComponent implements OnInit {
 
   onFilterChange(): void { this.loadCustomers(); }
   onSearch(): void { this.loadCustomers(); }
-  clearSearch(): void { this.searchTerm = ''; this.loadCustomers(); }
+  clearSearch(): void {
+    this.filterForm.patchValue({ searchTerm: '' });
+    this.loadCustomers();
+  }
+
+  get searchTerm(): string { return this.filterForm.get('searchTerm')?.value || ''; }
 
   get selectedCount(): number { return this.customers.filter(c => c.selected).length; }
   get selectedCustomers(): Customer[] { return this.customers.filter(c => c.selected); }
 
   toggleSelectAll(): void {
-    // allSelected is already toggled by [(ngModel)] before (onChange) fires
     this.customers.forEach(c => c.selected = this.allSelected);
   }
 
@@ -119,16 +172,22 @@ export class CustomersComponent implements OnInit {
 
   openAddDialog(): void {
     this.showAddDialog = true;
-    this.newCustomer = { phoneNumber: '', name: '' };
+    this.addSubmitted = false;
+    this.addCustomerForm.reset({ phoneNumber: '', name: '' });
   }
 
   addCustomer(): void {
-    if (!this.newCustomer.phoneNumber.trim()) {
-      this.notification.error('Phone number is required');
+    this.addSubmitted = true;
+    this.addCustomerForm.markAllAsTouched();
+
+    if (this.addCustomerForm.invalid) {
+      this.notification.error('Phone number is required (10-15 digits)');
       return;
     }
+
     this.addingCustomer = true;
-    this.customerService.createCustomer(this.newCustomer).subscribe({
+    const formValue = this.addCustomerForm.value;
+    this.customerService.createCustomer(formValue).subscribe({
       next: () => {
         this.addingCustomer = false;
         this.showAddDialog = false;
@@ -142,19 +201,30 @@ export class CustomersComponent implements OnInit {
     });
   }
 
+  isAddFieldInvalid(field: string): boolean {
+    const control = this.addCustomerForm.get(field);
+    return !!(control && control.invalid && (control.dirty || control.touched || this.addSubmitted));
+  }
+
   openImportDialog(): void {
     this.showImportDialog = true;
-    this.importText = '';
+    this.importForm.reset({ importText: '' });
   }
 
   importCustomers(): void {
-    const lines = this.importText.trim().split('\n').filter(l => l.trim());
+    if (this.importForm.invalid) {
+      this.notification.error('Paste at least one phone number');
+      return;
+    }
+
+    const importText = this.importForm.get('importText')?.value || '';
+    const lines = importText.trim().split('\n').filter((l: string) => l.trim());
     if (lines.length === 0) {
       this.notification.error('Paste at least one phone number');
       return;
     }
-    const customers: CreateCustomer[] = lines.map(line => {
-      const parts = line.split(',').map(p => p.trim());
+    const customers: CreateCustomer[] = lines.map((line: string) => {
+      const parts = line.split(',').map((p: string) => p.trim());
       return { phoneNumber: parts[0], name: parts[1] || '' };
     });
     this.importing = true;
@@ -186,27 +256,33 @@ export class CustomersComponent implements OnInit {
 
   openBroadcastDialog(): void {
     this.showBroadcastDialog = true;
-    this.broadcastTemplate = '';
-    this.broadcastParams = '';
-    this.broadcastImageUrl = '';
+    this.broadcastSubmitted = false;
+    this.broadcastForm.reset({ broadcastTemplate: '', broadcastParams: '', broadcastImageUrl: '' });
   }
 
   sendToSelected(): void {
-    if (!this.isValidBroadcastTemplate) {
+    this.broadcastSubmitted = true;
+    this.broadcastForm.markAllAsTouched();
+
+    if (this.broadcastForm.invalid) {
       this.notification.error('Please select a valid approved template!');
       return;
     }
+
     const phoneNumbers = this.selectedCustomers.map(c => c.phoneNumber);
     if (phoneNumbers.length === 0) {
       this.notification.error('No customers selected!');
       return;
     }
-    const params = this.broadcastParams.trim()
-      ? this.broadcastParams.split(',').map(p => p.trim()) : [];
+
+    const { broadcastTemplate, broadcastParams, broadcastImageUrl } = this.broadcastForm.value;
+    const params = broadcastParams && broadcastParams.trim()
+      ? broadcastParams.split(',').map((p: string) => p.trim()) : [];
+
     this.sendingBroadcast = true;
     this.broadcastService.sendBroadcast({
-      templateName: this.broadcastTemplate, languageCode: this.broadcastLang,
-      parameters: params, imageUrl: this.broadcastImageUrl || undefined,
+      templateName: broadcastTemplate, languageCode: this.broadcastLang,
+      parameters: params, imageUrl: broadcastImageUrl || undefined,
       phoneNumbers: phoneNumbers
     }).subscribe({
       next: (res: any) => {
@@ -219,5 +295,10 @@ export class CustomersComponent implements OnInit {
         this.notification.error('Failed to send broadcast.');
       }
     });
+  }
+
+  isBroadcastFieldInvalid(field: string): boolean {
+    const control = this.broadcastForm.get(field);
+    return !!(control && control.invalid && (control.dirty || control.touched || this.broadcastSubmitted));
   }
 }

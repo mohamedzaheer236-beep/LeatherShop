@@ -1,7 +1,7 @@
-﻿import { Component, OnInit } from '@angular/core';
+﻿import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { ProductService } from '../../services/product.service';
 import { Product } from '../../models/product.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
@@ -19,58 +19,74 @@ import { TooltipModule } from 'primeng/tooltip';
 @Component({
   selector: 'app-product-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, LoadingSpinnerComponent, TableModule, ButtonModule, InputTextModule, DropdownModule, TagModule, ConfirmDialogModule, ToolbarModule, TooltipModule],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, LoadingSpinnerComponent, TableModule, ButtonModule, InputTextModule, DropdownModule, TagModule, ConfirmDialogModule, ToolbarModule, TooltipModule],
   templateUrl: './product-list.component.html',
   styleUrl: './product-list.component.scss',
   providers: [ConfirmationService]
 })
 export class ProductListComponent implements OnInit {
   products: Product[] = [];
-  categories: string[] = [];
-  brands: string[] = [];
   categoryOptions: any[] = [];
   brandOptions: any[] = [];
   loading = true;
+  filterForm!: FormGroup;
 
-  filterCategory = '';
-  filterBrand = '';
-  searchText = '';
+  @ViewChild('catDropdown') catDropdown: any;
+  @ViewChild('brandDropdown') brandDropdown: any;
 
   constructor(
+    private fb: FormBuilder,
     private productService: ProductService,
     private notification: NotificationService,
     private confirmationService: ConfirmationService
   ) {}
 
   ngOnInit(): void {
+    this.filterForm = this.fb.group({
+      searchText: [''],
+      filterCategory: [null],
+      filterBrand: [null]
+    });
+
     this.loadProducts();
     this.productService.getCategories().subscribe(data => {
-      this.categories = data;
-      this.categoryOptions = [{ label: 'All Categories', value: '' }, ...data.map(c => ({ label: c, value: c }))];
+      this.categoryOptions = data.map(c => ({ label: c, value: c }));
     });
     this.productService.getBrands().subscribe(data => {
-      this.brands = data;
-      this.brandOptions = [{ label: 'All Brands', value: '' }, ...data.map(b => ({ label: b, value: b }))];
+      this.brandOptions = data.map(b => ({ label: b, value: b }));
     });
+  }
+
+  /** Clear the filter text inside a dropdown's search input */
+  clearDropdownFilter(dropdown: any): void {
+    if (dropdown?.filterValue) {
+      dropdown.filterValue = '';
+      dropdown.filterBy = 'label';
+      dropdown.onFilterInputChange({ target: { value: '' } });
+    }
+  }
+
+  /** Called only by Search button or Enter key */
+  search(): void {
+    this.loadProducts();
+  }
+
+  /** Reset all filters and reload */
+  resetFilters(): void {
+    this.filterForm.reset({ searchText: '', filterCategory: null, filterBrand: null });
+    this.loadProducts();
   }
 
   loadProducts(): void {
     this.loading = true;
-    this.productService.getProducts(this.filterCategory, this.filterBrand, this.searchText).subscribe({
+    const { searchText, filterCategory, filterBrand } = this.filterForm.value;
+    this.productService.getProducts(filterCategory || '', filterBrand || '', searchText || '').subscribe({
       next: (data) => {
         this.products = data;
         this.loading = false;
       },
       error: () => this.loading = false
     });
-  }
-
-  onFilterChange(): void {
-    this.loadProducts();
-  }
-
-  onSearch(): void {
-    this.loadProducts();
   }
 
   toggleActive(product: Product): void {

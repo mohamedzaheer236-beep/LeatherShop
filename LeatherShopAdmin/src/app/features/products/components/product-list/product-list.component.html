@@ -12,15 +12,36 @@
     </ng-template>
   </p-toolbar>
 
-  <div class="filters-bar">
+  <div class="filters-bar" [formGroup]="filterForm">
     <span class="p-input-icon-left">
       <i class="pi pi-search"></i>
-      <input type="text" pInputText placeholder="Search products..." [(ngModel)]="searchText" (input)="onSearch()" />
+      <input type="text" pInputText placeholder="Search products..." formControlName="searchText"
+             (keyup.enter)="search()" aria-label="Search products" />
     </span>
-    <p-dropdown [options]="categoryOptions" [(ngModel)]="filterCategory" (onChange)="onFilterChange()"
-                placeholder="All Categories" [style]="{'min-width': '190px'}"></p-dropdown>
-    <p-dropdown [options]="brandOptions" [(ngModel)]="filterBrand" (onChange)="onFilterChange()"
-                placeholder="All Brands" [style]="{'min-width': '190px'}"></p-dropdown>
+    <p-dropdown #catDropdown [options]="categoryOptions" formControlName="filterCategory"
+                placeholder="All Categories" [style]="{'min-width': '190px'}"
+                [filter]="true" filterBy="label" [showClear]="true" appendTo="body"
+                [resetFilterOnHide]="true"
+                emptyFilterMessage="No results found">
+      <ng-template pTemplate="filtericon">
+        <i class="pi pi-times filter-clear-icon" (click)="clearDropdownFilter(catDropdown)"></i>
+      </ng-template>
+    </p-dropdown>
+    <p-dropdown #brandDropdown [options]="brandOptions" formControlName="filterBrand"
+                placeholder="All Brands" [style]="{'min-width': '190px'}"
+                [filter]="true" filterBy="label" [showClear]="true" appendTo="body"
+                [resetFilterOnHide]="true"
+                emptyFilterMessage="No results found">
+      <ng-template pTemplate="filtericon">
+        <i class="pi pi-times filter-clear-icon" (click)="clearDropdownFilter(brandDropdown)"></i>
+      </ng-template>
+    </p-dropdown>
+    <button pButton type="button" icon="pi pi-search"
+            class="p-button-primary" (click)="search()"
+            pTooltip="Search" tooltipPosition="top"></button>
+    <button pButton type="button" icon="pi pi-refresh"
+            class="p-button-secondary p-button-outlined" (click)="resetFilters()"
+            pTooltip="Reset filters" tooltipPosition="top"></button>
   </div>
 
   <app-loading-spinner [loading]="loading" message="Loading products..."></app-loading-spinner>

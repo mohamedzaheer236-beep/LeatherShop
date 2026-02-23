@@ -4,8 +4,10 @@
       <h1 class="page-title">Orders</h1>
     </ng-template>
     <ng-template pTemplate="right">
-      <p-dropdown [options]="statusDropdownOptions" [(ngModel)]="filterStatus" (onChange)="onFilterChange()"
-                  [style]="{'min-width': '180px'}"></p-dropdown>
+      <span [formGroup]="filterForm">
+        <p-dropdown [options]="statusDropdownOptions" formControlName="filterStatus" (onChange)="onFilterChange()"
+                    [style]="{'min-width': '180px'}"></p-dropdown>
+      </span>
     </ng-template>
   </p-toolbar>
 

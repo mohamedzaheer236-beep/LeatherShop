@@ -1,6 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import {
+  ReactiveFormsModule,
+  FormBuilder,
+  FormGroup,
+  Validators,
+  AbstractControl,
+  ValidationErrors
+} from '@angular/forms';
 import { BroadcastService } from '../../services/broadcast.service';
 import { BroadcastHistory } from '../../models/broadcast.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
@@ -22,7 +29,7 @@ import { DividerModule } from 'primeng/divider';
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
+    ReactiveFormsModule,
     CardModule,
     DropdownModule,
     InputTextModule,
@@ -38,24 +45,24 @@ import { DividerModule } from 'primeng/divider';
   styleUrl: './broadcast.component.scss'
 })
 export class BroadcastComponent implements OnInit {
-  templateName = '';
-  languageCode = '';
-  parameters = '';
-  imageUrl = '';
+  broadcastForm!: FormGroup;
   sending = false;
   resultMessage = '';
   resultType: 'success' | 'error' | '' = '';
+  submitted = false;
 
   history: BroadcastHistory[] = [];
   subscriberCount = 0;
 
   constructor(
+    private fb: FormBuilder,
     private broadcastService: BroadcastService,
     private notification: NotificationService,
     public templateLoader: TemplateLoaderService
   ) {}
 
   ngOnInit(): void {
+    this.initForm();
     this.loadHistory();
     this.templateLoader.loadTemplates();
     this.broadcastService.getSubscriberCount().subscribe(data => {
@@ -63,12 +70,45 @@ export class BroadcastComponent implements OnInit {
     });
   }
 
+  private initForm(): void {
+    this.broadcastForm = this.fb.group({
+      templateName: [null, [Validators.required, this.templateValidator.bind(this)]],
+      parameters: [''],
+      imageUrl: ['']
+    });
+  }
+
+  /** Custom validator — checks if the selected template is approved */
+  private templateValidator(control: AbstractControl): ValidationErrors | null {
+    const value = control.value;
+    if (!value) return null; // required validator handles empty
+    if (!this.templateLoader.isValidTemplate(value)) {
+      return { invalidTemplate: true };
+    }
+    return null;
+  }
+
+  get f() {
+    return this.broadcastForm.controls;
+  }
+
   onTemplateSelect(): void {
-    this.languageCode = this.templateLoader.getLanguageCode(this.templateName);
+    this.f['templateName'].updateValueAndValidity();
+  }
+
+  /** Mark control touched when dropdown closes */
+  onDropdownHide(): void {
+    this.f['templateName'].markAsTouched();
   }
 
   get isValidTemplate(): boolean {
-    return this.templateLoader.isValidTemplate(this.templateName);
+    return this.templateLoader.isValidTemplate(this.f['templateName'].value);
+  }
+
+  /** Helper: true when a field should show its error state */
+  isFieldInvalid(field: string): boolean {
+    const control = this.f[field];
+    return control.invalid && (control.dirty || control.touched || this.submitted);
   }
 
   getResultSeverity(): 'success' | 'error' {
@@ -84,7 +124,10 @@ export class BroadcastComponent implements OnInit {
   }
 
   sendBroadcast(): void {
-    if (!this.isValidTemplate) {
+    this.submitted = true;
+    this.broadcastForm.markAllAsTouched();
+
+    if (this.broadcastForm.invalid) {
       this.resultMessage = 'Please select a valid approved template!';
       this.resultType = 'error';
       return;
@@ -93,21 +136,26 @@ export class BroadcastComponent implements OnInit {
     this.sending = true;
     this.resultMessage = '';
 
-    const params = this.parameters.trim()
-      ? this.parameters.split(',').map(p => p.trim())
+    const { templateName, parameters, imageUrl } = this.broadcastForm.value;
+    const params = parameters && parameters.trim()
+      ? parameters.split(',').map((p: string) => p.trim())
       : [];
 
+    const languageCode = this.templateLoader.getLanguageCode(templateName);
+
     this.broadcastService.sendBroadcast({
-      templateName: this.templateName,
-      languageCode: this.languageCode,
+      templateName,
+      languageCode,
       parameters: params,
-      imageUrl: this.imageUrl || undefined
+      imageUrl: imageUrl || undefined
     }).subscribe({
       next: (res) => {
         this.sending = false;
         this.resultMessage = `Broadcast started! Sending to ${res.totalRecipients} subscribers.`;
         this.resultType = 'success';
         this.notification.success(`Broadcast sent to ${res.totalRecipients} subscribers.`);
+        this.submitted = false;
+        this.broadcastForm.reset();
         this.loadHistory();
       },
       error: () => {

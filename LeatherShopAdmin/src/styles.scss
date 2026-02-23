@@ -290,6 +290,10 @@ body .broadcast-card .p-card-body {
   padding: 28px 32px;
 }
 
+body .broadcast-card.sidebar-card .p-card-body {
+  padding: 24px;
+}
+
 body .broadcast-card .p-card {
   border-radius: 14px;
   border: 1px solid var(--ls-border-medium);
@@ -407,39 +411,60 @@ body .p-dropdown-panel .p-dropdown-items .p-dropdown-item:hover:not(.p-highlight
   background: #f8fafc;
 }
 
-/* Dropdown filter fix — prevent icon overlay */
-body .p-dropdown-panel .p-dropdown-header {
-  padding: 8px 12px;
+/* Dropdown clear button */
+body .p-dropdown .p-dropdown-clear-icon {
+  color: var(--ls-text-muted, #94a3b8);
+  position: absolute;
+  top: 50%;
+  right: 2.5rem;
+  transform: translateY(-50%);
+  cursor: pointer;
 }
 
-body .p-dropdown-panel .p-dropdown-filter-container {
-  width: 100%;
+body .p-dropdown.ng-invalid.ng-dirty .p-dropdown-clear-icon,
+body .p-dropdown.ng-invalid.ng-touched .p-dropdown-clear-icon {
+  color: #ef4444;
 }
 
-body .p-dropdown-panel .p-dropdown-filter {
-  padding-right: 32px;
+/* Dropdown empty message */
+body .p-dropdown-panel .p-dropdown-items .p-dropdown-empty-message {
+  padding: 10px 16px;
+  color: var(--ls-text-muted, #94a3b8);
+  font-size: var(--ls-font-base);
+  font-style: italic;
 }
 
-body .p-dropdown-panel .p-dropdown-filter-icon {
-  right: 12px;
-  left: auto;
-}
-
-/* Invalid field styling */
-body .p-dropdown.invalid-field {
+/* ----- FORM VALIDATION (Reactive Forms) ----- */
+body .p-dropdown.ng-invalid.ng-dirty,
+body .p-dropdown.ng-invalid.ng-touched {
   border-color: #ef4444;
 }
 
-body .p-dropdown.invalid-field:hover {
+body .p-dropdown.ng-invalid.ng-dirty:hover,
+body .p-dropdown.ng-invalid.ng-touched:hover {
   border-color: #ef4444;
 }
 
-body .p-inputtext.invalid-field {
+body .p-dropdown.ng-invalid.ng-dirty.p-focus,
+body .p-dropdown.ng-invalid.ng-touched.p-focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+body .p-inputtext.ng-invalid.ng-dirty,
+body .p-inputtext.ng-invalid.ng-touched {
   border-color: #ef4444;
 }
 
-body .p-inputtext.invalid-field:hover {
+body .p-inputtext.ng-invalid.ng-dirty:hover,
+body .p-inputtext.ng-invalid.ng-touched:hover {
   border-color: #ef4444;
+}
+
+body .p-inputtext.ng-invalid.ng-dirty:focus,
+body .p-inputtext.ng-invalid.ng-touched:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
 }
 
 /* ----- INPUT ----- */

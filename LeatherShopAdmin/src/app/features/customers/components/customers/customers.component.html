@@ -1,15 +1,19 @@
 ﻿<!-- Add Customer Dialog -->
 <p-dialog header="Add Customer" [(visible)]="showAddDialog" [modal]="true" [style]="{'width': '450px'}">
-  <div class="dialog-form">
-    <div class="form-field">
-      <label>Phone Number *</label>
-      <input type="text" pInputText [(ngModel)]="newCustomer.phoneNumber" placeholder="e.g. 919876543210" class="w-full" />
+  <form [formGroup]="addCustomerForm">
+    <div class="dialog-form">
+      <div class="form-field">
+        <label for="addPhone">Phone Number *</label>
+        <input type="text" pInputText id="addPhone" formControlName="phoneNumber" placeholder="e.g. 919876543210" class="w-full" />
+        <small class="p-error" *ngIf="isAddFieldInvalid('phoneNumber') && addCustomerForm.get('phoneNumber')?.errors?.['required']">Phone number is required.</small>
+        <small class="p-error" *ngIf="isAddFieldInvalid('phoneNumber') && addCustomerForm.get('phoneNumber')?.errors?.['pattern']">Enter a valid phone number (10-15 digits).</small>
+      </div>
+      <div class="form-field">
+        <label for="addName">Name</label>
+        <input type="text" pInputText id="addName" formControlName="name" placeholder="Customer name (optional)" class="w-full" />
+      </div>
     </div>
-    <div class="form-field">
-      <label>Name</label>
-      <input type="text" pInputText [(ngModel)]="newCustomer.name" placeholder="Customer name (optional)" class="w-full" />
-    </div>
-  </div>
+  </form>
   <ng-template pTemplate="footer">
     <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showAddDialog = false" icon="pi pi-times"></p-button>
     <p-button label="Add Customer" (onClick)="addCustomer()" [disabled]="addingCustomer" [loading]="addingCustomer" icon="pi pi-check"></p-button>
@@ -19,8 +23,10 @@
 <!-- Bulk Import Dialog -->
 <p-dialog header="Bulk Import Customers" [(visible)]="showImportDialog" [modal]="true" [style]="{'width': '500px'}">
   <p style="color:#888; font-size:13px; margin-bottom:12px;">Paste one customer per line. Format: <code>phone,name</code> (name is optional)</p>
-  <textarea pInputTextarea [(ngModel)]="importText" rows="8" class="w-full" style="font-family:monospace;"
-            placeholder="919876543210,John&#10;919876543211,Jane&#10;919876543212"></textarea>
+  <form [formGroup]="importForm">
+    <textarea pInputTextarea formControlName="importText" rows="8" class="w-full" style="font-family:monospace;"
+              placeholder="919876543210,John&#10;919876543211,Jane&#10;919876543212"></textarea>
+  </form>
   <ng-template pTemplate="footer">
     <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showImportDialog = false" icon="pi pi-times"></p-button>
     <p-button label="Import Customers" (onClick)="importCustomers()" [disabled]="importing" [loading]="importing" icon="pi pi-upload"></p-button>
@@ -29,28 +35,37 @@
 
 <!-- Broadcast to Selected Dialog -->
 <p-dialog header="Broadcast to {{selectedCount}} Selected" [(visible)]="showBroadcastDialog" [modal]="true" [style]="{'width': '500px'}">
-  <div class="dialog-form">
-    <div class="form-field">
-      <label>Template Name *</label>
-      <p-dropdown *ngIf="templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length > 0"
-                  [options]="templateLoader.getState().templateOptions" [(ngModel)]="broadcastTemplate" (onChange)="onBroadcastTemplateSelect()"
-                  placeholder="Select an approved template" [style]="{'width': '100%'}"></p-dropdown>
-      <input *ngIf="!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0"
-             type="text" pInputText [(ngModel)]="broadcastTemplate" placeholder="e.g. new_product_launch" class="w-full" />
+  <form [formGroup]="broadcastForm">
+    <div class="dialog-form">
+      <div class="form-field">
+        <label for="bcTemplate">Template Name *</label>
+        <p-dropdown *ngIf="templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length > 0"
+                    id="bcTemplate"
+                    [options]="templateLoader.getState().templateOptions" formControlName="broadcastTemplate"
+                    (onChange)="onBroadcastTemplateSelect()" (onFilter)="onBroadcastTemplateFilter($event)"
+                    placeholder="Select an approved template" [style]="{'width': '100%'}"
+                    [filter]="true" filterPlaceholder="Search templates..." appendTo="body"></p-dropdown>
+        <input *ngIf="!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0"
+               type="text" pInputText formControlName="broadcastTemplate" placeholder="e.g. new_product_launch" class="w-full" />
+        <small class="p-error" *ngIf="isBroadcastFieldInvalid('broadcastTemplate') && broadcastForm.get('broadcastTemplate')?.errors?.['required']">Template name is required.</small>
+        <small class="p-error" *ngIf="isBroadcastFieldInvalid('broadcastTemplate') && broadcastForm.get('broadcastTemplate')?.errors?.['invalidTemplate']">
+          <i class="pi pi-times-circle"></i> This template is not approved.
+        </small>
+      </div>
+      <div class="form-field">
+        <label for="bcParams">Parameters (comma separated)</label>
+        <input type="text" pInputText id="bcParams" formControlName="broadcastParams" placeholder="param1, param2" class="w-full" />
+      </div>
+      <div class="form-field">
+        <label for="bcImage">Image URL (optional)</label>
+        <input type="text" pInputText id="bcImage" formControlName="broadcastImageUrl" placeholder="https://..." class="w-full" />
+      </div>
     </div>
-    <div class="form-field">
-      <label>Parameters (comma separated)</label>
-      <input type="text" pInputText [(ngModel)]="broadcastParams" placeholder="param1, param2" class="w-full" />
-    </div>
-    <div class="form-field">
-      <label>Image URL (optional)</label>
-      <input type="text" pInputText [(ngModel)]="broadcastImageUrl" placeholder="https://..." class="w-full" />
-    </div>
-  </div>
+  </form>
   <ng-template pTemplate="footer">
     <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showBroadcastDialog = false" icon="pi pi-times"></p-button>
     <p-button [label]="'Send to ' + selectedCount + ' Customers'" (onClick)="sendToSelected()"
-              [disabled]="sendingBroadcast || !isValidBroadcastTemplate" [loading]="sendingBroadcast" icon="pi pi-send"></p-button>
+              [disabled]="sendingBroadcast" [loading]="sendingBroadcast" icon="pi pi-send"></p-button>
   </ng-template>
 </p-dialog>
 
@@ -70,15 +85,15 @@
   </p-toolbar>
 
   <!-- Filters -->
-  <div class="filters-bar">
+  <div class="filters-bar" [formGroup]="filterForm">
     <span class="p-input-icon-left">
       <i class="pi pi-search"></i>
-      <input type="text" pInputText [(ngModel)]="searchTerm" placeholder="Search by phone or name..." (keyup.enter)="onSearch()" />
+      <input type="text" pInputText formControlName="searchTerm" placeholder="Search by phone or name..." (keyup.enter)="onSearch()" aria-label="Search customers" />
     </span>
     <p-button label="Search" icon="pi pi-search" size="small" (onClick)="onSearch()"></p-button>
     <p-button *ngIf="searchTerm" label="Clear" icon="pi pi-times" severity="secondary" [outlined]="true" size="small" (onClick)="clearSearch()"></p-button>
     <label class="toggle-filter">
-      <p-checkbox [(ngModel)]="subscribedOnly" [binary]="true" (onChange)="onFilterChange()"></p-checkbox>
+      <p-checkbox formControlName="subscribedOnly" [binary]="true" (onChange)="onFilterChange()"></p-checkbox>
       <span style="margin-left:8px;">Subscribers only</span>
     </label>
   </div>
@@ -97,7 +112,7 @@
     <ng-template pTemplate="header">
       <tr>
         <th style="width:50px;">
-          <p-checkbox [binary]="true" [(ngModel)]="allSelected" (onChange)="toggleSelectAll()"></p-checkbox>
+          <p-checkbox [binary]="true" [(ngModel)]="allSelected" (onChange)="toggleSelectAll()" aria-label="Select all customers"></p-checkbox>
         </th>
         <th>Phone Number</th>
         <th>Name</th>
@@ -111,7 +126,7 @@
     <ng-template pTemplate="body" let-customer>
       <tr [class.row-selected]="customer.selected">
         <td>
-          <p-checkbox [binary]="true" [(ngModel)]="customer.selected" (onChange)="onRowSelect()"></p-checkbox>
+          <p-checkbox [binary]="true" [(ngModel)]="customer.selected" (onChange)="onRowSelect()" [attr.aria-label]="'Select customer ' + (customer.name || customer.phoneNumber)"></p-checkbox>
         </td>
         <td><strong style="font-family:monospace; font-size:13px;">{{ customer.phoneNumber }}</strong></td>
         <td>{{ customer.name || '-' }}</td>
