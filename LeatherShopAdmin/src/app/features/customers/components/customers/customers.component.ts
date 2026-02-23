@@ -109,7 +109,7 @@ export class CustomersComponent implements OnInit {
   get selectedCustomers(): Customer[] { return this.customers.filter(c => c.selected); }
 
   toggleSelectAll(): void {
-    this.allSelected = !this.allSelected;
+    // allSelected is already toggled by [(ngModel)] before (onChange) fires
     this.customers.forEach(c => c.selected = this.allSelected);
   }
 
