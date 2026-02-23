@@ -12,15 +12,15 @@
     </ng-template>
   </p-toolbar>
 
-  <div class="filters">
+  <div class="filters-bar">
     <span class="p-input-icon-left">
       <i class="pi pi-search"></i>
       <input type="text" pInputText placeholder="Search products..." [(ngModel)]="searchText" (input)="onSearch()" />
     </span>
     <p-dropdown [options]="categoryOptions" [(ngModel)]="filterCategory" (onChange)="onFilterChange()"
-                placeholder="All Categories" [style]="{'min-width': '180px'}"></p-dropdown>
+                placeholder="All Categories" [style]="{'min-width': '190px'}"></p-dropdown>
     <p-dropdown [options]="brandOptions" [(ngModel)]="filterBrand" (onChange)="onFilterChange()"
-                placeholder="All Brands" [style]="{'min-width': '180px'}"></p-dropdown>
+                placeholder="All Brands" [style]="{'min-width': '190px'}"></p-dropdown>
   </div>
 
   <app-loading-spinner [loading]="loading" message="Loading products..."></app-loading-spinner>
