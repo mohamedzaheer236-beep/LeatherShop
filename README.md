@@ -18,7 +18,8 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 8. [API Endpoints Reference](#api-endpoints-reference)
 9. [Database Schema](#database-schema)
 10. [What Is NOT Yet Implemented](#what-is-not-yet-implemented)
-11. [Deployment Guide (Pending)](#deployment-guide-pending)
+11. [Code Audit Report](#code-audit-report)
+12. [Deployment Guide (Pending)](#deployment-guide-pending)
 
 ---
 
@@ -672,19 +673,111 @@ These features are not built yet and would need to be added for production:
 | **Authentication / Authorization** | No login system. Admin panel is open to anyone. Need JWT or session-based auth for admin APIs. |
 | **Image Upload** | Products only store an image URL string. No actual file upload — need cloud storage (S3, Azure Blob, Cloudinary). |
 | **Razorpay Signature Verification** | Payment verify endpoint has a TODO — does not validate HMAC SHA256 signature. Unsafe for production. |
-| **Broadcast DB Update** | ~~Fixed~~ — see Recently Implemented below. |
 | **Logging to File/Service** | Uses default console logging only. Need Serilog or similar for production. |
 | **Rate Limiting** | No API rate limiting on admin endpoints. |
 | **Pagination** | Product and order lists return all records. Need pagination for large datasets. |
 | **Product Image in WhatsApp** | Chatbot sends text-only product details. Could send image messages using the WhatsApp media API. |
-| **Multi-quantity in Cart** | ~~Fixed~~ — see Recently Implemented below. |
 | **Customer Address Collection** | Checkout uses the stored address (usually empty). No chatbot flow to ask for shipping address. |
 | **Order Cancellation by Customer** | No WhatsApp flow for customers to cancel orders. |
-| **Webhook Security** | No signature verification on incoming WhatsApp webhook requests (should validate `X-Hub-Signature-256`). |
 | **HTTPS in Production** | API runs on HTTP. Needs reverse proxy (nginx) with SSL for production. |
 | **Permanent WhatsApp Access Token** | Currently using a **temporary test token** from Meta dashboard that **expires every 24 hours**. Need to create a System User in Meta Business Suite → generate a permanent token with `whatsapp_business_messaging` and `whatsapp_business_management` permissions. |
-| **WhatsApp Message Templates** | Broadcast messages currently send plain text — this **only works within 24 hours** of the customer's last message. For production, need to: (1) Create an approved Message Template in Meta WhatsApp Manager with `{{1}}` (customer name) and `{{2}}` (custom message) placeholders, (2) Update `WhatsAppService` to send template-format messages for broadcasts and order status updates. Category: Marketing for broadcasts, Utility for order updates. |
+| **WhatsApp Message Templates** | Broadcast messages require pre-approved templates. Must create Message Templates in Meta WhatsApp Manager with parameter placeholders. Category: Marketing for broadcasts, Utility for order updates. |
 | **Production Deployment** | Currently runs on localhost only. Need to deploy API + DB + Angular to cloud for 24/7 WhatsApp webhook availability. See [Deployment Guide](#deployment-guide-pending) below. |
+
+---
+
+## Code Audit Report
+
+A comprehensive audit of the entire codebase. Findings organized by severity.
+
+### 🔴 CRITICAL — Must Fix Before Any Deployment
+
+| # | Issue | Location | Details |
+|---|-------|----------|---------|
+| C1 | **No Authentication / Authorization** | All controllers, `Program.cs` | Every API endpoint is publicly accessible. Anyone can CRUD products, manage orders, send broadcasts, view all customer data. Need JWT bearer tokens or API key auth at minimum. |
+| C2 | **Secrets Committed to Source** | `appsettings.json` | Live WhatsApp access token + DB password are in plaintext in the repo. Must use User Secrets for dev, environment variables or Azure Key Vault for production. |
+| C3 | **Razorpay Signature Verification TODO'd Out** | `PaymentService.cs` | `VerifyPaymentAsync` has a `// TODO` — the HMAC-SHA256 check is skipped. Anyone can call `POST /api/payment/verify` with a fake paymentId and mark any order as paid. |
+| C4 | **WhatsApp Webhook Signature Not Validated** | `WhatsAppWebhookController.cs` | Meta sends `X-Hub-Signature-256` on every POST. The controller never checks it. Attackers can POST fabricated payloads to trigger chatbot flows and create fake orders. |
+| C5 | **XSS in Payment Page** | `PaymentController.cs` | Order number, customer phone, product names are interpolated into raw HTML with zero encoding. If any field contains `<script>`, it executes in the user's browser. Should HTML-encode or use a proper Razor view. |
+| C6 | **DbContext Thread-Safety Bug** | `BroadcastBackgroundService.cs` | `ProcessBroadcastAsync` uses `Task.WhenAll` with 10 concurrent tasks sharing the **same DbContext** instance. `DbContext` is NOT thread-safe — causes intermittent exceptions or data corruption. Fix: create a new `IServiceScope` per concurrent task. |
+
+### 🟠 HIGH — Data Integrity / Bugs
+
+| # | Issue | Location | Details |
+|---|-------|----------|---------|
+| H1 | **Race Condition: Overselling During Checkout** | `ChatBotService.cs` | Stock checked with `if (product.StockQuantity < qty)` then decremented in same method. Two concurrent checkouts can both pass and oversell. Fix: use optimistic concurrency (`RowVersion`) or `UPDATE WHERE StockQuantity >= @qty`. |
+| H2 | **Phone Format Mismatch → Duplicate Customers** | `CustomerService.cs` vs `ChatBotService.cs` | Admin panel stores `+919876543210` (with `+`), WhatsApp stores `919876543210` (without `+`). Same customer ends up with two records. Fix: normalize phone format in one place. |
+| H3 | **No HTTPS Enforcement** | `Program.cs`, `launchSettings.json` | Payment page with Razorpay integration served over HTTP. No `app.UseHttpsRedirection()`. |
+| H4 | **Stock Not Restored on Order Cancellation** | `OrderService.cs` | When `UpdateStatusAsync` sets status to `Cancelled`, stock is never restored. Products stay "sold out" even after cancellation. |
+| H5 | **Description MaxLength Mismatch** | `ProductDtos.cs` vs `Product.cs` | DTO allows 2000 chars, model/DB allows 1000. Products with 1000–2000 char descriptions pass validation but crash at DB level. |
+| H6 | **Production API URL is a Placeholder** | `environment.prod.ts` | Points to `your-production-domain.com`. Production builds will fail. |
+| H7 | **No 404 Wildcard Route** | `app.routes.ts` | Navigating to any invalid URL (e.g., `/anything`) shows a blank page. Need a `**` fallcard route with a "Page Not Found" component. |
+| H8 | **Duplicate Error Toasts** | `customers.component.ts` and others | Global error interceptor shows a toast, AND component error handlers also call `notification.error()` for the same HTTP error → user sees 2 toasts. Fix: remove component-level error toasts (interceptor handles it). |
+
+### 🟡 MEDIUM — Performance / Code Quality
+
+| # | Issue | Location | Details |
+|---|-------|----------|---------|
+| M1 | **No Pagination on Any List Endpoint** | All services, all controllers | `GetAllAsync` returns ALL records. With thousands of products/customers/orders, this causes large memory allocations and slow responses. |
+| M2 | **N+1 Queries in BulkImport** | `CustomerService.cs` | For each customer in import list, an individual `AnyAsync(c => c.PhoneNumber == phone)` query runs. 1000 imports = 1000 DB roundtrips. Should batch-check with `WHERE PhoneNumber IN (...)`. |
+| M3 | **`.ToLower()` in LINQ Kills DB Indexes** | `ProductService.cs`, `CustomerService.cs` | `p.Category.ToLower() == category.ToLower()` translates to `LOWER()` in SQL, preventing PostgreSQL from using indexes. Use `EF.Functions.ILike()` for case-insensitive search on Npgsql. |
+| M4 | **No `OnPush` Change Detection** | All 7 Angular components | All use default change detection. Extra re-renders on every event. `OnPush` would significantly reduce CD cycles. |
+| M5 | **Memory Leaks: No Unsubscribe** | All 6 feature components | Subscriptions in `ngOnInit` are never cleaned up. Fix: use `DestroyRef` + `takeUntilDestroyed()` (Angular 16+) or `AsyncPipe`. |
+| M6 | **Product Search on Every Keystroke** | `product-list.component.html` | `(input)="onSearch()"` fires HTTP request per keypress with no debounce. Use `debounceTime(300)` with a Subject. |
+| M7 | **No `trackBy` on Any `*ngFor`** | All list templates | DOM re-created on every data change instead of diffing by identity. |
+| M8 | **ChatBotService is a 520-Line God Class** | `ChatBotService.cs` | Cart logic, checkout, order history, menu routing all in one class. Should decompose into smaller handlers (CartHandler, CheckoutHandler, MenuHandler). |
+| M9 | **Dashboard Makes 7 Separate DB Roundtrips** | `DashboardService.cs` | 6 `CountAsync`/`SumAsync` + 1 orders query for one dashboard. Could combine into a single raw SQL or projection. |
+| M10 | **No Rate Limiting** | All controllers | Broadcast endpoint can be abused to spam all customers. Webhook has no rate limiting. |
+| M11 | **Google Fonts via `@import url()`** | `styles.scss` | Blocks rendering. Should use `<link rel="preconnect">` in `index.html` with `font-display: swap`. |
+| M12 | **`getTotalSent()` Method Called in Template** | `broadcast.component.ts` | Recalculates on every change detection cycle. Should be a cached variable updated when `history` changes. |
+
+### 🟢 LOW — Nice to Have / Best Practices
+
+| # | Issue | Location | Details |
+|---|-------|----------|---------|
+| L1 | **No Health Check Endpoint** | `Program.cs` | No `/health` or `/ready` for load balancers / Kubernetes probes / uptime monitoring. |
+| L2 | **No API Versioning** | All controllers | No `/api/v1/...` prefix. Breaking changes will affect all clients simultaneously. |
+| L3 | **No ESLint / Prettier** | `package.json` | Zero static code analysis or formatting enforcement on the frontend. |
+| L4 | **No Tests** | `angular.json` | `skipTests: true` everywhere. Zero test files in the entire project. |
+| L5 | **Hardcoded Currency `₹`** | All templates with prices | Uses `&#8377;` directly. Should use Angular's `currency` pipe for i18n support. |
+| L6 | **60+ `!important` in Styles** | `styles.scss` | Over-reliance on specificity overrides for PrimeNG customization. |
+| L7 | **No CSS Variables** | `styles.scss` | Colors like `#6366f1`, `#1e293b` repeated 20+ times with no theming support via custom properties. |
+| L8 | **Code Duplication** | Multiple files | `getSeverity()` duplicated in 2 components, template loading logic in 2 components, DTO-to-model mapping in 3+ services, `.form-field` styles in 3 SCSS files. |
+| L9 | **Accessibility Gaps** | Multiple templates | Clickable `<p-tag>` elements lack `role="button"`/`tabindex`, order expand lacks keyboard support, spinner lacks `aria-live`, no skip-to-content link. |
+| L10 | **No Form Validation Messages** | `product-form.component.html` | User can submit empty form with no visible error feedback. No `aria-required` or `aria-describedby`. |
+| L11 | **No Unsaved Changes Guard** | `product-form.component.ts` | Navigating away from a dirty form loses data silently. Need a `CanDeactivate` route guard. |
+| L12 | **UI State Mixed into Data Model** | `customer.model.ts` | `selected?: boolean` belongs in component state, not in the data model interface. |
+| L13 | **Unused `Router` Injections** | `navbar.component.ts`, `customers.component.ts` | `Router` injected via constructor but never called. Dead code. |
+| L14 | **Dead Code: `filteredCustomers`** | `customers.component.ts` | Property assigned but never used in the template. |
+| L15 | **No Active Route Highlighting** | `navbar.component.ts` | Navbar doesn't visually indicate which page the user is on. |
+| L16 | **No Order Status Transition Validation** | `OrderService.cs` | No guard against invalid transitions (e.g., `Delivered` → `Pending`, `Cancelled` → `Shipped`). |
+| L17 | **Hard Delete on Products** | `ProductService.cs` | `_db.Products.Remove()` with no soft delete. Products referenced by orders will crash (FK constraint). No audit trail. |
+| L18 | **Auto-Migration at Startup** | `Program.cs` | `db.Database.Migrate()` runs synchronously. With multiple instances, concurrent migrations can deadlock. Should be a CI/CD step. |
+| L19 | **WhatsApp Auth Header Set in Constructor** | `WhatsAppService.cs` | If the token is rotated in config, the service keeps the stale token until app restart. |
+| L20 | **Helper Models Inside Service File** | `WhatsAppService.cs` | `ListSection`, `ListRow`, `ButtonOption`, `WhatsAppTemplate` defined at bottom of service file. Should be in `Models/WhatsApp/`. |
+| L21 | **No `CancellationToken` Propagation** | All controllers/services | If a client disconnects, the server continues processing until completion. |
+| L22 | **No `[ProducesResponseType]` Attributes** | All controllers | Swagger has no typed response documentation (200, 400, 404, etc.). |
+
+### ✅ What's Already Good (Organization-Level Strengths)
+
+| # | Strength |
+|---|----------|
+| 1 | All 5 features properly **lazy-loaded** with `loadChildren` |
+| 2 | Clean **service → controller** separation with interfaces in the backend |
+| 3 | Global **exception handling middleware** that prevents stack trace leaks |
+| 4 | **Unified API response** envelope (`ApiResponse<T>`) across all endpoints |
+| 5 | **Standalone components** throughout (Angular 18 best practice, no NgModules) |
+| 6 | PrimeNG used consistently with **zero `::ng-deep`** — all overrides in global styles |
+| 7 | **Channel\<T\> + BackgroundService** pattern for async broadcast processing |
+| 8 | **EF Core Fluent API configurations** properly separated with index definitions |
+| 9 | **Strict TypeScript** config with all Angular strict compiler flags enabled |
+| 10 | Clean **feature-based folder structure** — features, shared, core properly organized |
+| 11 | **HTTP error interceptor** provides consistent user-facing error messages |
+| 12 | **Environment files** for dev/prod configuration switching |
+| 13 | **Input validation** via DataAnnotations on all DTOs |
+| 14 | **Split DTO pattern** — separate files per feature with validation attributes |
+| 15 | **DI extension methods** for clean startup configuration |
+| 16 | **Responsive UI** with PrimeNG + polished global styles |
 
 ---
 
@@ -844,4 +937,8 @@ The API **must run 24/7** for WhatsApp to work — Meta sends webhook events whe
 | **Broadcast Background Processing** | ✅ Replaced fire-and-forget `Task.Run` with proper `BackgroundService` + `Channel<T>` producer/consumer queue. `BroadcastService` enqueues a `BroadcastJob` → `BroadcastBackgroundService` (hosted) dequeues and processes one broadcast at a time. Uses `SemaphoreSlim(10)` for controlled concurrency (10 parallel sends). Saves progress every 50 messages. Supports graceful shutdown via `CancellationToken`. |
 | **Multi-quantity in Cart** | ✅ Chatbot asks "How many?" via `PendingProductId` state → customer types a number → validates against stock (including existing cart quantity) → adds with chosen quantity |
 | **Immediate Navigation** | ✅ Removed `setTimeout(() => navigate, 1500)` from product form — now navigates immediately after success. Toast notification persists across route changes by design. |
-| **PrimeNG UI Migration** | ✅ Replaced all custom CSS/SCSS with PrimeNG component library (v17.18.15). Migrated every component: Navbar → `p-menubar`, Toast → `p-toast`, Spinner → `p-progressSpinner`, Dashboard → `p-card`/`p-table`/`p-tag`, Products → `p-table`/`p-toolbar`/`p-dropdown`/`p-confirmDialog`/`p-inputNumber`, Orders → `p-card`/`p-table`/`p-tag`/`p-dropdown`, Customers → `p-table`/`p-dialog`/`p-checkbox`/`p-toolbar`, Broadcast → `p-card`/`p-dropdown`/`p-table`/`p-message`. Theme: Lara Light Indigo. Minimal custom SCSS retained only for layout. |
+| **PrimeNG UI Migration** | ✅ Replaced all custom CSS/SCSS with PrimeNG component library (v17.18.15). Migrated every component: Navbar → `p-menubar`, Toast → `p-toast`, Spinner → `p-progressSpinner`, Dashboard → `p-card`/`p-table`/`p-tag`, Products → `p-table`/`p-toolbar`/`p-dropdown`/`p-confirmDialog`/`p-inputNumber`, Orders → `p-card`/`p-table`/`p-tag`/`p-dropdown`, Customers → `p-table`/`p-dialog`/`p-checkbox`/`p-toolbar`, Broadcast → `p-card`/`p-dropdown`/`p-table`/`p-message`. Theme: Lara Light Indigo. |
+| **UI Polish (Zero `::ng-deep`)** | ✅ All PrimeNG overrides moved to global `styles.scss` — zero `::ng-deep` in the project. Comprehensive overrides for navbar, toolbar, card, table, tag, button, dropdown, input, dialog, checkbox, progress spinner. Design system: indigo accent (#6366f1), dark navbar (#1a1a2e), gold brand (#e0c097), Inter font. |
+| **Button & Input Refinements** | ✅ Buttons: 10px/20px padding, font-weight 600, 8px gap between icon and label. Search input: icon at 14px with 40px left padding. Dropdowns: polished label padding, hover border color, rounded panel items with highlight. |
+| **Contained Filter Bars** | ✅ `.filters-bar` component — white background container with border, rounded corners, shadow for products and customers pages. Replaced floating loose filters with a contained card feel. |
+| **Broadcast Page Redesign** | ✅ Complete redesign with 2-column layout: form card on left with section header + form grid + send action area, stats sidebar on right (active subscribers, total broadcasts, messages sent). History section with proper header. Responsive grid collapses to single column under 900px. |
