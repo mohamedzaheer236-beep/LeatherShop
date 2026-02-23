@@ -14,7 +14,7 @@
   <app-loading-spinner [loading]="loading" message="Loading orders..."></app-loading-spinner>
 
   <div class="orders-list" *ngIf="!loading">
-    <p-card *ngFor="let order of orders" styleClass="order-card mb-3">
+    <p-card *ngFor="let order of orders; trackBy: trackByOrderId" styleClass="order-card mb-3">
       <div class="order-header" (click)="toggleExpand(order.id)"
            role="button" tabindex="0" [attr.aria-expanded]="expandedOrderId === order.id"
            [attr.aria-label]="'Toggle details for order ' + order.orderNumber"
@@ -70,5 +70,14 @@
       <i class="pi pi-shopping-cart"></i>
       <p>No orders found.</p>
     </div>
+
+    <p-paginator *ngIf="totalRecords > 0"
+      [rows]="pageSize"
+      [totalRecords]="totalRecords"
+      [rowsPerPageOptions]="[25, 50, 100]"
+      (onPageChange)="onPageChange($event)"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} orders">
+    </p-paginator>
   </div>
 </div>

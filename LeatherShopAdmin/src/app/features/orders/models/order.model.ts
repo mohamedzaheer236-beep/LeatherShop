@@ -15,3 +15,11 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
 }
+
+export interface PaginatedResult<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}

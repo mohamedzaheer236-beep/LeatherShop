@@ -32,6 +32,15 @@ public class BroadcastController : ControllerBase
         }
     }
 
+    [HttpGet("{id}/status")]
+    public async Task<IActionResult> GetBroadcastStatus(int id)
+    {
+        var status = await _broadcastService.GetBroadcastStatusAsync(id);
+        if (status == null)
+            return NotFound(ApiResponse.Fail("Broadcast not found."));
+        return Ok(ApiResponse<BroadcastHistoryDto>.Ok(status));
+    }
+
     [HttpGet("history")]
     public async Task<IActionResult> GetHistory()
     {

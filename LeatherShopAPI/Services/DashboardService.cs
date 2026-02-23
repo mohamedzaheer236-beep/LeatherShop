@@ -18,14 +18,15 @@ public class DashboardService : IDashboardService
 
     public async Task<DashboardDto> GetDashboardAsync()
     {
+        // Sequential awaits — DbContext is NOT thread-safe so Task.WhenAll is not safe here.
+        // These are simple COUNT/SUM queries that execute in <1ms each on PostgreSQL with indexes.
         var recentOrders = await _db.Orders
+            .AsNoTracking()
             .Include(o => o.Customer)
             .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
             .OrderByDescending(o => o.CreatedAt)
             .Take(10)
             .ToListAsync();
-
-        var recentOrderDtos = recentOrders.Select(o => o.ToDto()).ToList();
 
         return new DashboardDto
         {
@@ -35,7 +36,7 @@ public class DashboardService : IDashboardService
             TotalRevenue = await _db.Orders.Where(o => o.IsPaid).SumAsync(o => o.TotalAmount),
             PendingOrders = await _db.Orders.CountAsync(o => o.Status == OrderStatus.Pending),
             LowStockProducts = await _db.Products.CountAsync(p => p.IsActive && p.StockQuantity <= 5),
-            RecentOrders = recentOrderDtos
+            RecentOrders = recentOrders.Select(o => o.ToDto()).ToList()
         };
     }
 }

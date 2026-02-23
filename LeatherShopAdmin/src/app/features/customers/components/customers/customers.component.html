@@ -108,7 +108,9 @@
 
   <!-- Customer Table -->
   <p-table [value]="customers" *ngIf="!loading && customers.length > 0"
-           [tableStyle]="{'min-width': '60rem'}" styleClass="p-datatable-striped" [rowHover]="true">
+           [tableStyle]="{'min-width': '60rem'}" styleClass="p-datatable-striped" [rowHover]="true"
+           [paginator]="true" [rows]="25" [rowsPerPageOptions]="[25, 50, 100]"
+           [showCurrentPageReport]="true" currentPageReportTemplate="Showing {first} to {last} of {totalRecords} customers">
     <ng-template pTemplate="header">
       <tr>
         <th style="width:50px;">
@@ -126,7 +128,7 @@
     <ng-template pTemplate="body" let-customer>
       <tr [class.row-selected]="customer.selected">
         <td>
-          <p-checkbox [binary]="true" [(ngModel)]="customer.selected" (onChange)="onRowSelect()" [attr.aria-label]="'Select customer ' + (customer.name || customer.phoneNumber)"></p-checkbox>
+          <p-checkbox [binary]="true" [(ngModel)]="customer.selected" (onChange)="onRowSelect(customer)" [attr.aria-label]="'Select customer ' + (customer.name || customer.phoneNumber)"></p-checkbox>
         </td>
         <td><strong style="font-family:monospace; font-size:13px;">{{ customer.phoneNumber }}</strong></td>
         <td>{{ customer.name || '-' }}</td>

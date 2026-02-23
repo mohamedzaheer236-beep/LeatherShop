@@ -17,6 +17,10 @@ export class BroadcastService {
     return this.http.post<any>(`${this.baseUrl}/send`, request).pipe(map(res => res.data));
   }
 
+  getBroadcastStatus(broadcastId: number): Observable<BroadcastHistory> {
+    return this.http.get<any>(`${this.baseUrl}/${broadcastId}/status`).pipe(map(res => res.data));
+  }
+
   getBroadcastHistory(): Observable<BroadcastHistory[]> {
     return this.http.get<any>(`${this.baseUrl}/history`).pipe(map(res => res.data));
   }

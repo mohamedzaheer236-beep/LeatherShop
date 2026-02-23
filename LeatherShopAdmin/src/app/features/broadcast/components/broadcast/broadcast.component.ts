@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   ReactiveFormsModule,
+  FormsModule,
   FormBuilder,
   FormGroup,
   Validators,
@@ -16,12 +17,11 @@ import { TemplateLoaderService } from '../../../../shared/services/template-load
 import { CardModule } from 'primeng/card';
 import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
+import { InputTextareaModule } from 'primeng/inputtextarea';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToolbarModule } from 'primeng/toolbar';
-import { MessageModule } from 'primeng/message';
-import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { DividerModule } from 'primeng/divider';
 
 @Component({
@@ -30,21 +30,21 @@ import { DividerModule } from 'primeng/divider';
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    FormsModule,
     CardModule,
     DropdownModule,
     InputTextModule,
+    InputTextareaModule,
     ButtonModule,
     TableModule,
     TagModule,
     ToolbarModule,
-    MessageModule,
-    ProgressSpinnerModule,
     DividerModule
   ],
   templateUrl: './broadcast.component.html',
   styleUrl: './broadcast.component.scss'
 })
-export class BroadcastComponent implements OnInit {
+export class BroadcastComponent implements OnInit, OnDestroy {
   broadcastForm!: FormGroup;
   sending = false;
   resultMessage = '';
@@ -53,6 +53,12 @@ export class BroadcastComponent implements OnInit {
 
   history: BroadcastHistory[] = [];
   subscriberCount = 0;
+  totalSent = 0;
+
+  broadcastMode: 'custom' | 'template' = 'custom';
+  customMessage = '';
+
+  private pollingInterval?: ReturnType<typeof setInterval>;
 
   constructor(
     private fb: FormBuilder,
@@ -115,12 +121,84 @@ export class BroadcastComponent implements OnInit {
     return this.resultType === 'success' ? 'success' : 'error';
   }
 
-  getTotalSent(): number {
-    return this.history.reduce((sum, b) => sum + b.sentCount, 0);
+  ngOnDestroy(): void {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = undefined;
+    }
   }
 
   loadHistory(): void {
-    this.broadcastService.getBroadcastHistory().subscribe(data => this.history = data);
+    this.broadcastService.getBroadcastHistory().subscribe(data => {
+      this.history = data;
+      this.totalSent = data.reduce((sum, b) => sum + b.sentCount, 0);
+    });
+  }
+
+  sendCustomMessage(): void {
+    if (!this.customMessage.trim()) return;
+
+    this.sending = true;
+    this.resultMessage = '';
+
+    this.broadcastService.sendBroadcast({
+      templateName: 'shop_deals',
+      languageCode: 'en',
+      parameters: [this.customMessage.trim()]
+    }).subscribe({
+      next: (res) => {
+        this.resultMessage = `Sending to ${res.totalRecipients} subscribers...`;
+        this.resultType = 'success';
+        this.customMessage = '';
+        this.pollBroadcastStatus(res.broadcastId, res.totalRecipients);
+      },
+      error: () => {
+        this.sending = false;
+        this.resultMessage = 'Failed to send broadcast. Make sure the shop_deals template is approved.';
+        this.resultType = 'error';
+      }
+    });
+  }
+
+  private pollBroadcastStatus(broadcastId: number, totalRecipients: number): void {
+    if (this.pollingInterval) clearInterval(this.pollingInterval);
+    let attempts = 0;
+    const maxAttempts = 30;
+    this.pollingInterval = setInterval(() => {
+      attempts++;
+      this.broadcastService.getBroadcastStatus(broadcastId).subscribe({
+        next: (status) => {
+          const processed = status.sentCount + status.failedCount;
+          if (processed >= totalRecipients || attempts >= maxAttempts) {
+            clearInterval(this.pollingInterval!);
+            this.pollingInterval = undefined;
+            this.sending = false;
+            this.loadHistory();
+            if (status.failedCount > 0 && status.sentCount === 0) {
+              this.resultMessage = `Broadcast failed! ${status.failedCount} message(s) could not be delivered. Check if your template is approved.`;
+              this.resultType = 'error';
+              this.notification.error(`Broadcast failed for ${status.failedCount} recipient(s).`);
+            } else if (status.failedCount > 0) {
+              this.resultMessage = `Broadcast completed: ${status.sentCount} sent, ${status.failedCount} failed.`;
+              this.resultType = 'success';
+              this.notification.warning(`Broadcast: ${status.sentCount} sent, ${status.failedCount} failed.`);
+            } else {
+              this.resultMessage = `Broadcast successful! ${status.sentCount} message(s) delivered.`;
+              this.resultType = 'success';
+              this.notification.success(`Broadcast sent to ${status.sentCount} subscribers.`);
+            }
+          }
+        },
+        error: () => {
+          clearInterval(this.pollingInterval!);
+          this.pollingInterval = undefined;
+          this.sending = false;
+          this.resultMessage = 'Could not verify broadcast delivery status.';
+          this.resultType = 'error';
+          this.loadHistory();
+        }
+      });
+    }, 1000);
   }
 
   sendBroadcast(): void {
@@ -150,13 +228,11 @@ export class BroadcastComponent implements OnInit {
       imageUrl: imageUrl || undefined
     }).subscribe({
       next: (res) => {
-        this.sending = false;
-        this.resultMessage = `Broadcast started! Sending to ${res.totalRecipients} subscribers.`;
+        this.resultMessage = `Sending to ${res.totalRecipients} subscribers...`;
         this.resultType = 'success';
-        this.notification.success(`Broadcast sent to ${res.totalRecipients} subscribers.`);
         this.submitted = false;
         this.broadcastForm.reset();
-        this.loadHistory();
+        this.pollBroadcastStatus(res.broadcastId, res.totalRecipients);
       },
       error: () => {
         this.sending = false;

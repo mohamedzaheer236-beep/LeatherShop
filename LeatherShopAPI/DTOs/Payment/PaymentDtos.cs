@@ -10,6 +10,8 @@ public class PaymentVerifyDto
     [Required(ErrorMessage = "Order ID is required.")]
     public string OrderId { get; set; } = string.Empty;
 
+    public string RazorpayOrderId { get; set; } = string.Empty;
+
     public string Signature { get; set; } = string.Empty;
 }
 

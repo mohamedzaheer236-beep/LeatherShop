@@ -8,9 +8,85 @@
     </ng-template>
   </p-toolbar>
 
+  <!-- Mode Toggle -->
+  <div class="mode-toggle mb-4">
+    <p-button [label]="'Quick Message'" [icon]="'pi pi-pencil'"
+              [outlined]="broadcastMode !== 'custom'"
+              (onClick)="broadcastMode = 'custom'" styleClass="mr-2">
+    </p-button>
+    <p-button [label]="'Template Message'" [icon]="'pi pi-file'"
+              [outlined]="broadcastMode !== 'template'"
+              (onClick)="broadcastMode = 'template'">
+    </p-button>
+  </div>
+
   <div class="broadcast-layout">
-    <!-- Send Form Card -->
-    <div class="broadcast-form-section">
+    <!-- Quick Custom Message Card -->
+    <div class="broadcast-form-section" *ngIf="broadcastMode === 'custom'">
+      <p-card styleClass="broadcast-card">
+        <div class="card-section-header">
+          <i class="pi pi-pencil"></i>
+          <div>
+            <h3>Quick Message</h3>
+            <p>Type your message and broadcast to all subscribers</p>
+          </div>
+        </div>
+
+        <!-- Status Banner -->
+        <div class="status-banner" *ngIf="resultMessage || sending" 
+             [ngClass]="{'status-sending': sending, 'status-success': !sending && resultType === 'success', 'status-error': !sending && resultType === 'error'}">
+          <div class="status-icon">
+            <i *ngIf="sending" class="pi pi-spin pi-spinner"></i>
+            <i *ngIf="!sending && resultType === 'success'" class="pi pi-check-circle"></i>
+            <i *ngIf="!sending && resultType === 'error'" class="pi pi-times-circle"></i>
+          </div>
+          <div class="status-content">
+            <span class="status-title" *ngIf="sending">Sending Broadcast</span>
+            <span class="status-title" *ngIf="!sending && resultType === 'success'">Broadcast Complete</span>
+            <span class="status-title" *ngIf="!sending && resultType === 'error'">Broadcast Failed</span>
+            <span class="status-detail">{{ resultMessage }}</span>
+          </div>
+          <button class="status-close" *ngIf="!sending" (click)="resultMessage = ''">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="customMessage">Your Message <span class="req-star">*</span></label>
+            <textarea pInputTextarea id="customMessage"
+                      [(ngModel)]="customMessage"
+                      [rows]="5"
+                      placeholder="e.g. Hi! Today's offer: 20% OFF on all leather wallets. Hurry up, valid till evening only!"
+                      class="w-full"
+                      [autoResize]="true"
+                      maxlength="900">
+            </textarea>
+            <small class="hint">{{ customMessage.length }}/900 characters</small>
+          </div>
+        </div>
+
+        <div class="send-action">
+          <small class="form-warning" *ngIf="!customMessage.trim()">
+            <i class="pi pi-exclamation-triangle"></i> Please type a message to enable sending.
+          </small>
+          <p-button (onClick)="sendCustomMessage()"
+                    label="Send to All Subscribers"
+                    icon="pi pi-send"
+                    [loading]="sending"
+                    [disabled]="sending || !customMessage.trim()"
+                    styleClass="w-full">
+          </p-button>
+          <small class="send-hint">
+            <i class="pi pi-info-circle"></i>
+            Message format: "Hello from Leather Shop! We have an exciting update for you. <strong>[Your message]</strong>. Visit us today..."
+          </small>
+        </div>
+      </p-card>
+    </div>
+
+    <!-- Template Message Card -->
+    <div class="broadcast-form-section" *ngIf="broadcastMode === 'template'">
       <p-card styleClass="broadcast-card">
         <div class="card-section-header">
           <i class="pi pi-send"></i>
@@ -20,9 +96,24 @@
           </div>
         </div>
 
-        <p-message severity="info" text="Templates must be pre-approved in your Meta Business Manager before sending." styleClass="mb-3"></p-message>
-
-        <p-message *ngIf="resultMessage" [severity]="getResultSeverity()" [text]="resultMessage" styleClass="mb-3"></p-message>
+        <!-- Status Banner -->
+        <div class="status-banner" *ngIf="resultMessage || sending" 
+             [ngClass]="{'status-sending': sending, 'status-success': !sending && resultType === 'success', 'status-error': !sending && resultType === 'error'}">
+          <div class="status-icon">
+            <i *ngIf="sending" class="pi pi-spin pi-spinner"></i>
+            <i *ngIf="!sending && resultType === 'success'" class="pi pi-check-circle"></i>
+            <i *ngIf="!sending && resultType === 'error'" class="pi pi-times-circle"></i>
+          </div>
+          <div class="status-content">
+            <span class="status-title" *ngIf="sending">Sending Broadcast</span>
+            <span class="status-title" *ngIf="!sending && resultType === 'success'">Broadcast Complete</span>
+            <span class="status-title" *ngIf="!sending && resultType === 'error'">Broadcast Failed</span>
+            <span class="status-detail">{{ resultMessage }}</span>
+          </div>
+          <button class="status-close" *ngIf="!sending" (click)="resultMessage = ''">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
 
         <form [formGroup]="broadcastForm" (ngSubmit)="sendBroadcast()">
           <div class="form-grid">
@@ -128,7 +219,7 @@
             <i class="pi pi-send" style="color: #d97706;"></i>
           </div>
           <div>
-            <span class="stat-number">{{ getTotalSent() }}</span>
+            <span class="stat-number">{{ totalSent }}</span>
             <span class="stat-label">Messages Sent</span>
           </div>
         </div>

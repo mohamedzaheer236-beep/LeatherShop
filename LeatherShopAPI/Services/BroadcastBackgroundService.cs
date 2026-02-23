@@ -110,7 +110,7 @@ public sealed class BroadcastBackgroundService : BackgroundService
             job.BroadcastId, job.Recipients.Count, MaxConcurrency);
 
         int sent = 0, failed = 0;
-        var semaphore = new SemaphoreSlim(MaxConcurrency);
+        using var semaphore = new SemaphoreSlim(MaxConcurrency);
 
         // Each concurrent task creates its own IServiceScope.
         // DbContext is NEVER shared across threads — progress saves use

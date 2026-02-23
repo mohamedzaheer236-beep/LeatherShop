@@ -12,11 +12,12 @@ import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
 import { CardModule } from 'primeng/card';
 import { ToolbarModule } from 'primeng/toolbar';
+import { PaginatorModule } from 'primeng/paginator';
 
 @Component({
   selector: 'app-orders',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, LoadingSpinnerComponent, TableModule, TagModule, ButtonModule, DropdownModule, CardModule, ToolbarModule],
+  imports: [CommonModule, ReactiveFormsModule, LoadingSpinnerComponent, TableModule, TagModule, ButtonModule, DropdownModule, CardModule, ToolbarModule, PaginatorModule],
   templateUrl: './orders.component.html',
   styleUrl: './orders.component.scss'
 })
@@ -35,6 +36,11 @@ export class OrdersComponent implements OnInit {
   statusOptions = ['Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'];
   expandedOrderId: number | null = null;
 
+  // Pagination
+  totalRecords = 0;
+  currentPage = 1;
+  pageSize = 25;
+
   constructor(
     private fb: FormBuilder,
     private orderService: OrderService,
@@ -51,13 +57,27 @@ export class OrdersComponent implements OnInit {
   loadOrders(): void {
     this.loading = true;
     const filterStatus = this.filterForm.get('filterStatus')?.value || '';
-    this.orderService.getOrders(filterStatus).subscribe({
-      next: (data) => { this.orders = data; this.loading = false; },
+    this.orderService.getOrders(filterStatus, this.currentPage, this.pageSize).subscribe({
+      next: (result) => {
+        this.orders = result.items;
+        this.totalRecords = result.totalCount;
+        this.loading = false;
+      },
       error: () => this.loading = false
     });
   }
 
-  onFilterChange(): void { this.loadOrders(); }
+  onFilterChange(): void {
+    this.currentPage = 1; // Reset to first page when filter changes
+    this.loadOrders();
+  }
+
+  onPageChange(event: any): void {
+    this.currentPage = event.page + 1; // PrimeNG paginator is 0-based, our API is 1-based
+    this.pageSize = event.rows;
+    this.expandedOrderId = null; // Collapse any expanded order
+    this.loadOrders();
+  }
 
   toggleExpand(orderId: number): void {
     this.expandedOrderId = this.expandedOrderId === orderId ? null : orderId;
@@ -83,5 +103,9 @@ export class OrdersComponent implements OnInit {
 
   getStatusButtonSeverity(status: string, currentStatus: string): TagSeverity {
     return getStatusButtonSeverity(status, currentStatus);
+  }
+
+  trackByOrderId(_index: number, order: Order): number {
+    return order.id;
   }
 }

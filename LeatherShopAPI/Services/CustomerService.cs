@@ -99,6 +99,10 @@ public class CustomerService : ICustomerService
         if (dto.Customers == null || !dto.Customers.Any())
             throw new ArgumentException("No customers provided");
 
+        // Load all existing phone numbers into a HashSet to avoid N+1 queries
+        var existingPhones = (await _db.Customers.Select(c => c.PhoneNumber).ToListAsync())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         int added = 0, skipped = 0;
 
         foreach (var item in dto.Customers)
@@ -106,9 +110,9 @@ public class CustomerService : ICustomerService
             var phone = PhoneNumberHelper.Normalize(item.PhoneNumber);
             if (string.IsNullOrEmpty(phone) || phone.Length < 5) { skipped++; continue; }
 
-            var exists = await _db.Customers.AnyAsync(c => c.PhoneNumber == phone);
-            if (exists) { skipped++; continue; }
+            if (existingPhones.Contains(phone)) { skipped++; continue; }
 
+            existingPhones.Add(phone); // prevent duplicates within the same import batch
             _db.Customers.Add(new Customer
             {
                 PhoneNumber = phone,

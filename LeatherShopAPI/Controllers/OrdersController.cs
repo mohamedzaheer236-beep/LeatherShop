@@ -19,10 +19,17 @@ public class OrdersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? status)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25)
     {
-        var orders = await _orderService.GetAllAsync(status);
-        return Ok(ApiResponse<List<OrderDto>>.Ok(orders));
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 25;
+        if (pageSize > 100) pageSize = 100;
+
+        var result = await _orderService.GetAllAsync(status, page, pageSize);
+        return Ok(ApiResponse<PaginatedResult<OrderDto>>.Ok(result));
     }
 
     [HttpPut("{id}/status")]

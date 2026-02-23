@@ -28,7 +28,7 @@
           <div class="form-field">
             <label for="name">Product Name <span [class]="isFieldInvalid('name') ? 'req-star error' : 'req-star'">*</span></label>
             <input id="name" type="text" pInputText formControlName="name"
-                   placeholder="e.g. Classic Leather Wallet" class="w-full"
+                   placeholder="e.g. Classic Leather Wallet" class="w-full" autocomplete="off"
                    [class.ng-invalid]="isFieldInvalid('name')" [class.ng-dirty]="isFieldInvalid('name')" />
             <small class="p-error" *ngIf="isFieldInvalid('name')">
               <i class="pi pi-exclamation-circle"></i> Product name is required.
@@ -40,16 +40,17 @@
             <div class="form-field">
               <label for="brand">Brand <span [class]="isFieldInvalid('brand') ? 'req-star error' : 'req-star'">*</span></label>
               <input id="brand" type="text" pInputText formControlName="brand"
-                     placeholder="e.g. Royal Leather" class="w-full"
+                     placeholder="e.g. Royal Leather" class="w-full" autocomplete="off"
                      [class.ng-invalid]="isFieldInvalid('brand')" [class.ng-dirty]="isFieldInvalid('brand')" />
               <small class="p-error" *ngIf="isFieldInvalid('brand')">
                 <i class="pi pi-exclamation-circle"></i> Brand is required.
               </small>
             </div>
             <div class="form-field">
-              <label for="category">Category <span [class]="isFieldInvalid('category') ? 'req-star error' : 'req-star'">*</span></label>
-              <p-dropdown id="category" [options]="categoryOptions" formControlName="category"
+              <label id="category-label">Category <span [class]="isFieldInvalid('category') ? 'req-star error' : 'req-star'">*</span></label>
+              <p-dropdown inputId="category" [options]="categoryOptions" formControlName="category"
                           placeholder="Select Category" [style]="{'width': '100%'}" appendTo="body"
+                          ariaLabelledBy="category-label"
                           [class.ng-invalid]="isFieldInvalid('category')" [class.ng-dirty]="isFieldInvalid('category')"></p-dropdown>
               <small class="p-error" *ngIf="isFieldInvalid('category')">
                 <i class="pi pi-exclamation-circle"></i> Category is required.
@@ -61,7 +62,7 @@
           <div class="form-row">
             <div class="form-field">
               <label for="price">Price (INR) <span [class]="isFieldInvalid('price') ? 'req-star error' : 'req-star'">*</span></label>
-              <p-inputNumber id="price" formControlName="price" mode="currency" currency="INR"
+              <p-inputNumber inputId="price" formControlName="price" mode="currency" currency="INR"
                             locale="en-IN" placeholder="e.g. 899" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"
                             [class.ng-invalid]="isFieldInvalid('price')" [class.ng-dirty]="isFieldInvalid('price')"></p-inputNumber>
               <small class="p-error" *ngIf="isFieldInvalid('price')">
@@ -70,7 +71,7 @@
             </div>
             <div class="form-field">
               <label for="stock">Stock Quantity <span [class]="isFieldInvalid('stockQuantity') ? 'req-star error' : 'req-star'">*</span></label>
-              <p-inputNumber id="stock" formControlName="stockQuantity"
+              <p-inputNumber inputId="stock" formControlName="stockQuantity"
                             [min]="0" [showButtons]="true" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"
                             [class.ng-invalid]="isFieldInvalid('stockQuantity')" [class.ng-dirty]="isFieldInvalid('stockQuantity')"></p-inputNumber>
               <small class="p-error" *ngIf="isFieldInvalid('stockQuantity')">
@@ -85,7 +86,7 @@
             <span class="p-input-icon-left w-full">
               <i class="pi pi-image"></i>
               <input id="imageUrl" type="text" pInputText formControlName="imageUrl"
-                     placeholder="https://example.com/image.jpg" class="w-full" />
+                     placeholder="https://example.com/image.jpg" class="w-full" autocomplete="off" />
             </span>
             <small class="hint">Paste a direct link to the product image</small>
           </div>

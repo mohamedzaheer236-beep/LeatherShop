@@ -59,6 +59,7 @@ export class CustomersComponent implements OnInit {
 
   // Selection — kept with ngModel for dynamic row binding
   allSelected = false;
+  private _selectedCount = 0;
 
   // Broadcast from selection
   showBroadcastDialog = false;
@@ -144,6 +145,7 @@ export class CustomersComponent implements OnInit {
       next: (data) => {
         this.customers = data.map(c => ({ ...c, selected: false }));
         this.allSelected = false;
+        this._selectedCount = 0;
         this.loading = false;
       },
       error: () => this.loading = false
@@ -159,15 +161,16 @@ export class CustomersComponent implements OnInit {
 
   get searchTerm(): string { return this.filterForm.get('searchTerm')?.value || ''; }
 
-  get selectedCount(): number { return this.customers.filter(c => c.selected).length; }
-  get selectedCustomers(): Customer[] { return this.customers.filter(c => c.selected); }
+  get selectedCount(): number { return this._selectedCount; }
 
   toggleSelectAll(): void {
     this.customers.forEach(c => c.selected = this.allSelected);
+    this._selectedCount = this.allSelected ? this.customers.length : 0;
   }
 
-  onRowSelect(): void {
-    this.allSelected = this.customers.length > 0 && this.customers.every(c => c.selected);
+  onRowSelect(customer: Customer): void {
+    this._selectedCount += customer.selected ? 1 : -1;
+    this.allSelected = this._selectedCount === this.customers.length;
   }
 
   openAddDialog(): void {
@@ -269,7 +272,7 @@ export class CustomersComponent implements OnInit {
       return;
     }
 
-    const phoneNumbers = this.selectedCustomers.map(c => c.phoneNumber);
+    const phoneNumbers = this.customers.filter(c => c.selected).map(c => c.phoneNumber);
     if (phoneNumbers.length === 0) {
       this.notification.error('No customers selected!');
       return;

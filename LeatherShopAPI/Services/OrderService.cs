@@ -18,7 +18,7 @@ public class OrderService : IOrderService
         _whatsApp = whatsApp;
     }
 
-    public async Task<List<OrderDto>> GetAllAsync(string? status)
+    public async Task<PaginatedResult<OrderDto>> GetAllAsync(string? status, int page = 1, int pageSize = 25)
     {
         var query = _db.Orders
             .Include(o => o.Customer)
@@ -28,8 +28,21 @@ public class OrderService : IOrderService
         if (!string.IsNullOrEmpty(status) && Enum.TryParse<OrderStatus>(status, true, out var orderStatus))
             query = query.Where(o => o.Status == orderStatus);
 
-        var orders = await query.OrderByDescending(o => o.CreatedAt).ToListAsync();
-        return orders.Select(o => o.ToDto()).ToList();
+        var totalCount = await query.CountAsync();
+
+        var orders = await query
+            .OrderByDescending(o => o.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PaginatedResult<OrderDto>
+        {
+            Items = orders.Select(o => o.ToDto()).ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<bool> UpdateStatusAsync(int id, string newStatus)
@@ -58,20 +71,24 @@ public class OrderService : IOrderService
 
         await _db.SaveChangesAsync();
 
-        // Notify customer via WhatsApp
-        var statusEmoji = status switch
+        // Notify customer via WhatsApp (best-effort — don't fail the update)
+        try
         {
-            OrderStatus.Confirmed => "✅",
-            OrderStatus.Shipped => "🚚",
-            OrderStatus.Delivered => "📦",
-            OrderStatus.Cancelled => "❌",
-            _ => "ℹ️"
-        };
+            var statusEmoji = status switch
+            {
+                OrderStatus.Confirmed => "✅",
+                OrderStatus.Shipped => "🚚",
+                OrderStatus.Delivered => "📦",
+                OrderStatus.Cancelled => "❌",
+                _ => "ℹ️"
+            };
 
-        await _whatsApp.SendTextMessage(
-            order.Customer.PhoneNumber,
-            $"{statusEmoji} *Order Update*\n\nYour order *{order.OrderNumber}* is now: *{status}*\n\nThank you for shopping with us! 🙏"
-        );
+            await _whatsApp.SendTextMessage(
+                order.Customer.PhoneNumber,
+                $"{statusEmoji} *Order Update*\n\nYour order *{order.OrderNumber}* is now: *{status}*\n\nThank you for shopping with us! 🙏"
+            );
+        }
+        catch { /* WhatsApp notification is best-effort */ }
 
         return true;
     }

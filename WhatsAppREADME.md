@@ -1,170 +1,164 @@
-# WhatsApp Business Setup — Connect Real Business Account
+# WhatsApp Business Setup — Leather Shop
 
-Guide to connect a real WhatsApp Business account (with blue tick, permanent token, unlimited users) to the Leather Shop API.
-
----
-
-## Why Do This?
-
-| Test Mode (Current) | Production (After Setup) |
-|---------------------|--------------------------|
-| Token expires every 24h | **Permanent token** (never expires) |
-| Max 5 pre-registered test numbers | **Unlimited users** (any WhatsApp user) |
-| Meta's test number (+1 555 145 5051) | **Real business number** with blue tick ✓ |
-| No business name shown | **"LeatherShop"** (or business name) displayed |
+Complete record of the WhatsApp Business setup for the Leather Shop API, including what was done, current status, and what's pending.
 
 ---
 
-## Prerequisites
+## Current Setup Status
 
-- The business owner has a **Meta Verified WhatsApp Business** account (blue tick)
-- You have an existing Meta Developer App (Leather Shop) at [developers.facebook.com](https://developers.facebook.com/)
-- Your Leather Shop API is running (localhost or deployed)
-
----
-
-## Step 1: Business Owner Adds You as Admin
-
-**The business owner does this:**
-
-1. Open [business.facebook.com](https://business.facebook.com/)
-2. Click **Settings** (gear icon) → **Business Settings**
-3. Left sidebar → **People**
-4. Click **Add People** → enter your email (e.g., `zaheertn@gmail.com`)
-5. Role: **Admin**
-6. Click **Next** → assign his **WhatsApp Business Account** asset → **Full Control**
-7. Click **Send Invitation**
-
-**You do this:**
-
-8. Check your email → **accept the invitation**
+| Component | Status | Details |
+|-----------|--------|---------|
+| **Business Portfolio** | ✅ Created | "Leather Shop" (ID: 1270862431810807) |
+| **Meta App** | ✅ Created | "Leather Shop" (ID: YOUR_META_APP_ID) |
+| **System User** | ✅ Created | "Leathershop" (Admin, ID: YOUR_SYSTEM_USER_ID) under Leather Shop portfolio |
+| **Permanent Token** | ✅ Generated | Never-expiring token with `whatsapp_business_messaging` + `whatsapp_business_management` permissions |
+| **WABA** | ✅ Created | WhatsApp Business Account ID: 2151682048973965 |
+| **Phone Number** | ✅ Added & Registered | +91 79043 03876 (Phone Number ID: 1055485577637232) |
+| **Phone Registration** | ✅ Registered | Via Cloud API `/register` endpoint with PIN 123456 |
+| **Business Verification** | ❌ Not Done | "Leather Shop" portfolio not yet verified by Meta |
+| **Payment Method** | ❌ Not Added | Required for sending messages beyond free tier |
+| **Webhook** | ❌ Not Configured | Needs to be set up once API is deployed or using ngrok |
+| **Template Approval** | ⏳ Pending | All 3 custom templates awaiting Meta review |
 
 ---
 
-## Step 2: Add His Phone Number to Your Meta App
-
-1. Go to [developers.facebook.com](https://developers.facebook.com/) → **My Apps** → your **Leather Shop** app
-2. Left sidebar → **WhatsApp** → **API Setup**
-3. In **Step 1: Select phone numbers** → click the **"From"** dropdown
-4. Click **Add phone number**
-5. Enter the business owner's phone number (the one with the blue tick)
-6. Choose verification method → **SMS** or **Voice Call**
-7. The business owner will receive an OTP on his phone → he tells you the code
-8. Enter the OTP → phone number is now linked to your app
-
----
-
-## Step 3: Get the New Credentials
-
-Still on the **API Setup** page:
-
-1. Make sure the **"From"** dropdown shows the business owner's phone number
-2. Note down the **Phone Number ID** (shown below the dropdown, e.g., `91XXXXXXXXXX`)
-3. Note down the **WhatsApp Business Account ID** (also shown on the page)
-4. Click **Generate access token** → copy the token (this is temporary — Step 4 creates a permanent one)
-
----
-
-## Step 4: Create a Permanent Token (Never Expires)
-
-1. Go to [business.facebook.com](https://business.facebook.com/) → switch to the **business owner's business** (top-left dropdown)
-2. **Settings** → **Business Settings** → left sidebar → **Users** → **System Users**
-3. Click **Add**:
-   - Name: `LeatherShopBot`
-   - Role: **Admin**
-   - Click **Create System User**
-4. Click on `LeatherShopBot` → **Add Assets**:
-   - Select **Apps** → your **Leather Shop** app → toggle **Full Control** → **Save**
-   - Select **WhatsApp Accounts** → the business owner's WhatsApp account → toggle **Full Control** → **Save**
-5. Click **Generate New Token**
-6. Select your **Leather Shop** app
-7. Check these permissions:
-   - ✅ `whatsapp_business_messaging`
-   - ✅ `whatsapp_business_management`
-8. Click **Generate Token**
-9. **Copy this token and save it securely** — this token **NEVER expires**
-
----
-
-## Step 5: Update appsettings.json
-
-Open `LeatherShopAPI/appsettings.json` and replace the WhatsApp section:
+## Credentials (in appsettings.json)
 
 ```json
 "WhatsApp": {
-    "PhoneNumberId": "HIS_NEW_PHONE_NUMBER_ID",
-    "BusinessAccountId": "HIS_BUSINESS_ACCOUNT_ID",
-    "AccessToken": "THE_PERMANENT_TOKEN_FROM_STEP_4",
+    "PhoneNumberId": "1055485577637232",
+    "BusinessAccountId": "2151682048973965",
+    "AccessToken": "EAARZC7ZC7MkN0BQ3jXm9DO4pIFH2evMZAwWZBRzpmsSvB1DeS3nhiOHXhit45UpvIF6ZCZANvdGLdDkFn4lGbuoMUsZAHOBl2MZA9cV5e4ZBLbF6rlBoBLoKcR2ggxVKMZCHNNinlQ7jMZBqqsiRHWp4P4TZC6TfLiqTfEg8CKYEdccHXZB5YyVrTVZBhe1TDeiV0FcVOpRAZDZD",
     "VerifyToken": "REDACTED_VERIFY_TOKEN",
     "ApiVersion": "v22.0"
 }
 ```
 
-| Field | What to Put | Where to Get |
-|-------|-------------|--------------|
-| `PhoneNumberId` | Business owner's phone number ID | Step 3 — API Setup page |
-| `BusinessAccountId` | Business owner's WhatsApp Business Account ID | Step 3 — API Setup page |
-| `AccessToken` | Permanent System User token | Step 4 — the generated token |
-| `VerifyToken` | Keep the same custom string | No change needed |
-| `ApiVersion` | Keep `v22.0` | No change needed |
+| Field | Value | Source |
+|-------|-------|--------|
+| `PhoneNumberId` | 1055485577637232 | Meta Developer Console → WhatsApp → API Setup |
+| `BusinessAccountId` | 2151682048973965 | WABA ID from Meta Business Suite |
+| `AccessToken` | Permanent System User token | Generated from "Leathershop" system user |
+| `VerifyToken` | `REDACTED_VERIFY_TOKEN` | Custom string — must match webhook configuration |
+| `ApiVersion` | `v22.0` | WhatsApp Cloud API version |
 
 ---
 
-## Step 6: Update the Webhook
+## Message Templates
 
-1. Go to [developers.facebook.com](https://developers.facebook.com/) → your app → **WhatsApp** → **Configuration**
-2. Under **Webhook** → click **Edit**
-3. Set **Callback URL** to your API webhook endpoint:
-   - **Development:** `https://YOUR-NGROK-URL/api/whatsapp/webhook`
-   - **Production:** `https://YOUR-PRODUCTION-API/api/whatsapp/webhook`
-4. Set **Verify token** to: `REDACTED_VERIFY_TOKEN` (must match `appsettings.json`)
-5. Click **Verify and Save**
-6. Under **Webhook fields** → make sure **messages** is subscribed (toggle ON)
+### Created Templates
 
----
+| Template Name | Category | Template ID | Status | Body |
+|---------------|----------|-------------|--------|------|
+| `shop_deals` | MARKETING | 2107912596695779 | ⏳ PENDING | `🛍️ New deals at Leather Shop! {{1}} Check out our latest collection. Shop now!` |
+| `order_update` | UTILITY | 1636258954059739 | ⏳ PENDING | `📦 Order Update: Your order {{1}} status is now: {{2}}. Thank you for shopping with us!` |
+| `store_notification` | UTILITY | 2317291185767700 | ⏳ PENDING | `📢 {{1}}` |
+| `hello_world` | UTILITY | 1132494892234892 | ✅ APPROVED | Default Meta template (⚠️ only works with test phone numbers, NOT real numbers) |
 
-## Step 7: Test
+### Template Notes
 
-1. Make sure your API is running (ngrok + `dotnet run`)
-2. Send **"Hi"** from **any** WhatsApp number to the business owner's number
-3. The chatbot should reply with the main menu
-4. Verify:
-   - ✅ No 5-user limit — anyone can message
-   - ✅ No token expiry — permanent token works indefinitely
-   - ✅ Blue tick shows next to business name
-   - ✅ Business name (e.g., "LeatherShop") displayed instead of phone number
+- **All custom templates are PENDING Meta approval** — cannot send broadcasts until approved
+- `hello_world` returns error `"Hello World templates can only be sent from the Public Test Numbers"` when used with real phone +91 79043 03876
+- `shop_deals` replaces a deleted `shop_offer` template that had duplicated body text
+- `store_notification` (UTILITY) was created as a fallback — UTILITY templates typically get approved faster than MARKETING
+- Once approved, the broadcast page's Quick Message and Template message features will work
 
----
+### How Templates Are Used in the App
 
-## Quick Checklist
-
-- [ ] Business owner invites you as Admin to his Meta Business
-- [ ] You accept the invitation via email
-- [ ] You add his phone number to your Meta Developer App
-- [ ] He gives you the OTP for phone verification
-- [ ] You note the new Phone Number ID and Business Account ID
-- [ ] You create a System User and generate a permanent token
-- [ ] You update `appsettings.json` with the 3 new values
-- [ ] You update the webhook URL in the app's Configuration page
-- [ ] You test by messaging his business number from any WhatsApp
+1. **Broadcast Page → Template Message tab**: Admin selects from approved templates, enters parameters, selects recipients, and sends
+2. **Broadcast Page → Quick Message tab**: Uses `shop_deals` template with a textarea for the message body (passed as parameter `{{1}}`)
+3. **Customers Page → Send to Selected**: Opens a dialog to select a template and send to checked customers
 
 ---
 
-## What Customers See After Setup
+## Architecture
 
 ```
-┌─────────────────────────────┐
-│ 🔵 LeatherShop  ✓           │  ← Blue tick + business name
-│ Business Account             │
-├─────────────────────────────┤
-│ Welcome to Leather Shop!     │
-│ How can we help you today?   │
-│                              │
-│ ┌─────────────────────────┐  │
-│ │ 📋 View Menu            │  │  ← Chatbot works exactly the same
-│ └─────────────────────────┘  │
-└─────────────────────────────┘
+Customer (WhatsApp) ──→ Meta Cloud API ──→ Webhook (POST) ──→ .NET API ──→ ChatBotService
+                   ←── Meta Cloud API ←── WhatsAppService ←── .NET API ←── (response)
+                   
+Admin Panel ──→ BroadcastController ──→ BroadcastService (enqueue) ──→ Channel<T>
+                                                                         ↓
+                                                            BroadcastBackgroundService
+                                                                         ↓
+                                                            WhatsAppService.SendTemplateMessage()
+                                                            (10 concurrent sends via SemaphoreSlim)
 ```
+
+---
+
+## What's Done
+
+### 1. System User & Permanent Token
+- Created Admin System User "Leathershop" under "Leather Shop" Business Portfolio
+- Generated permanent (non-expiring) access token with permissions:
+  - `whatsapp_business_messaging` — send/receive messages
+  - `whatsapp_business_management` — manage templates, phone numbers
+- Token stored in `appsettings.json` → `WhatsApp:AccessToken`
+
+### 2. Phone Number Registration
+- Added phone +91 79043 03876 to WABA 2151682048973965
+- Registered the phone number via WhatsApp Cloud API `/register` endpoint with PIN 123456
+- Phone status: **Connected**
+
+### 3. Message Templates
+- Created 3 custom templates via Meta Graph API (`POST /v22.0/{WABA_ID}/message_templates`)
+- All submitted successfully and assigned template IDs
+- Awaiting Meta review/approval
+
+### 4. Broadcast System
+- Backend: `BroadcastService` enqueues jobs → `BroadcastBackgroundService` processes with `Channel<T>` + `SemaphoreSlim(10)` concurrency
+- Frontend: Two-tab broadcast page (Quick Message / Template Message) with recipient selection and history
+- Status polling: `GET /api/broadcast/{id}/status` — frontend polls every 1s for up to 30s for real-time sent/failed counts
+- Custom status banners (sending/success/error) with animations
+
+---
+
+## What's Pending
+
+### Must Do Before Production
+
+| # | Task | Details |
+|---|------|---------|
+| 1 | **Wait for template approval** | All 3 custom templates need Meta approval before broadcasts work. Check status at: Meta Business Suite → WhatsApp Manager → Message Templates |
+| 2 | **Add payment method** | Go to Meta Business Suite → Payment Settings → add credit card. Required to send messages beyond the free conversation tier (1,000 free service conversations/month) |
+| 3 | **Verify "Leather Shop" business** | Business verification required for: higher messaging limits, payment configuration access, green/blue tick. Go to: Meta Business Suite → Settings → Business Info → Start Verification |
+| 4 | **Configure webhook** | Meta Developer Console → WhatsApp → Configuration → set Callback URL to your API endpoint + Verify Token. Subscribe to `messages` field |
+| 5 | **Webhook signature validation** | Validate `X-Hub-Signature-256` header on incoming webhook POSTs to prevent spoofed payloads |
+| 6 | **Move secrets to environment variables** | WhatsApp token, DB password, JWT key should NOT be in `appsettings.json`. Use User Secrets (dev) or env vars (prod) |
+
+### Nice to Have
+
+| # | Task | Details |
+|---|------|---------|
+| 7 | **Server-side pagination** | API endpoints currently return all records. Add `?page=1&pageSize=25` for scale |
+| 8 | **WhatsApp retry with rate limiting** | Add per-message delay and retry logic in BroadcastBackgroundService for WhatsApp API rate limits |
+| 9 | **Product images in chatbot** | ChatBot currently sends text-only product details. Could use WhatsApp media messages |
+| 10 | **Customer address collection** | Add chatbot flow to ask for shipping address before checkout |
+
+---
+
+## WhatsApp Webhook Setup (Step-by-Step)
+
+### For Development (ngrok)
+
+1. Start your API: `cd LeatherShopAPI && dotnet run`
+2. Start ngrok: `ngrok http 5000`
+3. Copy the HTTPS URL (e.g., `https://abc123.ngrok-free.app`)
+4. Go to [developers.facebook.com](https://developers.facebook.com/) → your app → WhatsApp → Configuration
+5. Click **Edit** under Webhook:
+   - Callback URL: `https://abc123.ngrok-free.app/api/whatsapp/webhook`
+   - Verify token: `REDACTED_VERIFY_TOKEN`
+6. Click **Verify and Save**
+7. Under Webhook fields → subscribe to **messages**
+8. Test by sending "Hi" to +91 79043 03876 from any WhatsApp
+
+### For Production
+
+1. Deploy your API to a cloud platform (Railway, Azure, etc.)
+2. Use the deployed URL as the Callback URL
+3. Same verify token as above
+4. API must be **always running** — Meta retries webhooks for a limited time
 
 ---
 
@@ -172,9 +166,32 @@ Open `LeatherShopAPI/appsettings.json` and replace the WhatsApp section:
 
 | Problem | Cause | Fix |
 |---------|-------|-----|
-| Webhook verification fails | Verify token mismatch | Ensure `VerifyToken` in `appsettings.json` matches the token entered in Meta Configuration |
-| Messages not received | Webhook field not subscribed | Go to Configuration → Webhook fields → enable **messages** |
-| 401 Unauthorized from Meta API | Token expired or wrong | Use the permanent System User token from Step 4 |
-| Can't add phone number | Not admin of the business | Business owner must complete Step 1 first |
-| Old test number still sending | "From" dropdown wrong | Change the "From" dropdown in API Setup to the new number |
-| Blue tick not showing | Business not verified by Meta | Business owner needs to complete Meta Business Verification |
+| Broadcasts show "all failed" | Templates not yet approved | Wait for Meta approval or use an approved template |
+| `hello_world` errors | "Hello World templates can only be sent from Public Test Numbers" | Use custom approved templates instead |
+| 401 from Meta API | Token invalid or expired | Regenerate from System User settings (should be permanent) |
+| Webhook verification fails | Verify token mismatch | Check `WhatsApp:VerifyToken` in appsettings.json matches Meta Configuration |
+| Messages not received | Webhook not configured or `messages` field not subscribed | Check Meta Developer Console → Configuration |
+| Can't access payment configs | Business not verified | Complete business verification for "Leather Shop" portfolio |
+| Low messaging limits | Need to verify business or add payment method | Complete verification + add payment method for higher tiers |
+
+---
+
+## Business Portfolios Reference
+
+| Portfolio | ID | Verified | Notes |
+|-----------|-----|----------|-------|
+| Bovino | (original) | ✅ Verified (May 2024) | Original portfolio — 7-day system user age restriction |
+| Leather Shop | 1270862431810807 | ❌ Not verified | New portfolio with WABA + WhatsApp setup. Needs verification |
+
+---
+
+## Messaging Limits & Costs
+
+| Tier | Limit | How to Unlock |
+|------|-------|---------------|
+| **Unverified business** | 250 business-initiated conversations/day | Default |
+| **Verified business** | 1,000 → 10,000 → 100,000/day (auto-scales) | Complete business verification |
+| **Free tier** | 1,000 free service conversations/month | Automatic |
+| **Paid conversations** | ~₹0.30-0.70 per conversation (varies by category) | Add payment method |
+
+> **Important:** Each "conversation" is a 24-hour window with one customer, not per message. You can send unlimited messages within a conversation window.

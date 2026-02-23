@@ -36,6 +36,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         builder.HasIndex(p => p.Category);
         builder.HasIndex(p => p.Brand);
+        builder.HasIndex(p => p.IsActive);
 
         // Seed data
         builder.HasData(

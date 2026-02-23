@@ -15,10 +15,11 @@
   <div class="filters-bar" [formGroup]="filterForm">
     <span class="p-input-icon-left">
       <i class="pi pi-search"></i>
-      <input type="text" pInputText placeholder="Search products..." formControlName="searchText"
-             (keyup.enter)="search()" aria-label="Search products" />
+      <input id="searchText" name="searchText" type="text" pInputText placeholder="Search products..." formControlName="searchText"
+             (keyup.enter)="search()" aria-label="Search products" autocomplete="off" />
     </span>
     <p-dropdown #catDropdown [options]="categoryOptions" formControlName="filterCategory"
+                inputId="filterCategory"
                 placeholder="All Categories" [style]="{'min-width': '190px'}"
                 [filter]="true" filterBy="label" [showClear]="true" appendTo="body"
                 [resetFilterOnHide]="true"
@@ -28,6 +29,7 @@
       </ng-template>
     </p-dropdown>
     <p-dropdown #brandDropdown [options]="brandOptions" formControlName="filterBrand"
+                inputId="filterBrand"
                 placeholder="All Brands" [style]="{'min-width': '190px'}"
                 [filter]="true" filterBy="label" [showClear]="true" appendTo="body"
                 [resetFilterOnHide]="true"

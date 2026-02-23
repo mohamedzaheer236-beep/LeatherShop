@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using LeatherShopAPI.DTOs.Payment;
 using LeatherShopAPI.Models;
@@ -22,15 +23,18 @@ public class PaymentController : ControllerBase
         var data = await _paymentService.GetPaymentPageDataAsync(orderId);
         if (data == null) return NotFound("Order not found or already paid.");
 
+        var safeOrderNumber = WebUtility.HtmlEncode(data.OrderNumber);
+        var safeCustomerPhone = WebUtility.HtmlEncode(data.CustomerPhone);
+
         var itemsHtml = string.Join("", data.Items.Select(i =>
-            $"<tr><td>{i.ProductName}</td><td>{i.Quantity}</td><td>₹{i.UnitPrice}</td><td>₹{i.Subtotal}</td></tr>"
+            $"<tr><td>{WebUtility.HtmlEncode(i.ProductName)}</td><td>{i.Quantity}</td><td>₹{i.UnitPrice}</td><td>₹{i.Subtotal}</td></tr>"
         ));
 
         var html = $@"
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Pay - {data.OrderNumber}</title>
+    <title>Pay - {safeOrderNumber}</title>
     <meta name='viewport' content='width=device-width, initial-scale=1'>
     <script src='https://checkout.razorpay.com/v1/checkout.js'></script>
     <style>
@@ -47,7 +51,7 @@ public class PaymentController : ControllerBase
 <body>
     <div class='card'>
         <h2>Leather Shop</h2>
-        <p>Order: <strong>{data.OrderNumber}</strong></p>
+        <p>Order: <strong>{safeOrderNumber}</strong></p>
         <table>{itemsHtml}</table>
         <br>
         <p class='total'>Total: Rs.{data.TotalAmount}</p>
@@ -61,7 +65,7 @@ public class PaymentController : ControllerBase
                 amount: {data.AmountInPaise},
                 currency: 'INR',
                 name: 'Leather Shop',
-                description: 'Order {data.OrderNumber}',
+                description: 'Order {safeOrderNumber}',
                 handler: function(response) {{
                     fetch('/api/payment/verify', {{
                         method: 'POST',
@@ -69,6 +73,7 @@ public class PaymentController : ControllerBase
                         body: JSON.stringify({{
                             paymentId: response.razorpay_payment_id,
                             orderId: '{data.OrderId}',
+                            razorpayOrderId: response.razorpay_order_id || '',
                             signature: response.razorpay_signature || ''
                         }})
                     }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
@@ -77,7 +82,7 @@ public class PaymentController : ControllerBase
                         document.body.innerHTML = '<div class=card><h2>Payment Received!</h2><p>Check WhatsApp for details.</p></div>';
                     }});
                 }},
-                prefill: {{ contact: '{data.CustomerPhone}' }},
+                prefill: {{ contact: '{safeCustomerPhone}' }},
                 theme: {{ color: '#2e7d32' }}
             }};
             var rzp = new Razorpay(options);

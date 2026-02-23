@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { Order } from '../models/order.model';
+import { Order, PaginatedResult } from '../models/order.model';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({
@@ -12,8 +12,10 @@ export class OrderService {
 
   constructor(private http: HttpClient) {}
 
-  getOrders(status?: string): Observable<Order[]> {
-    let params = new HttpParams();
+  getOrders(status?: string, page: number = 1, pageSize: number = 25): Observable<PaginatedResult<Order>> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('pageSize', pageSize.toString());
     if (status) params = params.set('status', status);
     return this.http.get<any>(this.baseUrl, { params }).pipe(map(res => res.data));
   }

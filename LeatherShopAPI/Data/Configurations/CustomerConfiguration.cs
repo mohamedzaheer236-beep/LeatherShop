@@ -28,6 +28,12 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.HasIndex(c => c.PhoneNumber)
             .IsUnique();
 
+        // Performance index: filter by subscription status
+        builder.HasIndex(c => c.IsSubscribed);
+
+        // Performance index: sort by creation date
+        builder.HasIndex(c => c.CreatedAt);
+
         // One-to-many: Customer → Orders
         builder.HasMany(c => c.Orders)
             .WithOne(o => o.Customer)

@@ -76,6 +76,23 @@ public class BroadcastService : IBroadcastService
         };
     }
 
+    public async Task<BroadcastHistoryDto?> GetBroadcastStatusAsync(int broadcastId)
+    {
+        return await _db.BroadcastMessages
+            .Where(b => b.Id == broadcastId)
+            .Select(b => new BroadcastHistoryDto
+            {
+                Id = b.Id,
+                MessageTemplate = b.MessageTemplate,
+                MessageBody = b.MessageBody,
+                TotalRecipients = b.TotalRecipients,
+                SentCount = b.SentCount,
+                FailedCount = b.FailedCount,
+                SentAt = b.SentAt
+            })
+            .FirstOrDefaultAsync();
+    }
+
     public async Task<List<BroadcastHistoryDto>> GetHistoryAsync()
     {
         return await _db.BroadcastMessages

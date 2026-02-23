@@ -26,6 +26,11 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(o => o.OrderNumber)
             .IsUnique();
 
+        // Performance indexes for dashboard & filtering
+        builder.HasIndex(o => o.Status);
+        builder.HasIndex(o => o.CreatedAt);
+        builder.HasIndex(o => o.IsPaid);
+
         // Many-to-one: Order → Customer
         builder.HasOne(o => o.Customer)
             .WithMany(c => c.Orders)
