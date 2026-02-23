@@ -14,6 +14,7 @@ namespace LeatherShopAPI.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
+    private const int TokenExpiryHours = 24;
     private readonly IConfiguration _config;
     private readonly AppDbContext _db;
 
@@ -48,7 +49,7 @@ public class AuthController : ControllerBase
 
         // Generate JWT
         var token = GenerateJwtToken(admin.Username);
-        var expiresAt = DateTime.UtcNow.AddHours(24);
+        var expiresAt = DateTime.UtcNow.AddHours(TokenExpiryHours);
 
         return Ok(new ApiResponse<LoginResponse>
         {
@@ -97,7 +98,7 @@ public class AuthController : ControllerBase
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(24),
+            expires: DateTime.UtcNow.AddHours(TokenExpiryHours),
             signingCredentials: credentials
         );
 

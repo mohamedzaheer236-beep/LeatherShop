@@ -1,15 +1,13 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
 /**
  * JWT auth interceptor — attaches Bearer token to all API requests.
- * On 401 response, auto-redirects to login.
+ * 401 handling is in the error interceptor.
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
-  const router = inject(Router);
 
   const token = auth.getToken();
 

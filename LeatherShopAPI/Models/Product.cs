@@ -11,7 +11,7 @@ public class Product
     [Required, MaxLength(200)]
     public string Name { get; set; } = string.Empty;
 
-    [MaxLength(1000)]
+    [MaxLength(2000)]
     public string Description { get; set; } = string.Empty;
 
     [Required, MaxLength(100)]

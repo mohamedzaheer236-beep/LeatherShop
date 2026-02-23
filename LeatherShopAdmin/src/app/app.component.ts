@@ -9,16 +9,15 @@ import { filter } from 'rxjs/operators';
   selector: 'app-root',
   standalone: true,
   imports: [CommonModule, RouterOutlet, NavbarComponent, ToastComponent],
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+  templateUrl: './app.component.html'
 })
 export class AppComponent {
   showNavbar = true;
 
   constructor(private router: Router) {
     this.router.events
-      .pipe(filter(e => e instanceof NavigationEnd))
-      .subscribe((e: any) => {
+      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe((e: NavigationEnd) => {
         this.showNavbar = !e.urlAfterRedirects.startsWith('/login');
       });
   }

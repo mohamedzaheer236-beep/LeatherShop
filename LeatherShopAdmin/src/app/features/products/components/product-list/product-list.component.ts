@@ -49,11 +49,13 @@ export class ProductListComponent implements OnInit {
     });
 
     this.loadProducts();
-    this.productService.getCategories().subscribe(data => {
-      this.categoryOptions = data.map(c => ({ label: c, value: c }));
+    this.productService.getCategories().subscribe({
+      next: (data) => { this.categoryOptions = data.map(c => ({ label: c, value: c })); },
+      error: () => { this.notification.error('Failed to load categories.'); }
     });
-    this.productService.getBrands().subscribe(data => {
-      this.brandOptions = data.map(b => ({ label: b, value: b }));
+    this.productService.getBrands().subscribe({
+      next: (data) => { this.brandOptions = data.map(b => ({ label: b, value: b })); },
+      error: () => { this.notification.error('Failed to load brands.'); }
     });
   }
 
@@ -94,6 +96,9 @@ export class ProductListComponent implements OnInit {
       next: () => {
         product.isActive = !product.isActive;
         this.notification.success(`Product ${product.isActive ? 'activated' : 'deactivated'}.`);
+      },
+      error: () => {
+        this.notification.error('Failed to update product status.');
       }
     });
   }
@@ -109,6 +114,9 @@ export class ProductListComponent implements OnInit {
           next: () => {
             this.products = this.products.filter(p => p.id !== product.id);
             this.notification.success('Product deleted successfully.');
+          },
+          error: () => {
+            this.notification.error('Failed to delete product.');
           }
         });
       }

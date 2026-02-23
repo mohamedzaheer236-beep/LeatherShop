@@ -34,13 +34,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
 
   private originalSnapshot = '';
 
-  categoryOptions = [
-    { label: 'Wallet', value: 'Wallet' },
-    { label: 'Belt', value: 'Belt' },
-    { label: 'Bag', value: 'Bag' },
-    { label: 'Shoes', value: 'Shoes' },
-    { label: 'Accessories', value: 'Accessories' }
-  ];
+  categoryOptions: { label: string; value: string }[] = [];
 
   constructor(
     private fb: FormBuilder,
@@ -69,6 +63,16 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     } else {
       this.originalSnapshot = JSON.stringify(this.productForm.value);
     }
+
+    // Load categories dynamically from API
+    this.productService.getCategories().subscribe({
+      next: (data) => {
+        this.categoryOptions = data.map(c => ({ label: c, value: c }));
+      },
+      error: () => {
+        this.notification.error('Failed to load categories.');
+      }
+    });
   }
 
   private initForm(): void {

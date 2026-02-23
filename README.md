@@ -33,7 +33,7 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 |-------|---------|--------------|
 | **Middleware** | `Middleware/ExceptionHandlingMiddleware.cs` | Global exception handling — catches all unhandled exceptions, logs them, returns consistent `ApiResponse` JSON. Maps exception types to HTTP status codes (404, 400, 409, 401, 500). Prevents stack trace leaks. |
 | **API Response Model** | `Models/ApiResponse.cs` | Unified response envelope `ApiResponse<T>` with `success`, `message`, `data`, `errors` fields. Generic and non-generic versions. All controllers return this shape. |
-| **Controllers (thin)** | `ProductsController.cs`, `OrdersController.cs`, `CustomersController.cs`, `DashboardController.cs`, `BroadcastController.cs`, `PaymentController.cs`, `WhatsAppWebhookController.cs` | HTTP routing only — delegates all logic to service interfaces. Wraps responses in `ApiResponse<T>`. |
+| **Controllers (thin)** | `AuthController.cs`, `ProductsController.cs`, `OrdersController.cs`, `CustomersController.cs`, `DashboardController.cs`, `BroadcastController.cs`, `PaymentController.cs`, `WhatsAppWebhookController.cs` | HTTP routing only — delegates all logic to service interfaces. Wraps responses in `ApiResponse<T>`. `[Authorize]` on all admin controllers; Auth/Payment/Webhook are public. |
 | **Service Interfaces** | `Services/Interfaces/IProductService.cs`, `IOrderService.cs`, `ICustomerService.cs`, `IDashboardService.cs`, `IBroadcastService.cs`, `IPaymentService.cs`, `IWhatsAppService.cs`, `IChatBotService.cs` | Contracts for all business logic |
 | **Service Implementations** | `Services/ProductService.cs`, `OrderService.cs`, `CustomerService.cs`, `DashboardService.cs`, `BroadcastService.cs`, `PaymentService.cs`, `WhatsAppService.cs`, `ChatBotService.cs` | All business logic lives here — DB queries, WhatsApp API calls, chatbot state machine |
 | **Background Processing** | `Services/BroadcastBackgroundService.cs` | Hosted `BackgroundService` + `Channel<T>` producer/consumer queue — `BroadcastService` enqueues jobs, `BroadcastBackgroundService` dequeues and processes with `SemaphoreSlim(10)` concurrency. Saves progress every 50 messages. Graceful shutdown via `CancellationToken`. |
@@ -41,9 +41,10 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 | **Split DTOs (validated)** | `DTOs/Product/`, `DTOs/Order/`, `DTOs/Customer/`, `DTOs/Dashboard/`, `DTOs/Broadcast/`, `DTOs/Payment/`, `DTOs/WhatsApp/` | Per-feature DTO files with `[Required]`, `[MaxLength]`, `[Range]`, `[Url]`, `[RegularExpression]` validation attributes |
 | **DI Extensions** | `Extensions/ServiceCollectionExtensions.cs` | Grouped DI registration: `AddDatabase()`, `AddApplicationServices()`, `AddCorsPolicies()` |
 | **Mapping Extensions** | `Extensions/MappingExtensions.cs` | `Product.ToDto()`, `Order.ToDto()`, `OrderItem.ToDto()` — shared entity-to-DTO mapping used by ProductService, OrderService, DashboardService |
+| **Authentication** | `Controllers/AuthController.cs`, `Models/AdminUser.cs`, `DTOs/Auth/AuthDtos.cs`, `Data/Configurations/AdminUserConfiguration.cs` | JWT Bearer authentication — `POST /api/auth/login` validates credentials against `AdminUsers` table (BCrypt hash, case-sensitive). Returns JWT token (24h expiry). `[Authorize]` attribute on all admin controllers. Admin user auto-seeded on first startup. |
 | **Config** | `appsettings.json`, `appsettings.Development.json`, `appsettings.Production.json` | Environment-specific configuration files |
-| **Data Models** | `Models/Product.cs`, `Customer.cs`, `CartItem.cs`, `Order.cs`, `OrderItem.cs`, `BroadcastMessage.cs` | Entity classes with navigation properties |
-| **Database** | `AppDbContext.cs` | EF Core DbContext — uses `ApplyConfigurationsFromAssembly()` for auto-discovering entity configs |
+| **Data Models** | `Models/Product.cs`, `Customer.cs`, `CartItem.cs`, `Order.cs`, `OrderItem.cs`, `BroadcastMessage.cs`, `AdminUser.cs` | Entity classes with navigation properties |
+| **Database** | `AppDbContext.cs` | EF Core DbContext — uses `ApplyConfigurationsFromAssembly()` for auto-discovering entity configs. 7 DbSets including AdminUsers. |
 
 ### Frontend Admin Panel (Angular 18) — `LeatherShopAdmin/`
 
@@ -56,10 +57,11 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 | **Orders** | `/orders` (lazy) | `features/orders/` — `order.service.ts`, `order.model.ts`, `orders.routes.ts`, `components/orders/` |
 | **Customers** | `/customers` (lazy) | `features/customers/` — `customer.service.ts`, `customer.model.ts`, `customers.routes.ts`, `components/customers/` |
 | **Broadcast** | `/broadcast` (lazy) | `features/broadcast/` — `broadcast.service.ts`, `broadcast.model.ts`, `broadcast.routes.ts`, `components/broadcast/` |
-| **Core** | _(app-wide)_ | `core/interceptors/error.interceptor.ts` — HTTP error interceptor with toast notifications |
+| **Auth** | `/login` | `features/auth/components/login/` — animated login page with background video, JWT token storage, redirect to dashboard on success |
+| **Core** | _(app-wide)_ | `core/interceptors/error.interceptor.ts` — HTTP error interceptor with toast notifications. `core/interceptors/auth.interceptor.ts` — attaches JWT Bearer token to all API requests. `core/guards/auth.guard.ts` — protects all admin routes (redirects to `/login` if no token). `core/services/auth.service.ts` — login, logout, token management, username extraction. |
 | **Shared** | _(all pages)_ | `shared/components/navbar/`, `shared/components/toast/`, `shared/components/loading-spinner/`, `shared/services/notification.service.ts`, `shared/services/template-loader.service.ts`, `shared/utils/severity.utils.ts` |
 | **Environments** | _(build-time)_ | `environments/environment.ts` (dev), `environments/environment.prod.ts` (prod) — API URL config |
-| **App Shell** | — | `app.routes.ts` (lazy loading via `loadChildren`), `app.config.ts` (interceptors), `app.component.ts` (toast + navbar + outlet) |
+| **App Shell** | — | `app.routes.ts` (lazy loading via `loadChildren`, `authGuard` on all admin routes, `**` wildcard → `/login`), `app.config.ts` (interceptors: auth + error), `app.component.ts` (toast + navbar + outlet, navbar hidden on login page) |
 
 ---
 
@@ -90,12 +92,14 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 │  │ Webhook       │  │ ChatBot     │  │ Admin       │  │
 │  │ Controller    │──│ Service     │  │ Controllers │  │
 │  └──────────────┘  └──────┬──────┘  └──────┬──────┘  │
-│                           │                 │         │
+│                           │          [Authorize]      │
+│                           │          JWT Bearer       │
 │                    ┌──────▼──────┐          │         │
-│                    │ WhatsApp    │◄─────────┘         │
-│                    │ Service     │ (order status      │
-│                    │ (sends msgs)│  notifications)    │
-│                    └─────────────┘                    │
+│  ┌─────────────┐   │ WhatsApp    │◄─────────┘         │
+│  │ Auth        │   │ Service     │ (order status      │
+│  │ Controller  │   │ (sends msgs)│  notifications)    │
+│  │ (JWT login) │   └─────────────┘                    │
+│  └─────────────┘          │                           │
 │                           │                           │
 │                    ┌──────▼──────────────────┐        │
 │                    │  PostgreSQL (EF Core)   │        │
@@ -196,6 +200,15 @@ Customer sends "Hi" / "Hello" / "Menu"
 Admin opens http://localhost:4200
     │
     ▼
+┌── LOGIN (/login) ──────────────────────────────────────┐
+│  Animated background video + frosted glass card         │
+│  Username: [________]  Password: [________]             │
+│  [Sign In]                                              │
+│  → On success: stores JWT token, redirects to dashboard │
+│  → On failure: inline error message                     │
+└────────────────────────────────────────────────────────┘
+    │
+    ▼ (authenticated — all routes protected by AuthGuard)
 ┌── DASHBOARD (/dashboard) ──────────────────────────────┐
 │  [Products: 6] [Customers: 0] [Orders: 0] [Revenue: 0]│
 │  [Pending: 0]  [Low Stock: 0]                          │
@@ -251,11 +264,13 @@ Admin opens http://localhost:4200
 LeatherShopAPI/                          # ── .NET 8 Web API ──
 │
 ├── Program.cs                           # App entry point — clean, uses extension methods
+│                                        #   - JWT Bearer authentication configuration
 │                                        #   - Uses ExceptionHandlingMiddleware
 │                                        #   - Auto-runs EF migrations on startup
+│                                        #   - Seeds admin user (BCrypt hash) if none exists
 │                                        #   - Enables Swagger in development
 │
-├── appsettings.json                     # Config: DB connection, WhatsApp creds, Razorpay keys
+├── appsettings.json                     # Config: DB connection, WhatsApp creds, Razorpay keys, JWT settings
 ├── appsettings.Development.json         # Development overrides (log levels)
 ├── appsettings.Production.json          # Production template (placeholder secrets)
 │
@@ -289,17 +304,23 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   ├── Order.cs                         # Id, OrderNumber (unique), CustomerId,
 │   │                                    #   TotalAmount, Status, PaymentId, IsPaid
 │   │                                    # OrderItem: OrderId, ProductId, Qty, UnitPrice
-│   └── BroadcastMessage.cs              # Id, MessageTemplate, MessageBody,
-│                                        #   TotalRecipients, SentCount, FailedCount
+│   ├── BroadcastMessage.cs              # Id, MessageTemplate, MessageBody,
+│   │                                    #   TotalRecipients, SentCount, FailedCount
+│   └── AdminUser.cs                     # Id, Username (unique), PasswordHash (BCrypt),
+│                                        #   CreatedAt, LastLoginAt
 │
 ├── Controllers/                         # THIN — wraps responses in ApiResponse<T>
-│   ├── ProductsController.cs            # Injects IProductService
-│   ├── OrdersController.cs              # Injects IOrderService
-│   ├── CustomersController.cs           # Injects ICustomerService
-│   ├── DashboardController.cs           # Injects IDashboardService
-│   ├── BroadcastController.cs           # Injects IBroadcastService
-│   ├── PaymentController.cs             # Injects IPaymentService
-│   └── WhatsAppWebhookController.cs     # Injects IChatBotService
+│   ├── AuthController.cs                # JWT login — POST /api/auth/login
+│   │                                    #   Validates credentials vs AdminUsers table
+│   │                                    #   BCrypt password verification (case-sensitive)
+│   │                                    #   Returns JWT token (24h expiry)
+│   ├── ProductsController.cs            # [Authorize] — Injects IProductService
+│   ├── OrdersController.cs              # [Authorize] — Injects IOrderService
+│   ├── CustomersController.cs           # [Authorize] — Injects ICustomerService
+│   ├── DashboardController.cs           # [Authorize] — Injects IDashboardService
+│   ├── BroadcastController.cs           # [Authorize] — Injects IBroadcastService
+│   ├── PaymentController.cs             # Public (customer-facing) — Injects IPaymentService
+│   └── WhatsAppWebhookController.cs     # Public (Meta webhook) — Injects IChatBotService
 │
 ├── Services/
 │   ├── Interfaces/                      # Service contracts
@@ -325,16 +346,18 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   └── PaymentService.cs                # Implements IPaymentService
 │
 ├── Data/
-│   ├── AppDbContext.cs                  # 6 DbSets, uses ApplyConfigurationsFromAssembly()
+│   ├── AppDbContext.cs                  # 7 DbSets, uses ApplyConfigurationsFromAssembly()
 │   └── Configurations/                  # Fluent API entity configurations
 │       ├── ProductConfiguration.cs      # Indexes on Category/Brand, seed data
 │       ├── CustomerConfiguration.cs     # Unique PhoneNumber, 1:N → Orders, 1:N → CartItems
 │       ├── CartItemConfiguration.cs     # Unique (CustomerId+ProductId), M:1 relationships
 │       ├── OrderConfiguration.cs        # Unique OrderNumber, M:1 → Customer, 1:N → OrderItems
 │       ├── OrderItemConfiguration.cs    # M:1 → Order, M:1 → Product (Restrict delete)
-│       └── BroadcastMessageConfiguration.cs
+│       ├── BroadcastMessageConfiguration.cs
+│       └── AdminUserConfiguration.cs    # Unique Username, max lengths
 │
 ├── DTOs/                                # Split per feature, with validation attributes
+│   ├── Auth/AuthDtos.cs                 # LoginRequest (Username, Password), LoginResponse (Token, Expiry, Username)
 │   ├── Product/ProductDtos.cs           # [Required], [MaxLength], [Range], [Url]
 │   ├── Order/OrderDtos.cs               # OrderDto, OrderItemDto
 │   ├── Customer/CustomerDtos.cs         # [Required], [RegularExpression] phone, [MinLength]
@@ -364,9 +387,19 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 │       ├── app.routes.ts                # Lazy-loaded routes via loadChildren()
 │       │
 │       ├── core/
-│       │   └── interceptors/
-│       │       └── error.interceptor.ts # HTTP error interceptor — catches all API
-│       │                                #   errors, shows toast notifications
+│       │   ├── guards/
+│       │   │   ├── auth.guard.ts        # CanActivateFn — checks localStorage token,
+│       │   │   │                        #   redirects to /login if missing
+│       │   │   └── unsaved-changes.guard.ts  # CanDeactivateFn — prompt on dirty form
+│       │   ├── interceptors/
+│       │   │   ├── auth.interceptor.ts  # Attaches JWT Bearer token to all API requests
+│       │   │   └── error.interceptor.ts # HTTP error interceptor — catches all API
+│       │   │                            #   errors, shows toast notifications
+│       │   │                            #   Skips toast for login 401 (handled inline)
+│       │   │                            #   Auto-redirects to /login on 401 (expired token)
+│       │   └── services/
+│       │       └── auth.service.ts      # login(), logout(), isLoggedIn(), getUsername()
+│       │                                #   JWT token management via localStorage
 │       │
 │       ├── shared/
 │       │   ├── utils/
@@ -382,6 +415,10 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 │       │       └── loading-spinner/     # Reusable loading spinner component
 │       │
 │       └── features/                    # Feature-based modules
+│           ├── auth/
+│           │   └── components/login/    # Animated login page with background video
+│           │                            #   JWT token stored on success, redirects to dashboard
+│           │
 │           ├── dashboard/
 │           │   ├── models/dashboard.model.ts
 │           │   ├── services/dashboard.service.ts  # Uses environment.apiUrl
@@ -496,8 +533,9 @@ npx ng serve
 ### Step 5: Verify Everything Works
 
 1. Open **http://localhost:5000/swagger** — you should see all API endpoints
-2. Open **http://localhost:4200** — dashboard should load with 6 products, 0 orders
-3. Go to **Products** page — you should see the 6 seeded products
+2. Open **http://localhost:4200** — you should be redirected to the login page
+3. Log in with the admin credentials — dashboard should load with 6 products, 0 orders
+4. Go to **Products** page — you should see the 6 seeded products
 
 ---
 
@@ -567,6 +605,13 @@ This gives you a public URL like `https://abc123.ngrok-free.app`. Update `App:Ba
 
 ## API Endpoints Reference
 
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/login` | Login with username + password. Returns JWT token (24h expiry). |
+
+> All endpoints below (except Payment and WhatsApp Webhook) require `Authorization: Bearer <token>` header.
+
 ### Products
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -630,15 +675,15 @@ This gives you a public URL like `https://abc123.ngrok-free.app`. Update `App:Ba
 │ StockQty    │       │ UpdatedAt    │       │ SentAt       │
 │ ImageUrl    │       └──────┬───────┘       └──────────────┘
 │ IsActive    │              │
-│ CreatedAt   │              │ 1:N
-│ UpdatedAt   │              │
-└──────┬──────┘       ┌──────▼───────┐
-       │              │  CartItems   │
-       │              ├──────────────┤
-       │   ┌──────────│ Id (PK)      │
-       │   │          │ CustomerId(FK)│
-       │   │          │ ProductId(FK)│◄─unique(CustomerId+ProductId)
-       │   │          │ Quantity     │
+│ CreatedAt   │              │ 1:N               ┌──────────────┐
+│ UpdatedAt   │              │                   │  AdminUsers  │
+└──────┬──────┘       ┌──────▼───────┐           ├──────────────┤
+       │              │  CartItems   │           │ Id (PK)      │
+       │              ├──────────────┤           │ Username  ◄──│─unique
+       │   ┌──────────│ Id (PK)      │           │ PasswordHash │
+       │   │          │ CustomerId(FK)│          │ CreatedAt    │
+       │   │          │ ProductId(FK)│◄─unique   │ LastLoginAt  │
+       │   │          │ Quantity     │(Cust+Prod)└──────────────┘
        │   │          │ AddedAt      │
        │   │          └──────────────┘
        │   │
@@ -679,7 +724,7 @@ These features are not built yet and would need to be added for production:
 
 | Feature | Details |
 |---------|---------|
-| **Authentication / Authorization** | No login system. Admin panel is open to anyone. Need JWT or session-based auth for admin APIs. |
+| ~~**Authentication / Authorization**~~ | ✅ **IMPLEMENTED** — JWT Bearer auth with BCrypt password hashing. Admin credentials stored in PostgreSQL `AdminUsers` table. Auto-seeded on first startup. `[Authorize]` on all admin controllers. Angular auth guard + interceptor + animated login page. |
 | **Image Upload** | Products only store an image URL string. No actual file upload — need cloud storage (S3, Azure Blob, Cloudinary). |
 | **Razorpay Signature Verification** | Payment verify endpoint has a TODO — does not validate HMAC SHA256 signature. Unsafe for production. |
 | **Logging to File/Service** | Uses default console logging only. Need Serilog or similar for production. |
@@ -703,7 +748,7 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 
 | # | Issue | Location | Details |
 |---|-------|----------|---------|
-| C1 | **No Authentication / Authorization** | All controllers, `Program.cs` | Every API endpoint is publicly accessible. Anyone can CRUD products, manage orders, send broadcasts, view all customer data. Need JWT bearer tokens or API key auth at minimum. |
+| C1 | ~~**No Authentication / Authorization**~~ | ~~All controllers, `Program.cs`~~ | **FIXED** — JWT Bearer authentication implemented. `AuthController` with BCrypt password verification against `AdminUsers` table. `[Authorize]` attribute on all admin controllers (Products, Orders, Customers, Dashboard, Broadcast). Payment and WhatsApp webhook remain public. Angular: `AuthGuard` protects all admin routes, `AuthInterceptor` attaches Bearer token, animated login page, auto-redirect on 401. Admin credentials auto-seeded on first DB migration. |
 | C2 | **Secrets Committed to Source** | `appsettings.json` | Live WhatsApp access token + DB password are in plaintext in the repo. Must use User Secrets for dev, environment variables or Azure Key Vault for production. |
 | C3 | **Razorpay Signature Verification TODO'd Out** | `PaymentService.cs` | `VerifyPaymentAsync` has a `// TODO` — the HMAC-SHA256 check is skipped. Anyone can call `POST /api/payment/verify` with a fake paymentId and mark any order as paid. |
 | C4 | **WhatsApp Webhook Signature Not Validated** | `WhatsAppWebhookController.cs` | Meta sends `X-Hub-Signature-256` on every POST. The controller never checks it. Attackers can POST fabricated payloads to trigger chatbot flows and create fake orders. |
@@ -718,10 +763,10 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 | H2 | **Phone Format Mismatch → Duplicate Customers** | `CustomerService.cs` vs `ChatBotService.cs` | Admin panel stores `+919876543210` (with `+`), WhatsApp stores `919876543210` (without `+`). Same customer ends up with two records. Fix: normalize phone format in one place. |
 | H3 | **No HTTPS Enforcement** | `Program.cs`, `launchSettings.json` | Payment page with Razorpay integration served over HTTP. No `app.UseHttpsRedirection()`. |
 | H4 | **Stock Not Restored on Order Cancellation** | `OrderService.cs` | When `UpdateStatusAsync` sets status to `Cancelled`, stock is never restored. Products stay "sold out" even after cancellation. |
-| H5 | **Description MaxLength Mismatch** | `ProductDtos.cs` vs `Product.cs` | DTO allows 2000 chars, model/DB allows 1000. Products with 1000–2000 char descriptions pass validation but crash at DB level. |
+| H5 | ~~**Description MaxLength Mismatch**~~ | ~~`ProductDtos.cs` vs `Product.cs`~~ | **FIXED** — Aligned `Product.cs` `[MaxLength]` from 1000 to 2000 to match DTO. Migration `UpdateProductDescriptionLength` created. |
 | H6 | **Production API URL is a Placeholder** | `environment.prod.ts` | Points to `your-production-domain.com`. Production builds will fail. |
-| H7 | **No 404 Wildcard Route** | `app.routes.ts` | Navigating to any invalid URL (e.g., `/anything`) shows a blank page. Need a `**` fallcard route with a "Page Not Found" component. |
-| H8 | **Duplicate Error Toasts** | `customers.component.ts` and others | Global error interceptor shows a toast, AND component error handlers also call `notification.error()` for the same HTTP error → user sees 2 toasts. Fix: remove component-level error toasts (interceptor handles it). |
+| H7 | ~~**No 404 Wildcard Route**~~ | ~~`app.routes.ts`~~ | **FIXED** — Added `{ path: '**', redirectTo: 'login' }` wildcard route. Invalid URLs now redirect to login page (which redirects to dashboard if already authenticated). |
+| H8 | ~~**Duplicate Error Toasts**~~ | ~~`error.interceptor.ts`~~ | **FIXED** — Error interceptor now skips toast for login 401 responses (`req.url.includes('/auth/login')`) to prevent double notification (login component shows inline error). Generic 401 message changed to "Session expired. Please log in again." |
 
 ### 🟡 MEDIUM — Performance / Code Quality
 
@@ -787,6 +832,12 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 | 14 | **Split DTO pattern** — separate files per feature with validation attributes |
 | 15 | **DI extension methods** for clean startup configuration |
 | 16 | **Responsive UI** with PrimeNG + polished global styles |
+| 17 | **JWT authentication** with BCrypt password hashing, DB-stored credentials, auto-seeded admin user |
+| 18 | **Animated login page** with background video, inline error messages, and smooth transitions |
+| 19 | **Route guards** (`AuthGuard`) protecting all admin routes with auto-redirect to login |
+| 20 | **Auth interceptor** attaching Bearer token + error interceptor with smart 401 handling (login vs expired) |
+| 21 | **Dynamic categories** in product form — fetched from API instead of hardcoded |
+| 22 | **Error handlers** on all `subscribe()` calls with user-facing notifications and state rollback |
 
 ---
 
@@ -862,6 +913,9 @@ The API **must run 24/7** for WhatsApp to work — Meta sends webhook events whe
    ```
 2. Set environment variables on the hosting platform:
    - `ConnectionStrings__DefaultConnection` = production PostgreSQL connection string
+   - `Jwt__Key` = a strong random secret key (min 32 chars) for JWT token signing
+   - `Jwt__Issuer` = your API domain (e.g., `https://leathershop-api.up.railway.app`)
+   - `Jwt__Audience` = your frontend domain (e.g., `https://leathershop.vercel.app`)
    - `WhatsApp__PhoneNumberId` = your Meta phone number ID
    - `WhatsApp__AccessToken` = your Meta access token
    - `WhatsApp__VerifyToken` = your webhook verify token
@@ -961,3 +1015,6 @@ The API **must run 24/7** for WhatsApp to work — Meta sends webhook events whe
 | **Memory Leak Fix (M5)** | ✅ No `valueChanges` subscriptions remain in product-list (simplified to button-triggered search). HTTP `subscribe()` calls auto-complete — no leak risk. All observable patterns are leak-safe by design. |
 | **Dead Code Cleanup (L13/L14)** | ✅ Removed unused `Router` injections from navbar and customers components. Removed unused `filteredCustomers` variable from customers. Removed unused `sharedButtonSeverity` import alias from orders. Consolidated duplicate `AbstractControl`/`ValidationErrors` import in customers. Removed dead `send-btn` CSS class reference from broadcast. |
 | **Accessibility Improvements** | ✅ Added `for`/`id` pairs on all customers dialog labels (add customer, broadcast dialogs). Added `aria-label` on table header checkbox ("Select all customers") and row checkboxes ("Select customer {name}"). Added `aria-label` on product and customer search inputs. |
+| **JWT Authentication (C1 Fix)** | ✅ Full authentication layer: Backend — `AuthController` with `POST /api/auth/login`, BCrypt password verification against `AdminUsers` PostgreSQL table (case-sensitive exact match), JWT Bearer token generation (24h expiry via `TokenExpiryHours` constant), `[Authorize]` attribute on all admin controllers (Products, Orders, Customers, Dashboard, Broadcast), Payment and WhatsApp webhook remain public. `AdminUser` model with `AdminUserConfiguration` Fluent API config. Auto-seeds `Admin` user on first startup. Frontend — `AuthService` (login/logout/token management), `AuthGuard` (`CanActivateFn` protecting all admin routes), `AuthInterceptor` (attaches Bearer token to all requests), animated login page with background video, leather texture overlay, frosted glass card, inline error messages, and smooth transitions. Navbar redesigned with username pill badge + round red power-off logout button pushed to far right. |
+| **DB-Based Admin Credentials** | ✅ Moved admin credentials from `appsettings.json` to PostgreSQL `AdminUsers` table. BCrypt password hashing with `BCrypt.Net-Next`. Credentials auto-seeded on first startup via `Program.cs`. Removed `Admin` section from appsettings.json entirely. |
+| **Code Quality Audit Fixes** | ✅ 10 fixes applied from comprehensive codebase audit: (1) Error interceptor skips toast for login 401s (prevents double notification). (2) Auth interceptor removed unused `Router` import, fixed doc comment. (3) Login component removed unused `PasswordModule`. (4) Login HTML changed from "Protected by JWT Authentication" to "Secure Admin Access" (info leakage). (5) App component fixed type narrowing for `NavigationEnd`, removed empty `styleUrl`. (6) Product model `Description` MaxLength aligned to 2000 (matching DTO). (7) Product form categories fetched dynamically from API instead of hardcoded. (8) Product list added error handlers on `toggleActive`, `deleteProduct`, `getCategories`, `getBrands`. (9) Orders component added error handler on `updateStatus` with status revert on failure. (10) AuthController extracted `TokenExpiryHours = 24` constant. |

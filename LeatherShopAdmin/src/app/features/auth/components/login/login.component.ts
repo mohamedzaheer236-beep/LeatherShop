@@ -5,12 +5,11 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
-import { PasswordModule } from 'primeng/password';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ButtonModule, InputTextModule, PasswordModule],
+  imports: [CommonModule, ReactiveFormsModule, ButtonModule, InputTextModule],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss'
 })

@@ -23,6 +23,11 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         return throwError(() => error);
       }
 
+      // Skip toast for login failures — login component shows inline error
+      if (error.status === 401 && req.url.includes('/auth/login')) {
+        return throwError(() => error);
+      }
+
       let message = 'An unexpected error occurred.';
 
       if (error.status === 0) {
@@ -32,7 +37,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       } else {
         switch (error.status) {
           case 400: message = 'Bad request. Please check your input.'; break;
-          case 401: message = 'Invalid username or password.'; break;
+          case 401: message = 'Session expired. Please log in again.'; break;
           case 403: message = 'Access denied.'; break;
           case 404: message = 'Resource not found.'; break;
           case 409: message = 'Conflict. Resource already exists.'; break;

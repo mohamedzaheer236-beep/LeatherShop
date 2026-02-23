@@ -64,10 +64,15 @@ export class OrdersComponent implements OnInit {
   }
 
   updateStatus(order: Order, newStatus: string): void {
+    const previousStatus = order.status;
     this.orderService.updateOrderStatus(order.id, newStatus).subscribe({
       next: () => {
         order.status = newStatus;
         this.notification.success(`Order status updated to ${newStatus}.`);
+      },
+      error: () => {
+        order.status = previousStatus;
+        this.notification.error('Failed to update order status.');
       }
     });
   }
