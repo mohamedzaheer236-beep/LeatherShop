@@ -93,15 +93,16 @@ public sealed class BroadcastBackgroundService : BackgroundService
 
     private async Task ProcessBroadcastAsync(BroadcastJob job, CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var whatsApp = scope.ServiceProvider.GetRequiredService<IWhatsAppService>();
-
-        var record = await db.BroadcastMessages.FindAsync(new object[] { job.BroadcastId }, ct);
-        if (record == null)
+        // Verify broadcast record exists using a short-lived scope (single-threaded)
+        using (var verifyScope = _scopeFactory.CreateScope())
         {
-            _logger.LogWarning("Broadcast {BroadcastId} record not found, skipping", job.BroadcastId);
-            return;
+            var db = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var exists = await db.BroadcastMessages.AnyAsync(b => b.Id == job.BroadcastId, ct);
+            if (!exists)
+            {
+                _logger.LogWarning("Broadcast {BroadcastId} record not found, skipping", job.BroadcastId);
+                return;
+            }
         }
 
         _logger.LogInformation(
@@ -111,12 +112,18 @@ public sealed class BroadcastBackgroundService : BackgroundService
         int sent = 0, failed = 0;
         var semaphore = new SemaphoreSlim(MaxConcurrency);
 
-        // Process all recipients with controlled concurrency
+        // Each concurrent task creates its own IServiceScope.
+        // DbContext is NEVER shared across threads — progress saves use
+        // a dedicated scope with ExecuteUpdateAsync (stateless SQL update).
         var tasks = job.Recipients.Select(async phone =>
         {
             await semaphore.WaitAsync(ct);
             try
             {
+                // New scope per task — at most MaxConcurrency scopes alive at once
+                using var taskScope = _scopeFactory.CreateScope();
+                var whatsApp = taskScope.ServiceProvider.GetRequiredService<IWhatsAppService>();
+
                 await whatsApp.SendTemplateMessage(
                     phone, job.TemplateName, job.LanguageCode, job.Parameters, job.ImageUrl);
                 Interlocked.Increment(ref sent);
@@ -132,37 +139,46 @@ public sealed class BroadcastBackgroundService : BackgroundService
                 semaphore.Release();
             }
 
-            // Save progress periodically (thread-safe check)
+            // Save progress periodically — each save uses its own scope + DbContext
             var processed = Volatile.Read(ref sent) + Volatile.Read(ref failed);
             if (processed % BatchSaveInterval == 0)
             {
-                await SaveProgressAsync(db, record, sent, failed);
+                await SaveProgressAsync(job.BroadcastId, Volatile.Read(ref sent), Volatile.Read(ref failed));
             }
         });
 
         await Task.WhenAll(tasks);
 
-        // Final save
-        record.SentCount = sent;
-        record.FailedCount = failed;
-        await db.SaveChangesAsync(ct);
+        // Final save with a fresh scope (single-threaded at this point)
+        await SaveProgressAsync(job.BroadcastId, sent, failed);
 
         _logger.LogInformation(
             "Broadcast {BroadcastId} completed. Sent: {Sent}, Failed: {Failed}",
             job.BroadcastId, sent, failed);
     }
 
-    private static async Task SaveProgressAsync(AppDbContext db, Models.BroadcastMessage record, int sent, int failed)
+    /// <summary>
+    /// Saves broadcast progress using a dedicated scope + DbContext.
+    /// Uses ExecuteUpdateAsync for a stateless SQL UPDATE — no entity tracking,
+    /// no thread-safety concerns. Best-effort: failures are logged and skipped.
+    /// </summary>
+    private async Task SaveProgressAsync(int broadcastId, int sent, int failed)
     {
         try
         {
-            record.SentCount = sent;
-            record.FailedCount = failed;
-            await db.SaveChangesAsync();
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            await db.BroadcastMessages
+                .Where(b => b.Id == broadcastId)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(b => b.SentCount, sent)
+                    .SetProperty(b => b.FailedCount, failed));
         }
-        catch
+        catch (Exception ex)
         {
             // Progress save is best-effort; final save will catch up
+            _logger.LogWarning(ex, "Failed to save progress for broadcast {BroadcastId}", broadcastId);
         }
     }
 }
