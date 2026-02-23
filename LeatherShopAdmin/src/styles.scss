@@ -194,13 +194,13 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* Broadcast card */
-.broadcast-card {
-  max-width: 640px;
-  margin-top: 1rem;
+.broadcast-card .p-card-body {
+  padding: 28px 32px !important;
 }
 
-.broadcast-card .p-card-body {
-  padding: 24px !important;
+.broadcast-card .p-card {
+  border-radius: 14px !important;
+  border: 1px solid #e2e8f0 !important;
 }
 
 /* ----- TABLE ----- */
@@ -249,11 +249,17 @@ a { text-decoration: none; color: inherit; }
   font-size: 14px !important;
   padding: 10px 20px !important;
   transition: all 0.2s ease !important;
+  gap: 8px !important;
+}
+
+.p-button .p-button-icon {
+  font-size: 14px;
 }
 
 .p-button.p-button-icon-only {
   padding: 10px !important;
   width: auto !important;
+  gap: 0 !important;
 }
 
 .p-button.p-button-sm {
@@ -269,6 +275,17 @@ a { text-decoration: none; color: inherit; }
 .p-dropdown {
   border-radius: 8px !important;
   border-color: #d1d5db !important;
+}
+
+.p-dropdown .p-dropdown-label {
+  padding: 8px 14px !important;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+}
+
+.p-dropdown .p-dropdown-trigger {
+  width: 2.5rem !important;
 }
 
 .p-dropdown:hover {
@@ -322,7 +339,7 @@ a { text-decoration: none; color: inherit; }
 
 .p-input-icon-left > i:first-of-type {
   position: absolute;
-  left: 12px;
+  left: 14px;
   top: 50%;
   transform: translateY(-50%);
   color: #94a3b8;
@@ -331,7 +348,7 @@ a { text-decoration: none; color: inherit; }
 }
 
 .p-input-icon-left > .p-inputtext {
-  padding-left: 36px !important;
+  padding-left: 40px !important;
 }
 
 /* ----- DIALOG ----- */

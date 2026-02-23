@@ -14,6 +14,7 @@ import { TagModule } from 'primeng/tag';
 import { ToolbarModule } from 'primeng/toolbar';
 import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { DividerModule } from 'primeng/divider';
 
 @Component({
   selector: 'app-broadcast',
@@ -29,7 +30,8 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
     TagModule,
     ToolbarModule,
     MessageModule,
-    ProgressSpinnerModule
+    ProgressSpinnerModule,
+    DividerModule
   ],
   templateUrl: './broadcast.component.html',
   styleUrl: './broadcast.component.scss'
@@ -103,6 +105,10 @@ export class BroadcastComponent implements OnInit {
 
   getResultSeverity(): 'success' | 'error' {
     return this.resultType === 'success' ? 'success' : 'error';
+  }
+
+  getTotalSent(): number {
+    return this.history.reduce((sum, b) => sum + b.sentCount, 0);
   }
 
   loadHistory(): void {
