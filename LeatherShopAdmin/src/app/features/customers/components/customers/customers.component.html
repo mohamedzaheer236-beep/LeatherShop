@@ -32,10 +32,10 @@
   <div class="dialog-form">
     <div class="form-field">
       <label>Template Name *</label>
-      <p-dropdown *ngIf="templatesLoaded && templates.length > 0"
-                  [options]="templateOptions" [(ngModel)]="broadcastTemplate" (onChange)="onBroadcastTemplateSelect()"
+      <p-dropdown *ngIf="templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length > 0"
+                  [options]="templateLoader.getState().templateOptions" [(ngModel)]="broadcastTemplate" (onChange)="onBroadcastTemplateSelect()"
                   placeholder="Select an approved template" [style]="{'width': '100%'}"></p-dropdown>
-      <input *ngIf="!templatesLoaded || templates.length === 0"
+      <input *ngIf="!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0"
              type="text" pInputText [(ngModel)]="broadcastTemplate" placeholder="e.g. new_product_launch" class="w-full" />
     </div>
     <div class="form-field">

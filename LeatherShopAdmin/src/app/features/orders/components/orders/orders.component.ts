@@ -5,6 +5,7 @@ import { OrderService } from '../../services/order.service';
 import { Order } from '../../models/order.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
+import { getStatusSeverity, getStatusButtonSeverity as sharedButtonSeverity, TagSeverity } from '../../../../shared/utils/severity.utils';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
@@ -64,19 +65,11 @@ export class OrdersComponent implements OnInit {
     });
   }
 
-  getSeverity(status: string): "success" | "secondary" | "info" | "warning" | "danger" | "contrast" | undefined {
-    switch (status.toLowerCase()) {
-      case 'pending': return 'warning';
-      case 'confirmed': return 'info';
-      case 'shipped': return 'info';
-      case 'delivered': return 'success';
-      case 'cancelled': return 'danger';
-      default: return 'secondary';
-    }
+  getSeverity(status: string): TagSeverity {
+    return getStatusSeverity(status);
   }
 
-  getStatusButtonSeverity(status: string, currentStatus: string): "success" | "secondary" | "info" | "warning" | "danger" | "contrast" | undefined {
-    if (status === currentStatus) return 'primary' as any;
-    return 'secondary';
+  getStatusButtonSeverity(status: string, currentStatus: string): TagSeverity {
+    return sharedButtonSeverity(status, currentStatus);
   }
 }

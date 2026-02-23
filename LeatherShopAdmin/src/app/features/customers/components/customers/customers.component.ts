@@ -5,8 +5,8 @@ import { Router } from '@angular/router';
 import { CustomerService } from '../../services/customer.service';
 import { Customer, CreateCustomer } from '../../models/customer.model';
 import { BroadcastService } from '../../../broadcast/services/broadcast.service';
-import { WhatsAppTemplate } from '../../../broadcast/models/broadcast.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
+import { TemplateLoaderService } from '../../../../shared/services/template-loader.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
@@ -59,47 +59,26 @@ export class CustomersComponent implements OnInit {
   broadcastImageUrl = '';
   sendingBroadcast = false;
 
-  // Templates
-  templates: WhatsAppTemplate[] = [];
-  templateOptions: any[] = [];
-  templatesLoaded = false;
-
   constructor(
     private customerService: CustomerService,
     private broadcastService: BroadcastService,
     private router: Router,
-    private notification: NotificationService
+    private notification: NotificationService,
+    public templateLoader: TemplateLoaderService
   ) {}
 
   ngOnInit(): void {
     this.loadCustomers();
     this.loadCounts();
-    this.loadTemplates();
-  }
-
-  loadTemplates(): void {
-    this.broadcastService.getApprovedTemplates().subscribe({
-      next: (data) => {
-        this.templates = data;
-        this.templateOptions = data.map(t => ({ label: `${t.name} (${t.language}) - ${t.category}`, value: t.name }));
-        this.templatesLoaded = true;
-      },
-      error: () => this.templatesLoaded = true
-    });
+    this.templateLoader.loadTemplates();
   }
 
   get isValidBroadcastTemplate(): boolean {
-    if (!this.broadcastTemplate.trim()) return false;
-    if (this.templatesLoaded && this.templates.length > 0) {
-      return this.templates.some(t => t.name === this.broadcastTemplate);
-    }
-    return true;
+    return this.templateLoader.isValidTemplate(this.broadcastTemplate);
   }
 
   onBroadcastTemplateSelect(): void {
-    const selected = this.templates.find(t => t.name === this.broadcastTemplate);
-    if (selected) { this.broadcastLang = selected.language; }
-    else { this.broadcastLang = 'en_US'; }
+    this.broadcastLang = this.templateLoader.getLanguageCode(this.broadcastTemplate);
   }
 
   loadCounts(): void {

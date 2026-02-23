@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Product;
+using LeatherShopAPI.Extensions;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 
@@ -47,18 +48,7 @@ public class ProductService : IProductService
         var p = await _db.Products.FindAsync(id);
         if (p == null) return null;
 
-        return new ProductDto
-        {
-            Id = p.Id,
-            Name = p.Name,
-            Description = p.Description,
-            Brand = p.Brand,
-            Category = p.Category,
-            Price = p.Price,
-            StockQuantity = p.StockQuantity,
-            ImageUrl = p.ImageUrl,
-            IsActive = p.IsActive
-        };
+        return p.ToDto();
     }
 
     public async Task<ProductDto> CreateAsync(CreateProductDto dto)
@@ -77,18 +67,7 @@ public class ProductService : IProductService
         _db.Products.Add(product);
         await _db.SaveChangesAsync();
 
-        return new ProductDto
-        {
-            Id = product.Id,
-            Name = product.Name,
-            Description = product.Description,
-            Brand = product.Brand,
-            Category = product.Category,
-            Price = product.Price,
-            StockQuantity = product.StockQuantity,
-            ImageUrl = product.ImageUrl,
-            IsActive = product.IsActive
-        };
+        return product.ToDto();
     }
 
     public async Task<bool> UpdateAsync(int id, UpdateProductDto dto)

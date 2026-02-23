@@ -2,8 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BroadcastService } from '../../services/broadcast.service';
-import { BroadcastHistory, WhatsAppTemplate } from '../../models/broadcast.model';
+import { BroadcastHistory } from '../../models/broadcast.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
+import { TemplateLoaderService } from '../../../../shared/services/template-loader.service';
 
 import { CardModule } from 'primeng/card';
 import { DropdownModule } from 'primeng/dropdown';
@@ -48,59 +49,26 @@ export class BroadcastComponent implements OnInit {
   history: BroadcastHistory[] = [];
   subscriberCount = 0;
 
-  // Templates
-  templates: WhatsAppTemplate[] = [];
-  templateOptions: { label: string; value: string }[] = [];
-  loadingTemplates = false;
-  templatesLoaded = false;
-
   constructor(
     private broadcastService: BroadcastService,
-    private notification: NotificationService
+    private notification: NotificationService,
+    public templateLoader: TemplateLoaderService
   ) {}
 
   ngOnInit(): void {
     this.loadHistory();
-    this.loadTemplates();
+    this.templateLoader.loadTemplates();
     this.broadcastService.getSubscriberCount().subscribe(data => {
       this.subscriberCount = data.subscriberCount;
     });
   }
 
-  loadTemplates(): void {
-    this.loadingTemplates = true;
-    this.broadcastService.getApprovedTemplates().subscribe({
-      next: (data) => {
-        this.templates = data;
-        this.templateOptions = data.map(t => ({
-          label: `${t.name} (${t.language}) - ${t.category}`,
-          value: t.name
-        }));
-        this.templatesLoaded = true;
-        this.loadingTemplates = false;
-      },
-      error: () => {
-        this.templatesLoaded = true;
-        this.loadingTemplates = false;
-      }
-    });
-  }
-
   onTemplateSelect(): void {
-    const selected = this.templates.find(t => t.name === this.templateName);
-    if (selected) {
-      this.languageCode = selected.language;
-    } else {
-      this.languageCode = 'en_US';
-    }
+    this.languageCode = this.templateLoader.getLanguageCode(this.templateName);
   }
 
   get isValidTemplate(): boolean {
-    if (!this.templateName.trim()) return false;
-    if (this.templatesLoaded && this.templates.length > 0) {
-      return this.templates.some(t => t.name === this.templateName);
-    }
-    return true;
+    return this.templateLoader.isValidTemplate(this.templateName);
   }
 
   getResultSeverity(): 'success' | 'error' {

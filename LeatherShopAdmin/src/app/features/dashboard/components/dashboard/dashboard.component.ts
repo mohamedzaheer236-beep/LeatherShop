@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { DashboardService } from '../../services/dashboard.service';
 import { Dashboard } from '../../models/dashboard.model';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
+import { getStatusSeverity, TagSeverity } from '../../../../shared/utils/severity.utils';
 import { CardModule } from 'primeng/card';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -34,14 +35,7 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  getSeverity(status: string): "success" | "secondary" | "info" | "warning" | "danger" | "contrast" | undefined {
-    switch (status.toLowerCase()) {
-      case 'pending': return 'warning';
-      case 'confirmed': return 'info';
-      case 'shipped': return 'info';
-      case 'delivered': return 'success';
-      case 'cancelled': return 'danger';
-      default: return 'secondary';
-    }
+  getSeverity(status: string): TagSeverity {
+    return getStatusSeverity(status);
   }
 }

@@ -27,9 +27,9 @@
         <div class="form-grid">
           <div class="form-field">
             <label for="templateName"><i class="pi pi-file-edit field-icon"></i> Template Name *</label>
-            <p-dropdown *ngIf="templatesLoaded && templates.length > 0"
+            <p-dropdown *ngIf="templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length > 0"
                         id="templateName"
-                        [options]="templateOptions"
+                        [options]="templateLoader.getState().templateOptions"
                         [(ngModel)]="templateName"
                         (onChange)="onTemplateSelect()"
                         placeholder="Select an approved template"
@@ -37,15 +37,15 @@
                         [filter]="true"
                         filterPlaceholder="Search templates...">
             </p-dropdown>
-            <input *ngIf="!templatesLoaded || templates.length === 0"
+            <input *ngIf="!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0"
                    pInputText id="templateNameInput"
                    [(ngModel)]="templateName"
                    placeholder="e.g. new_product_launch"
                    class="w-full" />
-            <small *ngIf="loadingTemplates" class="hint">
+            <small *ngIf="templateLoader.getState().loadingTemplates" class="hint">
               <i class="pi pi-spin pi-spinner"></i> Loading templates from Meta...
             </small>
-            <small *ngIf="templatesLoaded && templates.length === 0 && !loadingTemplates" class="hint warn">
+            <small *ngIf="templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length === 0 && !templateLoader.getState().loadingTemplates" class="hint warn">
               <i class="pi pi-exclamation-triangle"></i> Could not fetch templates. Add your Business Account ID in appsettings.json, or type the template name manually.
             </small>
             <small *ngIf="templateName && !isValidTemplate" class="hint error">
