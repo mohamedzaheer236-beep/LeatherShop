@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Broadcast;
+using LeatherShopAPI.Extensions;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 
@@ -26,7 +27,7 @@ public class BroadcastService : IBroadcastService
         if (dto.PhoneNumbers != null && dto.PhoneNumbers.Any())
         {
             recipients = dto.PhoneNumbers
-                .Select(p => p.Trim().Replace(" ", "").Replace("-", ""))
+                .Select(PhoneNumberHelper.Normalize)
                 .Where(p => !string.IsNullOrEmpty(p))
                 .Distinct()
                 .ToList();

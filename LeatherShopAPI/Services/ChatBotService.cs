@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.Models;
 
+using LeatherShopAPI.Extensions;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Services;
@@ -28,11 +29,14 @@ public class ChatBotService : IChatBotService
     /// <summary>Process an incoming WhatsApp message and respond accordingly</summary>
     public async Task ProcessMessage(string from, string name, string messageType, string? textBody, string? interactiveId, string? interactiveTitle)
     {
+        // Normalize phone number (WhatsApp sends without '+', ensure consistency)
+        var phone = PhoneNumberHelper.Normalize(from);
+
         // Ensure customer exists
-        var customer = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == from);
+        var customer = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone);
         if (customer == null)
         {
-            customer = new Customer { PhoneNumber = from, Name = name };
+            customer = new Customer { PhoneNumber = phone, Name = name };
             _db.Customers.Add(customer);
             await _db.SaveChangesAsync();
         }
@@ -45,7 +49,7 @@ public class ChatBotService : IChatBotService
             // ---- QUANTITY INPUT (customer is typing how many to add) ----
             if (customer.PendingProductId.HasValue && int.TryParse(input, out var qty))
             {
-                await AddToCartWithQuantity(from, customer, customer.PendingProductId.Value, qty);
+                await AddToCartWithQuantity(phone, customer, customer.PendingProductId.Value, qty);
                 return;
             }
 
@@ -59,14 +63,14 @@ public class ChatBotService : IChatBotService
             // ---- MAIN MENU ----
             if (input is "hi" or "hello" or "hey" or "menu" or "start" or "main_menu")
             {
-                await SendMainMenu(from, customer.Name);
+                await SendMainMenu(phone, customer.Name);
                 return;
             }
 
             // ---- BROWSE CATEGORIES ----
             if (input == "browse_categories")
             {
-                await SendCategoryList(from);
+                await SendCategoryList(phone);
                 return;
             }
 
@@ -74,7 +78,7 @@ public class ChatBotService : IChatBotService
             if (input.StartsWith("cat_"))
             {
                 var category = input.Replace("cat_", "").Replace("_", " ");
-                await SendProductsInCategory(from, category);
+                await SendProductsInCategory(phone, category);
                 return;
             }
 
@@ -82,7 +86,7 @@ public class ChatBotService : IChatBotService
             if (input.StartsWith("prod_"))
             {
                 var productId = int.Parse(input.Replace("prod_", ""));
-                await SendProductDetails(from, productId);
+                await SendProductDetails(phone, productId);
                 return;
             }
 
@@ -90,46 +94,46 @@ public class ChatBotService : IChatBotService
             if (input.StartsWith("addcart_"))
             {
                 var productId = int.Parse(input.Replace("addcart_", ""));
-                await AskQuantity(from, customer, productId);
+                await AskQuantity(phone, customer, productId);
                 return;
             }
 
             // ---- VIEW CART ----
             if (input == "view_cart")
             {
-                await SendCartSummary(from, customer.Id);
+                await SendCartSummary(phone, customer.Id);
                 return;
             }
 
             // ---- CLEAR CART ----
             if (input == "clear_cart")
             {
-                await ClearCart(from, customer.Id);
+                await ClearCart(phone, customer.Id);
                 return;
             }
 
             // ---- CHECKOUT ----
             if (input == "checkout")
             {
-                await ProcessCheckout(from, customer);
+                await ProcessCheckout(phone, customer);
                 return;
             }
 
             // ---- MY ORDERS ----
             if (input == "my_orders")
             {
-                await SendOrderHistory(from, customer.Id);
+                await SendOrderHistory(phone, customer.Id);
                 return;
             }
 
             // ---- DEFAULT: show main menu ----
-            await _whatsApp.SendTextMessage(from, "🙏 Welcome to our Leather Shop! Type *menu* to see options.");
-            await SendMainMenu(from, customer.Name);
+            await _whatsApp.SendTextMessage(phone, "🙏 Welcome to our Leather Shop! Type *menu* to see options.");
+            await SendMainMenu(phone, customer.Name);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing message from {From}", from);
-            await _whatsApp.SendTextMessage(from, "Sorry, something went wrong. Please type *menu* to start again.");
+            _logger.LogError(ex, "Error processing message from {Phone}", phone);
+            await _whatsApp.SendTextMessage(phone, "Sorry, something went wrong. Please type *menu* to start again.");
         }
     }
 

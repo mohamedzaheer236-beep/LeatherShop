@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Customer;
 using LeatherShopAPI.Models;
+using LeatherShopAPI.Extensions;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Services;
@@ -53,8 +54,9 @@ public class CustomerService : ICustomerService
 
     public async Task<CustomerCreatedDto> CreateAsync(CreateCustomerDto dto)
     {
-        var phone = dto.PhoneNumber.Trim().Replace(" ", "").Replace("-", "");
-        if (!phone.StartsWith("+")) phone = "+" + phone;
+        var phone = PhoneNumberHelper.Normalize(dto.PhoneNumber);
+        if (string.IsNullOrEmpty(phone) || phone.Length < 5)
+            throw new ArgumentException("Invalid phone number.");
 
         var existing = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone);
         if (existing != null)
@@ -76,7 +78,7 @@ public class CustomerService : ICustomerService
             var welcomeMsg = $"👋 Welcome to *Leather Shop*{(string.IsNullOrEmpty(customer.Name) ? "" : $", {customer.Name}")}!\n\n" +
                 "We're glad to have you. You can browse our products and place orders right here on WhatsApp.\n\n" +
                 "Type *Hi* to get started!";
-            await _whatsApp.SendTextMessage(phone.TrimStart('+'), welcomeMsg);
+            await _whatsApp.SendTextMessage(phone, welcomeMsg);
             _logger.LogInformation("Welcome message sent to {Phone}", phone);
         }
         catch (Exception ex)
@@ -101,8 +103,7 @@ public class CustomerService : ICustomerService
 
         foreach (var item in dto.Customers)
         {
-            var phone = item.PhoneNumber.Trim().Replace(" ", "").Replace("-", "");
-            if (!phone.StartsWith("+")) phone = "+" + phone;
+            var phone = PhoneNumberHelper.Normalize(item.PhoneNumber);
             if (string.IsNullOrEmpty(phone) || phone.Length < 5) { skipped++; continue; }
 
             var exists = await _db.Customers.AnyAsync(c => c.PhoneNumber == phone);

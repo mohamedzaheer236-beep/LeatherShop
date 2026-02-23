@@ -34,14 +34,28 @@ public class OrderService : IOrderService
 
     public async Task<bool> UpdateStatusAsync(int id, string newStatus)
     {
-        var order = await _db.Orders.Include(o => o.Customer).FirstOrDefaultAsync(o => o.Id == id);
+        var order = await _db.Orders
+            .Include(o => o.Customer)
+            .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
+            .FirstOrDefaultAsync(o => o.Id == id);
         if (order == null) return false;
 
         if (!Enum.TryParse<OrderStatus>(newStatus, true, out var status))
             return false;
 
+        var previousStatus = order.Status;
         order.Status = status;
         order.UpdatedAt = DateTime.UtcNow;
+
+        // Restore stock when cancelling (only if not already cancelled)
+        if (status == OrderStatus.Cancelled && previousStatus != OrderStatus.Cancelled)
+        {
+            foreach (var item in order.OrderItems)
+            {
+                item.Product.StockQuantity += item.Quantity;
+            }
+        }
+
         await _db.SaveChangesAsync();
 
         // Notify customer via WhatsApp
