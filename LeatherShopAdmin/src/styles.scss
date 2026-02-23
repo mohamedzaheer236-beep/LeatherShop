@@ -299,6 +299,25 @@ body .broadcast-card .p-card {
   border: 1px solid var(--ls-border-medium);
 }
 
+/* Product form card */
+body .product-form-card .p-card-body {
+  padding: 28px 32px;
+}
+
+body .product-form-card .p-card {
+  border-radius: 14px;
+  border: 1px solid var(--ls-border-medium);
+}
+
+body .tips-card .p-card-body {
+  padding: 20px 24px;
+}
+
+body .tips-card .p-card {
+  border-radius: 14px;
+  border: 1px solid var(--ls-border-medium);
+}
+
 /* ----- TABLE ----- */
 body .p-datatable .p-datatable-thead > tr > th {
   background: var(--ls-bg-table-header);

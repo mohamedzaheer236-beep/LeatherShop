@@ -1,66 +1,145 @@
 ﻿<p-confirmDialog></p-confirmDialog>
 
 <div class="product-form-page">
-  <h1 class="page-title" style="margin-bottom:24px;">{{ isEdit ? 'Edit Product' : 'Add New Product' }}</h1>
+  <p-toolbar styleClass="mb-4">
+    <ng-template pTemplate="left">
+      <h1 class="page-title">{{ isEdit ? 'Edit Product' : 'Add New Product' }}</h1>
+    </ng-template>
+    <ng-template pTemplate="right">
+      <p-button label="Back to Products" icon="pi pi-arrow-left" severity="secondary"
+                [outlined]="true" routerLink="/products"></p-button>
+    </ng-template>
+  </p-toolbar>
 
-  <p-card>
-    <form [formGroup]="productForm" (ngSubmit)="onSubmit()">
-      <div class="form-grid">
-        <div class="form-field">
-          <label for="name">Product Name *</label>
-          <input id="name" type="text" pInputText formControlName="name"
-                 placeholder="e.g. Classic Leather Wallet" class="w-full" />
-          <small class="p-error" *ngIf="isFieldInvalid('name')">Product name is required.</small>
-        </div>
-
-        <div class="form-row">
-          <div class="form-field">
-            <label for="brand">Brand *</label>
-            <input id="brand" type="text" pInputText formControlName="brand"
-                   placeholder="e.g. Royal Leather" class="w-full" />
-            <small class="p-error" *ngIf="isFieldInvalid('brand')">Brand is required.</small>
-          </div>
-          <div class="form-field">
-            <label for="category">Category *</label>
-            <p-dropdown id="category" [options]="categoryOptions" formControlName="category"
-                        placeholder="Select Category" [style]="{'width': '100%'}"></p-dropdown>
-            <small class="p-error" *ngIf="isFieldInvalid('category')">Category is required.</small>
+  <div class="form-layout">
+    <!-- Main Form Card -->
+    <div class="form-main">
+      <p-card styleClass="product-form-card">
+        <div class="card-section-header">
+          <i class="pi pi-box"></i>
+          <div>
+            <h3>Product Information</h3>
+            <p>Fill in the details below to {{ isEdit ? 'update the' : 'add a new' }} product</p>
           </div>
         </div>
 
-        <div class="form-row">
+        <form [formGroup]="productForm" (ngSubmit)="onSubmit()">
+          <!-- Product Name — full width -->
           <div class="form-field">
-            <label for="price">Price (INR) *</label>
-            <p-inputNumber id="price" formControlName="price" mode="currency" currency="INR"
-                          locale="en-IN" [min]="1" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"></p-inputNumber>
-            <small class="p-error" *ngIf="isFieldInvalid('price')">Price must be at least ₹1.</small>
+            <label for="name">Product Name <span [class]="isFieldInvalid('name') ? 'req-star error' : 'req-star'">*</span></label>
+            <input id="name" type="text" pInputText formControlName="name"
+                   placeholder="e.g. Classic Leather Wallet" class="w-full"
+                   [class.ng-invalid]="isFieldInvalid('name')" [class.ng-dirty]="isFieldInvalid('name')" />
+            <small class="p-error" *ngIf="isFieldInvalid('name')">
+              <i class="pi pi-exclamation-circle"></i> Product name is required.
+            </small>
           </div>
+
+          <!-- Brand + Category row -->
+          <div class="form-row">
+            <div class="form-field">
+              <label for="brand">Brand <span [class]="isFieldInvalid('brand') ? 'req-star error' : 'req-star'">*</span></label>
+              <input id="brand" type="text" pInputText formControlName="brand"
+                     placeholder="e.g. Royal Leather" class="w-full"
+                     [class.ng-invalid]="isFieldInvalid('brand')" [class.ng-dirty]="isFieldInvalid('brand')" />
+              <small class="p-error" *ngIf="isFieldInvalid('brand')">
+                <i class="pi pi-exclamation-circle"></i> Brand is required.
+              </small>
+            </div>
+            <div class="form-field">
+              <label for="category">Category <span [class]="isFieldInvalid('category') ? 'req-star error' : 'req-star'">*</span></label>
+              <p-dropdown id="category" [options]="categoryOptions" formControlName="category"
+                          placeholder="Select Category" [style]="{'width': '100%'}" appendTo="body"
+                          [class.ng-invalid]="isFieldInvalid('category')" [class.ng-dirty]="isFieldInvalid('category')"></p-dropdown>
+              <small class="p-error" *ngIf="isFieldInvalid('category')">
+                <i class="pi pi-exclamation-circle"></i> Category is required.
+              </small>
+            </div>
+          </div>
+
+          <!-- Price + Stock row -->
+          <div class="form-row">
+            <div class="form-field">
+              <label for="price">Price (INR) <span [class]="isFieldInvalid('price') ? 'req-star error' : 'req-star'">*</span></label>
+              <p-inputNumber id="price" formControlName="price" mode="currency" currency="INR"
+                            locale="en-IN" [min]="1" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"
+                            [class.ng-invalid]="isFieldInvalid('price')" [class.ng-dirty]="isFieldInvalid('price')"></p-inputNumber>
+              <small class="p-error" *ngIf="isFieldInvalid('price')">
+                <i class="pi pi-exclamation-circle"></i> Price must be at least ₹1.
+              </small>
+            </div>
+            <div class="form-field">
+              <label for="stock">Stock Quantity <span [class]="isFieldInvalid('stockQuantity') ? 'req-star error' : 'req-star'">*</span></label>
+              <p-inputNumber id="stock" formControlName="stockQuantity"
+                            [min]="0" [showButtons]="true" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"
+                            [class.ng-invalid]="isFieldInvalid('stockQuantity')" [class.ng-dirty]="isFieldInvalid('stockQuantity')"></p-inputNumber>
+              <small class="p-error" *ngIf="isFieldInvalid('stockQuantity')">
+                <i class="pi pi-exclamation-circle"></i> Stock quantity is required.
+              </small>
+            </div>
+          </div>
+
+          <!-- Image URL — full width -->
           <div class="form-field">
-            <label for="stock">Stock Quantity *</label>
-            <p-inputNumber id="stock" formControlName="stockQuantity"
-                          [min]="0" [showButtons]="true" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"></p-inputNumber>
-            <small class="p-error" *ngIf="isFieldInvalid('stockQuantity')">Stock quantity is required.</small>
+            <label for="imageUrl">Image URL</label>
+            <span class="p-input-icon-left w-full">
+              <i class="pi pi-image"></i>
+              <input id="imageUrl" type="text" pInputText formControlName="imageUrl"
+                     placeholder="https://example.com/image.jpg" class="w-full" />
+            </span>
+            <small class="hint">Paste a direct link to the product image</small>
           </div>
-        </div>
 
-        <div class="form-field">
-          <label for="imageUrl">Image URL</label>
-          <input id="imageUrl" type="text" pInputText formControlName="imageUrl"
-                 placeholder="https://example.com/image.jpg" class="w-full" />
-        </div>
+          <!-- Description — full width -->
+          <div class="form-field">
+            <label for="description">Description</label>
+            <textarea id="description" pInputTextarea formControlName="description"
+                      rows="4" placeholder="Describe the product materials, dimensions, and features..."
+                      class="w-full" [autoResize]="true"></textarea>
+          </div>
 
-        <div class="form-field">
-          <label for="description">Description</label>
-          <textarea id="description" pInputTextarea formControlName="description"
-                    rows="4" placeholder="Describe the product..." class="w-full" [autoResize]="true"></textarea>
+          <!-- Actions -->
+          <div class="form-actions">
+            <p-button label="Cancel" severity="secondary" [outlined]="true" routerLink="/products" icon="pi pi-times"></p-button>
+            <p-button [label]="saving ? 'Saving...' : (isEdit ? 'Update Product' : 'Create Product')"
+                      type="submit" icon="pi pi-check"
+                      [disabled]="saving || (submitted && productForm.invalid)"
+                      [loading]="saving"></p-button>
+          </div>
+        </form>
+      </p-card>
+    </div>
+
+    <!-- Sidebar Tips Card -->
+    <div class="form-sidebar">
+      <p-card styleClass="tips-card">
+        <div class="tips-header">
+          <i class="pi pi-info-circle"></i>
+          <h4>Tips</h4>
         </div>
+        <div class="tip-item">
+          <i class="pi pi-check-circle"></i>
+          <span>Use clear, descriptive product names for better searchability</span>
+        </div>
+        <div class="tip-item">
+          <i class="pi pi-check-circle"></i>
+          <span>Set stock to 0 to mark a product as out of stock</span>
+        </div>
+        <div class="tip-item">
+          <i class="pi pi-check-circle"></i>
+          <span>Image URLs should be direct links (ending in .jpg, .png, etc.)</span>
+        </div>
+        <div class="tip-item">
+          <i class="pi pi-check-circle"></i>
+          <span>Products can be activated/deactivated from the product list</span>
+        </div>
+      </p-card>
+
+      <!-- Required fields indicator -->
+      <div class="required-legend">
+        <i class="pi pi-exclamation-circle"></i>
+        <span>Fields marked with <strong>*</strong> are required</span>
       </div>
-
-      <div class="form-actions">
-        <p-button label="Cancel" severity="secondary" [outlined]="true" routerLink="/products" icon="pi pi-times"></p-button>
-        <p-button [label]="saving ? 'Saving...' : (isEdit ? 'Update Product' : 'Create Product')"
-                  type="submit" icon="pi pi-check" [disabled]="saving" [loading]="saving"></p-button>
-      </div>
-    </form>
-  </p-card>
+    </div>
+  </div>
 </div>
