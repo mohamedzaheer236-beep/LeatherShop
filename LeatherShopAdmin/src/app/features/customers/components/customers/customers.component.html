@@ -119,11 +119,8 @@
         <td>
           <p-tag [value]="customer.isSubscribed ? 'Subscribed' : 'Unsubscribed'"
                  [severity]="customer.isSubscribed ? 'success' : 'secondary'"
-                 [style]="{'cursor': 'pointer'}" role="button" tabindex="0"
-                 [attr.aria-label]="(customer.isSubscribed ? 'Unsubscribe' : 'Subscribe') + ' ' + (customer.name || customer.phoneNumber)"
-                 (click)="toggleSubscription(customer)"
-                 (keydown.enter)="toggleSubscription(customer)"
-                 (keydown.space)="$event.preventDefault(); toggleSubscription(customer)"></p-tag>
+                 [style]="{'cursor': 'pointer'}"
+                 (click)="toggleSubscription(customer)"></p-tag>
         </td>
         <td>{{ customer.orderCount }}</td>
         <td>{{ customer.createdAt | date:'dd MMM yyyy' }}</td>
