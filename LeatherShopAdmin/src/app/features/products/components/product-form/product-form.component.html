@@ -103,7 +103,7 @@
             <p-button label="Cancel" severity="secondary" [outlined]="true" routerLink="/products" icon="pi pi-times"></p-button>
             <p-button [label]="saving ? 'Saving...' : (isEdit ? 'Update Product' : 'Create Product')"
                       type="submit" icon="pi pi-check"
-                      [disabled]="saving || (submitted && productForm.invalid)"
+                      [disabled]="saving || productForm.invalid"
                       [loading]="saving"></p-button>
           </div>
         </form>
