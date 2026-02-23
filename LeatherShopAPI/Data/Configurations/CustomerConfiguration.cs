@@ -20,8 +20,10 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.Address)
             .HasMaxLength(500);
 
+        // Always send IsSubscribed in INSERT (don't rely on DB default)
+        // The C# property defaults to true in the model class
         builder.Property(c => c.IsSubscribed)
-            .HasDefaultValue(true);
+            .IsRequired();
 
         builder.HasIndex(c => c.PhoneNumber)
             .IsUnique();
