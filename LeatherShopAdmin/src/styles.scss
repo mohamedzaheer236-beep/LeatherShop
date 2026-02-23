@@ -120,8 +120,23 @@ a { text-decoration: none; color: inherit; }
   background: #ffffff !important;
   border: 1px solid #e8e8e8 !important;
   border-radius: 12px !important;
-  padding: 14px 20px !important;
+  padding: 16px 24px !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  gap: 12px;
+}
+
+.p-toolbar .p-toolbar-group-start,
+.p-toolbar .p-toolbar-group-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.p-toolbar .p-toolbar-group-end,
+.p-toolbar .p-toolbar-group-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 /* ----- CARD ----- */
@@ -151,11 +166,29 @@ a { text-decoration: none; color: inherit; }
 
 /* Order cards */
 .order-card .p-card-body {
-  padding: 16px 20px !important;
+  padding: 20px 24px !important;
 }
 
 .order-card .p-card-content {
   padding: 0 !important;
+}
+
+/* Order details inside card */
+.order-card .p-datatable {
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.order-card .status-actions {
+  background: #f8f9fb;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-top: 16px;
+}
+
+.order-card .status-buttons .p-button {
+  min-width: auto;
 }
 
 /* Broadcast card */
@@ -211,7 +244,13 @@ a { text-decoration: none; color: inherit; }
 .p-button {
   border-radius: 8px !important;
   font-weight: 500 !important;
+  font-size: 14px !important;
   transition: all 0.2s ease !important;
+}
+
+.p-button.p-button-sm {
+  font-size: 13px !important;
+  padding: 6px 14px !important;
 }
 
 .p-button:not(.p-button-rounded):not(.p-button-text):not(.p-button-outlined) {
@@ -226,6 +265,27 @@ a { text-decoration: none; color: inherit; }
 /* ----- INPUT ----- */
 .p-inputtext {
   border-radius: 8px !important;
+}
+
+/* Fix p-input-icon-left icon positioning */
+.p-input-icon-left {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.p-input-icon-left > i:first-of-type {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  z-index: 1;
+  font-size: 14px;
+}
+
+.p-input-icon-left > .p-inputtext {
+  padding-left: 36px !important;
 }
 
 /* ----- DIALOG ----- */

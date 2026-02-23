@@ -62,14 +62,16 @@
 }
 
 .status-actions {
-  margin-top: 16px;
+  margin-top: 0;
 
   label {
     font-weight: 600;
-    font-size: 14px;
-    margin-bottom: 8px;
+    font-size: 13px;
+    margin-bottom: 10px;
     display: block;
     color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
   }
 }
 

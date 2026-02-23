@@ -50,10 +50,9 @@
                  [severity]="product.stockQuantity <= 5 ? 'danger' : 'success'"></p-tag>
         </td>
         <td>
-          <p-button [label]="product.isActive ? 'Active' : 'Inactive'"
-                    [severity]="product.isActive ? 'success' : 'secondary'"
-                    [outlined]="true" size="small"
-                    (onClick)="toggleActive(product)"></p-button>
+          <p-tag [value]="product.isActive ? 'Active' : 'Inactive'"
+                 [severity]="product.isActive ? 'success' : 'secondary'"
+                 [style]="{'cursor': 'pointer'}" (click)="toggleActive(product)"></p-tag>
         </td>
         <td>
           <div class="action-buttons">
