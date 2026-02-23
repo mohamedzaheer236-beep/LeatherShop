@@ -99,6 +99,9 @@
           </div>
 
           <!-- Actions -->
+          <small class="form-warning" *ngIf="productForm.invalid">
+            <i class="pi pi-exclamation-triangle"></i> Please fill in all required fields to enable submission.
+          </small>
           <div class="form-actions">
             <p-button label="Cancel" severity="secondary" [outlined]="true" routerLink="/products" icon="pi pi-times"></p-button>
             <p-button [label]="saving ? 'Saving...' : (isEdit ? 'Update Product' : 'Create Product')"
