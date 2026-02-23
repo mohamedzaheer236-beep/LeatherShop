@@ -29,18 +29,8 @@ public class ProductService : IProductService
         if (!string.IsNullOrEmpty(search))
             query = query.Where(p => p.Name.ToLower().Contains(search.ToLower()) || p.Description.ToLower().Contains(search.ToLower()));
 
-        return await query.OrderByDescending(p => p.CreatedAt).Select(p => new ProductDto
-        {
-            Id = p.Id,
-            Name = p.Name,
-            Description = p.Description,
-            Brand = p.Brand,
-            Category = p.Category,
-            Price = p.Price,
-            StockQuantity = p.StockQuantity,
-            ImageUrl = p.ImageUrl,
-            IsActive = p.IsActive
-        }).ToListAsync();
+        var products = await query.OrderByDescending(p => p.CreatedAt).ToListAsync();
+        return products.Select(p => p.ToDto()).ToList();
     }
 
     public async Task<ProductDto?> GetByIdAsync(int id)

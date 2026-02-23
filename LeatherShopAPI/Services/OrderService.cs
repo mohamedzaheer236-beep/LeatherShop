@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Order;
+using LeatherShopAPI.Extensions;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 
@@ -27,24 +28,8 @@ public class OrderService : IOrderService
         if (!string.IsNullOrEmpty(status) && Enum.TryParse<OrderStatus>(status, true, out var orderStatus))
             query = query.Where(o => o.Status == orderStatus);
 
-        return await query.OrderByDescending(o => o.CreatedAt)
-            .Select(o => new OrderDto
-            {
-                Id = o.Id,
-                OrderNumber = o.OrderNumber,
-                CustomerName = o.Customer.Name,
-                CustomerPhone = o.Customer.PhoneNumber,
-                TotalAmount = o.TotalAmount,
-                Status = o.Status.ToString(),
-                IsPaid = o.IsPaid,
-                CreatedAt = o.CreatedAt,
-                Items = o.OrderItems.Select(oi => new OrderItemDto
-                {
-                    ProductName = oi.Product.Name,
-                    Quantity = oi.Quantity,
-                    UnitPrice = oi.UnitPrice
-                }).ToList()
-            }).ToListAsync();
+        var orders = await query.OrderByDescending(o => o.CreatedAt).ToListAsync();
+        return orders.Select(o => o.ToDto()).ToList();
     }
 
     public async Task<bool> UpdateStatusAsync(int id, string newStatus)
