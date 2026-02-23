@@ -2,21 +2,11 @@
    Global Styles - Leather Shop Admin (PrimeNG)
    ============================================= */
 
-/* Inter font loaded via <link> in index.html (preconnect + font-display:swap) */
-
-/* Override PrimeNG's bundled @font-face that points to a broken local woff2 path.
-   This tells the browser to use Google Fonts' Inter instead. */
-@font-face {
-  font-family: 'Inter var';
-  font-style: normal;
-  font-weight: 100 900;
-  src: local('Inter');
-}
-@font-face {
-  font-family: 'Inter var';
-  font-style: italic;
-  font-weight: 100 900;
-  src: local('Inter');
+/* Inter font loaded via <link> in index.html (preconnect + font-display:swap).
+   PrimeNG theme loaded as static CSS (public/primeng-theme.css) with broken
+   @font-face declarations stripped. Override --font-family to use Google Fonts Inter. */
+:root {
+  --font-family: 'Inter', sans-serif;
 }
 
 /* =============================================
