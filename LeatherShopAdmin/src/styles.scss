@@ -4,6 +4,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 /* =============================================
+   Skip-to-Content (Accessibility)
+   ============================================= */
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  z-index: 10000;
+  padding: 12px 24px;
+  background: var(--ls-accent-indigo, #6366f1);
+  color: #fff;
+  border-radius: 0 0 8px 8px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 0.2s;
+
+  &:focus {
+    top: 0;
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+}
+
+/* =============================================
    CSS Custom Properties (Design Tokens)
    ============================================= */
 :root {

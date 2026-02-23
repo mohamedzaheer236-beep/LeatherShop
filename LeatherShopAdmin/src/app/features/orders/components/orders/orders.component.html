@@ -13,7 +13,10 @@
 
   <div class="orders-list" *ngIf="!loading">
     <p-card *ngFor="let order of orders" styleClass="order-card mb-3">
-      <div class="order-header" (click)="toggleExpand(order.id)">
+      <div class="order-header" (click)="toggleExpand(order.id)"
+           role="button" tabindex="0" [attr.aria-expanded]="expandedOrderId === order.id"
+           [attr.aria-label]="'Toggle details for order ' + order.orderNumber"
+           (keydown.enter)="toggleExpand(order.id)" (keydown.space)="$event.preventDefault(); toggleExpand(order.id)">
         <div class="order-info">
           <span class="order-number">{{ order.orderNumber }}</span>
           <span class="order-customer">{{ order.customerName || order.customerPhone }}</span>

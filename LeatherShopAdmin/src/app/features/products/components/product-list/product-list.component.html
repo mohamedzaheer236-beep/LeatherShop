@@ -52,7 +52,11 @@
         <td>
           <p-tag [value]="product.isActive ? 'Active' : 'Inactive'"
                  [severity]="product.isActive ? 'success' : 'secondary'"
-                 [style]="{'cursor': 'pointer'}" (click)="toggleActive(product)"></p-tag>
+                 [style]="{'cursor': 'pointer'}" role="button" tabindex="0"
+                 [attr.aria-label]="(product.isActive ? 'Deactivate' : 'Activate') + ' ' + product.name"
+                 (click)="toggleActive(product)"
+                 (keydown.enter)="toggleActive(product)"
+                 (keydown.space)="$event.preventDefault(); toggleActive(product)"></p-tag>
         </td>
         <td>
           <div class="action-buttons">

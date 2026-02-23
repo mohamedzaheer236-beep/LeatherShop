@@ -2,24 +2,30 @@
   <h1 class="page-title" style="margin-bottom:24px;">{{ isEdit ? 'Edit Product' : 'Add New Product' }}</h1>
 
   <p-card>
-    <form (ngSubmit)="onSubmit()">
+    <form #productForm="ngForm" (ngSubmit)="onSubmit()">
       <div class="form-grid">
         <div class="form-field">
           <label for="name">Product Name *</label>
           <input id="name" type="text" pInputText [(ngModel)]="product.name" name="name" required
-                 placeholder="e.g. Classic Leather Wallet" class="w-full" />
+                 placeholder="e.g. Classic Leather Wallet" class="w-full"
+                 [class.ng-invalid]="isFieldInvalid('name')" [class.ng-dirty]="submitted" />
+          <small class="p-error" *ngIf="submitted && !product.name?.trim()">Product name is required.</small>
         </div>
 
         <div class="form-row">
           <div class="form-field">
             <label for="brand">Brand *</label>
             <input id="brand" type="text" pInputText [(ngModel)]="product.brand" name="brand" required
-                   placeholder="e.g. Royal Leather" class="w-full" />
+                   placeholder="e.g. Royal Leather" class="w-full"
+                   [class.ng-invalid]="isFieldInvalid('brand')" [class.ng-dirty]="submitted" />
+            <small class="p-error" *ngIf="submitted && !product.brand?.trim()">Brand is required.</small>
           </div>
           <div class="form-field">
             <label for="category">Category *</label>
             <p-dropdown id="category" [options]="categoryOptions" [(ngModel)]="product.category" name="category"
-                        placeholder="Select Category" [style]="{'width': '100%'}"></p-dropdown>
+                        placeholder="Select Category" [style]="{'width': '100%'}"
+                        [class.ng-invalid]="submitted && !product.category" [class.ng-dirty]="submitted"></p-dropdown>
+            <small class="p-error" *ngIf="submitted && !product.category">Category is required.</small>
           </div>
         </div>
 
@@ -27,12 +33,16 @@
           <div class="form-field">
             <label for="price">Price (INR) *</label>
             <p-inputNumber id="price" [(ngModel)]="product.price" name="price" mode="currency" currency="INR"
-                          locale="en-IN" [min]="1" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"></p-inputNumber>
+                          locale="en-IN" [min]="1" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"
+                          [class.ng-invalid]="submitted && (!product.price || product.price < 1)" [class.ng-dirty]="submitted"></p-inputNumber>
+            <small class="p-error" *ngIf="submitted && (!product.price || product.price < 1)">Price must be at least ₹1.</small>
           </div>
           <div class="form-field">
             <label for="stock">Stock Quantity *</label>
             <p-inputNumber id="stock" [(ngModel)]="product.stockQuantity" name="stockQuantity"
-                          [min]="0" [showButtons]="true" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"></p-inputNumber>
+                          [min]="0" [showButtons]="true" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"
+                          [class.ng-invalid]="submitted && (product.stockQuantity == null || product.stockQuantity < 0)" [class.ng-dirty]="submitted"></p-inputNumber>
+            <small class="p-error" *ngIf="submitted && (product.stockQuantity == null || product.stockQuantity < 0)">Stock quantity is required.</small>
           </div>
         </div>
 
