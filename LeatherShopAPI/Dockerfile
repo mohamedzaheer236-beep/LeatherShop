@@ -3,12 +3,12 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy csproj and restore dependencies
-COPY LeatherShopAPI.csproj .
-RUN dotnet restore
+COPY LeatherShopAPI/LeatherShopAPI.csproj LeatherShopAPI/
+RUN dotnet restore LeatherShopAPI/LeatherShopAPI.csproj
 
 # Copy everything else and build
-COPY . .
-RUN dotnet publish -c Release -o /app/publish
+COPY LeatherShopAPI/ LeatherShopAPI/
+RUN dotnet publish LeatherShopAPI/LeatherShopAPI.csproj -c Release -o /app/publish
 
 # ── Stage 2: Runtime ──
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
