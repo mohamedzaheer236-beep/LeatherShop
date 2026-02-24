@@ -57,7 +57,14 @@ public static class ServiceCollectionExtensions
         {
             options.AddPolicy("AllowAngular", policy =>
             {
-                policy.WithOrigins("http://localhost:4200")
+                var origins = new List<string> { "http://localhost:4200" };
+                
+                // Add production frontend URL if configured
+                var prodFrontend = Environment.GetEnvironmentVariable("FRONTEND_URL");
+                if (!string.IsNullOrEmpty(prodFrontend))
+                    origins.Add(prodFrontend);
+
+                policy.WithOrigins(origins.ToArray())
                       .AllowAnyHeader()
                       .AllowAnyMethod();
             });

@@ -44,6 +44,10 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Railway provides PORT env variable
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://+:{port}");
+
 var app = builder.Build();
 
 // --- Auto-migrate database + seed admin user on startup ---
@@ -69,11 +73,9 @@ using (var scope = app.Services.CreateScope())
 // --- Global exception handling (must be first in pipeline) ---
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// Swagger enabled in all environments (used as health check endpoint)
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseCors("AllowAngular");
 
