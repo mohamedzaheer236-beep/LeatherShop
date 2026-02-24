@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://your-production-domain.com/api'
+  apiUrl: 'https://leathershop-production.up.railway.app/api'
 };
