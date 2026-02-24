@@ -14,12 +14,12 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 4. [Admin Panel Flow](#admin-panel-flow)
 5. [Project Structure](#project-structure)
 6. [Developer Setup Guide](#developer-setup-guide)
-7. [External Services Setup (WhatsApp, Razorpay, ngrok)](#external-services-setup)
+7. [External Services Setup (WhatsApp, Razorpay)](#external-services-setup)
 8. [API Endpoints Reference](#api-endpoints-reference)
 9. [Database Schema](#database-schema)
 10. [What Is NOT Yet Implemented](#what-is-not-yet-implemented)
 11. [Code Audit Report](#code-audit-report)
-12. [Deployment Guide (Pending)](#deployment-guide-pending)
+12. [Deployment Guide](#deployment-guide)
 
 ---
 
@@ -73,20 +73,20 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 │   (WhatsApp)         │         │   (Browser)           │
 └────────┬────────────┘         └──────────┬───────────┘
          │                                  │
-         │ WhatsApp Messages                │ HTTP (localhost:4200)
+         │ WhatsApp Messages                │ HTTPS
          ▼                                  ▼
 ┌─────────────────────┐         ┌──────────────────────┐
 │  Meta WhatsApp       │         │  Angular 18           │
 │  Cloud API           │         │  Admin Panel          │
-│  (graph.facebook.com)│         │  (LeatherShopAdmin)   │
+│  (graph.facebook.com)│         │  (Vercel)             │
 └────────┬────────────┘         └──────────┬───────────┘
          │                                  │
          │ Webhook POST                     │ REST API calls
-         │ (ngrok tunnel)                   │ (http://localhost:5000)
+         │ (Railway public URL)             │ (Railway API)
          ▼                                  ▼
 ┌──────────────────────────────────────────────────────┐
 │              .NET 8 Web API                           │
-│              (LeatherShopAPI - localhost:5000)         │
+│              (Railway - leathershop-production.up.railway.app) │
 │                                                       │
 │  ┌──────────────┐  ┌─────────────┐  ┌─────────────┐  │
 │  │ Webhook       │  │ ChatBot     │  │ Admin       │  │
@@ -501,7 +501,7 @@ Edit `LeatherShopAPI/appsettings.json` and set your PostgreSQL password:
     "KeySecret": "YOUR_RAZORPAY_SECRET"
   },
   "App": {
-    "BaseUrl": "https://your-ngrok-url.ngrok-free.app"
+    "BaseUrl": "https://leathershop-production.up.railway.app"
   }
 }
 ```
@@ -553,32 +553,38 @@ These are only needed when you want the WhatsApp chatbot and payments to work. T
 #### 2. Get API Credentials
 1. WhatsApp section → **API Setup**
 2. Copy **Phone Number ID** → paste in `appsettings.json` → `WhatsApp:PhoneNumberId`
-3. Copy **Temporary Access Token** → paste in `WhatsApp:AccessToken`
-4. For production: generate a **Permanent Token** via System Users in Business Settings
+3. Copy **Temporary Access Token** → paste in `WhatsApp:AccessToken` (for local development)
+4. For production: generate a **Permanent Token** via System Users in Business Settings (see below)
 
-#### 3. Set Up ngrok (Required for Webhook)
+#### 3. Permanent WhatsApp Access Token (Production)
 
-WhatsApp needs to reach your local API via a public URL. Install ngrok:
+Temporary tokens expire every 24 hours. For production, use a **permanent System User token**:
 
-```bash
-# Download from https://ngrok.com/download
-# Or install via Chocolatey (Windows):
-choco install ngrok
+1. Go to [Meta Business Settings](https://business.facebook.com/settings/) → **Users** → **System Users**
+2. Create a new **Admin** System User (e.g., "Leathershop")
+3. Click **Generate New Token** → select your WhatsApp app
+4. Grant permissions: `whatsapp_business_management`, `whatsapp_business_messaging`
+5. Token type: **Permanent** (never expires)
+6. Copy the token → set as `WhatsApp__AccessToken` environment variable on Railway
 
-# Authenticate (one-time, get token from https://dashboard.ngrok.com):
-ngrok config add-authtoken YOUR_NGROK_AUTH_TOKEN
-
-# Start tunnel:
-ngrok http 5000
-```
-
-This gives you a public URL like `https://abc123.ngrok-free.app`. Update `App:BaseUrl` in `appsettings.json` with this URL.
+> **Note:** This replaces the need for temporary tokens and ngrok for local development. The production API on Railway receives webhooks directly.
 
 #### 4. Configure Webhook in Meta Console
+
+**For Production (Railway):**
 1. Meta Developer Console → WhatsApp → Configuration → **Webhook**
-2. **Callback URL**: `https://YOUR_NGROK_URL/api/whatsapp/webhook`
-3. **Verify Token**: same value as `WhatsApp:VerifyToken` in your appsettings.json
+2. **Callback URL**: `https://leathershop-production.up.railway.app/api/whatsapp/webhook`
+3. **Verify Token**: same value as `WhatsApp:VerifyToken` environment variable
 4. Subscribe to: **`messages`**
+
+**For Local Development (ngrok):**
+1. Install ngrok: `choco install ngrok` (Windows) or download from [ngrok.com](https://ngrok.com/download)
+2. Authenticate: `ngrok config add-authtoken YOUR_NGROK_AUTH_TOKEN`
+3. Start tunnel: `ngrok http 5000`
+4. Update webhook URL in Meta Console to `https://YOUR_NGROK_URL/api/whatsapp/webhook`
+5. Update `App:BaseUrl` in `appsettings.json` with the ngrok URL
+
+> **Note:** ngrok is only needed for local development. In production, Railway provides a permanent public URL.
 
 #### 5. Test the Chatbot
 1. In Meta Console → WhatsApp → API Setup → find your **test phone number**
@@ -733,10 +739,10 @@ These features are not built yet and would need to be added for production:
 | **Product Image in WhatsApp** | Chatbot sends text-only product details. Could send image messages using the WhatsApp media API. |
 | **Customer Address Collection** | Checkout uses the stored address (usually empty). No chatbot flow to ask for shipping address. |
 | **Order Cancellation by Customer** | No WhatsApp flow for customers to cancel orders. |
-| **HTTPS in Production** | API runs on HTTP. Needs reverse proxy (nginx) with SSL for production. |
-| ~~**Permanent WhatsApp Access Token**~~ | ✅ **IMPLEMENTED** — Admin System User "Leathershop" created under "Leather Shop" Business Portfolio with permanent token. WABA ID: 2151682048973965, Phone Number ID: 1055485577637232, Phone: +91 79043 03876. |
+| ~~**HTTPS in Production**~~ | ✅ **DEPLOYED** — Railway provides HTTPS automatically via Metal Edge. API accessible at `https://leathershop-production.up.railway.app`. |
+| ~~**Permanent WhatsApp Access Token**~~ | ✅ **IMPLEMENTED** — Admin System User "Leathershop" created under "Leather Shop" Business Portfolio with permanent token (never expires). WABA ID: 2151682048973965, Phone Number ID: 1055485577637232, Phone: +91 79043 03876. Deployed to Railway as `WhatsApp__AccessToken` environment variable. |
 | ~~**WhatsApp Message Templates**~~ | ✅ **CREATED** — 3 templates created: `shop_deals` (MARKETING, ID: 2107912596695779), `order_update` (UTILITY, ID: 1636258954059739), `store_notification` (UTILITY, ID: 2317291185767700). All PENDING Meta approval. `hello_world` approved but restricted to test phone numbers only. |
-| **Production Deployment** | Currently runs on localhost only. Need to deploy API + DB + Angular to cloud for 24/7 WhatsApp webhook availability. See [Deployment Guide](#deployment-guide-pending) below. |
+| ~~**Production Deployment**~~ | ✅ **DEPLOYED** — Backend API on **Railway** (`leathershop-production.up.railway.app`), PostgreSQL on **Railway** (managed instance with persistent volume), Frontend on **Vercel** (static Angular build). WhatsApp webhook URL updated to Railway. All environment variables configured via Railway dashboard. See [Deployment Guide](#deployment-guide) below. |
 
 ---
 
@@ -879,147 +885,171 @@ Comprehensive line-by-line audit of the entire codebase. These remain to be fixe
 
 ---
 
-## Deployment Guide (Pending)
+## Deployment Guide
 
-The API **must run 24/7** for WhatsApp to work — Meta sends webhook events whenever a customer messages, and if the API is offline, those messages are lost after retry expiry. Currently everything runs on localhost which stops when the PC is off.
+The application is **fully deployed** and running 24/7 in production. The API must always be online for WhatsApp webhooks — Meta sends webhook events whenever a customer messages, and if the API is offline, those messages are lost after retry expiry.
 
-### Recommended Architecture
+### Production Architecture (Current)
 
 ```
-┌──────────────┐     ┌──────────────────┐     ┌────────────────────┐
-│  Angular SPA │     │  .NET 8 Web API  │     │  PostgreSQL DB     │
-│  (Static)    │     │  (Always Running)│     │  (Managed)         │
-│              │     │                  │     │                    │
-│  Vercel /    │────▶│  Railway /       │────▶│  Railway Postgres /│
-│  Netlify /   │     │  Azure App Svc / │     │  Supabase /        │
-│  Azure SWA   │     │  DigitalOcean /  │     │  Azure PostgreSQL /│
-│              │     │  AWS App Runner  │     │  AWS RDS           │
-└──────────────┘     └──────────────────┘     └────────────────────┘
-                            │
-                     Meta WhatsApp Cloud API
-                     (webhook URL = your API)
+┌──────────────────────┐     ┌──────────────────────────────────┐     ┌─────────────────────┐
+│  Angular SPA         │     │  .NET 8 Web API                  │     │  PostgreSQL DB      │
+│  (Static Build)      │     │  (Always Running)                │     │  (Managed)          │
+│                      │     │                                  │     │                     │
+│  Vercel              │────▶│  Railway                         │────▶│  Railway Postgres   │
+│  leather-shop.vercel │     │  leathershop-production.up.      │     │  (postgres-volume)  │
+│  .app                │     │  railway.app                     │     │                     │
+└──────────────────────┘     └──────────────────────────────────┘     └─────────────────────┘
+                                        │
+                                 Meta WhatsApp Cloud API
+                                 (webhook → Railway URL)
 ```
 
-### Step-by-Step Deployment Plan
+### Live URLs
 
-#### 1. Database — Managed PostgreSQL
+| Component | URL | Platform |
+|-----------|-----|----------|
+| **Backend API** | `https://leathershop-production.up.railway.app` | Railway |
+| **Swagger UI** | `https://leathershop-production.up.railway.app/swagger` | Railway (also used as health check) |
+| **Admin Panel** | `https://leather-shop-liard.vercel.app` | Vercel |
+| **WhatsApp Webhook** | `https://leathershop-production.up.railway.app/api/whatsapp/webhook` | Railway |
 
-| Option | Free Tier | Notes |
-|--------|-----------|-------|
-| **Railway** | 500 hrs/month, 1 GB | Easiest — same platform as API |
-| **Supabase** | 500 MB, 2 projects | Has dashboard UI, REST API |
-| **Neon** | 0.5 GB, auto-suspend | Serverless Postgres, great free tier |
-| **Azure Database for PostgreSQL** | Flexible Server B1ms | 750 hrs free (12 months) |
+### What Was Deployed (Step-by-Step)
 
-**Steps:**
-1. Create a managed PostgreSQL instance on chosen provider
-2. Get the connection string (host, port, database, user, password)
-3. Update `appsettings.Production.json` with the production connection string
-4. EF Core auto-migrates on startup (`context.Database.Migrate()` in `Program.cs`)
+#### 1. Database — Railway PostgreSQL
 
-#### 2. Backend API — .NET 8 (Must Be Always Running)
+- Created a **PostgreSQL** service on Railway (same project as the API)
+- Railway provides `DATABASE_URL` environment variable automatically
+- Persistent storage via **postgres-volume**
+- EF Core auto-migrates on startup (`context.Database.Migrate()` in `Program.cs`)
+- The API's `AddDatabase()` extension method parses Railway's `DATABASE_URL` URI format into Npgsql connection string automatically:
+  ```csharp
+  // Railway provides DATABASE_URL in URI format — convert to Npgsql format
+  var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+  if (!string.IsNullOrEmpty(databaseUrl))
+  {
+      var uri = new Uri(databaseUrl);
+      var userInfo = uri.UserInfo.Split(':');
+      connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};..."
+  }
+  ```
 
-| Option | Free Tier | Notes |
-|--------|-----------|-------|
-| **Railway** | 500 hrs/month ($5 credit) | Deploy from GitHub, auto-builds .NET |
-| **Azure App Service** | F1 free tier (60 min/day CPU) | Best for .NET, but free tier sleeps |
-| **DigitalOcean App Platform** | $5/mo Starter | No free tier, but very reliable |
-| **AWS App Runner** | ~750 hrs free (12 months) | Auto-scaling, container-based |
-| **Render** | Free tier (spins down after 15 min) | Not ideal — webhook misses during cold start |
+#### 2. Backend API — Railway (.NET 8)
 
-> **Important:** Free tiers that "sleep" (Render, Azure F1) will miss WhatsApp webhooks. For production, use a paid tier or Railway (stays awake within free credits).
+Deployed from GitHub with auto-builds on push.
 
-**Steps:**
-1. Add a `Dockerfile` to `LeatherShopAPI/`:
-   ```dockerfile
-   FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-   WORKDIR /app
-   EXPOSE 8080
+**Dockerfile** (`LeatherShopAPI/Dockerfile`) — Multi-stage build:
+```dockerfile
+# Stage 1: Build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY LeatherShopAPI/LeatherShopAPI.csproj LeatherShopAPI/
+RUN dotnet restore LeatherShopAPI/LeatherShopAPI.csproj
+COPY LeatherShopAPI/ LeatherShopAPI/
+RUN dotnet publish LeatherShopAPI/LeatherShopAPI.csproj -c Release -o /app/publish
 
-   FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-   WORKDIR /src
-   COPY ["LeatherShopAPI.csproj", "."]
-   RUN dotnet restore
-   COPY . .
-   RUN dotnet publish -c Release -o /app/publish
+# Stage 2: Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+WORKDIR /app
+COPY --from=build /app/publish .
+ENV ASPNETCORE_URLS=http://+:${PORT:-8080}
+ENV ASPNETCORE_ENVIRONMENT=Production
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "LeatherShopAPI.dll"]
+```
 
-   FROM base AS final
-   WORKDIR /app
-   COPY --from=build /app/publish .
-   ENV ASPNETCORE_URLS=http://+:8080
-   ENTRYPOINT ["dotnet", "LeatherShopAPI.dll"]
-   ```
-2. Set environment variables on the hosting platform:
-   - `ConnectionStrings__DefaultConnection` = production PostgreSQL connection string
-   - `Jwt__Key` = a strong random secret key (min 32 chars) for JWT token signing
-   - `Jwt__Issuer` = your API domain (e.g., `https://leathershop-api.up.railway.app`)
-   - `Jwt__Audience` = your frontend domain (e.g., `https://leathershop.vercel.app`)
-   - `WhatsApp__PhoneNumberId` = your Meta phone number ID
-   - `WhatsApp__AccessToken` = your Meta access token
-   - `WhatsApp__VerifyToken` = your webhook verify token
-   - `Razorpay__KeyId` = your Razorpay key
-   - `Razorpay__KeySecret` = your Razorpay secret
-   - `ASPNETCORE_ENVIRONMENT` = `Production`
-3. Deploy from GitHub (most platforms auto-detect Dockerfile)
-4. Note the deployed API URL (e.g., `https://leathershop-api.up.railway.app`)
+**Railway Configuration** (`railway.toml`):
+```toml
+[build]
+dockerfilePath = "LeatherShopAPI/Dockerfile"
+watchPatterns = ["LeatherShopAPI/**"]
 
-#### 3. Frontend — Angular Static Site
+[deploy]
+healthcheckPath = "/swagger/index.html"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+```
 
-| Option | Free Tier | Notes |
-|--------|-----------|-------|
-| **Vercel** | Unlimited static sites | Best DX, auto-deploys from GitHub |
-| **Netlify** | 100 GB bandwidth | Great for SPAs with redirect rules |
-| **Azure Static Web Apps** | Free tier | Integrated with Azure |
-| **GitHub Pages** | Unlimited | Manual build step needed |
+**Environment Variables** (set in Railway dashboard):
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | Auto-set by Railway PostgreSQL service |
+| `Jwt__Key` | Strong random secret key (min 32 chars) for JWT signing |
+| `Jwt__Issuer` | `LeatherShopAPI` |
+| `Jwt__Audience` | `LeatherShopAdmin` |
+| `WhatsApp__PhoneNumberId` | Meta phone number ID (`YOUR_PHONE_NUMBER_ID`) |
+| `WhatsApp__BusinessAccountId` | Meta business account ID |
+| `WhatsApp__AccessToken` | **Permanent** System User token (never expires) |
+| `WhatsApp__VerifyToken` | Webhook verification token |
+| `Razorpay__KeyId` | Razorpay API key |
+| `Razorpay__KeySecret` | Razorpay API secret |
+| `App__BaseUrl` | `https://leathershop-production.up.railway.app` |
+| `FRONTEND_URL` | Vercel frontend URL (for CORS) |
+| `ASPNETCORE_ENVIRONMENT` | `Production` |
+| `PORT` | Auto-set by Railway |
 
-**Steps:**
-1. Update `environment.prod.ts` → set `apiUrl` to the deployed API URL:
-   ```typescript
-   export const environment = {
-     production: true,
-     apiUrl: 'https://your-api-url.railway.app'
-   };
-   ```
-2. Build for production:
-   ```bash
-   cd LeatherShopAdmin
-   ng build --configuration production
-   ```
-3. Deploy the `dist/leather-shop-admin/browser/` folder to chosen hosting
-4. Configure SPA redirect rules (all routes → `index.html`)
+**Key deployment changes made:**
+- `Program.cs` — reads `PORT` env variable for Railway, Swagger enabled in all environments (used as health check)
+- `ServiceCollectionExtensions.cs` — `AddDatabase()` parses Railway `DATABASE_URL` URI format, `AddCorsPolicies()` reads `FRONTEND_URL` env var for production CORS
+- `appsettings.Production.json` — placeholder values (`WILL_BE_SET_BY_RAILWAY_ENV_VAR`), actual secrets set via Railway environment variables
 
-#### 4. WhatsApp Webhook — Update Meta Developer Console
+#### 3. Frontend — Vercel (Angular Static Site)
 
-1. Go to [Meta for Developers](https://developers.facebook.com/) → Your App → WhatsApp → Configuration
-2. Change the **Callback URL** from `ngrok` to your deployed API:
-   ```
-   https://your-api-url.railway.app/api/whatsapp/webhook
-   ```
-3. Keep the same **Verify token** as your environment variable
-4. Test by sending a WhatsApp message — Meta should hit your deployed API
+**Option A: Vercel (Free, recommended for Angular)**
+
+1. Go to [vercel.com](https://vercel.com/) → Sign up with GitHub
+2. Click **"Import Project"** → select the `LeatherShop` repository
+3. Set **Root Directory** to `LeatherShopAdmin`
+4. **Framework**: Angular
+5. **Build Command**: `ng build --configuration production`
+6. **Output Directory**: `dist/leather-shop-admin/browser`
+7. Click **Deploy** → deployed at `https://leather-shop-liard.vercel.app`
+
+**Production API URL** is already configured in `environment.prod.ts`:
+```typescript
+export const environment = {
+  production: true,
+  apiUrl: 'https://leathershop-production.up.railway.app/api'
+};
+```
+
+Vercel auto-deploys on every push to the `main` branch. Angular SPA routing is handled automatically by Vercel's framework detection.
+
+#### 4. WhatsApp Webhook — Updated to Railway
+
+1. Meta Developer Console → WhatsApp → Configuration → **Webhook**
+2. **Callback URL**: `https://leathershop-production.up.railway.app/api/whatsapp/webhook`
+3. **Verify Token**: same value as `WhatsApp__VerifyToken` environment variable on Railway
+4. Subscribed to: **`messages`**
+5. Using **permanent System User access token** (replaces temporary tokens that expired every 24h)
+
+> **Note:** ngrok is no longer needed for production. Railway provides a permanent public URL that Meta can reach 24/7.
 
 #### 5. Post-Deployment Checklist
 
-- [ ] WhatsApp webhook URL updated to production API URL
-- [ ] All environment variables set (DB connection, WhatsApp tokens, Razorpay keys)
-- [ ] CORS updated in API for production Angular URL
-- [ ] HTTPS working (most platforms provide it automatically)
-- [ ] Database migration ran successfully on first startup
-- [ ] Test WhatsApp message flow end-to-end
-- [ ] Test admin panel CRUD operations
-- [ ] Test payment flow with Razorpay
-- [ ] Monitor logs for errors (check platform's log viewer)
-- [ ] Set up health check endpoint for uptime monitoring
+- [x] WhatsApp webhook URL updated to Railway production API URL
+- [x] Permanent WhatsApp access token configured (System User, never expires)
+- [x] All environment variables set on Railway (DB, WhatsApp, Razorpay, JWT)
+- [x] CORS updated — `FRONTEND_URL` env var for production Angular URL
+- [x] HTTPS working (Railway provides it automatically via Metal Edge)
+- [x] Database migration runs automatically on first startup
+- [x] Health check configured (`/swagger/index.html` with 300s timeout)
+- [x] Auto-restart on failure (max 10 retries)
+- [x] Frontend deployed to Vercel with auto-deploy from GitHub
+- [ ] Test WhatsApp message flow end-to-end (after Meta template approval)
+- [ ] Test payment flow with Razorpay production keys
+- [ ] Monitor logs via Railway dashboard
 
-### Estimated Cost (Budget Option)
+### Estimated Cost
 
 | Component | Provider | Cost |
 |-----------|----------|------|
 | Angular SPA | Vercel | **Free** |
-| .NET 8 API | Railway | **Free** (500 hrs/month) or **$5/month** |
-| PostgreSQL | Railway / Supabase | **Free** (within limits) |
+| .NET 8 API | Railway | **$5/month** (Trial: 30 days + $5.00 credit) |
+| PostgreSQL | Railway | Included in Railway plan |
 | Domain (optional) | Namecheap / GoDaddy | ~$10/year |
-| **Total** | | **$0–$5/month** |
+| **Total** | | **~$5/month** |
 
 ---
 
@@ -1059,3 +1089,5 @@ The API **must run 24/7** for WhatsApp to work — Meta sends webhook events whe
 | **Broadcast Status Polling** | ✅ Added `GET /api/broadcast/{id}/status` endpoint. Frontend polls every 1s for up to 30s after sending. Shows real-time results: all-failed (red error banner), partial (warning), all-success (green). Custom styled status banners with gradient backgrounds, icons, slideDown animation, and dismissible close button. Dark styled toast notifications positioned 60px from top. |
 | **Performance Audit & Fixes (5000+ Scale)** | ✅ Comprehensive deep audit of frontend (26 issues) and backend (30 issues). Fixes applied: (1) Customer table pagination — 25/50/100 rows per page with page report (client-side, correct for selection use-case). (2) Orders server-side pagination — `PaginatedResult<T>` model, `GET /api/orders?page=1&pageSize=25` (clamped 1–100), PrimeNG `p-paginator` on frontend. (3) `selectedCount` getter replaced with cached `_selectedCount` counter — O(1) instead of O(n) on every change detection. (4) `getTotalSent()` method in template replaced with cached `totalSent` property. (5) `setInterval` memory leak fixed — `ngOnDestroy` clears polling interval. (6) Orders `*ngFor` now has `trackBy: trackByOrderId`. (7) BulkImport N+1 fixed — single query loads all phone numbers into HashSet, then O(1) lookups. (8) Dashboard uses sequential awaits with `AsNoTracking()` — EF Core DbContext is NOT thread-safe so `Task.WhenAll` is incorrect. (9) SemaphoreSlim in BroadcastBackgroundService now properly disposed with `using`. (10) WhatsApp notifications in OrderService and PaymentService wrapped in try/catch — prevents 500 errors on successful DB operations. (11) Razorpay signature verification implemented — HMAC-SHA256 mandatory when `KeySecret` is configured, skipped with warning in dev. (12) XSS in PaymentController fully fixed — `WebUtility.HtmlEncode()` on OrderNumber, CustomerPhone, ProductName. (13) DB indexes added: `IsSubscribed`, `CreatedAt` (customers), `Status`, `CreatedAt`, `IsPaid` (orders), `IsActive` (products). |
 | **WhatsApp Business Setup** | ✅ Permanent token with Admin System User "Leathershop" under "Leather Shop" Business Portfolio (ID: 1270862431810807). WABA ID: 2151682048973965, Phone Number ID: 1055485577637232, Phone: +91 79043 03876. 3 custom templates created (`shop_deals`, `order_update`, `store_notification`) — all PENDING Meta approval. Phone number registered via Cloud API `/register` endpoint. |
+| **Railway Deployment** | ✅ Full cloud deployment: (1) `Dockerfile` — multi-stage build (SDK 8.0 → ASP.NET 8.0 runtime). (2) `railway.toml` — build config with `watchPatterns`, health check on `/swagger/index.html`, restart-on-failure policy. (3) `ServiceCollectionExtensions.cs` — `AddDatabase()` auto-parses Railway `DATABASE_URL` URI format to Npgsql connection string, `AddCorsPolicies()` reads `FRONTEND_URL` env var. (4) `Program.cs` — reads `PORT` env var, Swagger enabled in all environments (health check). (5) `appsettings.Production.json` — placeholder values, actual secrets in Railway env vars. (6) `environment.prod.ts` — API URL set to `https://leathershop-production.up.railway.app/api`. (7) PostgreSQL on Railway with persistent volume. Public URL: `leathershop-production.up.railway.app`. |
+| **Vercel Frontend Deployment** | ✅ Angular admin panel deployed to Vercel: Root directory `LeatherShopAdmin`, framework preset Angular, build command `ng build --configuration production`, output `dist/leather-shop-admin/browser`. Auto-deploys from GitHub `main` branch. |
