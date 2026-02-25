@@ -45,7 +45,7 @@ public class PaymentService : IPaymentService
             CustomerPhone = order.Customer.PhoneNumber,
             TotalAmount = order.TotalAmount,
             AmountInPaise = (int)(order.TotalAmount * 100),
-            RazorpayKeyId = _config["Razorpay:KeyId"] ?? "rzp_test_xxxxx",
+            RazorpayKeyId = _config["Razorpay:KeyId"] ?? throw new InvalidOperationException("Razorpay:KeyId not configured. Set it in appsettings or environment variables."),
             Items = order.OrderItems.Select(oi => new PaymentPageItemDto
             {
                 ProductName = oi.Product.Name,

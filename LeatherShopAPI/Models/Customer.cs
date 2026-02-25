@@ -25,6 +25,13 @@ public class Customer
     [MaxLength(50)]
     public string? PendingAction { get; set; }
 
+    /// <summary>Well-known PendingAction values used by the chatbot.</summary>
+    public static class PendingActions
+    {
+        public const string AwaitingAddress = "awaiting_address";
+        public const string ConfirmingAddress = "confirming_address";
+    }
+
     /// <summary>When true, the chatbot won't auto-respond. Admin is chatting manually.</summary>
     public bool IsBotPaused { get; set; } = false;
 

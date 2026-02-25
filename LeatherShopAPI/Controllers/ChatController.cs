@@ -23,7 +23,7 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> GetConversations([FromQuery] string? search)
     {
         var conversations = await _chatService.GetConversationsAsync(search);
-        return Ok(new ApiResponse<List<ConversationDto>> { Success = true, Data = conversations });
+        return Ok(ApiResponse<List<ConversationDto>>.Ok(conversations));
     }
 
     /// <summary>Get chat messages for a customer (paginated, newest first).</summary>
@@ -31,7 +31,7 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> GetMessages(int customerId, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         var messages = await _chatService.GetMessagesAsync(customerId, page, pageSize);
-        return Ok(new ApiResponse<PaginatedResult<ChatMessageDto>> { Success = true, Data = messages });
+        return Ok(ApiResponse<PaginatedResult<ChatMessageDto>>.Ok(messages));
     }
 
     /// <summary>Admin sends a WhatsApp message to a customer.</summary>
@@ -39,10 +39,10 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> SendMessage(int customerId, [FromBody] SendMessageDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Message))
-            return BadRequest(new ApiResponse<object> { Success = false, Message = "Message cannot be empty" });
+            return BadRequest(ApiResponse<object>.Fail("Message cannot be empty"));
 
         var message = await _chatService.SendMessageAsync(customerId, dto.Message);
-        return Ok(new ApiResponse<ChatMessageDto> { Success = true, Data = message });
+        return Ok(ApiResponse<ChatMessageDto>.Ok(message));
     }
 
     /// <summary>Toggle bot on/off for a customer.</summary>
@@ -50,12 +50,9 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> ToggleBot(int customerId)
     {
         var isPaused = await _chatService.ToggleBotAsync(customerId);
-        return Ok(new ApiResponse<object>
-        {
-            Success = true,
-            Message = isPaused ? "Bot paused" : "Bot resumed",
-            Data = new { isBotPaused = isPaused }
-        });
+        return Ok(ApiResponse<object>.Ok(
+            new { isBotPaused = isPaused },
+            isPaused ? "Bot paused" : "Bot resumed"));
     }
 
     /// <summary>Delete all chat messages for a customer.</summary>
@@ -64,7 +61,7 @@ public class ChatController : ControllerBase
     {
         var deleted = await _chatService.DeleteConversationAsync(customerId);
         if (!deleted)
-            return NotFound(new ApiResponse<object> { Success = false, Message = "No conversation found" });
-        return Ok(new ApiResponse<object> { Success = true, Message = "Conversation deleted" });
+            return NotFound(ApiResponse.Fail("No conversation found"));
+        return Ok(ApiResponse.Ok("Conversation deleted"));
     }
 }

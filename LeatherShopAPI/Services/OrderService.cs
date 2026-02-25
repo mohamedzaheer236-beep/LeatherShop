@@ -15,12 +15,15 @@ public class OrderService : IOrderService
     private readonly AppDbContext _db;
     private readonly IWhatsAppService _whatsApp;
     private readonly IHubContext<NotificationHub> _hubContext;
+    private readonly ILogger<OrderService> _logger;
 
-    public OrderService(AppDbContext db, IWhatsAppService whatsApp, IHubContext<NotificationHub> hubContext)
+    public OrderService(AppDbContext db, IWhatsAppService whatsApp, IHubContext<NotificationHub> hubContext,
+        ILogger<OrderService> logger)
     {
         _db = db;
         _whatsApp = whatsApp;
         _hubContext = hubContext;
+        _logger = logger;
     }
 
     public async Task<PaginatedResult<OrderDto>> GetAllAsync(string? status, int page = 1, int pageSize = 25)
@@ -93,7 +96,7 @@ public class OrderService : IOrderService
                 $"{statusEmoji} *Order Update*\n\nYour order *{order.OrderNumber}* is now: *{status}*\n\nThank you for shopping with us! 🙏"
             );
         }
-        catch { /* WhatsApp notification is best-effort */ }
+        catch (Exception ex) { _logger.LogWarning(ex, "Best-effort WhatsApp notification failed for order {OrderId}", id); }
 
         return true;
     }

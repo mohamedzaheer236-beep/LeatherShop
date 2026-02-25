@@ -10,10 +10,12 @@ namespace LeatherShopAPI.Services;
 public class ProductService : IProductService
 {
     private readonly AppDbContext _db;
+    private readonly IWebHostEnvironment _env;
 
-    public ProductService(AppDbContext db)
+    public ProductService(AppDbContext db, IWebHostEnvironment env)
     {
         _db = db;
+        _env = env;
     }
 
     public async Task<List<ProductDto>> GetAllAsync(string? category, string? brand, string? search)
@@ -117,7 +119,7 @@ public class ProductService : IProductService
 
     public async Task<string> UploadImageAsync(IFormFile file)
     {
-        var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+        var uploadsDir = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads");
         Directory.CreateDirectory(uploadsDir);
 
         var ext = Path.GetExtension(file.FileName).ToLower();

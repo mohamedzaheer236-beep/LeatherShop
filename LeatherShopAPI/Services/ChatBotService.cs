@@ -5,6 +5,7 @@ using LeatherShopAPI.DTOs.Chat;
 using LeatherShopAPI.Hubs;
 using LeatherShopAPI.Models;
 
+using System.Text;
 using LeatherShopAPI.Extensions;
 using LeatherShopAPI.Services.Interfaces;
 
@@ -115,7 +116,7 @@ public class ChatBotService : IChatBotService
         try
         {
             // ---- ADDRESS CONFIRMATION (customer reviewing saved address before checkout) ----
-            if (customer.PendingAction == "confirming_address")
+            if (customer.PendingAction == Customer.PendingActions.ConfirmingAddress)
             {
                 if (interactiveId == "confirm_address")
                 {
@@ -126,7 +127,7 @@ public class ChatBotService : IChatBotService
                 }
                 if (interactiveId == "change_address")
                 {
-                    customer.PendingAction = "awaiting_address";
+                    customer.PendingAction = Customer.PendingActions.AwaitingAddress;
                     await _db.SaveChangesAsync();
                     await BotSendText(phone,
                         "📍 *Enter your new shipping address:*\n\n" +
@@ -147,7 +148,7 @@ public class ChatBotService : IChatBotService
             }
 
             // ---- ADDRESS INPUT (customer is providing shipping address for checkout) ----
-            if (customer.PendingAction == "awaiting_address")
+            if (customer.PendingAction == Customer.PendingActions.AwaitingAddress)
             {
                 // If user tapped an interactive button, cancel the address prompt and process normally
                 if (!string.IsNullOrEmpty(interactiveId))
@@ -395,7 +396,7 @@ public class ChatBotService : IChatBotService
                 ? product.ImageUrl
                 : $"{baseUrl}{product.ImageUrl}";
 
-            _logger.LogWarning("Sending product image: {FullUrl}", imageFullUrl);
+            _logger.LogInformation("Sending product image: {FullUrl}", imageFullUrl);
 
             try
             {
@@ -564,7 +565,7 @@ public class ChatBotService : IChatBotService
             return;
         }
 
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
         sb.AppendLine("🛒 *Your Cart:*\n");
         decimal total = 0;
         int itemNo = 1;
@@ -625,7 +626,7 @@ public class ChatBotService : IChatBotService
         // Ask for shipping address if not set
         if (string.IsNullOrWhiteSpace(customer.Address))
         {
-            customer.PendingAction = "awaiting_address";
+            customer.PendingAction = Customer.PendingActions.AwaitingAddress;
             await _db.SaveChangesAsync();
 
             await BotSendText(to,
@@ -636,7 +637,7 @@ public class ChatBotService : IChatBotService
         }
 
         // Address exists — ask the customer to confirm or change it
-        customer.PendingAction = "confirming_address";
+        customer.PendingAction = Customer.PendingActions.ConfirmingAddress;
         await _db.SaveChangesAsync();
 
         var cartTotal = cartItems.Sum(ci => ci.Product.Price * ci.Quantity);
@@ -747,7 +748,7 @@ public class ChatBotService : IChatBotService
             return;
         }
 
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
         sb.AppendLine("📦 *Your Recent Orders:*\n");
         foreach (var order in orders)
         {

@@ -32,6 +32,10 @@ export class ProductService {
     return this.http.put<void>(`${this.baseUrl}/${id}`, product);
   }
 
+  toggleActive(id: number, isActive: boolean): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/${id}`, { isActive });
+  }
+
   deleteProduct(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
   }

@@ -68,7 +68,7 @@ public class ChatService : IChatService
                 LastMessage = lastMsg.Content.Length > 80 ? lastMsg.Content[..80] + "…" : lastMsg.Content,
                 LastMessageAt = lastMsg.Timestamp,
                 UnreadCount = unread,
-                IsBotPaused = IsBotCurrentlyPaused(c)
+                IsBotPaused = IsBotEffectivelyPaused(c)
             });
         }
 
@@ -144,7 +144,7 @@ public class ChatService : IChatService
         var customer = await _db.Customers.FindAsync(customerId);
         if (customer == null) return false;
 
-        if (IsBotCurrentlyPaused(customer))
+        if (IsBotEffectivelyPaused(customer))
         {
             // Resume bot
             customer.IsBotPaused = false;
@@ -188,7 +188,7 @@ public class ChatService : IChatService
     {
         var customer = await _db.Customers.FindAsync(customerId);
         if (customer == null) return false;
-        return IsBotCurrentlyPaused(customer);
+        return await CheckAndAutoResumeBotAsync(customer);
     }
 
     public async Task<bool> DeleteConversationAsync(int customerId)
@@ -206,9 +206,22 @@ public class ChatService : IChatService
     }
 
     /// <summary>
-    /// Checks if the bot is paused, auto-resumes if BotPausedUntil has expired.
+    /// Pure read-only check: is the bot effectively paused right now?
+    /// Does NOT persist auto-resume to the DB (use CheckAndAutoResumeBotAsync for that).
     /// </summary>
-    private static bool IsBotCurrentlyPaused(Customer customer)
+    private static bool IsBotEffectivelyPaused(Customer customer)
+    {
+        if (!customer.IsBotPaused) return false;
+        if (customer.BotPausedUntil.HasValue && customer.BotPausedUntil.Value <= DateTime.UtcNow)
+            return false; // expired — effectively not paused
+        return true;
+    }
+
+    /// <summary>
+    /// Checks if the bot is paused. If BotPausedUntil has expired, auto-resumes
+    /// and persists the change to the database.
+    /// </summary>
+    private async Task<bool> CheckAndAutoResumeBotAsync(Customer customer)
     {
         if (!customer.IsBotPaused) return false;
 
@@ -217,6 +230,8 @@ public class ChatService : IChatService
         {
             customer.IsBotPaused = false;
             customer.BotPausedUntil = null;
+            await _db.SaveChangesAsync();
+            _logger.LogInformation("Bot auto-resumed for customer {CustomerId} (pause expired)", customer.Id);
             return false;
         }
 

@@ -9,7 +9,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
   template: `
     <div class="spinner-overlay" *ngIf="loading" role="status" aria-live="polite">
       <p-progressSpinner strokeWidth="4" animationDuration=".8s"></p-progressSpinner>
-      <p class="spinner-text">{{ message || 'Loading...' }}</p>
+      <p class="spinner-text">{{ message }}</p>
     </div>
   `,
   styles: [`

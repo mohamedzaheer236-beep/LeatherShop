@@ -60,13 +60,11 @@ export class SignalRService implements OnDestroy {
     this.hubConnection.on('NewChatMessage', (data: NewChatMessageEvent) => this.newChatMessage$.next(data));
 
     this.hubConnection.onclose(() => {
-      console.warn('SignalR connection closed');
       this.hubConnection = null; // allow start() to create a new connection
     });
 
     this.hubConnection.start()
-      .then(() => console.log('SignalR connected'))
-      .catch(err => console.error('SignalR connection error:', err));
+      .catch(() => { /* connection error handled by reconnect policy */ });
   }
 
   /** Stop the connection (call on logout). Returns a Promise so callers can await completion. */
@@ -82,16 +80,19 @@ export class SignalRService implements OnDestroy {
   /** Join a customer's chat group to receive real-time messages. */
   joinCustomerChat(customerId: number): void {
     this.hubConnection?.invoke('JoinCustomerChat', customerId)
-      .catch(err => console.error('Error joining chat group:', err));
+      .catch(() => { /* silently handle — hub may not be connected */ });
   }
 
   /** Leave a customer's chat group. */
   leaveCustomerChat(customerId: number): void {
     this.hubConnection?.invoke('LeaveCustomerChat', customerId)
-      .catch(err => console.error('Error leaving chat group:', err));
+      .catch(() => { /* silently handle — hub may not be connected */ });
   }
 
   ngOnDestroy(): void {
     this.stop();
+    this.newOrder$.complete();
+    this.chatMessage$.complete();
+    this.newChatMessage$.complete();
   }
 }

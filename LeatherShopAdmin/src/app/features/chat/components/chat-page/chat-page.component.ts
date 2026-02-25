@@ -38,7 +38,7 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   private subs: Subscription[] = [];
   private shouldScrollToBottom = false;
-  private searchTimeout: any;
+  private searchTimeout: number | null = null;
 
   constructor(
     private chatService: ChatService,
@@ -90,6 +90,9 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (this.selectedCustomerId) {
       this.signalR.leaveCustomerChat(this.selectedCustomerId);
     }
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
     this.subs.forEach(s => s.unsubscribe());
   }
 
@@ -109,8 +112,8 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   onSearch(): void {
-    clearTimeout(this.searchTimeout);
-    this.searchTimeout = setTimeout(() => this.loadConversations(), 300);
+    if (this.searchTimeout) clearTimeout(this.searchTimeout);
+    this.searchTimeout = window.setTimeout(() => this.loadConversations(), 300);
   }
 
   selectConversation(conv: Conversation): void {

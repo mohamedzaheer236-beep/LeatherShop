@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Services;
@@ -16,8 +17,10 @@ public class WhatsAppService : IWhatsAppService
     private readonly IConfiguration _config;
     private readonly ILogger<WhatsAppService> _logger;
 
-    private string PhoneNumberId => _config["WhatsApp:PhoneNumberId"]!;
-    private string AccessToken => _config["WhatsApp:AccessToken"]!;
+    private string PhoneNumberId => _config["WhatsApp:PhoneNumberId"]
+        ?? throw new InvalidOperationException("WhatsApp:PhoneNumberId not configured. Set it in appsettings or environment variables.");
+    private string AccessToken => _config["WhatsApp:AccessToken"]
+        ?? throw new InvalidOperationException("WhatsApp:AccessToken not configured. Set it in appsettings or environment variables.");
     private string ApiVersion => _config["WhatsApp:ApiVersion"] ?? "v18.0";
 
     private string BaseUrl => $"https://graph.facebook.com/{ApiVersion}/{PhoneNumberId}/messages";
@@ -233,7 +236,7 @@ public class WhatsAppService : IWhatsAppService
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogError("WhatsApp API Error: {StatusCode} - {Body}", response.StatusCode, responseBody);
-            throw new Exception($"WhatsApp API Error: {response.StatusCode} - {responseBody}");
+            throw new WhatsAppApiException($"WhatsApp API Error: {response.StatusCode} - {responseBody}");
         }
 
         _logger.LogInformation("WhatsApp API Success: {Body}", responseBody);

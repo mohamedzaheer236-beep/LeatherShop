@@ -4,6 +4,7 @@ using System.Text;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Auth;
 using LeatherShopAPI.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -36,11 +37,7 @@ public class AuthController : ControllerBase
 
         if (admin == null || !BCrypt.Net.BCrypt.Verify(request.Password, admin.PasswordHash))
         {
-            return Unauthorized(new ApiResponse<object>
-            {
-                Success = false,
-                Message = "Invalid username or password."
-            });
+            return Unauthorized(ApiResponse<object>.Fail("Invalid username or password."));
         }
 
         // Update last login timestamp
@@ -51,33 +48,27 @@ public class AuthController : ControllerBase
         var token = GenerateJwtToken(admin.Username);
         var expiresAt = DateTime.UtcNow.AddHours(TokenExpiryHours);
 
-        return Ok(new ApiResponse<LoginResponse>
-        {
-            Success = true,
-            Message = "Login successful.",
-            Data = new LoginResponse
+        return Ok(ApiResponse<LoginResponse>.Ok(
+            new LoginResponse
             {
                 Token = token,
                 Username = admin.Username,
                 ExpiresAt = expiresAt
-            }
-        });
+            },
+            "Login successful."));
     }
 
     /// <summary>
     /// Verify if the current token is still valid.
     /// </summary>
     [HttpGet("verify")]
-    [Microsoft.AspNetCore.Authorization.Authorize]
+    [Authorize]
     public IActionResult Verify()
     {
         var username = User.FindFirst(ClaimTypes.Name)?.Value;
-        return Ok(new ApiResponse<object>
-        {
-            Success = true,
-            Message = "Token is valid.",
-            Data = new { Username = username }
-        });
+        return Ok(ApiResponse<object>.Ok(
+            new { Username = username },
+            "Token is valid."));
     }
 
     private string GenerateJwtToken(string username)

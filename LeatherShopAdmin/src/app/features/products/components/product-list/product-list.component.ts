@@ -100,7 +100,7 @@ export class ProductListComponent implements OnInit {
   }
 
   toggleActive(product: Product): void {
-    this.productService.updateProduct(product.id, { isActive: !product.isActive } as any).subscribe({
+    this.productService.toggleActive(product.id, !product.isActive).subscribe({
       next: () => {
         product.isActive = !product.isActive;
         this.notification.success(`Product ${product.isActive ? 'activated' : 'deactivated'}.`);
