@@ -61,6 +61,7 @@ export class SignalRService implements OnDestroy {
 
     this.hubConnection.onclose(() => {
       console.warn('SignalR connection closed');
+      this.hubConnection = null; // allow start() to create a new connection
     });
 
     this.hubConnection.start()

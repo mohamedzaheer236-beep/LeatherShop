@@ -224,8 +224,8 @@ export class CustomersComponent implements OnInit {
         this.notification.success('Customer added successfully!');
         this.loadCustomers(); this.loadCounts();
       },
-      error: (err: any) => {
-        this.notification.error(err.error?.message || 'Failed to add customer');
+      error: () => {
+        // Toast shown by error interceptor (includes API message for duplicates, etc.)
         this.addingCustomer = false;
       }
     });
@@ -267,8 +267,8 @@ export class CustomersComponent implements OnInit {
         this.notification.success('Customer updated successfully!');
         this.loadCustomers(); this.loadCounts();
       },
-      error: (err: any) => {
-        this.notification.error(err.error?.message || 'Failed to update customer');
+      error: () => {
+        // Toast shown by error interceptor (includes API message)
         this.editingCustomer = false;
       }
     });
@@ -334,7 +334,7 @@ export class CustomersComponent implements OnInit {
         this.loadCustomers(); this.loadCounts();
       },
       error: () => {
-        this.notification.error('Import failed. Please check your data format.');
+        // Toast shown by error interceptor
         this.importing = false;
       }
     });
@@ -348,7 +348,9 @@ export class CustomersComponent implements OnInit {
         this.notification.success(`Subscription ${newValue ? 'enabled' : 'disabled'}.`);
         this.loadCounts();
       },
-      error: () => this.notification.error('Failed to update subscription.')
+      error: () => {
+        // Toast shown by error interceptor
+      }
     });
   }
 
@@ -390,7 +392,7 @@ export class CustomersComponent implements OnInit {
       },
       error: () => {
         this.sendingBroadcast = false;
-        this.notification.error('Failed to send broadcast.');
+        // Toast shown by error interceptor
       }
     });
   }

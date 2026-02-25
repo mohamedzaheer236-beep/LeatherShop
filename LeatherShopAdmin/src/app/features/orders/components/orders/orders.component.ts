@@ -92,7 +92,7 @@ export class OrdersComponent implements OnInit {
       },
       error: () => {
         order.status = previousStatus;
-        this.notification.error('Failed to update order status.');
+        // Toast shown by error interceptor
       }
     });
   }

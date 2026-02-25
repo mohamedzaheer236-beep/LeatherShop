@@ -84,7 +84,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
         this.categoryOptions = data.map(c => ({ label: c, value: c }));
       },
       error: () => {
-        this.notification.error('Failed to load categories.');
+        // Toast shown by error interceptor
       }
     });
   }
@@ -146,7 +146,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
       },
       error: () => {
         this.uploading = false;
-        this.notification.error('Image upload failed. Please try again.');
+        // Toast shown by error interceptor
       }
     });
   }
