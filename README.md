@@ -297,11 +297,12 @@ Admin opens http://localhost:4200
 LeatherShopAPI/                          # ── .NET 8 Web API ──
 │
 ├── Program.cs                           # App entry point — clean, uses extension methods
+│                                        #   - Loads appsettings.Local.json (gitignored secrets)
 │                                        #   - JWT Bearer authentication configuration
 │                                        #   - SignalR configured with JWT auth via query string
 │                                        #   - Uses ExceptionHandlingMiddleware
 │                                        #   - Auto-runs EF migrations on startup
-│                                        #   - Seeds admin user (BCrypt hash) if none exists
+│                                        #   - Seeds admin user (reads password from config)
 │                                        #   - Enables Swagger in development
 │                                        #   - Maps SignalR hub at /hubs/notifications
 │
@@ -567,6 +568,35 @@ cd LeatherShop
 ### Step 2: Configure Local Secrets
 
 > **Important:** `appsettings.json` contains only empty placeholders and is safe to commit. All secrets go in `appsettings.Local.json` which is **gitignored**.
+
+#### Configuration Hierarchy (highest priority wins)
+
+| # | Source | When Used | Committed to Git? |
+|---|--------|-----------|--------------------|
+| 1 | **Environment variables** | Railway production (`Jwt__Key`, `WhatsApp__AccessToken`, etc.) | No |
+| 2 | **`appsettings.Local.json`** | Local development (auto-loaded by `Program.cs`) | No (gitignored) |
+| 3 | **`dotnet user-secrets`** | Alternative for local dev (stored in `%APPDATA%`) | No |
+| 4 | **`appsettings.{Environment}.json`** | Environment-specific non-secret overrides | Yes (no secrets) |
+| 5 | **`appsettings.json`** | Base config structure — empty placeholders only | Yes (no secrets) |
+
+#### Complete Secrets Reference
+
+| Config Key | Required? | What It Is | Where To Get It | What Happens If Missing |
+|------------|-----------|-----------|-----------------|-------------------------|
+| `ConnectionStrings:DefaultConnection` | **YES** | PostgreSQL connection string | Set during PostgreSQL installation. Format: `Host=localhost;Port=5432;Database=LeatherShopDB;Username=postgres;Password=YOUR_PG_PASSWORD` | API crashes on startup — cannot connect to database |
+| `Jwt:Key` | **YES** | Secret key for signing JWT tokens. Must be **≥32 characters**. | Generate any random string ≥32 chars (e.g., `openssl rand -base64 48`). Each environment should use a **different** key. | API crashes on startup with `InvalidOperationException` |
+| `Admin:SeedPassword` | **First run only** | Password for the auto-created `Admin` user. Used only when the `AdminUsers` table is empty. | Choose any secure password. This becomes the login password at `http://localhost:4200`. | API crashes on first run. Safe to leave empty after first admin is seeded. |
+| `WhatsApp:PhoneNumberId` | No* | Meta WhatsApp phone number ID | Meta Developer Console → WhatsApp → API Setup → Phone Number ID | WhatsApp chatbot won't send/receive messages |
+| `WhatsApp:BusinessAccountId` | No* | Meta WhatsApp Business Account ID | Meta Developer Console → WhatsApp → API Setup → Business Account ID | WhatsApp features won't work |
+| `WhatsApp:AccessToken` | No* | Meta API access token (permanent System User token for production) | Meta Business Settings → System Users → Generate Token (see [WhatsApp Setup](#whatsapp-business-api-setup)) | WhatsApp features won't work |
+| `WhatsApp:VerifyToken` | No* | Webhook verification string — must match what you enter in Meta Console | Choose any custom string (e.g., `my_verify_token_2026`) | Meta webhook verification fails |
+| `Razorpay:KeyId` | No* | Razorpay API key (test mode: `rzp_test_...`, live: `rzp_live_...`) | [razorpay.com](https://razorpay.com/) → Dashboard → Settings → API Keys | Payment page won't load |
+| `Razorpay:KeySecret` | No* | Razorpay API secret | Same as above — shown once when key is generated | Payment signature verification skipped (insecure) |
+| `App:OwnerPhone` | No* | Shop owner's WhatsApp number with country code, no `+` (e.g., `YOUR_PHONE_NUMBER`) | Your phone number in international format without `+` | Owner won't receive order notification WhatsApp messages |
+
+> \* These are only needed for WhatsApp chatbot and payment features. The **admin panel, products, orders, customers, and dashboard** all work without them.
+
+#### Quick Setup
 
 Copy the example file and fill in your values:
 
@@ -1128,7 +1158,8 @@ restartPolicyMaxRetries = 10
 | `Razorpay__KeyId` | Razorpay API key |
 | `Razorpay__KeySecret` | Razorpay API secret |
 | `App__BaseUrl` | `https://leathershop-production.up.railway.app` (used for payment links; WhatsApp images use `RAILWAY_PUBLIC_DOMAIN` as fallback) |
-| `OwnerPhone` | Shop owner's WhatsApp number (e.g., `YOUR_PHONE_NUMBER`) — receives order notifications via WhatsApp |
+| `App__OwnerPhone` | Shop owner's WhatsApp number with country code, no `+` (e.g., `YOUR_PHONE_NUMBER`) — receives order notifications via WhatsApp |
+| `Admin__SeedPassword` | Admin user seed password (only used on first startup when `AdminUsers` table is empty) |
 | `FRONTEND_URL` | Vercel frontend URL (for CORS) |
 | `RAILWAY_PUBLIC_DOMAIN` | Auto-provided by Railway (e.g., `leathershop-production.up.railway.app`) — used as fallback for constructing public image URLs when `App__BaseUrl` is not configured |
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
@@ -1137,7 +1168,7 @@ restartPolicyMaxRetries = 10
 **Key deployment changes made:**
 - `Program.cs` — reads `PORT` env variable for Railway, Swagger enabled in all environments (used as health check)
 - `ServiceCollectionExtensions.cs` — `AddDatabase()` parses Railway `DATABASE_URL` URI format, `AddCorsPolicies()` reads `FRONTEND_URL` env var for production CORS
-- `appsettings.Production.json` — placeholder values (`WILL_BE_SET_BY_RAILWAY_ENV_VAR`), actual secrets set via Railway environment variables
+- `appsettings.Production.json` — only log-level overrides (no secrets), actual secrets set via Railway environment variables listed above
 
 #### 3. Frontend — Vercel (Angular Static Site)
 
