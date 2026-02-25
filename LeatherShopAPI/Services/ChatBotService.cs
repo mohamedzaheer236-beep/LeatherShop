@@ -255,7 +255,30 @@ public class ChatBotService : IChatBotService
                       $"📦 In Stock: {product.StockQuantity}\n\n" +
                       $"📝 {product.Description}";
 
-        // Send product details with action buttons
+        // Send product image if available
+        if (!string.IsNullOrEmpty(product.ImageUrl))
+        {
+            var baseUrl = _config["App:BaseUrl"]?.TrimEnd('/');
+            var imageFullUrl = product.ImageUrl.StartsWith("http")
+                ? product.ImageUrl
+                : $"{baseUrl}{product.ImageUrl}";
+            await _whatsApp.SendImageMessage(to, imageFullUrl, details);
+
+            // Send action buttons separately (image messages don't support inline buttons)
+            await _whatsApp.SendButtonMessage(
+                to,
+                bodyText: "What would you like to do?",
+                buttons: new List<ButtonOption>
+                {
+                    new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
+                    new() { Id = "browse_categories", Title = "🔙 Categories" },
+                    new() { Id = "main_menu", Title = "🏠 Main Menu" }
+                }
+            );
+            return;
+        }
+
+        // Send product details with action buttons (no image fallback)
         await _whatsApp.SendButtonMessage(
             to,
             bodyText: details,

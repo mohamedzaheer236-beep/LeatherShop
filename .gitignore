@@ -38,3 +38,5 @@ LeatherShopAdmin/yarn-error.log
 
 # Logs
 *.log
+.vercel
+.env*.local

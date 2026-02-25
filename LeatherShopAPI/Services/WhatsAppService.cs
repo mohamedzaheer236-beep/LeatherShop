@@ -51,6 +51,23 @@ public class WhatsAppService : IWhatsAppService
         await SendRequest(payload);
     }
 
+    /// <summary>Send an image message with optional caption</summary>
+    public async Task SendImageMessage(string to, string imageUrl, string? caption = null)
+    {
+        var payload = new
+        {
+            messaging_product = "whatsapp",
+            to,
+            type = "image",
+            image = new
+            {
+                link = imageUrl,
+                caption
+            }
+        };
+        await SendRequest(payload);
+    }
+
     /// <summary>
     /// Send interactive LIST message (menu with sections).
     /// Customer taps a button → sees a scrollable list of items to pick from.
