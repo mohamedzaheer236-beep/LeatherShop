@@ -1051,6 +1051,79 @@ Vercel auto-deploys on every push to the `main` branch. Angular SPA routing is h
 | Domain (optional) | Namecheap / GoDaddy | ~$10/year |
 | **Total** | | **~$5/month** |
 
+### Deployment Troubleshooting
+
+#### Vercel Not Auto-Deploying from GitHub Pushes
+
+**Problem:** Pushes to `main` don't trigger Vercel deployments. The Deployments page shows only old builds. Deploy hooks also return PENDING but nothing appears.
+
+**Root Cause:** The Vercel GitHub App integration can silently break — the webhook stops firing. This happened after initial setup despite the Git connection appearing healthy in Settings → Git.
+
+**Fix (Vercel CLI deploy — fastest):**
+
+```powershell
+# 1. Install and login to Vercel CLI
+cd "d:\New folder\LeatherShopAdmin"
+npx vercel login
+# → Opens browser for OAuth login
+
+# 2. Link to existing project (run from REPO ROOT, not LeatherShopAdmin — 
+#    because Vercel's Root Directory setting is already "LeatherShopAdmin")
+cd "d:\New folder"
+npx vercel link --yes --project leather-shop
+
+# 3. Deploy to production
+npx vercel --prod
+# → ✅ Production: https://leather-shop-liard.vercel.app
+```
+
+**Important notes:**
+- Run `vercel link` and `vercel --prod` from the **repo root** (`d:\New folder`), NOT from `LeatherShopAdmin/` — because Vercel's Root Directory is already set to `LeatherShopAdmin`. Running from inside it causes a doubled path error.
+- The **Git author email** must match the Vercel account email (`mohamedzaheer236@gmail.com`). If it's set to something else (e.g., `admin@leathershop.com`), Vercel CLI will reject with "Git author must have access to the team". Fix with: `git config user.email "mohamedzaheer236@gmail.com"`
+- If the last commit used a wrong author, amend it: `git commit --amend --author="mohamedzaheer236 <mohamedzaheer236@gmail.com>" --no-edit --allow-empty`
+
+**Alternative Fix (reconnect Git):**
+1. Vercel → Settings → Git → **Disconnect** the repo
+2. Re-add `mohamedzaheer236-beep/LeatherShop` repository
+3. This recreates the GitHub webhook and should restore auto-deploy
+
+**Deploy Hook (manual trigger):**
+- A deploy hook was created: Settings → Git → Deploy Hooks → `redeploy` / `main`
+- Trigger via POST: `Invoke-RestMethod -Uri "<hook_url>" -Method POST`
+- Note: This only works if the Git integration is healthy. If webhooks are broken, the hook may return PENDING but never build.
+
+#### Railway API Login Fails Right After Redeployment
+
+**Problem:** Login returns "Login failed" on the Vercel frontend immediately after a Railway redeployment.
+
+**Root Cause:** Railway containers have a cold-start period after deployment. The first request may timeout or fail while the .NET app is starting up (DB migration, JWT setup, etc.).
+
+**Fix:** Wait 30-60 seconds after Railway shows "Deployment successful", then try again. Check Railway deployment logs → "View logs" to confirm the app says `Now listening on: http://[::]:8080`.
+
+#### Local Development — API Starts on Wrong Port
+
+**Problem:** API starts on port 8080 instead of 5000 locally.
+
+**Root Cause:** `Program.cs` reads the `PORT` environment variable (for Railway). Default is 8080.
+
+**Fix:** Set the environment variable before running:
+```powershell
+$env:PORT = "5000"
+cd "d:\New folder\LeatherShopAPI"
+dotnet run
+# → Now listening on http://[::]:5000
+```
+
+#### Git Author Email Configuration
+
+**Current configuration:**
+- **GitHub account**: `mohamedzaheer236@gmail.com` (username: `mohamedzaheer236-beep`)
+- **Git config** (must match for Vercel CLI): `git config user.email "mohamedzaheer236@gmail.com"`
+- **Previously was**: `admin@leathershop.com` — this caused Vercel CLI to reject deployments
+
+To check current email: `git config user.email`
+To fix: `git config user.email "mohamedzaheer236@gmail.com"`
+
 ---
 
 ### Recently Implemented (Enterprise Patterns)
