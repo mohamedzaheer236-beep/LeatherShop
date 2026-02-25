@@ -22,6 +22,7 @@ LeatherShopAPI/obj/
 LeatherShopAPI/publish/
 LeatherShopAPI/*.user
 LeatherShopAPI/appsettings.*.local.json
+LeatherShopAPI/appsettings.Local.json
 
 # Uploaded images (tracked via .gitkeep, files ignored)
 LeatherShopAPI/wwwroot/uploads/*

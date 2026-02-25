@@ -1,0 +1,26 @@
+{
+  "_instructions": "Copy this file to appsettings.Local.json and fill in your actual values. appsettings.Local.json is gitignored and will never be committed.",
+
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=LeatherShopDB;Username=postgres;Password=YOUR_POSTGRES_PASSWORD"
+  },
+  "Jwt": {
+    "Key": "YOUR_JWT_SECRET_KEY_MINIMUM_32_CHARACTERS_LONG"
+  },
+  "WhatsApp": {
+    "PhoneNumberId": "YOUR_WHATSAPP_PHONE_NUMBER_ID",
+    "BusinessAccountId": "YOUR_WHATSAPP_BUSINESS_ACCOUNT_ID",
+    "AccessToken": "YOUR_WHATSAPP_ACCESS_TOKEN",
+    "VerifyToken": "YOUR_WEBHOOK_VERIFY_TOKEN"
+  },
+  "Razorpay": {
+    "KeyId": "rzp_test_xxxxx",
+    "KeySecret": "YOUR_RAZORPAY_SECRET"
+  },
+  "App": {
+    "OwnerPhone": "YOUR_PHONE_WITH_COUNTRY_CODE_NO_PLUS"
+  },
+  "Admin": {
+    "SeedPassword": "YOUR_SECURE_ADMIN_PASSWORD"
+  }
+}

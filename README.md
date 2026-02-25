@@ -305,9 +305,11 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │                                        #   - Enables Swagger in development
 │                                        #   - Maps SignalR hub at /hubs/notifications
 │
-├── appsettings.json                     # Config: DB connection, WhatsApp creds, Razorpay keys, JWT settings
+├── appsettings.json                     # Config structure with empty placeholders (safe to commit)
+├── appsettings.Local.json               # ⚠️ GITIGNORED — actual secrets for local development
+├── appsettings.Local.json.example       # Template: copy to appsettings.Local.json and fill values
 ├── appsettings.Development.json         # Development overrides (log levels)
-├── appsettings.Production.json          # Production template (placeholder secrets)
+├── appsettings.Production.json          # Production overrides (log levels only, secrets via env vars)
 │
 ├── Extensions/
 │   ├── ServiceCollectionExtensions.cs   # Grouped DI registration
@@ -562,32 +564,56 @@ cd LeatherShop
 2. Remember the password you set for the `postgres` user during installation
 3. The database `LeatherShopDB` will be **created automatically** by EF Core migrations when the API starts — you do NOT need to create it manually
 
-### Step 2: Configure the Backend
+### Step 2: Configure Local Secrets
 
-Edit `LeatherShopAPI/appsettings.json` and set your PostgreSQL password:
+> **Important:** `appsettings.json` contains only empty placeholders and is safe to commit. All secrets go in `appsettings.Local.json` which is **gitignored**.
+
+Copy the example file and fill in your values:
+
+```bash
+cd LeatherShopAPI
+copy appsettings.Local.json.example appsettings.Local.json   # Windows
+# cp appsettings.Local.json.example appsettings.Local.json   # macOS/Linux
+```
+
+Then edit `LeatherShopAPI/appsettings.Local.json` with your actual credentials:
 
 ```json
 {
   "ConnectionStrings": {
     "DefaultConnection": "Host=localhost;Port=5432;Database=LeatherShopDB;Username=postgres;Password=YOUR_POSTGRES_PASSWORD"
   },
+  "Jwt": {
+    "Key": "YOUR_JWT_SECRET_KEY_MINIMUM_32_CHARACTERS_LONG"
+  },
   "WhatsApp": {
-    "PhoneNumberId": "YOUR_PHONE_NUMBER_ID",
+    "PhoneNumberId": "YOUR_WHATSAPP_PHONE_NUMBER_ID",
+    "BusinessAccountId": "YOUR_WHATSAPP_BUSINESS_ACCOUNT_ID",
     "AccessToken": "YOUR_WHATSAPP_ACCESS_TOKEN",
-    "VerifyToken": "ANY_CUSTOM_STRING_YOU_CHOOSE",
-    "ApiVersion": "v18.0"
+    "VerifyToken": "YOUR_WEBHOOK_VERIFY_TOKEN"
   },
   "Razorpay": {
     "KeyId": "rzp_test_xxxxx",
     "KeySecret": "YOUR_RAZORPAY_SECRET"
   },
   "App": {
-    "BaseUrl": "https://leathershop-production.up.railway.app"
+    "OwnerPhone": "YOUR_PHONE_WITH_COUNTRY_CODE_NO_PLUS"
+  },
+  "Admin": {
+    "SeedPassword": "YOUR_SECURE_ADMIN_PASSWORD"
   }
 }
 ```
 
-> **Note:** You can start with just the database password configured. WhatsApp and Razorpay can be set up later. The admin panel and API will work without them — only the chatbot and payments need those keys.
+> **Note:** You can start with just `ConnectionStrings`, `Jwt:Key`, and `Admin:SeedPassword` configured. WhatsApp and Razorpay can be set up later. The admin panel and API will work without them — only the chatbot and payments need those keys.
+
+**Alternative: dotnet user-secrets** (advanced)
+```bash
+cd LeatherShopAPI
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=LeatherShopDB;Username=postgres;Password=YOUR_PASSWORD"
+dotnet user-secrets set "Jwt:Key" "YOUR_JWT_SECRET_KEY_MINIMUM_32_CHARACTERS_LONG"
+dotnet user-secrets set "Admin:SeedPassword" "YOUR_ADMIN_PASSWORD"
+```
 
 ### Step 3: Run the Backend API
 
@@ -868,7 +894,7 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 | # | Issue | Location | Details |
 |---|-------|----------|---------|
 | C1 | ~~**No Authentication / Authorization**~~ | ~~All controllers, `Program.cs`~~ | **FIXED** — JWT Bearer authentication implemented. `AuthController` with BCrypt password verification against `AdminUsers` table. `[Authorize]` attribute on all admin controllers (Products, Orders, Customers, Dashboard, Broadcast). Payment and WhatsApp webhook remain public. Angular: `AuthGuard` protects all admin routes, `AuthInterceptor` attaches Bearer token, animated login page, auto-redirect on 401. Admin credentials auto-seeded on first DB migration. |
-| C2 | **Secrets Committed to Source** | `appsettings.json` | Live WhatsApp access token + DB password are in plaintext in the repo. Must use User Secrets for dev, environment variables or Azure Key Vault for production. |
+| C2 | ~~**Secrets Committed to Source**~~ | ~~`appsettings.json`~~ | **FIXED** — All secrets (DB password, JWT key, WhatsApp access token, admin seed password) moved out of `appsettings.json` into `appsettings.Local.json` (gitignored). Base `appsettings.json` now contains only empty placeholders and non-secret config. `Program.cs` loads `appsettings.Local.json` at startup (optional, never committed). Admin seed password read from `Admin:SeedPassword` config instead of hardcoded. `.csproj` has `UserSecretsId` for developers preferring `dotnet user-secrets`. Production secrets come from Railway environment variables. `appsettings.Local.json.example` template committed for new developers. |
 | C3 | ~~**Razorpay Signature Verification TODO'd Out**~~ | ~~`PaymentService.cs`~~ | **FIXED** — `VerifyPaymentAsync` now computes HMAC-SHA256 signature from `RazorpayOrderId|PaymentId` using the `Razorpay:KeySecret` config value. When `KeySecret` is configured, verification is **mandatory** — missing signature or mismatch rejects the payment. When `KeySecret` is not configured (dev mode), logs a warning and allows the payment. `PaymentVerifyDto` updated with `RazorpayOrderId` field. Payment page JS passes `razorpay_order_id` in the verify request. |
 | C4 | **WhatsApp Webhook Signature Not Validated** | `WhatsAppWebhookController.cs` | Meta sends `X-Hub-Signature-256` on every POST. The controller never checks it. Attackers can POST fabricated payloads to trigger chatbot flows and create fake orders. |
 | C5 | ~~**XSS in Payment Page**~~ | ~~`PaymentController.cs`~~ | **FIXED** — All user-controlled values (`OrderNumber`, `CustomerPhone`, `ProductName`) are HTML-encoded with `WebUtility.HtmlEncode()` into safe local variables before interpolation into the payment HTML page. Numeric values (`TotalAmount`, `Quantity`, etc.) are strongly-typed decimals/ints and don't need encoding. |
@@ -1303,7 +1329,7 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 
 | # | Issue | Location | Details | Fix |
 |---|-------|----------|---------|-----|
-| F1 | **Secrets committed to Git** | `appsettings.json` | DB password, WhatsApp token, JWT key, and admin seed password (`M$ZiiC@26` in `Program.cs`) are in plaintext in the repo. Anyone with repo access can authenticate as admin, call the WhatsApp API, and forge JWT tokens. | Move all secrets to environment variables or .NET User Secrets. Add `appsettings.json` to `.gitignore`. **Rotate every exposed credential.** |
+| F1 | ~~**Secrets committed to Git**~~ | ~~`appsettings.json`~~ | ✅ **FIXED** — `appsettings.json` now contains only empty placeholders (safe to commit). All secrets moved to `appsettings.Local.json` (gitignored). `Program.cs` auto-loads local config on startup. `Admin:SeedPassword` read from config instead of hardcoded. `UserSecretsId` added to `.csproj`. `appsettings.Local.json.example` template committed. Production secrets via Railway env vars. **Note:** Previously exposed credentials should still be rotated. | ~~Move to env vars~~ ✅ Done |
 | F2 | **Payment bypass when KeySecret is empty** | `PaymentService.cs` | When `Razorpay:KeySecret` is empty or placeholder, signature verification is **completely skipped**. Attacker can call `POST /api/payment/verify` with any `paymentId`/`orderId` to mark orders as paid for free. | Fail closed — if `KeySecret` is not configured, **reject** the payment instead of skipping verification. |
 | F3 | **WhatsApp webhook signature not validated** | `WhatsAppWebhookController.cs` | Meta sends `X-Hub-Signature-256` header on every POST. The controller never validates it. Attackers can POST fabricated messages to create fake orders. | Validate `X-Hub-Signature-256` using HMAC-SHA256 with your App Secret. |
 | F4 | **Race condition: overselling during checkout** | `ChatBotService.cs` `PlaceOrder()` | Stock checked then decremented without DB-level locking. Two concurrent checkouts can both pass the stock check and oversell. | Use `UPDATE Products SET StockQuantity = StockQuantity - @qty WHERE Id = @id AND StockQuantity >= @qty` and check affected rows, or add a `RowVersion` concurrency token. |
@@ -1335,7 +1361,7 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 | F20 | **`DeleteConversationAsync` loads all messages** | `ChatService.cs` | Uses `ToListAsync()` then `RemoveRange()` — loads all messages into memory. Large conversations waste memory. | Use `ExecuteDeleteAsync()` like the cleanup service does. |
 | F21 | **`.ToLower()` kills DB indexes** | `CustomerService.cs`, `ProductService.cs`, `ChatService.cs` | `.ToLower().Contains()` generates `LOWER()` SQL, preventing PostgreSQL from using indexes. | Use `EF.Functions.ILike()` for case-insensitive search on Npgsql. |
 | F22 | **`PaginatedResult.TotalPages` divide-by-zero** | `PaginatedResult.cs` | `TotalCount / (double)PageSize` when `PageSize = 0` throws. Only `OrdersController` clamps `pageSize >= 1`; other callers don't validate. | Guard: `PageSize <= 0 ? 0 : (int)Math.Ceiling(...)`. |
-| F23 | **Admin seed password hardcoded** | `Program.cs` | Password `M$ZiiC@26` hardcoded in source. No change-password endpoint. | Accept seed password from environment variable. Add a change-password endpoint. |
+| F23 | ~~**Admin seed password hardcoded**~~ | ~~`Program.cs`~~ | ✅ **FIXED** — `Program.cs` now reads `Admin:SeedPassword` from configuration (appsettings.Local.json / env var / user-secrets). Throws clear `InvalidOperationException` if not configured and no admin exists in DB. No hardcoded password in source. Change-password endpoint still pending. | ~~Accept from env var~~ ✅ Done (change-password endpoint still TODO) |
 | F24 | **Chat height off by 14px — double scrollbar** | `chat-page.component.scss` | Uses `height: calc(100vh - 70px)` but `.main-content` has `padding-top: 84px`. Overshoots by 14px, causing a page-level scrollbar alongside the chat scrollbar. | Change to `height: calc(100vh - 84px)`. |
 | F25 | **Auth guard doesn't preserve return URL** | `auth.guard.ts` | Redirects to `/login` without passing the intended URL. After login, user always lands on `/dashboard` instead of their bookmarked page. | Pass `returnUrl` as query param, redirect after login. |
 | F26 | **Chat search timeout not cleared on destroy** | `chat-page.component.ts` | `setTimeout` in `onSearch()` not cleared in `ngOnDestroy()`. If component destroys while pending, `loadConversations()` fires after destruction. | Add `clearTimeout(this.searchTimeout)` in `ngOnDestroy()`. |

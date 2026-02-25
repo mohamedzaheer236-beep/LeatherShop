@@ -9,6 +9,9 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load optional local secrets file (gitignored — never committed to source control)
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 // --- All service registrations in Extensions/ServiceCollectionExtensions.cs ---
 builder.Services.AddDatabase(builder.Configuration);
 builder.Services.AddApplicationServices();
@@ -16,7 +19,12 @@ builder.Services.AddCorsPolicies();
 builder.Services.AddSignalR();
 
 // --- JWT Authentication ---
-var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key not configured in appsettings.json");
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+    throw new InvalidOperationException(
+        "Jwt:Key is not configured. " +
+        "Set it in appsettings.Local.json, dotnet user-secrets, or via Jwt__Key environment variable. " +
+        "Must be at least 32 characters.");
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -76,10 +84,16 @@ using (var scope = app.Services.CreateScope())
     // Seed default admin if no admin users exist
     if (!db.AdminUsers.Any())
     {
+        var adminPassword = app.Configuration["Admin:SeedPassword"];
+        if (string.IsNullOrWhiteSpace(adminPassword))
+            throw new InvalidOperationException(
+                "Admin:SeedPassword is not configured but no admin users exist in the database. " +
+                "Set it in appsettings.Local.json or via Admin__SeedPassword environment variable.");
+
         db.AdminUsers.Add(new LeatherShopAPI.Models.AdminUser
         {
             Username = "Admin",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("M$ZiiC@26"),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword),
             CreatedAt = DateTime.UtcNow
         });
         db.SaveChanges();
