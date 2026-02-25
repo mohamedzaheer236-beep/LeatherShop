@@ -259,12 +259,19 @@ public class ChatBotService : IChatBotService
         if (!string.IsNullOrEmpty(product.ImageUrl))
         {
             var baseUrl = _config["App:BaseUrl"]?.TrimEnd('/');
+            // Fallback: use Railway's auto-provided public domain
+            if (string.IsNullOrEmpty(baseUrl) || baseUrl.Contains("WILL_BE_SET"))
+            {
+                var railwayDomain = Environment.GetEnvironmentVariable("RAILWAY_PUBLIC_DOMAIN");
+                if (!string.IsNullOrEmpty(railwayDomain))
+                    baseUrl = $"https://{railwayDomain}";
+            }
+
             var imageFullUrl = product.ImageUrl.StartsWith("http")
                 ? product.ImageUrl
                 : $"{baseUrl}{product.ImageUrl}";
 
-            _logger.LogInformation("Product image URL: {ImageUrl}, BaseUrl: {BaseUrl}, Full: {FullUrl}", 
-                product.ImageUrl, baseUrl, imageFullUrl);
+            _logger.LogWarning("Sending product image: {FullUrl}", imageFullUrl);
 
             try
             {
