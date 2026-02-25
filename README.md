@@ -189,6 +189,7 @@ Customer sends "Hi" / "Hello" / "Menu"
 **Message Types Used:**
 - **Interactive List** — for menus with 4+ options (categories, products)
 - **Interactive Buttons** — for 2-3 quick actions (Add to Cart / View Cart / Menu)
+- **Image Messages** — for product details with photo + caption (requires uploaded image + Railway volume)
 - **Plain Text** — for order details, confirmations, error messages
 - **Template Messages** — for broadcasts (must be pre-approved by Meta)
 
@@ -736,7 +737,7 @@ These features are not built yet and would need to be added for production:
 | **Logging to File/Service** | Uses default console logging only. Need Serilog or similar for production. |
 | **Rate Limiting** | No API rate limiting on admin endpoints. |
 | ~~**Pagination**~~ | ✅ **IMPLEMENTED** — Orders have server-side pagination with `PaginatedResult<T>` (`GET /api/orders?page=1&pageSize=25`). Frontend uses PrimeNG `p-paginator` (25/50/100 rows). Customer table uses client-side pagination (all records loaded for checkbox selection). DB indexes on `IsSubscribed`, `CreatedAt`, `Status`, `IsPaid`, `IsActive`. |
-| **Product Image in WhatsApp** | Chatbot sends text-only product details. Could send image messages using the WhatsApp media API. |
+| ~~**Product Image in WhatsApp**~~ | ✅ **IMPLEMENTED** — `SendImageMessage` added to `IWhatsAppService`/`WhatsAppService` (WhatsApp Cloud API `image` type with `link` + `caption`). `ChatBotService.SendProductDetails()` sends product photo with all details as the caption when `ImageUrl` is set. Constructs full public URL from `RAILWAY_PUBLIC_DOMAIN` env var (auto-provided by Railway) with `App:BaseUrl` config as primary source. Falls back gracefully to text-only button message if image send fails (try-catch with `LogWarning`). Caption and body text truncated to WhatsApp's 1024-char limit. Action buttons (Add to Cart / Categories / Menu) sent as a separate follow-up message since WhatsApp image messages don't support inline interactive buttons. **Requires:** Railway Volume mounted at `/app/wwwroot/uploads` for image persistence across redeployments. |
 | **Customer Address Collection** | Checkout uses the stored address (usually empty). No chatbot flow to ask for shipping address. |
 | **Order Cancellation by Customer** | No WhatsApp flow for customers to cancel orders. |
 | ~~**HTTPS in Production**~~ | ✅ **DEPLOYED** — Railway provides HTTPS automatically via Metal Edge. API accessible at `https://leathershop-production.up.railway.app`. |
@@ -984,8 +985,9 @@ restartPolicyMaxRetries = 10
 | `WhatsApp__VerifyToken` | Webhook verification token |
 | `Razorpay__KeyId` | Razorpay API key |
 | `Razorpay__KeySecret` | Razorpay API secret |
-| `App__BaseUrl` | `https://leathershop-production.up.railway.app` |
+| `App__BaseUrl` | `https://leathershop-production.up.railway.app` (used for payment links; WhatsApp images use `RAILWAY_PUBLIC_DOMAIN` as fallback) |
 | `FRONTEND_URL` | Vercel frontend URL (for CORS) |
+| `RAILWAY_PUBLIC_DOMAIN` | Auto-provided by Railway (e.g., `leathershop-production.up.railway.app`) — used as fallback for constructing public image URLs when `App__BaseUrl` is not configured |
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
 | `PORT` | Auto-set by Railway |
 
@@ -1033,10 +1035,11 @@ Vercel auto-deploys on every push to the `main` branch. Angular SPA routing is h
 - [x] All environment variables set on Railway (DB, WhatsApp, Razorpay, JWT)
 - [x] CORS updated — `FRONTEND_URL` env var for production Angular URL
 - [x] HTTPS working (Railway provides it automatically via Metal Edge)
-- [x] Database migration runs automatically on first startup
+- [x] Database migration runs automatically on first startup (`context.Database.Migrate()` in `Program.cs`)
 - [x] Health check configured (`/swagger/index.html` with 300s timeout)
 - [x] Auto-restart on failure (max 10 retries)
 - [x] Frontend deployed to Vercel with auto-deploy from GitHub
+- [x] Railway Volume `leathershop-volume` mounted at `/app/wwwroot/uploads` (persists product images across deploys)
 - [ ] Test WhatsApp message flow end-to-end (after Meta template approval)
 - [ ] Test payment flow with Razorpay production keys
 - [ ] Monitor logs via Railway dashboard
@@ -1167,3 +1170,6 @@ To fix: `git config user.email "mohamedzaheer236@gmail.com"`
 | **Image Upload** | ✅ Server-side file upload: `POST /api/products/upload-image` accepts multipart file, validates type (JPG/PNG/WebP/GIF) and size (< 5 MB), saves to `wwwroot/uploads/` with GUID filename, returns relative path. `app.UseStaticFiles()` serves uploaded images. Frontend: clickable browse dropzone replaces URL text input, instant local preview via `FileReader`, remove button (×) to clear. `[Url]` DTO validators removed since images are now server-relative paths. |
 | **Duplicate Product Name Validation** | ✅ Async validator on product name field: `GET /api/products/check-name?name=X&excludeId=Y` endpoint performs case-insensitive DB lookup (excludes current product on edit). Frontend: 300ms debounced `AsyncValidator` with `timer()` + `switchMap()`, spinner while checking, inline error "A product with this name already exists". Submit button disabled while validation pending. |
 | **Logout + Unsaved Changes Guard Fix** | ✅ Fixed bug where clicking Logout on a dirty form, then clicking "Stay", would still log the user out on next navigation. Root cause: `auth.logout()` cleared localStorage tokens immediately before `canDeactivate` could block navigation. Fix: `AuthService.clearSession()` (tokens only, no navigate) + `navbar.logout()` navigates first via `router.navigate(['/login'])`, clears tokens only in `.then()` callback if navigation succeeded. Login component skips "already logged in" redirect when arriving from logout via `NavigationExtras.state`. |
+| **WhatsApp Product Image** | ✅ Product images now display in WhatsApp chatbot when a customer views product details. **Implementation chain:** (1) `IWhatsAppService.SendImageMessage(to, imageUrl, caption)` — new interface method. (2) `WhatsAppService.SendImageMessage()` — sends WhatsApp Cloud API `image` message type with `link` (public URL) + `caption` (product details text). (3) `ChatBotService.SendProductDetails()` — if `product.ImageUrl` is set, constructs full URL using `App:BaseUrl` config with fallback to `RAILWAY_PUBLIC_DOMAIN` env var (auto-provided by Railway), sends image with details as caption, then sends action buttons as separate message. Falls back to text-only on failure. Caption truncated to 1024 chars (WhatsApp limit). **Key debug history:** Initial deploy failed with "Param image['link'] is not a valid URL" because `App:BaseUrl` was set to placeholder `WILL_BE_SET_BY_RAILWAY_ENV_VAR` instead of actual URL. Fixed by adding `RAILWAY_PUBLIC_DOMAIN` fallback. **Files:** `IWhatsAppService.cs`, `WhatsAppService.cs`, `ChatBotService.cs` (lines ~258-305). |
+| **Railway Upload Volume** | ✅ Railway Volume (`leathershop-volume`) mounted at `/app/wwwroot/uploads` on the LeatherShop service. Persists uploaded product images across redeployments (Railway's default filesystem is ephemeral — wiped on every deploy). **Setup:** Railway Dashboard → Architecture → + Create → Volume → attach to LeatherShop → mount path `/app/wwwroot/uploads`. Cost: ~$0.25/GB/month (included in $5/mo Hobby plan credit). **Important:** Images uploaded before the volume was attached are lost — must re-upload after volume setup. |
+| **Exception Handling Audit** | ✅ Full audit of all 15 `catch` blocks across the codebase — **zero exception swallowing found**. All catch blocks either: (a) log the exception with `_logger.LogError`/`LogWarning` + re-throw or return error response, (b) are intentional graceful degradation (e.g., WhatsApp notification failure doesn't block order creation, image send failure falls back to text). **Intentional patterns:** (1) `WhatsAppWebhookController` returns `Ok()` even on error — required because Meta retries on non-200 responses. (2) `PaymentService`/`CustomerService` catch WhatsApp notification failures with `LogWarning` — notifications are best-effort, the core operation (payment/customer creation) must succeed. (3) `ChatBotService` image fallback catches with `LogWarning` and falls back to text-only. (4) `BroadcastBackgroundService.SaveProgressAsync` catches with `LogWarning` — progress save is best-effort, final save catches up. **Previously fixed:** `OrderService.cs` had an empty `catch { }` (P4 in audit) — was already fixed with `_logger.LogWarning`. |
