@@ -23,4 +23,7 @@ public interface IChatService
 
     /// <summary>Check if the bot is currently paused for a customer.</summary>
     Task<bool> IsBotPausedAsync(int customerId);
+
+    /// <summary>Delete all chat messages for a customer.</summary>
+    Task<bool> DeleteConversationAsync(int customerId);
 }

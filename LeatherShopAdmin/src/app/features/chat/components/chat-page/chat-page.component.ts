@@ -6,6 +6,7 @@ import { ButtonModule } from 'primeng/button';
 import { BadgeModule } from 'primeng/badge';
 import { TooltipModule } from 'primeng/tooltip';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { DialogModule } from 'primeng/dialog';
 import { Subscription } from 'rxjs';
 import { ChatService } from '../../services/chat.service';
 import { Conversation, ChatMessage } from '../../models/chat.model';
@@ -14,7 +15,7 @@ import { SignalRService, ChatMessageEvent } from '../../../../core/services/sign
 @Component({
   selector: 'app-chat-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, InputTextModule, ButtonModule, BadgeModule, TooltipModule, ProgressSpinnerModule],
+  imports: [CommonModule, FormsModule, InputTextModule, ButtonModule, BadgeModule, TooltipModule, ProgressSpinnerModule, DialogModule],
   templateUrl: './chat-page.component.html',
   styleUrl: './chat-page.component.scss'
 })
@@ -32,6 +33,8 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
   loadingMessages = false;
   hasMoreMessages = false;
   currentPage = 1;
+  showDeleteConversation = false;
+  deletingConversation = false;
 
   private subs: Subscription[] = [];
   private shouldScrollToBottom = false;
@@ -183,6 +186,29 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
         if (this.selectedConversation) {
           this.selectedConversation.isBotPaused = result.isBotPaused;
         }
+      }
+    });
+  }
+
+  confirmDeleteConversation(): void {
+    this.showDeleteConversation = true;
+  }
+
+  deleteConversation(): void {
+    if (!this.selectedCustomerId) return;
+    this.deletingConversation = true;
+    this.chatService.deleteConversation(this.selectedCustomerId).subscribe({
+      next: () => {
+        this.deletingConversation = false;
+        this.showDeleteConversation = false;
+        this.signalR.leaveCustomerChat(this.selectedCustomerId!);
+        this.selectedCustomerId = null;
+        this.selectedConversation = null;
+        this.messages = [];
+        this.loadConversations();
+      },
+      error: () => {
+        this.deletingConversation = false;
       }
     });
   }

@@ -62,6 +62,12 @@
           </div>
         </div>
         <div class="chat-header-actions">
+          <button pButton icon="pi pi-trash"
+                  class="p-button-danger p-button-sm p-button-text"
+                  pTooltip="Delete Chat"
+                  tooltipPosition="bottom"
+                  (click)="confirmDeleteConversation()">
+          </button>
           <button pButton
                   [icon]="selectedConversation?.isBotPaused ? 'pi pi-play' : 'pi pi-pause'"
                   [class]="selectedConversation?.isBotPaused ? 'p-button-success p-button-sm' : 'p-button-warning p-button-sm'"
@@ -112,3 +118,16 @@
     </ng-container>
   </div>
 </div>
+
+<!-- Delete Conversation Confirmation -->
+<p-dialog header="Delete Conversation" [(visible)]="showDeleteConversation" [modal]="true" [style]="{'width': '400px'}">
+  <div style="text-align:center; padding:8px 0;">
+    <i class="pi pi-exclamation-triangle" style="font-size:2rem; color:#e74c3c;"></i>
+    <p>Are you sure you want to delete all chat messages with <strong>{{ selectedConversation?.customerName }}</strong>?</p>
+    <p style="color:#888; font-size:13px;">This action cannot be undone.</p>
+  </div>
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showDeleteConversation = false" icon="pi pi-times"></p-button>
+    <p-button label="Delete" severity="danger" (onClick)="deleteConversation()" [disabled]="deletingConversation" [loading]="deletingConversation" icon="pi pi-trash"></p-button>
+  </ng-template>
+</p-dialog>

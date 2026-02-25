@@ -53,6 +53,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<BroadcastChannel>();
         services.AddHostedService<BroadcastBackgroundService>();
 
+        // Chat cleanup: deletes messages older than 30 days (runs daily)
+        services.AddHostedService<ChatCleanupBackgroundService>();
+
         // Future registrations go here:
         // services.AddScoped<IAuthService, AuthService>();
         // services.AddScoped<IImageUploadService, ImageUploadService>();

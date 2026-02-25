@@ -12,11 +12,59 @@
         <label for="addName">Name</label>
         <input type="text" pInputText id="addName" formControlName="name" placeholder="Customer name (optional)" class="w-full" />
       </div>
+      <div class="form-field">
+        <label for="addAddress">Address *</label>
+        <textarea pInputTextarea id="addAddress" formControlName="address" rows="3" placeholder="Full shipping address" class="w-full"></textarea>
+        <small class="p-error" *ngIf="isAddFieldInvalid('address') && addCustomerForm.get('address')?.errors?.['required']">Address is required.</small>
+        <small class="p-error" *ngIf="isAddFieldInvalid('address') && addCustomerForm.get('address')?.errors?.['minlength']">Address must be at least 10 characters.</small>
+      </div>
     </div>
   </form>
   <ng-template pTemplate="footer">
     <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showAddDialog = false" icon="pi pi-times"></p-button>
     <p-button label="Add Customer" (onClick)="addCustomer()" [disabled]="addingCustomer" [loading]="addingCustomer" icon="pi pi-check"></p-button>
+  </ng-template>
+</p-dialog>
+
+<!-- Edit Customer Dialog -->
+<p-dialog header="Edit Customer" [(visible)]="showEditDialog" [modal]="true" [style]="{'width': '450px'}">
+  <form [formGroup]="editCustomerForm">
+    <div class="dialog-form">
+      <div class="form-field">
+        <label for="editName">Name</label>
+        <input type="text" pInputText id="editName" formControlName="name" placeholder="Customer name" class="w-full" />
+      </div>
+      <div class="form-field">
+        <label for="editAddress">Address *</label>
+        <textarea pInputTextarea id="editAddress" formControlName="address" rows="3" placeholder="Full shipping address" class="w-full"></textarea>
+        <small class="p-error" *ngIf="isEditFieldInvalid('address') && editCustomerForm.get('address')?.errors?.['required']">Address is required.</small>
+        <small class="p-error" *ngIf="isEditFieldInvalid('address') && editCustomerForm.get('address')?.errors?.['minlength']">Address must be at least 10 characters.</small>
+      </div>
+      <div class="form-field">
+        <label>Subscription</label>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <p-checkbox formControlName="isSubscribed" [binary]="true"></p-checkbox>
+          <span>Subscribed to broadcasts</span>
+        </div>
+      </div>
+    </div>
+  </form>
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showEditDialog = false" icon="pi pi-times"></p-button>
+    <p-button label="Save Changes" (onClick)="editCustomer()" [disabled]="editingCustomer" [loading]="editingCustomer" icon="pi pi-check"></p-button>
+  </ng-template>
+</p-dialog>
+
+<!-- Delete Confirmation Dialog -->
+<p-dialog header="Delete Customer" [(visible)]="showDeleteConfirm" [modal]="true" [style]="{'width': '400px'}">
+  <div class="delete-confirm-content">
+    <i class="pi pi-exclamation-triangle" style="font-size:2rem; color:#e74c3c;"></i>
+    <p>Are you sure you want to delete <strong>{{ customerToDelete?.name || customerToDelete?.phoneNumber }}</strong>?</p>
+    <p style="color:#888; font-size:13px;">This will permanently delete the customer and all their orders, cart items, and chat messages.</p>
+  </div>
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showDeleteConfirm = false" icon="pi pi-times"></p-button>
+    <p-button label="Delete" severity="danger" (onClick)="deleteCustomer()" [disabled]="deletingCustomer" [loading]="deletingCustomer" icon="pi pi-trash"></p-button>
   </ng-template>
 </p-dialog>
 
@@ -142,10 +190,16 @@
         <td>{{ customer.orderCount }}</td>
         <td>{{ customer.createdAt | date:'dd MMM yyyy' }}</td>
         <td>
-          <p-button [label]="customer.isSubscribed ? 'Unsubscribe' : 'Subscribe'"
-                    [severity]="customer.isSubscribed ? 'danger' : 'success'"
-                    [outlined]="true" size="small"
-                    (onClick)="toggleSubscription(customer)"></p-button>
+          <div class="action-buttons">
+            <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="info"
+                      pTooltip="Edit" tooltipPosition="top" (onClick)="openEditDialog(customer)"></p-button>
+            <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
+                      pTooltip="Delete" tooltipPosition="top" (onClick)="confirmDelete(customer)"></p-button>
+            <p-button [label]="customer.isSubscribed ? 'Unsubscribe' : 'Subscribe'"
+                      [severity]="customer.isSubscribed ? 'danger' : 'success'"
+                      [outlined]="true" size="small"
+                      (onClick)="toggleSubscription(customer)"></p-button>
+          </div>
         </td>
       </tr>
     </ng-template>

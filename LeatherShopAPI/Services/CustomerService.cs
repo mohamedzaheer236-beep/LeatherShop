@@ -133,6 +133,42 @@ public class CustomerService : ICustomerService
         };
     }
 
+    public async Task<CustomerListDto?> UpdateAsync(int id, UpdateCustomerDto dto)
+    {
+        var customer = await _db.Customers.Include(c => c.Orders).FirstOrDefaultAsync(c => c.Id == id);
+        if (customer == null) return null;
+
+        if (dto.Name != null) customer.Name = dto.Name.Trim();
+        if (dto.Address != null) customer.Address = dto.Address.Trim();
+        if (dto.IsSubscribed.HasValue) customer.IsSubscribed = dto.IsSubscribed.Value;
+        customer.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        // No WhatsApp message is sent on edit — this is intentional
+        return new CustomerListDto
+        {
+            Id = customer.Id,
+            PhoneNumber = customer.PhoneNumber,
+            Name = customer.Name,
+            Address = customer.Address,
+            IsSubscribed = customer.IsSubscribed,
+            CreatedAt = customer.CreatedAt,
+            OrderCount = customer.Orders.Count
+        };
+    }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var customer = await _db.Customers.FindAsync(id);
+        if (customer == null) return false;
+
+        // Cascade delete will remove Orders, CartItems, ChatMessages
+        _db.Customers.Remove(customer);
+        await _db.SaveChangesAsync();
+        return true;
+    }
+
     public async Task<bool> ToggleSubscriptionAsync(int id, bool isSubscribed)
     {
         var customer = await _db.Customers.FindAsync(id);

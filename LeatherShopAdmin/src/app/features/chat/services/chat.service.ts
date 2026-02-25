@@ -30,4 +30,8 @@ export class ChatService {
   toggleBot(customerId: number): Observable<{ isBotPaused: boolean }> {
     return this.http.post<any>(`${this.baseUrl}/${customerId}/toggle-bot`, {}).pipe(map(res => res.data));
   }
+
+  deleteConversation(customerId: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/${customerId}/messages`).pipe(map(res => res));
+  }
 }

@@ -61,6 +61,24 @@ public class CustomersController : ControllerBase
         }
     }
 
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateCustomerDto dto)
+    {
+        var result = await _customerService.UpdateAsync(id, dto);
+        if (result == null)
+            return NotFound(ApiResponse.Fail("Customer not found."));
+        return Ok(ApiResponse<CustomerListDto>.Ok(result, "Customer updated successfully."));
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var success = await _customerService.DeleteAsync(id);
+        if (!success)
+            return NotFound(ApiResponse.Fail("Customer not found."));
+        return Ok(ApiResponse.Ok("Customer deleted successfully."));
+    }
+
     [HttpPut("{id}/subscribe")]
     public async Task<IActionResult> ToggleSubscription(int id, [FromBody] bool isSubscribed)
     {

@@ -10,7 +10,7 @@ import {
   ValidationErrors
 } from '@angular/forms';
 import { CustomerService } from '../../services/customer.service';
-import { Customer, CreateCustomer } from '../../models/customer.model';
+import { Customer, CreateCustomer, UpdateCustomer } from '../../models/customer.model';
 import { BroadcastService } from '../../../broadcast/services/broadcast.service';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { TemplateLoaderService } from '../../../../shared/services/template-loader.service';
@@ -28,11 +28,12 @@ import { DividerModule } from 'primeng/divider';
 import { BadgeModule } from 'primeng/badge';
 import { MessageModule } from 'primeng/message';
 import { TableModule } from 'primeng/table';
+import { TooltipModule } from 'primeng/tooltip';
 
 @Component({
   selector: 'app-customers',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, LoadingSpinnerComponent, TableModule, ButtonModule, InputTextModule, TagModule, CardModule, CheckboxModule, DialogModule, DropdownModule, InputTextareaModule, ToolbarModule, DividerModule, BadgeModule, MessageModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, LoadingSpinnerComponent, TableModule, ButtonModule, InputTextModule, TagModule, CardModule, CheckboxModule, DialogModule, DropdownModule, InputTextareaModule, ToolbarModule, DividerModule, BadgeModule, MessageModule, TooltipModule],
   templateUrl: './customers.component.html',
   styleUrl: './customers.component.scss'
 })
@@ -52,6 +53,18 @@ export class CustomersComponent implements OnInit {
   showAddDialog = false;
   addingCustomer = false;
   addSubmitted = false;
+
+  // Edit customer dialog
+  showEditDialog = false;
+  editingCustomer = false;
+  editSubmitted = false;
+  editCustomerForm!: FormGroup;
+  editingCustomerId: number | null = null;
+
+  // Delete confirmation
+  showDeleteConfirm = false;
+  deletingCustomer = false;
+  customerToDelete: Customer | null = null;
 
   // Bulk import dialog
   showImportDialog = false;
@@ -85,7 +98,14 @@ export class CustomersComponent implements OnInit {
   private initForms(): void {
     this.addCustomerForm = this.fb.group({
       phoneNumber: ['', [Validators.required, Validators.pattern(/^\d{10,15}$/)]],
-      name: ['']
+      name: [''],
+      address: ['', [Validators.required, Validators.minLength(10)]]
+    });
+
+    this.editCustomerForm = this.fb.group({
+      name: [''],
+      address: ['', [Validators.required, Validators.minLength(10)]],
+      isSubscribed: [true]
     });
 
     this.importForm = this.fb.group({
@@ -176,7 +196,7 @@ export class CustomersComponent implements OnInit {
   openAddDialog(): void {
     this.showAddDialog = true;
     this.addSubmitted = false;
-    this.addCustomerForm.reset({ phoneNumber: '', name: '' });
+    this.addCustomerForm.reset({ phoneNumber: '', name: '', address: '' });
   }
 
   addCustomer(): void {
@@ -207,6 +227,74 @@ export class CustomersComponent implements OnInit {
   isAddFieldInvalid(field: string): boolean {
     const control = this.addCustomerForm.get(field);
     return !!(control && control.invalid && (control.dirty || control.touched || this.addSubmitted));
+  }
+
+  // ---- EDIT CUSTOMER ----
+
+  openEditDialog(customer: Customer): void {
+    this.editingCustomerId = customer.id;
+    this.showEditDialog = true;
+    this.editSubmitted = false;
+    this.editCustomerForm.reset({
+      name: customer.name || '',
+      address: customer.address || '',
+      isSubscribed: customer.isSubscribed
+    });
+  }
+
+  editCustomer(): void {
+    this.editSubmitted = true;
+    this.editCustomerForm.markAllAsTouched();
+
+    if (this.editCustomerForm.invalid || !this.editingCustomerId) {
+      this.notification.error('Please fill in all required fields.');
+      return;
+    }
+
+    this.editingCustomer = true;
+    const dto: UpdateCustomer = this.editCustomerForm.value;
+    this.customerService.updateCustomer(this.editingCustomerId, dto).subscribe({
+      next: () => {
+        this.editingCustomer = false;
+        this.showEditDialog = false;
+        this.notification.success('Customer updated successfully!');
+        this.loadCustomers(); this.loadCounts();
+      },
+      error: (err: any) => {
+        this.notification.error(err.error?.message || 'Failed to update customer');
+        this.editingCustomer = false;
+      }
+    });
+  }
+
+  isEditFieldInvalid(field: string): boolean {
+    const control = this.editCustomerForm.get(field);
+    return !!(control && control.invalid && (control.dirty || control.touched || this.editSubmitted));
+  }
+
+  // ---- DELETE CUSTOMER ----
+
+  confirmDelete(customer: Customer): void {
+    this.customerToDelete = customer;
+    this.showDeleteConfirm = true;
+  }
+
+  deleteCustomer(): void {
+    if (!this.customerToDelete) return;
+    this.deletingCustomer = true;
+    this.customerService.deleteCustomer(this.customerToDelete.id).subscribe({
+      next: () => {
+        this.deletingCustomer = false;
+        this.showDeleteConfirm = false;
+        this.customerToDelete = null;
+        this.notification.success('Customer deleted successfully!');
+        this.loadCustomers(); this.loadCounts();
+      },
+      error: () => {
+        this.notification.error('Failed to delete customer.');
+        this.deletingCustomer = false;
+      }
+    });
   }
 
   openImportDialog(): void {

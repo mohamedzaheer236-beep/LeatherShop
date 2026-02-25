@@ -57,4 +57,14 @@ public class ChatController : ControllerBase
             Data = new { isBotPaused = isPaused }
         });
     }
+
+    /// <summary>Delete all chat messages for a customer.</summary>
+    [HttpDelete("{customerId:int}/messages")]
+    public async Task<IActionResult> DeleteConversation(int customerId)
+    {
+        var deleted = await _chatService.DeleteConversationAsync(customerId);
+        if (!deleted)
+            return NotFound(new ApiResponse<object> { Success = false, Message = "No conversation found" });
+        return Ok(new ApiResponse<object> { Success = true, Message = "Conversation deleted" });
+    }
 }

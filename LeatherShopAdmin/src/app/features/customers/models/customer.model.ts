@@ -14,3 +14,9 @@ export interface CreateCustomer {
   name?: string;
   address?: string;
 }
+
+export interface UpdateCustomer {
+  name?: string;
+  address?: string;
+  isSubscribed?: boolean;
+}

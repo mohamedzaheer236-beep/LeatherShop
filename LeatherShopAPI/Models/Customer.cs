@@ -21,6 +21,10 @@ public class Customer
     /// <summary>When set, the bot is waiting for the customer to type a quantity for this product.</summary>
     public int? PendingProductId { get; set; }
 
+    /// <summary>Tracks a pending bot action, e.g. "awaiting_address". Null when idle.</summary>
+    [MaxLength(50)]
+    public string? PendingAction { get; set; }
+
     /// <summary>When true, the chatbot won't auto-respond. Admin is chatting manually.</summary>
     public bool IsBotPaused { get; set; } = false;
 

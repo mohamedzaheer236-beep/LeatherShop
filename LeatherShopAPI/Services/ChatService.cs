@@ -189,6 +189,20 @@ public class ChatService : IChatService
         return IsBotCurrentlyPaused(customer);
     }
 
+    public async Task<bool> DeleteConversationAsync(int customerId)
+    {
+        var messages = await _db.ChatMessages
+            .Where(m => m.CustomerId == customerId)
+            .ToListAsync();
+
+        if (!messages.Any()) return false;
+
+        _db.ChatMessages.RemoveRange(messages);
+        await _db.SaveChangesAsync();
+        _logger.LogInformation("Deleted {Count} chat messages for customer {CustomerId}", messages.Count, customerId);
+        return true;
+    }
+
     /// <summary>
     /// Checks if the bot is paused, auto-resumes if BotPausedUntil has expired.
     /// </summary>

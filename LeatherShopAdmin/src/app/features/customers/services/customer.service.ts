@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { Customer, CreateCustomer } from '../models/customer.model';
+import { Customer, CreateCustomer, UpdateCustomer } from '../models/customer.model';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({
@@ -21,6 +21,14 @@ export class CustomerService {
 
   createCustomer(customer: CreateCustomer): Observable<any> {
     return this.http.post<any>(this.baseUrl, customer).pipe(map(res => res.data));
+  }
+
+  updateCustomer(id: number, customer: UpdateCustomer): Observable<Customer> {
+    return this.http.put<any>(`${this.baseUrl}/${id}`, customer).pipe(map(res => res.data));
+  }
+
+  deleteCustomer(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/${id}`).pipe(map(res => res));
   }
 
   bulkImportCustomers(customers: CreateCustomer[]): Observable<any> {

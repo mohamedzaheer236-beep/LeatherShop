@@ -113,6 +113,30 @@ public class ChatBotService : IChatBotService
 
         try
         {
+            // ---- ADDRESS INPUT (customer is providing shipping address for checkout) ----
+            if (customer.PendingAction == "awaiting_address")
+            {
+                // If user tapped an interactive button, cancel the address prompt and process normally
+                if (!string.IsNullOrEmpty(interactiveId))
+                {
+                    customer.PendingAction = null;
+                    await _db.SaveChangesAsync();
+                    // Fall through to normal flow below
+                }
+                else
+                {
+                    var rawAddress = (textBody ?? "").Trim();
+                    if (rawAddress.Length >= 10)
+                    {
+                        await HandleAddressInput(phone, customer, rawAddress);
+                        return;
+                    }
+                    // Too short — ask again
+                    await BotSendText(phone, "📍 That seems too short. Please enter your *full shipping address* (at least 10 characters):\n\nExample: _123, MG Road, Anna Nagar, Chennai - 600040_");
+                    return;
+                }
+            }
+
             // ---- QUANTITY INPUT (customer is typing how many to add) ----
             if (customer.PendingProductId.HasValue && int.TryParse(input, out var qty))
             {
@@ -565,6 +589,19 @@ public class ChatBotService : IChatBotService
             }
         }
 
+        // Ask for shipping address if not set
+        if (string.IsNullOrWhiteSpace(customer.Address))
+        {
+            customer.PendingAction = "awaiting_address";
+            await _db.SaveChangesAsync();
+
+            await BotSendText(to,
+                "📍 *Shipping Address Required*\n\n" +
+                "Please type your full shipping address:\n\n" +
+                "_Example: 123, MG Road, Anna Nagar, Chennai - 600040_");
+            return;
+        }
+
         // Create order
         decimal total = cartItems.Sum(ci => ci.Product.Price * ci.Quantity);
         var order = new Order
@@ -599,11 +636,23 @@ public class ChatBotService : IChatBotService
 
         var orderSummary = $"✅ *Order Placed!*\n\n" +
                            $"📋 Order: *{order.OrderNumber}*\n" +
-                           $"💰 Total: *₹{total}*\n\n" +
+                           $"💰 Total: *₹{total}*\n" +
+                           $"📍 Ship to: _{customer.Address}_\n\n" +
                            $"💳 Pay here: {paymentUrl}\n\n" +
                            $"We'll confirm once payment is received.";
 
         await BotSendText(to, orderSummary);
+    }
+
+    /// <summary>Saves the customer's address and proceeds to checkout</summary>
+    private async Task HandleAddressInput(string to, Customer customer, string address)
+    {
+        customer.Address = address;
+        customer.PendingAction = null;
+        await _db.SaveChangesAsync();
+
+        await BotSendText(to, $"✅ Address saved:\n_{address}_\n\nProceeding to checkout...");
+        await ProcessCheckout(to, customer);
     }
 
     private async Task SendOrderHistory(string to, int customerId)
