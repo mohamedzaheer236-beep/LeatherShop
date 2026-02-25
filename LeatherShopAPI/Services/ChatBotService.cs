@@ -262,26 +262,38 @@ public class ChatBotService : IChatBotService
             var imageFullUrl = product.ImageUrl.StartsWith("http")
                 ? product.ImageUrl
                 : $"{baseUrl}{product.ImageUrl}";
-            await _whatsApp.SendImageMessage(to, imageFullUrl, details);
 
-            // Send action buttons separately (image messages don't support inline buttons)
-            await _whatsApp.SendButtonMessage(
-                to,
-                bodyText: "What would you like to do?",
-                buttons: new List<ButtonOption>
-                {
-                    new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
-                    new() { Id = "browse_categories", Title = "🔙 Categories" },
-                    new() { Id = "main_menu", Title = "🏠 Main Menu" }
-                }
-            );
-            return;
+            try
+            {
+                // Caption max 1024 chars for WhatsApp image messages
+                var caption = details.Length > 1024 ? details[..1021] + "..." : details;
+                await _whatsApp.SendImageMessage(to, imageFullUrl, caption);
+
+                // Send action buttons separately (image messages don't support inline buttons)
+                await _whatsApp.SendButtonMessage(
+                    to,
+                    bodyText: "What would you like to do?",
+                    buttons: new List<ButtonOption>
+                    {
+                        new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
+                        new() { Id = "browse_categories", Title = "🔙 Categories" },
+                        new() { Id = "main_menu", Title = "🏠 Main Menu" }
+                    }
+                );
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send product image for product {ProductId}, falling back to text", productId);
+                // Fall through to text-only message below
+            }
         }
 
-        // Send product details with action buttons (no image fallback)
+        // Send product details with action buttons (text-only fallback)
+        var bodyText = details.Length > 1024 ? details[..1021] + "..." : details;
         await _whatsApp.SendButtonMessage(
             to,
-            bodyText: details,
+            bodyText: bodyText,
             buttons: new List<ButtonOption>
             {
                 new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
