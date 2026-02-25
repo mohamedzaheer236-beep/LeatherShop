@@ -548,6 +548,72 @@ git clone https://github.com/mohamedzaheer236-beep/LeatherShop.git
 cd LeatherShop
 ```
 
+### Current Project Reference Values
+
+> **For developers and AI assistants:** This section lists all known identifiers, account details, and non-secret reference values for this project. **Actual secret tokens/passwords are NOT stored here** — they live in `appsettings.Local.json` (gitignored) or Railway environment variables.
+
+#### Admin Panel Login
+
+| Field | Value | Notes |
+|-------|-------|-------|
+| **Username** | `Admin` | Case-sensitive (capital A). Auto-seeded on first startup. Stored in `AdminUsers` PostgreSQL table. |
+| **Password** | _(your `Admin:SeedPassword` value)_ | Set in `appsettings.Local.json` → `Admin.SeedPassword`. BCrypt-hashed in DB. |
+| **Login URL** | `http://localhost:4200` (dev) / Vercel URL (prod) | Redirects to `/login` automatically |
+| **Auth type** | JWT Bearer token, 24h expiry | Stored in `localStorage`. Attached to API calls by `auth.interceptor.ts`. |
+
+#### URLs
+
+| Service | Local Development | Production |
+|---------|-------------------|------------|
+| **API** | `http://localhost:8080` | `https://leathershop-production.up.railway.app` |
+| **Swagger** | `http://localhost:8080/swagger` | `https://leathershop-production.up.railway.app/swagger` |
+| **Admin Panel** | `http://localhost:4200` | `https://leather-shop-liard.vercel.app` |
+| **SignalR Hub** | `http://localhost:8080/hubs/notifications` | `https://leathershop-production.up.railway.app/hubs/notifications` |
+| **WhatsApp Webhook** | `https://YOUR_NGROK_URL/api/whatsapp/webhook` | `https://leathershop-production.up.railway.app/api/whatsapp/webhook` |
+
+#### WhatsApp Business Account
+
+| Field | Value | Notes |
+|-------|-------|-------|
+| **Business Portfolio** | Leather Shop (ID: `1270862431810807`) | Meta Business Settings |
+| **WABA ID** | `2151682048973965` | WhatsApp Business Account |
+| **Phone Number ID** | `1055485577637232` | Used in `WhatsApp:PhoneNumberId` config |
+| **Phone Number** | +91 79043 03876 | The bot's WhatsApp number customers message |
+| **System User** | Leathershop (Admin type) | Permanent token holder |
+| **API Version** | `v22.0` | Set in `appsettings.json` → `WhatsApp:ApiVersion` |
+| **Webhook Verify Token** | _(your `WhatsApp:VerifyToken` value)_ | Must match Meta Console webhook config |
+| **Owner Phone** | `YOUR_PHONE_NUMBER` | Receives order notifications via WhatsApp |
+
+#### WhatsApp Message Templates
+
+| Template Name | Type | Template ID | Status |
+|---------------|------|-------------|--------|
+| `shop_deals` | MARKETING | `2107912596695779` | Pending Meta approval |
+| `order_update` | UTILITY | `1636258954059739` | Pending Meta approval |
+| `store_notification` | UTILITY | `2317291185767700` | Pending Meta approval |
+| `hello_world` | — | _(Meta default)_ | Approved (test numbers only) |
+
+#### Database
+
+| Field | Value |
+|-------|-------|
+| **Engine** | PostgreSQL 14+ |
+| **Database Name** | `LeatherShopDB` (auto-created by EF Core migrations) |
+| **Default Username** | `postgres` |
+| **ORM** | Entity Framework Core 8 |
+| **Tables** | Products, Customers, CartItems, Orders, OrderItems, BroadcastMessages, ChatMessages, AdminUsers |
+| **Seed Data** | 6 leather products + 1 admin user auto-seeded on first run |
+
+#### GitHub Repository
+
+| Field | Value |
+|-------|-------|
+| **Repo URL** | `https://github.com/mohamedzaheer236-beep/LeatherShop.git` |
+| **Visibility** | Private |
+| **Branch** | `main` |
+
+---
+
 ### Prerequisites — Install These First
 
 | # | Software | Version | Purpose | Download |
@@ -671,8 +737,11 @@ npx ng serve
 
 1. Open **http://localhost:8080/swagger** — you should see all API endpoints
 2. Open **http://localhost:4200** — you should be redirected to the login page
-3. Log in with the admin credentials — dashboard should load with 6 products, 0 orders
-4. Go to **Products** page — you should see the 6 seeded products
+3. Log in with:
+   - **Username:** `Admin` (capital A — case-sensitive)
+   - **Password:** whatever you set as `Admin:SeedPassword` in `appsettings.Local.json`
+4. Dashboard should load with 6 products, 0 orders
+5. Go to **Products** page — you should see the 6 seeded products
 
 ---
 
