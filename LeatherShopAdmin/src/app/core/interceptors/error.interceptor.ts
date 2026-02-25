@@ -1,9 +1,9 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { NotificationService } from '../../shared/services/notification.service';
 import { AuthService } from '../services/auth.service';
+import { SignalRService } from '../services/signalr.service';
 
 /**
  * HTTP error interceptor — catches all API errors and shows toast notifications.
@@ -13,12 +13,13 @@ import { AuthService } from '../services/auth.service';
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const notification = inject(NotificationService);
   const auth = inject(AuthService);
-  const router = inject(Router);
+  const signalR = inject(SignalRService);
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
       // On 401, redirect to login (skip if already on login page)
       if (error.status === 401 && !req.url.includes('/auth/login')) {
+        signalR.stop(); // fire-and-forget — close hub before clearing tokens
         auth.logout();
         return throwError(() => error);
       }

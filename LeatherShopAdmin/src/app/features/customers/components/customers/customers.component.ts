@@ -298,7 +298,7 @@ export class CustomersComponent implements OnInit {
         this.loadCustomers(); this.loadCounts();
       },
       error: () => {
-        this.notification.error('Failed to delete customer.');
+        // Toast already shown by error interceptor (uses API message for 409, etc.)
         this.deletingCustomer = false;
       }
     });
