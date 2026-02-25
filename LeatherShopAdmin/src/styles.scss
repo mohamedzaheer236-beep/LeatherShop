@@ -634,3 +634,127 @@ body .p-progress-spinner {
 .empty-state p {
   font-size: var(--ls-font-md);
 }
+
+/* =============================================
+   Toast Notifications (was ::ng-deep in toast.component.ts)
+   ============================================= */
+body .p-toast .p-toast-message {
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+body .p-toast .p-toast-message-success {
+  background: #065f46;
+  border: 1px solid #059669;
+  color: #ecfdf5;
+}
+
+body .p-toast .p-toast-message-success .p-toast-message-text,
+body .p-toast .p-toast-message-success .p-toast-summary,
+body .p-toast .p-toast-message-success .p-toast-detail {
+  color: #ecfdf5;
+}
+
+body .p-toast .p-toast-message-success .p-toast-icon-close {
+  color: #a7f3d0;
+}
+
+body .p-toast .p-toast-message-error {
+  background: #7f1d1d;
+  border: 1px solid #b91c1c;
+  color: #fef2f2;
+}
+
+body .p-toast .p-toast-message-error .p-toast-message-text,
+body .p-toast .p-toast-message-error .p-toast-summary,
+body .p-toast .p-toast-message-error .p-toast-detail {
+  color: #fef2f2;
+}
+
+body .p-toast .p-toast-message-error .p-toast-icon-close {
+  color: #fca5a5;
+}
+
+body .p-toast .p-toast-message-warn {
+  background: #78350f;
+  border: 1px solid #b45309;
+  color: #fefce8;
+}
+
+body .p-toast .p-toast-message-warn .p-toast-message-text,
+body .p-toast .p-toast-message-warn .p-toast-summary,
+body .p-toast .p-toast-message-warn .p-toast-detail {
+  color: #fefce8;
+}
+
+body .p-toast .p-toast-message-warn .p-toast-icon-close {
+  color: #fde68a;
+}
+
+body .p-toast .p-toast-message-info {
+  background: #1e3a5f;
+  border: 1px solid #2563eb;
+  color: #eff6ff;
+}
+
+body .p-toast .p-toast-message-info .p-toast-message-text,
+body .p-toast .p-toast-message-info .p-toast-summary,
+body .p-toast .p-toast-message-info .p-toast-detail {
+  color: #eff6ff;
+}
+
+body .p-toast .p-toast-message-info .p-toast-icon-close {
+  color: #93c5fd;
+}
+
+/* =============================================
+   Chat Search Input (was ::ng-deep in chat-page.component.scss)
+   ============================================= */
+.chat-sidebar .search-box .p-inputtext {
+  border-radius: 20px;
+  font-size: 0.85rem;
+}
+
+/* =============================================
+   Product Dropdown Filter Panel (was ::ng-deep in product-list.component.scss)
+   ============================================= */
+body .p-dropdown-panel.p-connected-overlay {
+  max-width: 190px;
+}
+
+body .p-dropdown-panel .p-dropdown-header {
+  padding: 0.5rem;
+  box-sizing: border-box;
+}
+
+body .p-dropdown-panel .p-dropdown-header .p-dropdown-filter-container {
+  position: relative;
+  width: 100%;
+}
+
+body .p-dropdown-panel .p-dropdown-header .p-dropdown-filter-container .p-dropdown-filter {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem 1.75rem 0.5rem 0.625rem;
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
+body .p-dropdown-panel .p-dropdown-header .p-dropdown-filter-container .p-dropdown-filter-icon,
+body .p-dropdown-panel .p-dropdown-header .p-dropdown-filter-container .filter-clear-icon {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.65rem;
+  cursor: pointer;
+  color: #94a3b8;
+  z-index: 1;
+  line-height: 1;
+}
+
+body .p-dropdown-panel .p-dropdown-header .p-dropdown-filter-container .p-dropdown-filter-icon:hover,
+body .p-dropdown-panel .p-dropdown-header .p-dropdown-filter-container .filter-clear-icon:hover {
+  color: #475569;
+}

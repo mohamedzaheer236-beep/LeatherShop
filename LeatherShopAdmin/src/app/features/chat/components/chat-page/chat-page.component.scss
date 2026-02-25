@@ -30,10 +30,7 @@
   gap: 0.5rem;
 }
 
-.search-box ::ng-deep .p-inputtext {
-  border-radius: 20px;
-  font-size: 0.85rem;
-}
+// Search input styles moved to global styles.scss (.chat-sidebar .search-box .p-inputtext)
 
 .conversation-list {
   flex: 1;

@@ -2,49 +2,7 @@
   h1 { margin: 0; }
 }
 
-// Dropdown filter panel — constrain to trigger width, turn search icon into X
-::ng-deep .p-dropdown-panel {
-  // Constrain panel width to match trigger
-  &.p-connected-overlay {
-    max-width: 190px;
-  }
-
-  .p-dropdown-header {
-    padding: 0.5rem;
-    box-sizing: border-box;
-
-    .p-dropdown-filter-container {
-      position: relative;
-      width: 100%;
-
-      .p-dropdown-filter {
-        width: 100%;
-        box-sizing: border-box;
-        padding: 0.5rem 1.75rem 0.5rem 0.625rem;
-        font-size: 0.875rem;
-        line-height: 1.25;
-      }
-
-      // X clear icon — vertically centered inside input, right-aligned
-      .p-dropdown-filter-icon,
-      .filter-clear-icon {
-        position: absolute;
-        right: 0.5rem;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 0.65rem;
-        cursor: pointer;
-        color: #94a3b8;
-        z-index: 1;
-        line-height: 1;
-
-        &:hover {
-          color: #475569;
-        }
-      }
-    }
-  }
-}
+// Dropdown filter panel styles moved to global styles.scss (body .p-dropdown-panel)
 
 .action-buttons {
   display: flex;
