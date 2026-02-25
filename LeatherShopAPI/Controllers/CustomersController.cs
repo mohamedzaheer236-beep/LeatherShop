@@ -73,17 +73,15 @@ public class CustomersController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        try
+        var result = await _customerService.DeleteAsync(id);
+        return result.Result switch
         {
-            var success = await _customerService.DeleteAsync(id);
-            if (!success)
-                return NotFound(ApiResponse.Fail("Customer not found."));
-            return Ok(ApiResponse.Ok("Customer deleted successfully."));
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(ApiResponse.Fail(ex.Message));
-        }
+            DeleteCustomerResult.NotFound => NotFound(ApiResponse.Fail("Customer not found.")),
+            DeleteCustomerResult.HasOrders => Conflict(ApiResponse.Fail(
+                $"Cannot delete customer with {result.OrderCount} order(s). " +
+                "Order history is preserved for accounting. Consider unsubscribing them instead.")),
+            _ => Ok(ApiResponse.Ok("Customer deleted successfully."))
+        };
     }
 
     [HttpPut("{id}/subscribe")]

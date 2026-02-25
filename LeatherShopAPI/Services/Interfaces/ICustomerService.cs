@@ -8,7 +8,7 @@ public interface ICustomerService
     Task<CustomerCountDto> GetCountAsync();
     Task<CustomerCreatedDto> CreateAsync(CreateCustomerDto dto);
     Task<CustomerListDto?> UpdateAsync(int id, UpdateCustomerDto dto);
-    Task<bool> DeleteAsync(int id);
+    Task<DeleteCustomerResponse> DeleteAsync(int id);
     Task<BulkImportResultDto> BulkImportAsync(BulkImportDto dto);
     Task<bool> ToggleSubscriptionAsync(int id, bool isSubscribed);
 }

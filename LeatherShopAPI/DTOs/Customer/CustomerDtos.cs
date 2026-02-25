@@ -75,3 +75,21 @@ public class UpdateCustomerDto
 
     public bool? IsSubscribed { get; set; }
 }
+
+/// <summary>Result of a customer delete operation.</summary>
+public enum DeleteCustomerResult
+{
+    /// <summary>Customer was deleted successfully.</summary>
+    Deleted,
+    /// <summary>Customer was not found.</summary>
+    NotFound,
+    /// <summary>Customer has orders and cannot be deleted.</summary>
+    HasOrders
+}
+
+/// <summary>Detailed result when deletion is blocked by existing orders.</summary>
+public class DeleteCustomerResponse
+{
+    public DeleteCustomerResult Result { get; set; }
+    public int OrderCount { get; set; }
+}

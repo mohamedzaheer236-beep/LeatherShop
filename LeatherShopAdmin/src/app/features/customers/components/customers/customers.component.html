@@ -122,8 +122,8 @@
     <ng-template pTemplate="left">
       <h1 class="page-title">Customers</h1>
       <div class="customer-stats">
-        <p-tag [value]="totalCount >= 0 ? 'Total: ' + totalCount : 'Total: N/A'" severity="info"></p-tag>
-        <p-tag [value]="subscriberCount >= 0 ? 'Subscribers: ' + subscriberCount : 'Subscribers: N/A'" severity="success"></p-tag>
+        <p-tag [value]="totalCount !== null ? 'Total: ' + totalCount : 'Total: N/A'" severity="info"></p-tag>
+        <p-tag [value]="subscriberCount !== null ? 'Subscribers: ' + subscriberCount : 'Subscribers: N/A'" severity="success"></p-tag>
       </div>
     </ng-template>
     <ng-template pTemplate="right">

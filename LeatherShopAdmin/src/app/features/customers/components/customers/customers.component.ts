@@ -40,8 +40,8 @@ import { TooltipModule } from 'primeng/tooltip';
 export class CustomersComponent implements OnInit {
   customers: Customer[] = [];
   loading = true;
-  subscriberCount = 0;
-  totalCount = 0;
+  subscriberCount: number | null = 0;
+  totalCount: number | null = 0;
 
   // Reactive forms
   addCustomerForm!: FormGroup;
@@ -159,8 +159,8 @@ export class CustomersComponent implements OnInit {
       },
       error: () => {
         // Show N/A state instead of misleading zeros
-        this.subscriberCount = -1;
-        this.totalCount = -1;
+        this.subscriberCount = null;
+        this.totalCount = null;
       }
     });
   }
@@ -300,6 +300,8 @@ export class CustomersComponent implements OnInit {
       error: () => {
         // Toast already shown by error interceptor (uses API message for 409, etc.)
         this.deletingCustomer = false;
+        this.showDeleteConfirm = false;
+        this.customerToDelete = null;
       }
     });
   }
