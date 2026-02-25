@@ -263,6 +263,9 @@ public class ChatBotService : IChatBotService
                 ? product.ImageUrl
                 : $"{baseUrl}{product.ImageUrl}";
 
+            _logger.LogInformation("Product image URL: {ImageUrl}, BaseUrl: {BaseUrl}, Full: {FullUrl}", 
+                product.ImageUrl, baseUrl, imageFullUrl);
+
             try
             {
                 // Caption max 1024 chars for WhatsApp image messages
