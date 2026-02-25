@@ -51,7 +51,8 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     // Listen for real-time incoming messages for the active chat
     this.subs.push(
       this.signalR.chatMessage$.subscribe(msg => {
-        if (this.selectedCustomerId) {
+        // Only append messages that belong to the currently viewed conversation
+        if (this.selectedCustomerId && msg.customerId === this.selectedCustomerId) {
           // Avoid duplicates (admin's own sent message already added optimistically)
           const exists = this.messages.some(m => m.id === msg.id);
           if (!exists) {

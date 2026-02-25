@@ -16,6 +16,7 @@ public class ConversationDto
 public class ChatMessageDto
 {
     public int Id { get; set; }
+    public int CustomerId { get; set; }
     public string Direction { get; set; } = string.Empty; // "Incoming" | "Outgoing"
     public string MessageType { get; set; } = "text";
     public string Content { get; set; } = string.Empty;

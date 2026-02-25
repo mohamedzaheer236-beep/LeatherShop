@@ -54,6 +54,10 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
   ngOnInit(): void {
     this.initForm();
 
+    // Set initial snapshot immediately after initForm for both branches
+    // This prevents false-positive unsaved-changes dialogs during async load
+    this.originalSnapshot = JSON.stringify(this.productForm.value);
+
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.isEdit = true;
@@ -69,10 +73,9 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
             ? data.imageUrl
             : environment.apiUrl.replace('/api', '') + data.imageUrl;
         }
+        // Update snapshot once product data is loaded — this is the real baseline
         this.originalSnapshot = JSON.stringify(this.productForm.value);
       });
-    } else {
-      this.originalSnapshot = JSON.stringify(this.productForm.value);
     }
 
     // Load categories dynamically from API

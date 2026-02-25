@@ -89,6 +89,7 @@ public class ChatService : IChatService
             .Select(m => new ChatMessageDto
             {
                 Id = m.Id,
+                CustomerId = m.CustomerId,
                 Direction = m.Direction.ToString(),
                 MessageType = m.MessageType,
                 Content = m.Content,
@@ -128,6 +129,7 @@ public class ChatService : IChatService
         return new ChatMessageDto
         {
             Id = msg.Id,
+            CustomerId = customerId,
             Direction = msg.Direction.ToString(),
             MessageType = msg.MessageType,
             Content = msg.Content,

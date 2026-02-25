@@ -160,10 +160,18 @@ public class CustomerService : ICustomerService
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var customer = await _db.Customers.FindAsync(id);
+        var customer = await _db.Customers
+            .Include(c => c.Orders)
+            .FirstOrDefaultAsync(c => c.Id == id);
         if (customer == null) return false;
 
-        // Cascade delete will remove Orders, CartItems, ChatMessages
+        // Prevent deletion when orders exist — order history is needed for accounting/compliance
+        if (customer.Orders.Any())
+            throw new InvalidOperationException(
+                $"Cannot delete customer with {customer.Orders.Count} order(s). " +
+                "Order history is preserved for accounting. Consider unsubscribing them instead.");
+
+        // CartItems and ChatMessages still cascade-delete (transient data)
         _db.Customers.Remove(customer);
         await _db.SaveChangesAsync();
         return true;

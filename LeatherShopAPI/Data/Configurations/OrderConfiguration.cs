@@ -31,11 +31,11 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(o => o.CreatedAt);
         builder.HasIndex(o => o.IsPaid);
 
-        // Many-to-one: Order → Customer
+        // Many-to-one: Order → Customer (Restrict: preserve order history for accounting)
         builder.HasOne(o => o.Customer)
             .WithMany(c => c.Orders)
             .HasForeignKey(o => o.CustomerId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
 
         // One-to-many: Order → OrderItems
         builder.HasMany(o => o.OrderItems)

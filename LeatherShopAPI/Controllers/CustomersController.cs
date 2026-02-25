@@ -73,10 +73,17 @@ public class CustomersController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var success = await _customerService.DeleteAsync(id);
-        if (!success)
-            return NotFound(ApiResponse.Fail("Customer not found."));
-        return Ok(ApiResponse.Ok("Customer deleted successfully."));
+        try
+        {
+            var success = await _customerService.DeleteAsync(id);
+            if (!success)
+                return NotFound(ApiResponse.Fail("Customer not found."));
+            return Ok(ApiResponse.Ok("Customer deleted successfully."));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse.Fail(ex.Message));
+        }
     }
 
     [HttpPut("{id}/subscribe")]

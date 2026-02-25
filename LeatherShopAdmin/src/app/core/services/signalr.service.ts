@@ -14,6 +14,7 @@ export interface OrderNotification {
 
 export interface ChatMessageEvent {
   id: number;
+  customerId: number;
   direction: string;
   messageType: string;
   content: string;
@@ -67,12 +68,14 @@ export class SignalRService implements OnDestroy {
       .catch(err => console.error('SignalR connection error:', err));
   }
 
-  /** Stop the connection (call on logout). */
-  stop(): void {
+  /** Stop the connection (call on logout). Returns a Promise so callers can await completion. */
+  stop(): Promise<void> {
     if (this.hubConnection) {
-      this.hubConnection.stop();
-      this.hubConnection = null;
+      const conn = this.hubConnection;
+      this.hubConnection = null; // prevent new calls while stopping
+      return conn.stop();
     }
+    return Promise.resolve();
   }
 
   /** Join a customer's chat group to receive real-time messages. */

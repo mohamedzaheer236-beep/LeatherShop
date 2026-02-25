@@ -152,9 +152,16 @@ export class CustomersComponent implements OnInit {
   }
 
   loadCounts(): void {
-    this.customerService.getSubscriberCount().subscribe(data => {
-      this.subscriberCount = data.subscriberCount;
-      this.totalCount = data.totalCount;
+    this.customerService.getSubscriberCount().subscribe({
+      next: data => {
+        this.subscriberCount = data.subscriberCount;
+        this.totalCount = data.totalCount;
+      },
+      error: () => {
+        // Show N/A state instead of misleading zeros
+        this.subscriberCount = -1;
+        this.totalCount = -1;
+      }
     });
   }
 

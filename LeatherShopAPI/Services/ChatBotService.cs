@@ -76,6 +76,7 @@ public class ChatBotService : IChatBotService
             await _hubContext.Clients.Group($"chat_{_currentCustomerId.Value}").SendAsync("ReceiveMessage", new ChatMessageDto
             {
                 Id = saved.Id,
+                CustomerId = _currentCustomerId.Value,
                 Direction = "Outgoing",
                 MessageType = saved.MessageType,
                 Content = saved.Content,

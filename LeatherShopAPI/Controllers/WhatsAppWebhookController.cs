@@ -64,6 +64,8 @@ public class WhatsAppWebhookController : ControllerBase
 
             foreach (var entry in payload.Entry)
             {
+                if (entry.Changes == null) continue;
+
                 foreach (var change in entry.Changes)
                 {
                     var messages = change.Value.Messages;
@@ -109,6 +111,7 @@ public class WhatsAppWebhookController : ControllerBase
                             await _hubContext.Clients.Group($"chat_{customer.Id}").SendAsync("ReceiveMessage", new ChatMessageDto
                             {
                                 Id = savedMsg.Id,
+                                CustomerId = customer.Id,
                                 Direction = "Incoming",
                                 MessageType = savedMsg.MessageType,
                                 Content = savedMsg.Content,

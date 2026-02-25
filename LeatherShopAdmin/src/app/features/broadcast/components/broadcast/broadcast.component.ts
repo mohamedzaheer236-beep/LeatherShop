@@ -58,7 +58,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   broadcastMode: 'custom' | 'template' = 'custom';
   customMessage = '';
 
-  private pollingInterval?: ReturnType<typeof setInterval>;
+  private pollingIntervals = new Map<number, ReturnType<typeof setInterval>>();
 
   constructor(
     private fb: FormBuilder,
@@ -122,10 +122,9 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
-      this.pollingInterval = undefined;
-    }
+    // Clear all active polling intervals
+    this.pollingIntervals.forEach(interval => clearInterval(interval));
+    this.pollingIntervals.clear();
   }
 
   loadHistory(): void {
@@ -161,18 +160,20 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   }
 
   private pollBroadcastStatus(broadcastId: number, totalRecipients: number): void {
-    if (this.pollingInterval) clearInterval(this.pollingInterval);
+    // If already polling this broadcast, skip
+    if (this.pollingIntervals.has(broadcastId)) return;
+
     let attempts = 0;
     const maxAttempts = 30;
-    this.pollingInterval = setInterval(() => {
+    const interval = setInterval(() => {
       attempts++;
       this.broadcastService.getBroadcastStatus(broadcastId).subscribe({
         next: (status) => {
           const processed = status.sentCount + status.failedCount;
           if (processed >= totalRecipients || attempts >= maxAttempts) {
-            clearInterval(this.pollingInterval!);
-            this.pollingInterval = undefined;
-            this.sending = false;
+            clearInterval(interval);
+            this.pollingIntervals.delete(broadcastId);
+            this.sending = this.pollingIntervals.size > 0; // still sending if other polls active
             this.loadHistory();
             if (status.failedCount > 0 && status.sentCount === 0) {
               this.resultMessage = `Broadcast failed! ${status.failedCount} message(s) could not be delivered. Check if your template is approved.`;
@@ -190,15 +191,16 @@ export class BroadcastComponent implements OnInit, OnDestroy {
           }
         },
         error: () => {
-          clearInterval(this.pollingInterval!);
-          this.pollingInterval = undefined;
-          this.sending = false;
+          clearInterval(interval);
+          this.pollingIntervals.delete(broadcastId);
+          this.sending = this.pollingIntervals.size > 0;
           this.resultMessage = 'Could not verify broadcast delivery status.';
           this.resultType = 'error';
           this.loadHistory();
         }
       });
     }, 1000);
+    this.pollingIntervals.set(broadcastId, interval);
   }
 
   sendBroadcast(): void {

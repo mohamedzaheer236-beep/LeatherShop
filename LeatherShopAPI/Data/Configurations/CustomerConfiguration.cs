@@ -34,11 +34,11 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         // Performance index: sort by creation date
         builder.HasIndex(c => c.CreatedAt);
 
-        // One-to-many: Customer → Orders
+        // One-to-many: Customer → Orders (Restrict: preserve order history for accounting)
         builder.HasMany(c => c.Orders)
             .WithOne(o => o.Customer)
             .HasForeignKey(o => o.CustomerId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
 
         // One-to-many: Customer → CartItems
         builder.HasMany(c => c.CartItems)
