@@ -113,6 +113,38 @@ public class ChatBotService : IChatBotService
 
         try
         {
+            // ---- ADDRESS CONFIRMATION (customer reviewing saved address before checkout) ----
+            if (customer.PendingAction == "confirming_address")
+            {
+                if (interactiveId == "confirm_address")
+                {
+                    customer.PendingAction = null;
+                    await _db.SaveChangesAsync();
+                    await PlaceOrder(phone, customer);
+                    return;
+                }
+                if (interactiveId == "change_address")
+                {
+                    customer.PendingAction = "awaiting_address";
+                    await _db.SaveChangesAsync();
+                    await BotSendText(phone,
+                        "📍 *Enter your new shipping address:*\n\n" +
+                        "_Example: 123, MG Road, Anna Nagar, Chennai - 600040_");
+                    return;
+                }
+                // If user tapped some other button, cancel and fall through
+                if (!string.IsNullOrEmpty(interactiveId))
+                {
+                    customer.PendingAction = null;
+                    await _db.SaveChangesAsync();
+                }
+                else
+                {
+                    await BotSendText(phone, "Please tap *✅ Confirm* or *✏️ Change Address* above.");
+                    return;
+                }
+            }
+
             // ---- ADDRESS INPUT (customer is providing shipping address for checkout) ----
             if (customer.PendingAction == "awaiting_address")
             {
@@ -602,6 +634,51 @@ public class ChatBotService : IChatBotService
             return;
         }
 
+        // Address exists — ask the customer to confirm or change it
+        customer.PendingAction = "confirming_address";
+        await _db.SaveChangesAsync();
+
+        var cartTotal = cartItems.Sum(ci => ci.Product.Price * ci.Quantity);
+        var itemLines = string.Join("\n", cartItems.Select(ci =>
+            $"  • {ci.Product.Name} x{ci.Quantity} — ₹{ci.Product.Price * ci.Quantity}"));
+
+        await BotSendButtons(to,
+            $"📋 *Order Summary*\n\n" +
+            $"{itemLines}\n" +
+            $"💰 Total: *₹{cartTotal}*\n\n" +
+            $"📍 *Shipping to:*\n_{customer.Address}_\n\n" +
+            $"Is this address correct?",
+            new List<ButtonOption>
+            {
+                new() { Id = "confirm_address", Title = "✅ Confirm" },
+                new() { Id = "change_address", Title = "✏️ Change Address" }
+            });
+    }
+
+    /// <summary>Actually creates the order after address is confirmed</summary>
+    private async Task PlaceOrder(string to, Customer customer)
+    {
+        var cartItems = await _db.CartItems
+            .Include(ci => ci.Product)
+            .Where(ci => ci.CustomerId == customer.Id)
+            .ToListAsync();
+
+        if (!cartItems.Any())
+        {
+            await BotSendText(to, "🛒 Your cart is empty! Browse products first.");
+            return;
+        }
+
+        // Re-check stock
+        foreach (var item in cartItems)
+        {
+            if (item.Product.StockQuantity < item.Quantity)
+            {
+                await BotSendText(to, $"❌ Sorry, *{item.Product.Name}* only has {item.Product.StockQuantity} left in stock. Please update your cart.");
+                return;
+            }
+        }
+
         // Create order
         decimal total = cartItems.Sum(ci => ci.Product.Price * ci.Quantity);
         var order = new Order
@@ -631,7 +708,7 @@ public class ChatBotService : IChatBotService
         _db.CartItems.RemoveRange(cartItems);
         await _db.SaveChangesAsync();
 
-        // Generate payment link (replace with actual Razorpay integration)
+        // Generate payment link
         var paymentUrl = $"{_config["App:BaseUrl"]}/api/payment/pay/{order.Id}";
 
         var orderSummary = $"✅ *Order Placed!*\n\n" +
@@ -644,7 +721,7 @@ public class ChatBotService : IChatBotService
         await BotSendText(to, orderSummary);
     }
 
-    /// <summary>Saves the customer's address and proceeds to checkout</summary>
+    /// <summary>Saves the customer's address and proceeds to place the order</summary>
     private async Task HandleAddressInput(string to, Customer customer, string address)
     {
         customer.Address = address;
@@ -652,7 +729,7 @@ public class ChatBotService : IChatBotService
         await _db.SaveChangesAsync();
 
         await BotSendText(to, $"✅ Address saved:\n_{address}_\n\nProceeding to checkout...");
-        await ProcessCheckout(to, customer);
+        await PlaceOrder(to, customer);
     }
 
     private async Task SendOrderHistory(string to, int customerId)
