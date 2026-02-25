@@ -47,6 +47,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<IBroadcastService, BroadcastService>();
         services.AddScoped<IPaymentService, PaymentService>();
+        services.AddScoped<IChatService, ChatService>();
 
         // Broadcast background processing (Channel + hosted service)
         services.AddSingleton<BroadcastChannel>();
@@ -78,7 +79,8 @@ public static class ServiceCollectionExtensions
 
                 policy.WithOrigins(origins.ToArray())
                       .AllowAnyHeader()
-                      .AllowAnyMethod();
+                      .AllowAnyMethod()
+                      .AllowCredentials(); // Required for SignalR WebSocket connections
             });
         });
 

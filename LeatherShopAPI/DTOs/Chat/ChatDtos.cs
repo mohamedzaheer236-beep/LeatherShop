@@ -1,0 +1,41 @@
+namespace LeatherShopAPI.DTOs.Chat;
+
+/// <summary>One conversation row in the chat list (per customer).</summary>
+public class ConversationDto
+{
+    public int CustomerId { get; set; }
+    public string CustomerName { get; set; } = string.Empty;
+    public string PhoneNumber { get; set; } = string.Empty;
+    public string LastMessage { get; set; } = string.Empty;
+    public DateTime LastMessageAt { get; set; }
+    public int UnreadCount { get; set; }
+    public bool IsBotPaused { get; set; }
+}
+
+/// <summary>A single chat bubble.</summary>
+public class ChatMessageDto
+{
+    public int Id { get; set; }
+    public string Direction { get; set; } = string.Empty; // "Incoming" | "Outgoing"
+    public string MessageType { get; set; } = "text";
+    public string Content { get; set; } = string.Empty;
+    public string SenderName { get; set; } = string.Empty;
+    public bool IsFromBot { get; set; }
+    public DateTime Timestamp { get; set; }
+}
+
+/// <summary>Admin sends a manual message.</summary>
+public class SendMessageDto
+{
+    public string Message { get; set; } = string.Empty;
+}
+
+/// <summary>Dashboard notification (pushed via SignalR).</summary>
+public class OrderNotificationDto
+{
+    public int OrderId { get; set; }
+    public string OrderNumber { get; set; } = string.Empty;
+    public string CustomerName { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public DateTime Timestamp { get; set; }
+}

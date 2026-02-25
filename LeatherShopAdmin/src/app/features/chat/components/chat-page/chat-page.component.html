@@ -1,0 +1,114 @@
+<div class="chat-container">
+  <!-- LEFT: Conversation List -->
+  <div class="chat-sidebar">
+    <div class="sidebar-header">
+      <h3><i class="pi pi-comments"></i> Chats</h3>
+      <div class="search-box">
+        <span class="p-input-icon-left" style="width:100%">
+          <i class="pi pi-search"></i>
+          <input pInputText type="text" placeholder="Search customers..."
+                 [(ngModel)]="searchTerm" (input)="onSearch()" style="width:100%" />
+        </span>
+      </div>
+    </div>
+    <div class="conversation-list">
+      <div *ngIf="loadingConversations" class="loading-state">
+        <p-progressSpinner [style]="{width: '30px', height: '30px'}" strokeWidth="3"></p-progressSpinner>
+      </div>
+      <div *ngIf="!loadingConversations && conversations.length === 0" class="empty-state">
+        <i class="pi pi-inbox"></i>
+        <span>No conversations yet</span>
+      </div>
+      <div *ngFor="let conv of conversations"
+           class="conversation-item"
+           [class.active]="selectedCustomerId === conv.customerId"
+           (click)="selectConversation(conv)">
+        <div class="conv-avatar">
+          <i class="pi pi-user"></i>
+        </div>
+        <div class="conv-info">
+          <div class="conv-name-row">
+            <span class="conv-name">{{ conv.customerName }}</span>
+            <span class="conv-time">{{ formatTime(conv.lastMessageAt) }}</span>
+          </div>
+          <div class="conv-preview-row">
+            <span class="conv-preview">{{ conv.lastMessage }}</span>
+            <span *ngIf="conv.unreadCount > 0" class="conv-unread">{{ conv.unreadCount }}</span>
+          </div>
+          <div *ngIf="conv.isBotPaused" class="conv-bot-paused">
+            <i class="pi pi-pause-circle"></i> Bot paused
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Chat Messages -->
+  <div class="chat-main">
+    <div *ngIf="!selectedCustomerId" class="no-chat-selected">
+      <i class="pi pi-comments"></i>
+      <h3>Select a conversation</h3>
+      <p>Choose a customer from the left to view and reply to their messages</p>
+    </div>
+
+    <ng-container *ngIf="selectedCustomerId">
+      <!-- Chat Header -->
+      <div class="chat-header">
+        <div class="chat-header-info">
+          <div class="chat-header-avatar"><i class="pi pi-user"></i></div>
+          <div>
+            <div class="chat-header-name">{{ selectedConversation?.customerName }}</div>
+            <div class="chat-header-phone">{{ selectedConversation?.phoneNumber }}</div>
+          </div>
+        </div>
+        <div class="chat-header-actions">
+          <button pButton
+                  [icon]="selectedConversation?.isBotPaused ? 'pi pi-play' : 'pi pi-pause'"
+                  [class]="selectedConversation?.isBotPaused ? 'p-button-success p-button-sm' : 'p-button-warning p-button-sm'"
+                  [pTooltip]="selectedConversation?.isBotPaused ? 'Resume Bot' : 'Pause Bot'"
+                  tooltipPosition="bottom"
+                  (click)="toggleBot()">
+          </button>
+          <span class="bot-status" [class.paused]="selectedConversation?.isBotPaused">
+            {{ selectedConversation?.isBotPaused ? '🤖 Bot Paused' : '🤖 Bot Active' }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Messages Area -->
+      <div class="chat-messages" #messagesContainer>
+        <div *ngIf="loadingMessages" class="loading-state">
+          <p-progressSpinner [style]="{width: '30px', height: '30px'}" strokeWidth="3"></p-progressSpinner>
+        </div>
+        <div *ngIf="hasMoreMessages && !loadingMessages" class="load-more">
+          <button pButton label="Load older messages" class="p-button-text p-button-sm" (click)="loadMoreMessages()"></button>
+        </div>
+        <div *ngFor="let msg of messages" class="message-wrapper" [class.outgoing]="msg.direction === 'Outgoing'" [class.incoming]="msg.direction === 'Incoming'">
+          <div class="message-bubble">
+            <div class="message-sender" *ngIf="msg.direction === 'Outgoing'">
+              <span [class.bot-label]="msg.isFromBot" [class.admin-label]="!msg.isFromBot">
+                {{ msg.isFromBot ? '🤖 Bot' : '👤 Admin' }}
+              </span>
+            </div>
+            <div class="message-text" [innerHTML]="formatMessage(msg.content)"></div>
+            <div class="message-time">{{ formatMessageTime(msg.timestamp) }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message Input -->
+      <div class="chat-input">
+        <input pInputText type="text" placeholder="Type a message..."
+               [(ngModel)]="messageText"
+               (keyup.enter)="sendMessage()"
+               [disabled]="sending"
+               class="message-input" />
+        <button pButton icon="pi pi-send"
+                class="p-button-rounded send-btn"
+                [disabled]="!messageText.trim() || sending"
+                [loading]="sending"
+                (click)="sendMessage()"></button>
+      </div>
+    </ng-container>
+  </div>
+</div>

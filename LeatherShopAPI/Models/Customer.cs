@@ -21,6 +21,12 @@ public class Customer
     /// <summary>When set, the bot is waiting for the customer to type a quantity for this product.</summary>
     public int? PendingProductId { get; set; }
 
+    /// <summary>When true, the chatbot won't auto-respond. Admin is chatting manually.</summary>
+    public bool IsBotPaused { get; set; } = false;
+
+    /// <summary>Bot will auto-resume after this UTC time. Null = not paused or manually paused.</summary>
+    public DateTime? BotPausedUntil { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

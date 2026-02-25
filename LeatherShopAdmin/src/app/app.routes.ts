@@ -29,5 +29,10 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadChildren: () => import('./features/broadcast/broadcast.routes').then(m => m.broadcastRoutes)
   },
+  {
+    path: 'chat',
+    canActivate: [authGuard],
+    loadChildren: () => import('./features/chat/chat.routes').then(m => m.chatRoutes)
+  },
   { path: '**', redirectTo: 'login' }
 ];

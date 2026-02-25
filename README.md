@@ -33,18 +33,20 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 |-------|---------|--------------|
 | **Middleware** | `Middleware/ExceptionHandlingMiddleware.cs` | Global exception handling — catches all unhandled exceptions, logs them, returns consistent `ApiResponse` JSON. Maps exception types to HTTP status codes (404, 400, 409, 401, 500). Prevents stack trace leaks. |
 | **API Response Model** | `Models/ApiResponse.cs` | Unified response envelope `ApiResponse<T>` with `success`, `message`, `data`, `errors` fields. Generic and non-generic versions. All controllers return this shape. |
-| **Controllers (thin)** | `AuthController.cs`, `ProductsController.cs`, `OrdersController.cs`, `CustomersController.cs`, `DashboardController.cs`, `BroadcastController.cs`, `PaymentController.cs`, `WhatsAppWebhookController.cs` | HTTP routing only — delegates all logic to service interfaces. Wraps responses in `ApiResponse<T>`. `[Authorize]` on all admin controllers; Auth/Payment/Webhook are public. |
-| **Service Interfaces** | `Services/Interfaces/IProductService.cs`, `IOrderService.cs`, `ICustomerService.cs`, `IDashboardService.cs`, `IBroadcastService.cs`, `IPaymentService.cs`, `IWhatsAppService.cs`, `IChatBotService.cs` | Contracts for all business logic |
-| **Service Implementations** | `Services/ProductService.cs`, `OrderService.cs`, `CustomerService.cs`, `DashboardService.cs`, `BroadcastService.cs`, `PaymentService.cs`, `WhatsAppService.cs`, `ChatBotService.cs` | All business logic lives here — DB queries, WhatsApp API calls, chatbot state machine |
+| **Controllers (thin)** | `AuthController.cs`, `ProductsController.cs`, `OrdersController.cs`, `CustomersController.cs`, `DashboardController.cs`, `BroadcastController.cs`, `PaymentController.cs`, `WhatsAppWebhookController.cs`, `ChatController.cs` | HTTP routing only — delegates all logic to service interfaces. Wraps responses in `ApiResponse<T>`. `[Authorize]` on all admin controllers; Auth/Payment/Webhook are public. |
+| **Service Interfaces** | `Services/Interfaces/IProductService.cs`, `IOrderService.cs`, `ICustomerService.cs`, `IDashboardService.cs`, `IBroadcastService.cs`, `IPaymentService.cs`, `IWhatsAppService.cs`, `IChatBotService.cs`, `IChatService.cs` | Contracts for all business logic |
+| **Service Implementations** | `Services/ProductService.cs`, `OrderService.cs`, `CustomerService.cs`, `DashboardService.cs`, `BroadcastService.cs`, `PaymentService.cs`, `WhatsAppService.cs`, `ChatBotService.cs`, `ChatService.cs` | All business logic lives here — DB queries, WhatsApp API calls, chatbot state machine, admin chat |
+| **Real-time (SignalR)** | `Hubs/NotificationHub.cs` | SignalR hub for real-time push notifications. Pushes `NewOrder` (order notifications to admin dashboard bell), `NewMessage` (incoming WhatsApp messages to chat page), `MessageSent` (outgoing message confirmations). JWT-authenticated via query string token. |
+| **Chat System** | `Controllers/ChatController.cs`, `Services/ChatService.cs`, `Models/ChatMessage.cs`, `DTOs/Chat/ChatDtos.cs`, `Data/Configurations/ChatMessageConfiguration.cs` | Full 2-way admin ↔ customer chat. Admin sends messages via dashboard → API → WhatsApp. Customer replies arrive via webhook → saved to DB → pushed to admin via SignalR. Bot auto-pauses when admin takes over, resumes after timeout. |
 | **Background Processing** | `Services/BroadcastBackgroundService.cs` | Hosted `BackgroundService` + `Channel<T>` producer/consumer queue — `BroadcastService` enqueues jobs, `BroadcastBackgroundService` dequeues and processes with `SemaphoreSlim(10)` concurrency. Saves progress every 50 messages. Graceful shutdown via `CancellationToken`. |
-| **Entity Configurations** | `Data/Configurations/ProductConfiguration.cs`, `CustomerConfiguration.cs`, `CartItemConfiguration.cs`, `OrderConfiguration.cs`, `OrderItemConfiguration.cs`, `BroadcastMessageConfiguration.cs` | Fluent API: relationships (1:1, 1:N, M:1), indexes, unique constraints, delete behavior, seed data |
-| **Split DTOs (validated)** | `DTOs/Product/`, `DTOs/Order/`, `DTOs/Customer/`, `DTOs/Dashboard/`, `DTOs/Broadcast/`, `DTOs/Payment/`, `DTOs/WhatsApp/` | Per-feature DTO files with `[Required]`, `[MaxLength]`, `[Range]`, `[Url]`, `[RegularExpression]` validation attributes |
+| **Entity Configurations** | `Data/Configurations/ProductConfiguration.cs`, `CustomerConfiguration.cs`, `CartItemConfiguration.cs`, `OrderConfiguration.cs`, `OrderItemConfiguration.cs`, `BroadcastMessageConfiguration.cs`, `ChatMessageConfiguration.cs` | Fluent API: relationships (1:1, 1:N, M:1), indexes, unique constraints, delete behavior, seed data |
+| **Split DTOs (validated)** | `DTOs/Product/`, `DTOs/Order/`, `DTOs/Customer/`, `DTOs/Dashboard/`, `DTOs/Broadcast/`, `DTOs/Payment/`, `DTOs/WhatsApp/`, `DTOs/Chat/` | Per-feature DTO files with `[Required]`, `[MaxLength]`, `[Range]`, `[Url]`, `[RegularExpression]` validation attributes |
 | **DI Extensions** | `Extensions/ServiceCollectionExtensions.cs` | Grouped DI registration: `AddDatabase()`, `AddApplicationServices()`, `AddCorsPolicies()` |
 | **Mapping Extensions** | `Extensions/MappingExtensions.cs` | `Product.ToDto()`, `Order.ToDto()`, `OrderItem.ToDto()` — shared entity-to-DTO mapping used by ProductService, OrderService, DashboardService |
 | **Authentication** | `Controllers/AuthController.cs`, `Models/AdminUser.cs`, `DTOs/Auth/AuthDtos.cs`, `Data/Configurations/AdminUserConfiguration.cs` | JWT Bearer authentication — `POST /api/auth/login` validates credentials against `AdminUsers` table (BCrypt hash, case-sensitive). Returns JWT token (24h expiry). `[Authorize]` attribute on all admin controllers. Admin user auto-seeded on first startup. |
 | **Config** | `appsettings.json`, `appsettings.Development.json`, `appsettings.Production.json` | Environment-specific configuration files |
-| **Data Models** | `Models/Product.cs`, `Customer.cs`, `CartItem.cs`, `Order.cs`, `OrderItem.cs`, `BroadcastMessage.cs`, `AdminUser.cs` | Entity classes with navigation properties |
-| **Database** | `AppDbContext.cs` | EF Core DbContext — uses `ApplyConfigurationsFromAssembly()` for auto-discovering entity configs. 7 DbSets including AdminUsers. |
+| **Data Models** | `Models/Product.cs`, `Customer.cs`, `CartItem.cs`, `Order.cs`, `OrderItem.cs`, `BroadcastMessage.cs`, `AdminUser.cs`, `ChatMessage.cs` | Entity classes with navigation properties |
+| **Database** | `AppDbContext.cs` | EF Core DbContext — uses `ApplyConfigurationsFromAssembly()` for auto-discovering entity configs. 8 DbSets including AdminUsers and ChatMessages. |
 
 ### Frontend Admin Panel (Angular 18) — `LeatherShopAdmin/`
 
@@ -57,10 +59,11 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 | **Orders** | `/orders` (lazy) | `features/orders/` — `order.service.ts`, `order.model.ts`, `orders.routes.ts`, `components/orders/` |
 | **Customers** | `/customers` (lazy) | `features/customers/` — `customer.service.ts`, `customer.model.ts`, `customers.routes.ts`, `components/customers/` |
 | **Broadcast** | `/broadcast` (lazy) | `features/broadcast/` — `broadcast.service.ts`, `broadcast.model.ts`, `broadcast.routes.ts`, `components/broadcast/` |
+| **Chat** | `/chat` (lazy) | `features/chat/` — `chat.service.ts`, `chat.model.ts`, `chat.routes.ts`, `components/chat-page/` — WhatsApp-style 2-way chat with conversation sidebar, message history, bot pause/resume toggle |
 | **Auth** | `/login` | `features/auth/components/login/` — animated login page with background video, JWT token storage, redirect to dashboard on success |
-| **Core** | _(app-wide)_ | `core/interceptors/error.interceptor.ts` — HTTP error interceptor with toast notifications. `core/interceptors/auth.interceptor.ts` — attaches JWT Bearer token to all API requests. `core/guards/auth.guard.ts` — protects all admin routes (redirects to `/login` if no token). `core/services/auth.service.ts` — login, logout, token management, username extraction. |
-| **Shared** | _(all pages)_ | `shared/components/navbar/`, `shared/components/toast/`, `shared/components/loading-spinner/`, `shared/services/notification.service.ts`, `shared/services/template-loader.service.ts`, `shared/utils/severity.utils.ts` |
-| **Environments** | _(build-time)_ | `environments/environment.ts` (dev), `environments/environment.prod.ts` (prod) — API URL config |
+| **Core** | _(app-wide)_ | `core/interceptors/error.interceptor.ts` — HTTP error interceptor with toast notifications. `core/interceptors/auth.interceptor.ts` — attaches JWT Bearer token to all API requests. `core/guards/auth.guard.ts` — protects all admin routes (redirects to `/login` if no token). `core/services/auth.service.ts` — login, logout, token management, username extraction. `core/services/signalr.service.ts` — SignalR hub connection for real-time order notifications and chat messages. |
+| **Shared** | _(all pages)_ | `shared/components/navbar/`, `shared/components/toast/`, `shared/components/loading-spinner/`, `shared/services/notification.service.ts`, `shared/services/template-loader.service.ts`, `shared/utils/severity.utils.ts` — Navbar includes notification bell with overlay panel for real-time order alerts (powered by SignalR) |
+| **Environments** | _(build-time)_ | `environments/environment.ts` (dev), `environments/environment.prod.ts` (prod) — API URL + SignalR hub URL config |
 | **App Shell** | — | `app.routes.ts` (lazy loading via `loadChildren`, `authGuard` on all admin routes, `**` wildcard → `/login`), `app.config.ts` (interceptors: auth + error), `app.component.ts` (toast + navbar + outlet, navbar hidden on login page) |
 
 ---
@@ -101,12 +104,16 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 │  │ (JWT login) │   └─────────────┘                    │
 │  └─────────────┘          │                           │
 │                           │                           │
-│                    ┌──────▼──────────────────┐        │
-│                    │  PostgreSQL (EF Core)   │        │
-│                    │  Products, Customers,   │        │
-│                    │  CartItems, Orders,     │        │
-│                    │  OrderItems, Broadcasts │        │
-│                    └────────────────────────┘         │
+│  ┌─────────────┐   ┌──────▼──────────────────┐        │
+│  │ SignalR Hub  │   │  PostgreSQL (EF Core)   │        │
+│  │ (Notificatn)│   │  Products, Customers,   │        │
+│  │ ─ NewOrder  │   │  CartItems, Orders,     │        │
+│  │ ─ NewMessage│   │  OrderItems, Broadcasts,│        │
+│  │ ─ MessageSnt│   │  ChatMessages, Admins   │        │
+│  └──────┬──────┘   └────────────────────────┘         │
+│         │ WebSocket          │                        │
+│         ▼ (real-time)        │                        │
+│  Admin Browser               │                        │
 └──────────────────────────────────────────────────────┘
                            │
                     ┌──────▼──────┐
@@ -122,6 +129,10 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 3. **Checkout → PaymentController → Razorpay** — bot sends a payment link, customer pays on a Razorpay-powered HTML page, payment verified and order confirmed
 4. **Admin Panel → REST API → Database** — shop owner manages products, views orders, updates statuses
 5. **Order Status Update → WhatsAppService → Customer** — when admin changes order status, customer gets an automatic WhatsApp notification
+6. **New Order → SignalR → Admin Dashboard** — when a customer completes payment, `PaymentService` pushes a `NewOrder` notification via SignalR to the admin's navbar bell icon (real-time, no polling)
+7. **Customer WhatsApp Message → Webhook → DB + SignalR → Admin Chat Page** — incoming customer messages are saved to `ChatMessages` table and pushed in real-time to the admin chat page via SignalR `NewMessage` event
+8. **Admin Chat Reply → API → WhatsApp + DB + SignalR** — admin types a reply in the chat page, API sends it via WhatsApp and saves to DB, pushes `MessageSent` confirmation back via SignalR
+9. **Bot Pause/Resume** — when admin sends a message to a customer, the chatbot auto-pauses for that customer (30 min default). Customer messages go to admin only, not the bot. Bot resumes automatically after timeout or when admin clicks "Resume Bot".
 
 ---
 
@@ -255,6 +266,27 @@ Admin opens http://localhost:4200
 │  │ Template │ Recipients │ Sent │ Failed │ Date      │  │
 │  └───────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────┘
+
+┌── CHAT (/chat) ────────────────────────────────────────┐
+│  ┌─ Conversations ─┐  ┌─ Message Thread ─────────────┐ │
+│  │ [Search...]      │  │ Customer: Hello              │ │
+│  │ 🟢 Zaheer (2)   │  │ Bot: Welcome! Here is menu.. │ │
+│  │   Last: Hi there│  │ Admin: Hi, how can I help?   │ │
+│  │ ⚪ Syed          │  │ Customer: I want to order    │ │
+│  │   Last: Thanks  │  │ [Type a message...] [Send]   │ │
+│  └──────────────────┘  │                              │ │
+│  Features:             │ [🤖 Pause Bot] [▶ Resume]    │ │
+│  • Real-time messages  └──────────────────────────────┘ │
+│  • Bot pause/resume per customer                        │
+│  • Unread count badges                                  │
+│  • WhatsApp-style chat bubbles                          │
+└─────────────────────────────────────────────────────────┘
+
+🔔 NOTIFICATION BELL (navbar, all pages)
+   • Bell icon in top-right with red badge count
+   • Overlay panel shows recent order notifications
+   • Real-time via SignalR WebSocket (no polling)
+   • Click notification → navigates to Orders page
 ```
 
 ---
@@ -266,10 +298,12 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │
 ├── Program.cs                           # App entry point — clean, uses extension methods
 │                                        #   - JWT Bearer authentication configuration
+│                                        #   - SignalR configured with JWT auth via query string
 │                                        #   - Uses ExceptionHandlingMiddleware
 │                                        #   - Auto-runs EF migrations on startup
 │                                        #   - Seeds admin user (BCrypt hash) if none exists
 │                                        #   - Enables Swagger in development
+│                                        #   - Maps SignalR hub at /hubs/notifications
 │
 ├── appsettings.json                     # Config: DB connection, WhatsApp creds, Razorpay keys, JWT settings
 ├── appsettings.Development.json         # Development overrides (log levels)
@@ -281,8 +315,8 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │                                        #   Product.ToDto(), Order.ToDto(), OrderItem.ToDto()
 │                                        #   Eliminates duplicate mapping across services
 │                                        #   - AddDatabase() — PostgreSQL context
-│                                        #   - AddApplicationServices() — all 8 services
-│                                        #   - AddCorsPolicies() — CORS for Angular
+│                                        #   - AddApplicationServices() — all 9 services
+│                                        #   - AddCorsPolicies() — CORS for Angular (AllowCredentials for SignalR)
 │
 ├── Middleware/
 │   └── ExceptionHandlingMiddleware.cs   # Global exception handler
@@ -299,7 +333,8 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   ├── Product.cs                       # Id, Name, Description, Brand, Category,
 │   │                                    #   Price, StockQuantity, ImageUrl, IsActive
 │   ├── Customer.cs                      # Id, PhoneNumber (unique), Name, Address,
-│   │                                    #   IsSubscribed → has Orders, CartItems
+│   │                                    #   IsSubscribed, IsBotPaused, BotPausedUntil
+│   │                                    #   → has Orders, CartItems
 │   ├── CartItem.cs                      # Id, CustomerId, ProductId, Quantity
 │   │                                    #   (unique constraint: customer + product)
 │   ├── Order.cs                         # Id, OrderNumber (unique), CustomerId,
@@ -307,8 +342,17 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   │                                    # OrderItem: OrderId, ProductId, Qty, UnitPrice
 │   ├── BroadcastMessage.cs              # Id, MessageTemplate, MessageBody,
 │   │                                    #   TotalRecipients, SentCount, FailedCount
+│   ├── ChatMessage.cs                   # Id, CustomerId, Direction (Incoming/Outgoing),
+│   │                                    #   MessageType, Content, SenderName, IsFromBot,
+│   │                                    #   Timestamp — stores all WhatsApp chat history
 │   └── AdminUser.cs                     # Id, Username (unique), PasswordHash (BCrypt),
 │                                        #   CreatedAt, LastLoginAt
+│
+├── Hubs/
+│   └── NotificationHub.cs               # SignalR hub for real-time notifications
+│                                        #   - NewOrder: pushed when customer completes payment
+│                                        #   - NewMessage: pushed when customer sends WhatsApp msg
+│                                        #   - MessageSent: pushed when admin message is delivered
 │
 ├── Controllers/                         # THIN — wraps responses in ApiResponse<T>
 │   ├── AuthController.cs                # JWT login — POST /api/auth/login
@@ -320,8 +364,14 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   ├── CustomersController.cs           # [Authorize] — Injects ICustomerService
 │   ├── DashboardController.cs           # [Authorize] — Injects IDashboardService
 │   ├── BroadcastController.cs           # [Authorize] — Injects IBroadcastService
+│   ├── ChatController.cs                # [Authorize] — Injects IChatService
+│   │                                    #   GET conversations, GET messages, POST send,
+│   │                                    #   POST pause bot, POST resume bot
 │   ├── PaymentController.cs             # Public (customer-facing) — Injects IPaymentService
 │   └── WhatsAppWebhookController.cs     # Public (Meta webhook) — Injects IChatBotService
+│                                        #   Saves incoming messages to ChatMessages table,
+│                                        #   checks bot pause before routing to chatbot,
+│                                        #   pushes NewMessage to admin via SignalR
 │
 ├── Services/
 │   ├── Interfaces/                      # Service contracts
@@ -332,10 +382,13 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   │   ├── ICustomerService.cs          # List + create + import + subscribe
 │   │   ├── IDashboardService.cs         # GetDashboard()
 │   │   ├── IBroadcastService.cs         # Send + history + templates
+│   │   ├── IChatService.cs              # Conversations, messages, send, bot pause/resume
 │   │   └── IPaymentService.cs           # Payment page + verify
 │   │
 │   ├── WhatsAppService.cs               # Implements IWhatsAppService
 │   ├── ChatBotService.cs                # Implements IChatBotService (state machine)
+│   │                                    #   BotSend* wrappers save all outgoing messages
+│   │                                    #   to ChatMessages + push via SignalR
 │   ├── ProductService.cs                # Implements IProductService
 │   ├── OrderService.cs                  # Implements IOrderService
 │   ├── CustomerService.cs               # Implements ICustomerService
@@ -344,10 +397,15 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   ├── BroadcastBackgroundService.cs    # Hosted BackgroundService — reads from Channel<T>,
 │   │                                    #   processes broadcasts with SemaphoreSlim(10)
 │   │                                    #   concurrency, saves progress every 50 messages
+│   ├── ChatService.cs                   # Implements IChatService — conversations list,
+│   │                                    #   paginated messages, send message via WhatsApp,
+│   │                                    #   bot pause/resume with auto-expiry
 │   └── PaymentService.cs                # Implements IPaymentService
+│                                        #   Pushes NewOrder via SignalR on successful payment
+│                                        #   Sends WhatsApp notification to shop owner
 │
 ├── Data/
-│   ├── AppDbContext.cs                  # 7 DbSets, uses ApplyConfigurationsFromAssembly()
+│   ├── AppDbContext.cs                  # 8 DbSets, uses ApplyConfigurationsFromAssembly()
 │   └── Configurations/                  # Fluent API entity configurations
 │       ├── ProductConfiguration.cs      # Indexes on Category/Brand, seed data
 │       ├── CustomerConfiguration.cs     # Unique PhoneNumber, 1:N → Orders, 1:N → CartItems
@@ -355,6 +413,8 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │       ├── OrderConfiguration.cs        # Unique OrderNumber, M:1 → Customer, 1:N → OrderItems
 │       ├── OrderItemConfiguration.cs    # M:1 → Order, M:1 → Product (Restrict delete)
 │       ├── BroadcastMessageConfiguration.cs
+│       ├── ChatMessageConfiguration.cs  # CustomerId+Timestamp composite index,
+│       │                                    #   Direction stored as string, FK cascade delete
 │       └── AdminUserConfiguration.cs    # Unique Username, max lengths
 │
 ├── DTOs/                                # Split per feature, with validation attributes
@@ -364,6 +424,8 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   ├── Customer/CustomerDtos.cs         # [Required], [RegularExpression] phone, [MinLength]
 │   ├── Dashboard/DashboardDtos.cs       # DashboardDto
 │   ├── Broadcast/BroadcastDtos.cs       # [Required] template, [Url] image
+│   ├── Chat/ChatDtos.cs                 # ConversationDto, ChatMessageDto, SendMessageDto,
+│   │                                    #   BotPauseDto — DTOs for 2-way chat feature
 │   ├── Payment/PaymentDtos.cs           # [Required] paymentId, orderId
 │   └── WhatsApp/WhatsAppDtos.cs         # WhatsApp webhook payload classes
 │
@@ -378,8 +440,8 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 │   ├── styles.scss                      # Global styles
 │   │
 │   ├── environments/
-│   │   ├── environment.ts               # Dev config (apiUrl: localhost:5000)
-│   │   └── environment.prod.ts          # Prod config (apiUrl: production URL)
+│   │   ├── environment.ts               # Dev config (apiUrl: localhost:8080, hubUrl for SignalR)
+│   │   └── environment.prod.ts          # Prod config (apiUrl: production URL, hubUrl for SignalR)
 │   │
 │   └── app/
 │       ├── app.component.ts             # Root: toast + navbar + router-outlet
@@ -399,8 +461,12 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 │       │   │                            #   Skips toast for login 401 (handled inline)
 │       │   │                            #   Auto-redirects to /login on 401 (expired token)
 │       │   └── services/
-│       │       └── auth.service.ts      # login(), logout(), isLoggedIn(), getUsername()
-│       │                                #   JWT token management via localStorage
+│       │       ├── auth.service.ts      # login(), logout(), isLoggedIn(), getUsername()
+│       │       │                        #   JWT token management via localStorage
+│       │       └── signalr.service.ts   # SignalR hub connection manager
+│       │                                #   Connects to /hubs/notifications with JWT auth
+│       │                                #   Exposes newOrder$ and newMessage$ observables
+│       │                                #   Auto-reconnects on disconnect
 │       │
 │       ├── shared/
 │       │   ├── utils/
@@ -412,6 +478,9 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 │       │   │                                  #   Used by broadcast + customers components
 │       │   └── components/
 │       │       ├── navbar/              # Navigation bar (ts, html, scss)
+│       │       │                        #   Includes notification bell with badge count
+│       │       │                        #   OverlayPanel shows real-time order alerts
+│       │       │                        #   Powered by SignalR (starts on init, stops on logout)
 │       │       ├── toast/               # Toast notification component (auto-dismiss)
 │       │       └── loading-spinner/     # Reusable loading spinner component
 │       │
@@ -450,6 +519,17 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 │               ├── services/broadcast.service.ts  # Uses environment.apiUrl
 │               ├── broadcast.routes.ts
 │               └── components/broadcast/     (ts, html, scss)
+│
+│           └── chat/
+│               ├── models/chat.model.ts           # Conversation, ChatMessage, SendMessage interfaces
+│               ├── services/chat.service.ts       # REST API client for chat endpoints
+│               ├── chat.routes.ts                 # Lazy-loaded /chat route
+│               └── components/chat-page/     (ts, html, scss)
+│                                                  #   WhatsApp-style 2-panel layout:
+│                                                  #   Left: conversation sidebar with search + unread badges
+│                                                  #   Right: message thread with chat bubbles + send input
+│                                                  #   Bot pause/resume toggle per customer
+│                                                  #   Real-time updates via SignalR
 ```
 
 ---
@@ -653,6 +733,24 @@ Temporary tokens expire every 24 hours. For production, use a **permanent System
 | POST | `/api/broadcast/send` | Send template message to all subscribers |
 | GET | `/api/broadcast/history` | Last 20 broadcast records |
 
+### Chat (2-Way Admin ↔ Customer)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/chat/conversations` | List all conversations (customers with chat history). Query: `?search=name` |
+| GET | `/api/chat/messages/{customerId}` | Paginated message history. Query: `?page=1&pageSize=50` |
+| POST | `/api/chat/send` | Send message to customer via WhatsApp. Body: `{ customerId, content }`. Auto-pauses bot. |
+| POST | `/api/chat/pause-bot` | Pause chatbot for a customer. Body: `{ customerId, durationMinutes }` |
+| POST | `/api/chat/resume-bot/{customerId}` | Resume chatbot for a customer |
+
+### SignalR Hub
+| Hub URL | Event | Payload | Description |
+|---------|-------|---------|-------------|
+| `/hubs/notifications` | `NewOrder` | `{ orderNumber, customerName, amount, timestamp }` | Pushed when customer completes payment |
+| `/hubs/notifications` | `NewMessage` | `{ customerId, customerName, content, timestamp, ... }` | Pushed when customer sends a WhatsApp message |
+| `/hubs/notifications` | `MessageSent` | `{ customerId, content, timestamp, ... }` | Pushed when admin/bot message is delivered |
+
+> SignalR hub requires JWT authentication via `?access_token=<token>` query string.
+
 ### WhatsApp Webhook
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -678,20 +776,21 @@ Temporary tokens expire every 24 hours. For production, use a **permanent System
 │ Description │       │ Name         │       │ MessageBody  │
 │ Brand    ◄──│─index │ Address      │       │ TotalRecip   │
 │ Category ◄──│─index │ IsSubscribed │       │ SentCount    │
-│ Price       │       │ CreatedAt    │       │ FailedCount  │
-│ StockQty    │       │ UpdatedAt    │       │ SentAt       │
-│ ImageUrl    │       └──────┬───────┘       └──────────────┘
-│ IsActive    │              │
-│ CreatedAt   │              │ 1:N               ┌──────────────┐
-│ UpdatedAt   │              │                   │  AdminUsers  │
-└──────┬──────┘       ┌──────▼───────┐           ├──────────────┤
-       │              │  CartItems   │           │ Id (PK)      │
-       │              ├──────────────┤           │ Username  ◄──│─unique
-       │   ┌──────────│ Id (PK)      │           │ PasswordHash │
-       │   │          │ CustomerId(FK)│          │ CreatedAt    │
-       │   │          │ ProductId(FK)│◄─unique   │ LastLoginAt  │
-       │   │          │ Quantity     │(Cust+Prod)└──────────────┘
-       │   │          │ AddedAt      │
+│ Price       │       │ IsBotPaused  │       │ FailedCount  │
+│ StockQty    │       │ BotPausedUntl│       │ SentAt       │
+│ ImageUrl    │       │ CreatedAt    │       └──────────────┘
+│ IsActive    │       │ UpdatedAt    │
+│ CreatedAt   │       └──────┬───────┘
+│ UpdatedAt   │              │
+└──────┬──────┘              │ 1:N               ┌──────────────┐
+       │              ┌──────▼───────┐           │  AdminUsers  │
+       │              │  CartItems   │           ├──────────────┤
+       │              ├──────────────┤           │ Id (PK)      │
+       │   ┌──────────│ Id (PK)      │           │ Username  ◄──│─unique
+       │   │          │ CustomerId(FK)│          │ PasswordHash │
+       │   │          │ ProductId(FK)│◄─unique   │ CreatedAt    │
+       │   │          │ Quantity     │(Cust+Prod)│ LastLoginAt  │
+       │   │          │ AddedAt      │           └──────────────┘
        │   │          └──────────────┘
        │   │
        │   │          ┌──────────────┐       ┌──────────────┐
@@ -704,10 +803,18 @@ Temporary tokens expire every 24 hours. For production, use a **permanent System
        └─────────────►│ Status (enum)│       │ UnitPrice    │
                       │ PaymentId    │       └──────────────┘
                       │ IsPaid       │
-                      │ ShippingAddr │
-                      │ CreatedAt    │
-                      │ UpdatedAt    │
-                      └──────────────┘
+                      │ ShippingAddr │       ┌──────────────┐
+                      │ CreatedAt    │       │ ChatMessages │
+                      │ UpdatedAt    │       ├──────────────┤
+                      └──────────────┘       │ Id (PK)      │
+                                             │ CustomerId(FK│◄─cascade
+                                             │ Direction    │ (Incoming/Outgoing)
+                                             │ MessageType  │ (text/interactive/image)
+                                             │ Content      │
+                                             │ SenderName   │
+                                             │ IsFromBot    │ (true=bot, false=admin)
+                                             │ Timestamp ◄──│─composite index
+                                             └──────────────┘  (CustomerId+Timestamp)
 
 Order Status Enum: Pending → Confirmed → Shipped → Delivered → Cancelled
 ```
@@ -882,7 +989,7 @@ Comprehensive line-by-line audit of the entire codebase. These remain to be fixe
 | 19 | **Route guards** (`AuthGuard`) protecting all admin routes with auto-redirect to login |
 | 20 | **Auth interceptor** attaching Bearer token + error interceptor with smart 401 handling (login vs expired) |
 | 21 | **Dynamic categories** in product form — fetched from API instead of hardcoded |
-| 22 | **Error handlers** on all `subscribe()` calls with user-facing notifications and state rollback |
+| 22 | **Error handlers** on all `subscribe()` calls with user-facing notifications and state rollback |\n| 23 | **SignalR real-time** WebSocket hub for order notifications + chat messages — no polling, instant push to all connected admins |\n| 24 | **2-way WhatsApp chat** with persistent message history, conversation sidebar, chat bubbles, unread badges |\n| 25 | **Bot pause/resume** system — chatbot auto-pauses when admin takes over a conversation, resumes after timeout |\n| 26 | **Component file consistency** — all substantial components use separate `.html` + `.scss` files (templateUrl/styleUrl pattern) |
 
 ---
 
@@ -986,6 +1093,7 @@ restartPolicyMaxRetries = 10
 | `Razorpay__KeyId` | Razorpay API key |
 | `Razorpay__KeySecret` | Razorpay API secret |
 | `App__BaseUrl` | `https://leathershop-production.up.railway.app` (used for payment links; WhatsApp images use `RAILWAY_PUBLIC_DOMAIN` as fallback) |
+| `OwnerPhone` | Shop owner's WhatsApp number (e.g., `YOUR_PHONE_NUMBER`) — receives order notifications via WhatsApp |
 | `FRONTEND_URL` | Vercel frontend URL (for CORS) |
 | `RAILWAY_PUBLIC_DOMAIN` | Auto-provided by Railway (e.g., `leathershop-production.up.railway.app`) — used as fallback for constructing public image URLs when `App__BaseUrl` is not configured |
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
@@ -1173,3 +1281,4 @@ To fix: `git config user.email "mohamedzaheer236@gmail.com"`
 | **WhatsApp Product Image** | ✅ Product images now display in WhatsApp chatbot when a customer views product details. **Implementation chain:** (1) `IWhatsAppService.SendImageMessage(to, imageUrl, caption)` — new interface method. (2) `WhatsAppService.SendImageMessage()` — sends WhatsApp Cloud API `image` message type with `link` (public URL) + `caption` (product details text). (3) `ChatBotService.SendProductDetails()` — if `product.ImageUrl` is set, constructs full URL using `App:BaseUrl` config with fallback to `RAILWAY_PUBLIC_DOMAIN` env var (auto-provided by Railway), sends image with details as caption, then sends action buttons as separate message. Falls back to text-only on failure. Caption truncated to 1024 chars (WhatsApp limit). **Key debug history:** Initial deploy failed with "Param image['link'] is not a valid URL" because `App:BaseUrl` was set to placeholder `WILL_BE_SET_BY_RAILWAY_ENV_VAR` instead of actual URL. Fixed by adding `RAILWAY_PUBLIC_DOMAIN` fallback. **Files:** `IWhatsAppService.cs`, `WhatsAppService.cs`, `ChatBotService.cs` (lines ~258-305). |
 | **Railway Upload Volume** | ✅ Railway Volume (`leathershop-volume`) mounted at `/app/wwwroot/uploads` on the LeatherShop service. Persists uploaded product images across redeployments (Railway's default filesystem is ephemeral — wiped on every deploy). **Setup:** Railway Dashboard → Architecture → + Create → Volume → attach to LeatherShop → mount path `/app/wwwroot/uploads`. Cost: ~$0.25/GB/month (included in $5/mo Hobby plan credit). **Important:** Images uploaded before the volume was attached are lost — must re-upload after volume setup. |
 | **Exception Handling Audit** | ✅ Full audit of all 15 `catch` blocks across the codebase — **zero exception swallowing found**. All catch blocks either: (a) log the exception with `_logger.LogError`/`LogWarning` + re-throw or return error response, (b) are intentional graceful degradation (e.g., WhatsApp notification failure doesn't block order creation, image send failure falls back to text). **Intentional patterns:** (1) `WhatsAppWebhookController` returns `Ok()` even on error — required because Meta retries on non-200 responses. (2) `PaymentService`/`CustomerService` catch WhatsApp notification failures with `LogWarning` — notifications are best-effort, the core operation (payment/customer creation) must succeed. (3) `ChatBotService` image fallback catches with `LogWarning` and falls back to text-only. (4) `BroadcastBackgroundService.SaveProgressAsync` catches with `LogWarning` — progress save is best-effort, final save catches up. **Previously fixed:** `OrderService.cs` had an empty `catch { }` (P4 in audit) — was already fixed with `_logger.LogWarning`. |
+| **2-Way Chat + Order Notifications (SignalR)** | ✅ Full real-time chat and notification system. **Approach:** (A) **SignalR WebSocket hub** (`/hubs/notifications`) for real-time push — no polling needed. JWT-authenticated via query string token. (B) **Order notifications** — when customer completes payment, `PaymentService` pushes `NewOrder` event via SignalR to all connected admin browsers + sends WhatsApp message to shop owner (`OwnerPhone` config). Navbar bell icon shows badge count + overlay panel with notification list. (C) **2-way chat** — all WhatsApp messages (incoming + outgoing) stored in `ChatMessages` table. `WhatsAppWebhookController` saves incoming messages + pushes via SignalR. `ChatBotService.BotSend*` wrapper methods save all bot outgoing messages + push via SignalR. Admin chat page shows conversation sidebar + WhatsApp-style message thread. Admin replies sent via `ChatController.Send` → `ChatService.SendMessageAsync` → WhatsApp API. (D) **Bot pause/resume** — when admin sends a message, chatbot auto-pauses for that customer (30 min default). `Customer.IsBotPaused` + `BotPausedUntil` fields. Webhook checks pause status before routing to chatbot. Admin can manually pause/resume. Bot auto-resumes when `BotPausedUntil` expires. **New files:** Backend: `ChatMessage.cs`, `ChatMessageConfiguration.cs`, `IChatService.cs`, `ChatService.cs`, `NotificationHub.cs`, `ChatController.cs`, `ChatDtos.cs`. Frontend: `signalr.service.ts`, `chat/` feature module (model, service, routes, chat-page component). Modified: `WhatsAppWebhookController` (save + push + bot pause check), `ChatBotService` (BotSend* wrappers), `PaymentService` (owner notification + SignalR push), `Customer.cs` (IsBotPaused, BotPausedUntil), `Program.cs` (AddSignalR, MapHub, JWT SignalR events), `ServiceCollectionExtensions` (IChatService, AllowCredentials), `navbar` (bell + Chat menu + SignalR), `environment*.ts` (hubUrl), `app.routes.ts` (/chat route). **DB migration:** `AddMissingChatColumnsAndTable` — creates `ChatMessages` table + adds `IsBotPaused`/`BotPausedUntil` to `Customers` + composite indexes. |

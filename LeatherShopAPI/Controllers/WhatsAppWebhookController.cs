@@ -1,5 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using LeatherShopAPI.Data;
+using LeatherShopAPI.DTOs.Chat;
 using LeatherShopAPI.DTOs.WhatsApp;
+using LeatherShopAPI.Hubs;
+using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Controllers;
@@ -9,12 +15,24 @@ namespace LeatherShopAPI.Controllers;
 public class WhatsAppWebhookController : ControllerBase
 {
     private readonly IChatBotService _chatBot;
+    private readonly IChatService _chatService;
+    private readonly IHubContext<NotificationHub> _hubContext;
+    private readonly AppDbContext _db;
     private readonly IConfiguration _config;
     private readonly ILogger<WhatsAppWebhookController> _logger;
 
-    public WhatsAppWebhookController(IChatBotService chatBot, IConfiguration config, ILogger<WhatsAppWebhookController> logger)
+    public WhatsAppWebhookController(
+        IChatBotService chatBot,
+        IChatService chatService,
+        IHubContext<NotificationHub> hubContext,
+        AppDbContext db,
+        IConfiguration config,
+        ILogger<WhatsAppWebhookController> logger)
     {
         _chatBot = chatBot;
+        _chatService = chatService;
+        _hubContext = hubContext;
+        _db = db;
         _config = config;
         _logger = logger;
     }
@@ -75,6 +93,45 @@ public class WhatsAppWebhookController : ControllerBase
                             default:
                                 textBody = "menu";
                                 break;
+                        }
+
+                        // --- Save incoming message to chat history ---
+                        var phone = LeatherShopAPI.Extensions.PhoneNumberHelper.Normalize(from);
+                        var customer = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone);
+                        if (customer != null)
+                        {
+                            var incomingContent = textBody ?? interactiveTitle ?? interactiveId ?? "[media]";
+                            var savedMsg = await _chatService.SaveMessageAsync(
+                                customer.Id, MessageDirection.Incoming, incomingContent,
+                                string.IsNullOrEmpty(contactName) ? phone : contactName, false, message.Type);
+
+                            // Push to any admin viewing this chat via SignalR
+                            await _hubContext.Clients.Group($"chat_{customer.Id}").SendAsync("ReceiveMessage", new ChatMessageDto
+                            {
+                                Id = savedMsg.Id,
+                                Direction = "Incoming",
+                                MessageType = savedMsg.MessageType,
+                                Content = savedMsg.Content,
+                                SenderName = savedMsg.SenderName,
+                                IsFromBot = false,
+                                Timestamp = savedMsg.Timestamp
+                            });
+
+                            // Notify all admins about new message (for conversation list refresh)
+                            await _hubContext.Clients.Group("admins").SendAsync("NewChatMessage", new
+                            {
+                                customerId = customer.Id,
+                                customerName = string.IsNullOrEmpty(customer.Name) ? phone : customer.Name,
+                                content = incomingContent.Length > 80 ? incomingContent[..80] + "…" : incomingContent,
+                                timestamp = DateTime.UtcNow
+                            });
+
+                            // --- Check bot pause: if paused, skip bot response ---
+                            if (await _chatService.IsBotPausedAsync(customer.Id))
+                            {
+                                _logger.LogInformation("Bot paused for customer {CustomerId}, skipping bot response", customer.Id);
+                                continue;
+                            }
                         }
 
                         await _chatBot.ProcessMessage(from, contactName, message.Type, textBody, interactiveId, interactiveTitle);

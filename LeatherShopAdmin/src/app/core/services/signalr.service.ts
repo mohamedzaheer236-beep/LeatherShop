@@ -1,0 +1,93 @@
+import { Injectable, OnDestroy } from '@angular/core';
+import { Subject } from 'rxjs';
+import * as signalR from '@microsoft/signalr';
+import { environment } from '../../../environments/environment';
+import { AuthService } from './auth.service';
+
+export interface OrderNotification {
+  orderId: number;
+  orderNumber: string;
+  customerName: string;
+  amount: number;
+  timestamp: string;
+}
+
+export interface ChatMessageEvent {
+  id: number;
+  direction: string;
+  messageType: string;
+  content: string;
+  senderName: string;
+  isFromBot: boolean;
+  timestamp: string;
+}
+
+export interface NewChatMessageEvent {
+  customerId: number;
+  customerName: string;
+  content: string;
+  timestamp: string;
+}
+
+@Injectable({ providedIn: 'root' })
+export class SignalRService implements OnDestroy {
+  private hubConnection: signalR.HubConnection | null = null;
+
+  // Observables for components to subscribe to
+  readonly newOrder$ = new Subject<OrderNotification>();
+  readonly chatMessage$ = new Subject<ChatMessageEvent>();
+  readonly newChatMessage$ = new Subject<NewChatMessageEvent>();
+
+  constructor(private auth: AuthService) {}
+
+  /** Start the SignalR connection (call after login). */
+  start(): void {
+    if (this.hubConnection) return; // already connected
+
+    const token = this.auth.getToken();
+    if (!token) return;
+
+    this.hubConnection = new signalR.HubConnectionBuilder()
+      .withUrl(environment.hubUrl, { accessTokenFactory: () => token })
+      .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+      .configureLogging(signalR.LogLevel.Warning)
+      .build();
+
+    // Register event handlers
+    this.hubConnection.on('NewOrder', (data: OrderNotification) => this.newOrder$.next(data));
+    this.hubConnection.on('ReceiveMessage', (data: ChatMessageEvent) => this.chatMessage$.next(data));
+    this.hubConnection.on('NewChatMessage', (data: NewChatMessageEvent) => this.newChatMessage$.next(data));
+
+    this.hubConnection.onclose(() => {
+      console.warn('SignalR connection closed');
+    });
+
+    this.hubConnection.start()
+      .then(() => console.log('SignalR connected'))
+      .catch(err => console.error('SignalR connection error:', err));
+  }
+
+  /** Stop the connection (call on logout). */
+  stop(): void {
+    if (this.hubConnection) {
+      this.hubConnection.stop();
+      this.hubConnection = null;
+    }
+  }
+
+  /** Join a customer's chat group to receive real-time messages. */
+  joinCustomerChat(customerId: number): void {
+    this.hubConnection?.invoke('JoinCustomerChat', customerId)
+      .catch(err => console.error('Error joining chat group:', err));
+  }
+
+  /** Leave a customer's chat group. */
+  leaveCustomerChat(customerId: number): void {
+    this.hubConnection?.invoke('LeaveCustomerChat', customerId)
+      .catch(err => console.error('Error leaving chat group:', err));
+  }
+
+  ngOnDestroy(): void {
+    this.stop();
+  }
+}

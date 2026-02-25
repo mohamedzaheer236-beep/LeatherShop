@@ -1,8 +1,11 @@
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
+using LeatherShopAPI.DTOs.Chat;
 using LeatherShopAPI.DTOs.Payment;
+using LeatherShopAPI.Hubs;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 
@@ -12,13 +15,16 @@ public class PaymentService : IPaymentService
 {
     private readonly AppDbContext _db;
     private readonly IWhatsAppService _whatsApp;
+    private readonly IHubContext<NotificationHub> _hubContext;
     private readonly IConfiguration _config;
     private readonly ILogger<PaymentService> _logger;
 
-    public PaymentService(AppDbContext db, IWhatsAppService whatsApp, IConfiguration config, ILogger<PaymentService> logger)
+    public PaymentService(AppDbContext db, IWhatsAppService whatsApp, IHubContext<NotificationHub> hubContext,
+        IConfiguration config, ILogger<PaymentService> logger)
     {
         _db = db;
         _whatsApp = whatsApp;
+        _hubContext = hubContext;
         _config = config;
         _logger = logger;
     }
@@ -105,6 +111,43 @@ public class PaymentService : IPaymentService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to send WhatsApp payment notification for order {OrderId}", orderId);
+        }
+
+        // Notify shop owner via WhatsApp (best-effort)
+        try
+        {
+            var ownerPhone = _config["App:OwnerPhone"];
+            if (!string.IsNullOrEmpty(ownerPhone))
+            {
+                await _whatsApp.SendTextMessage(ownerPhone,
+                    $"🔔 *New Paid Order!*\n\n" +
+                    $"📋 Order: *{order.OrderNumber}*\n" +
+                    $"👤 Customer: *{order.Customer.Name}* ({order.Customer.PhoneNumber})\n" +
+                    $"💰 Amount: *₹{order.TotalAmount}*\n" +
+                    $"💳 Payment ID: {dto.PaymentId}\n\n" +
+                    $"Check the dashboard for details.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send owner WhatsApp notification for order {OrderId}", orderId);
+        }
+
+        // Push real-time notification to admin dashboard via SignalR
+        try
+        {
+            await _hubContext.Clients.Group("admins").SendAsync("NewOrder", new OrderNotificationDto
+            {
+                OrderId = order.Id,
+                OrderNumber = order.OrderNumber,
+                CustomerName = string.IsNullOrEmpty(order.Customer.Name) ? order.Customer.PhoneNumber : order.Customer.Name,
+                Amount = order.TotalAmount,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to push SignalR order notification for order {OrderId}", orderId);
         }
 
         return new PaymentVerifyResultDto

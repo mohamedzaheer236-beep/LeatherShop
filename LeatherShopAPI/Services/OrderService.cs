@@ -1,7 +1,10 @@
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
+using LeatherShopAPI.DTOs.Chat;
 using LeatherShopAPI.DTOs.Order;
 using LeatherShopAPI.Extensions;
+using LeatherShopAPI.Hubs;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 
@@ -11,11 +14,13 @@ public class OrderService : IOrderService
 {
     private readonly AppDbContext _db;
     private readonly IWhatsAppService _whatsApp;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
-    public OrderService(AppDbContext db, IWhatsAppService whatsApp)
+    public OrderService(AppDbContext db, IWhatsAppService whatsApp, IHubContext<NotificationHub> hubContext)
     {
         _db = db;
         _whatsApp = whatsApp;
+        _hubContext = hubContext;
     }
 
     public async Task<PaginatedResult<OrderDto>> GetAllAsync(string? status, int page = 1, int pageSize = 25)

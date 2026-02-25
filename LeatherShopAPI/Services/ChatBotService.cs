@@ -1,5 +1,8 @@
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
+using LeatherShopAPI.DTOs.Chat;
+using LeatherShopAPI.Hubs;
 using LeatherShopAPI.Models;
 
 using LeatherShopAPI.Extensions;
@@ -15,15 +18,76 @@ public class ChatBotService : IChatBotService
 {
     private readonly AppDbContext _db;
     private readonly IWhatsAppService _whatsApp;
+    private readonly IChatService _chatService;
+    private readonly IHubContext<NotificationHub> _hubContext;
     private readonly ILogger<ChatBotService> _logger;
     private readonly IConfiguration _config;
 
-    public ChatBotService(AppDbContext db, IWhatsAppService whatsApp, ILogger<ChatBotService> logger, IConfiguration config)
+    // Set per-request to save outgoing bot messages (scoped service = safe)
+    private int? _currentCustomerId;
+
+    public ChatBotService(AppDbContext db, IWhatsAppService whatsApp, IChatService chatService,
+        IHubContext<NotificationHub> hubContext, ILogger<ChatBotService> logger, IConfiguration config)
     {
         _db = db;
         _whatsApp = whatsApp;
+        _chatService = chatService;
+        _hubContext = hubContext;
         _logger = logger;
         _config = config;
+    }
+
+    // ================================================
+    //  SEND + SAVE HELPERS (wraps WhatsApp send + saves to chat history + pushes via SignalR)
+    // ================================================
+
+    private async Task BotSendText(string to, string message)
+    {
+        await _whatsApp.SendTextMessage(to, message);
+        await SaveAndPushBotMessage(message, "text");
+    }
+
+    private async Task BotSendList(string to, string headerText, string bodyText, string buttonText, List<ListSection> sections)
+    {
+        await _whatsApp.SendListMessage(to, headerText, bodyText, buttonText, sections);
+        await SaveAndPushBotMessage($"{headerText}\n{bodyText}", "interactive");
+    }
+
+    private async Task BotSendButtons(string to, string bodyText, List<ButtonOption> buttons)
+    {
+        await _whatsApp.SendButtonMessage(to, bodyText, buttons);
+        await SaveAndPushBotMessage(bodyText, "interactive");
+    }
+
+    private async Task BotSendImage(string to, string imageUrl, string? caption)
+    {
+        await _whatsApp.SendImageMessage(to, imageUrl, caption);
+        await SaveAndPushBotMessage(caption ?? "[image]", "image");
+    }
+
+    private async Task SaveAndPushBotMessage(string content, string messageType)
+    {
+        if (!_currentCustomerId.HasValue) return;
+        try
+        {
+            var saved = await _chatService.SaveMessageAsync(
+                _currentCustomerId.Value, MessageDirection.Outgoing, content, "Bot", true, messageType);
+
+            await _hubContext.Clients.Group($"chat_{_currentCustomerId.Value}").SendAsync("ReceiveMessage", new ChatMessageDto
+            {
+                Id = saved.Id,
+                Direction = "Outgoing",
+                MessageType = saved.MessageType,
+                Content = saved.Content,
+                SenderName = "Bot",
+                IsFromBot = true,
+                Timestamp = saved.Timestamp
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to save/push bot message for customer {CustomerId}", _currentCustomerId);
+        }
     }
 
     /// <summary>Process an incoming WhatsApp message and respond accordingly</summary>
@@ -40,6 +104,9 @@ public class ChatBotService : IChatBotService
             _db.Customers.Add(customer);
             await _db.SaveChangesAsync();
         }
+
+        // Track current customer for bot message saving
+        _currentCustomerId = customer.Id;
 
         // Determine what the user selected/typed
         var input = (interactiveId ?? textBody ?? "").Trim().ToLower();
@@ -127,13 +194,13 @@ public class ChatBotService : IChatBotService
             }
 
             // ---- DEFAULT: show main menu ----
-            await _whatsApp.SendTextMessage(phone, "🙏 Welcome to our Leather Shop! Type *menu* to see options.");
+            await BotSendText(phone, "🙏 Welcome to our Leather Shop! Type *menu* to see options.");
             await SendMainMenu(phone, customer.Name);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing message from {Phone}", phone);
-            await _whatsApp.SendTextMessage(phone, "Sorry, something went wrong. Please type *menu* to start again.");
+            await BotSendText(phone, "Sorry, something went wrong. Please type *menu* to start again.");
         }
     }
 
@@ -145,7 +212,7 @@ public class ChatBotService : IChatBotService
     {
         var greeting = string.IsNullOrEmpty(customerName) ? "Welcome!" : $"Hello {customerName}! 👋";
 
-        await _whatsApp.SendListMessage(
+        await BotSendList(
             to,
             headerText: "🛍️ Leather Shop",
             bodyText: $"{greeting}\n\nWe offer premium handcrafted leather products.\n\nWhat would you like to do?",
@@ -184,7 +251,7 @@ public class ChatBotService : IChatBotService
 
         if (!categories.Any())
         {
-            await _whatsApp.SendTextMessage(to, "Sorry, no products available right now. Please check back later!");
+            await BotSendText(to, "Sorry, no products available right now. Please check back later!");
             return;
         }
 
@@ -195,7 +262,7 @@ public class ChatBotService : IChatBotService
             Description = $"Browse {cat} collection"
         }).ToList();
 
-        await _whatsApp.SendListMessage(
+        await BotSendList(
             to,
             headerText: "📂 Categories",
             bodyText: "Select a category to browse products:",
@@ -216,7 +283,7 @@ public class ChatBotService : IChatBotService
 
         if (!products.Any())
         {
-            await _whatsApp.SendTextMessage(to, $"No products found in '{category}'. Type *menu* to browse other categories.");
+            await BotSendText(to, $"No products found in '{category}'. Type *menu* to browse other categories.");
             return;
         }
 
@@ -227,7 +294,7 @@ public class ChatBotService : IChatBotService
             Description = $"₹{p.Price} | {p.Brand} | Stock: {p.StockQuantity}"
         }).ToList();
 
-        await _whatsApp.SendListMessage(
+        await BotSendList(
             to,
             headerText: $"🛍️ {char.ToUpper(category[0]) + category[1..]}",
             bodyText: $"Here are our {category} products. Tap to view details:",
@@ -244,7 +311,7 @@ public class ChatBotService : IChatBotService
         var product = await _db.Products.FindAsync(productId);
         if (product == null)
         {
-            await _whatsApp.SendTextMessage(to, "Product not found. Type *menu* to browse.");
+            await BotSendText(to, "Product not found. Type *menu* to browse.");
             return;
         }
 
@@ -277,10 +344,10 @@ public class ChatBotService : IChatBotService
             {
                 // Caption max 1024 chars for WhatsApp image messages
                 var caption = details.Length > 1024 ? details[..1021] + "..." : details;
-                await _whatsApp.SendImageMessage(to, imageFullUrl, caption);
+                await BotSendImage(to, imageFullUrl, caption);
 
                 // Send action buttons separately (image messages don't support inline buttons)
-                await _whatsApp.SendButtonMessage(
+                await BotSendButtons(
                     to,
                     bodyText: "What would you like to do?",
                     buttons: new List<ButtonOption>
@@ -301,7 +368,7 @@ public class ChatBotService : IChatBotService
 
         // Send product details with action buttons (text-only fallback)
         var bodyText = details.Length > 1024 ? details[..1021] + "..." : details;
-        await _whatsApp.SendButtonMessage(
+        await BotSendButtons(
             to,
             bodyText: bodyText,
             buttons: new List<ButtonOption>
@@ -319,7 +386,7 @@ public class ChatBotService : IChatBotService
         var product = await _db.Products.FindAsync(productId);
         if (product == null || !product.IsActive || product.StockQuantity <= 0)
         {
-            await _whatsApp.SendTextMessage(to, "Sorry, this product is no longer available.");
+            await BotSendText(to, "Sorry, this product is no longer available.");
             return;
         }
 
@@ -327,7 +394,7 @@ public class ChatBotService : IChatBotService
         customer.PendingProductId = productId;
         await _db.SaveChangesAsync();
 
-        await _whatsApp.SendTextMessage(to,
+        await BotSendText(to,
             $"How many *{product.Name}* would you like to add?\n\n" +
             $"📦 Available: *{product.StockQuantity}*\n" +
             $"💰 Price: ₹{product.Price} each\n\n" +
@@ -342,14 +409,14 @@ public class ChatBotService : IChatBotService
         {
             customer.PendingProductId = null;
             await _db.SaveChangesAsync();
-            await _whatsApp.SendTextMessage(to, "Sorry, this product is no longer available.");
+            await BotSendText(to, "Sorry, this product is no longer available.");
             return;
         }
 
         // Validate quantity
         if (quantity <= 0)
         {
-            await _whatsApp.SendTextMessage(to, "❌ Please enter a valid number greater than 0.");
+            await BotSendText(to, "❌ Please enter a valid number greater than 0.");
             return; // Keep PendingProductId so they can try again
         }
 
@@ -366,7 +433,7 @@ public class ChatBotService : IChatBotService
             {
                 customer.PendingProductId = null;
                 await _db.SaveChangesAsync();
-                await _whatsApp.SendButtonMessage(to,
+                await BotSendButtons(to,
                     bodyText: $"❌ You already have *{alreadyInCart}* of *{product.Name}* in your cart, which is the maximum available stock.\n\nYou can't add more.",
                     buttons: new List<ButtonOption>
                     {
@@ -377,7 +444,7 @@ public class ChatBotService : IChatBotService
                 return;
             }
 
-            await _whatsApp.SendTextMessage(to,
+            await BotSendText(to,
                 $"❌ Sorry, we only have *{product.StockQuantity}* of *{product.Name}* in stock." +
                 (alreadyInCart > 0 ? $"\nYou already have *{alreadyInCart}* in your cart, so you can add up to *{canAdd}* more." : "") +
                 $"\n\nPlease type a number between *1* and *{canAdd}*:");
@@ -406,7 +473,7 @@ public class ChatBotService : IChatBotService
         var cartCount = await _db.CartItems.Where(ci => ci.CustomerId == customer.Id).SumAsync(ci => ci.Quantity);
         var addedSubtotal = product.Price * quantity;
 
-        await _whatsApp.SendButtonMessage(
+        await BotSendButtons(
             to,
             bodyText: $"✅ Added *{quantity}x {product.Name}* to cart!\n" +
                       $"💰 Subtotal: ₹{addedSubtotal}\n\n" +
@@ -428,7 +495,7 @@ public class ChatBotService : IChatBotService
 
         if (!cartItems.Any())
         {
-            await _whatsApp.SendButtonMessage(
+            await BotSendButtons(
                 to,
                 bodyText: "🛒 Your cart is empty!\n\nBrowse our products to add items.",
                 buttons: new List<ButtonOption>
@@ -454,14 +521,14 @@ public class ChatBotService : IChatBotService
         }
         sb.AppendLine($"\n💰 *Total: ₹{total}*");
 
-        await _whatsApp.SendButtonMessage(
+        await BotSendButtons(
             to,
             bodyText: sb.ToString(),
             buttons: new List<ButtonOption>
             {
                 new() { Id = "checkout", Title = "💳 Checkout" },
                 new() { Id = "clear_cart", Title = "🗑️ Clear Cart" },
-                new() { Id = "browse_categories", Title = "🛍️ Continue" }
+                new() { Id = "browse_categories", Title = "🛒️ Continue" }
             }
         );
     }
@@ -472,7 +539,7 @@ public class ChatBotService : IChatBotService
         _db.CartItems.RemoveRange(items);
         await _db.SaveChangesAsync();
 
-        await _whatsApp.SendTextMessage(to, "🗑️ Cart cleared! Type *menu* to browse products.");
+        await BotSendText(to, "🗑️ Cart cleared! Type *menu* to browse products.");
     }
 
     private async Task ProcessCheckout(string to, Customer customer)
@@ -484,7 +551,7 @@ public class ChatBotService : IChatBotService
 
         if (!cartItems.Any())
         {
-            await _whatsApp.SendTextMessage(to, "🛒 Your cart is empty! Browse products first.");
+            await BotSendText(to, "🛒 Your cart is empty! Browse products first.");
             return;
         }
 
@@ -493,7 +560,7 @@ public class ChatBotService : IChatBotService
         {
             if (item.Product.StockQuantity < item.Quantity)
             {
-                await _whatsApp.SendTextMessage(to, $"❌ Sorry, *{item.Product.Name}* only has {item.Product.StockQuantity} left in stock. Please update your cart.");
+                await BotSendText(to, $"❌ Sorry, *{item.Product.Name}* only has {item.Product.StockQuantity} left in stock. Please update your cart.");
                 return;
             }
         }
@@ -536,7 +603,7 @@ public class ChatBotService : IChatBotService
                            $"💳 Pay here: {paymentUrl}\n\n" +
                            $"We'll confirm once payment is received.";
 
-        await _whatsApp.SendTextMessage(to, orderSummary);
+        await BotSendText(to, orderSummary);
     }
 
     private async Task SendOrderHistory(string to, int customerId)
@@ -549,7 +616,7 @@ public class ChatBotService : IChatBotService
 
         if (!orders.Any())
         {
-            await _whatsApp.SendTextMessage(to, "📦 You don't have any orders yet. Start shopping!");
+            await BotSendText(to, "📦 You don't have any orders yet. Start shopping!");
             return;
         }
 
@@ -565,6 +632,6 @@ public class ChatBotService : IChatBotService
             sb.AppendLine();
         }
 
-        await _whatsApp.SendTextMessage(to, sb.ToString());
+        await BotSendText(to, sb.ToString());
     }
 }
