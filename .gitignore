@@ -23,6 +23,10 @@ LeatherShopAPI/publish/
 LeatherShopAPI/*.user
 LeatherShopAPI/appsettings.*.local.json
 
+# Uploaded images (tracked via .gitkeep, files ignored)
+LeatherShopAPI/wwwroot/uploads/*
+!LeatherShopAPI/wwwroot/uploads/.gitkeep
+
 # ── Angular (LeatherShopAdmin) ──
 LeatherShopAdmin/node_modules/
 LeatherShopAdmin/dist/

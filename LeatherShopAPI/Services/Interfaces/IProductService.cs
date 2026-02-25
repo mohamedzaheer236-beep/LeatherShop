@@ -11,4 +11,6 @@ public interface IProductService
     Task<bool> DeleteAsync(int id);
     Task<List<string>> GetCategoriesAsync();
     Task<List<string>> GetBrandsAsync();
+    Task<bool> NameExistsAsync(string name, int? excludeId = null);
+    Task<string> UploadImageAsync(IFormFile file);
 }

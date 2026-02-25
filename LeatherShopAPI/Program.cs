@@ -77,6 +77,8 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseSwagger();
 app.UseSwaggerUI();
 
+app.UseStaticFiles(); // Serve uploaded images from wwwroot
+
 app.UseCors("AllowAngular");
 
 app.UseAuthentication();

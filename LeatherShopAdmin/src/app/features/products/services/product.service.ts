@@ -43,4 +43,16 @@ export class ProductService {
   getBrands(): Observable<string[]> {
     return this.http.get<any>(`${this.baseUrl}/brands`).pipe(map(res => res.data));
   }
+
+  checkName(name: string, excludeId?: number): Observable<boolean> {
+    let params = new HttpParams().set('name', name);
+    if (excludeId) params = params.set('excludeId', excludeId.toString());
+    return this.http.get<any>(`${this.baseUrl}/check-name`, { params }).pipe(map(res => res.data));
+  }
+
+  uploadImage(file: File): Observable<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<any>(`${this.baseUrl}/upload-image`, formData).pipe(map(res => res.data));
+  }
 }

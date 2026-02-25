@@ -38,8 +38,7 @@ public class CreateProductDto
     [Range(0, int.MaxValue, ErrorMessage = "Stock quantity cannot be negative.")]
     public int StockQuantity { get; set; }
 
-    [Url(ErrorMessage = "Image URL must be a valid URL.")]
-    public string ImageUrl { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; }
 }
 
 public class UpdateProductDto
@@ -62,7 +61,6 @@ public class UpdateProductDto
     [Range(0, int.MaxValue, ErrorMessage = "Stock quantity cannot be negative.")]
     public int? StockQuantity { get; set; }
 
-    [Url(ErrorMessage = "Image URL must be a valid URL.")]
     public string? ImageUrl { get; set; }
 
     public bool? IsActive { get; set; }

@@ -51,7 +51,7 @@ public class ProductService : IProductService
             Category = dto.Category,
             Price = dto.Price,
             StockQuantity = dto.StockQuantity,
-            ImageUrl = dto.ImageUrl
+            ImageUrl = dto.ImageUrl ?? string.Empty
         };
 
         _db.Products.Add(product);
@@ -105,5 +105,35 @@ public class ProductService : IProductService
             .Select(p => p.Brand)
             .Distinct()
             .ToListAsync();
+    }
+
+    public async Task<bool> NameExistsAsync(string name, int? excludeId = null)
+    {
+        var query = _db.Products.Where(p => p.Name.ToLower() == name.ToLower());
+        if (excludeId.HasValue)
+            query = query.Where(p => p.Id != excludeId.Value);
+        return await query.AnyAsync();
+    }
+
+    public async Task<string> UploadImageAsync(IFormFile file)
+    {
+        var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+        Directory.CreateDirectory(uploadsDir);
+
+        var ext = Path.GetExtension(file.FileName).ToLower();
+        var allowedExts = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+        if (!allowedExts.Contains(ext))
+            throw new ArgumentException("Only image files (.jpg, .png, .webp, .gif) are allowed.");
+
+        if (file.Length > 5 * 1024 * 1024)
+            throw new ArgumentException("Image size must be under 5 MB.");
+
+        var fileName = $"{Guid.NewGuid()}{ext}";
+        var filePath = Path.Combine(uploadsDir, fileName);
+
+        using var stream = new FileStream(filePath, FileMode.Create);
+        await file.CopyToAsync(stream);
+
+        return $"/uploads/{fileName}";
     }
 }

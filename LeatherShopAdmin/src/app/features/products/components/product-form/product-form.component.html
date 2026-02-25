@@ -30,8 +30,14 @@
             <input id="name" type="text" pInputText formControlName="name"
                    placeholder="e.g. Classic Leather Wallet" class="w-full" autocomplete="off"
                    [class.ng-invalid]="isFieldInvalid('name')" [class.ng-dirty]="isFieldInvalid('name')" />
-            <small class="p-error" *ngIf="isFieldInvalid('name')">
+            <small class="p-error" *ngIf="isFieldInvalid('name') && f['name'].errors?.['required']">
               <i class="pi pi-exclamation-circle"></i> Product name is required.
+            </small>
+            <small class="p-error" *ngIf="f['name'].errors?.['nameExists']">
+              <i class="pi pi-exclamation-circle"></i> A product with this name already exists.
+            </small>
+            <small class="checking-hint" *ngIf="f['name'].pending">
+              <i class="pi pi-spin pi-spinner"></i> Checking name availability...
             </small>
           </div>
 
@@ -80,15 +86,27 @@
             </div>
           </div>
 
-          <!-- Image URL — full width -->
+          <!-- Image Upload — full width -->
           <div class="form-field">
-            <label for="imageUrl">Image URL</label>
-            <span class="p-input-icon-left w-full">
-              <i class="pi pi-image"></i>
-              <input id="imageUrl" type="text" pInputText formControlName="imageUrl"
-                     placeholder="https://example.com/image.jpg" class="w-full" autocomplete="off" />
-            </span>
-            <small class="hint">Paste a direct link to the product image</small>
+            <label>Product Image</label>
+            <div class="image-upload-area" *ngIf="!imagePreview && !uploading">
+              <label for="imageFileInput" class="upload-dropzone">
+                <i class="pi pi-cloud-upload"></i>
+                <span class="upload-text">Click to browse and select an image</span>
+                <span class="upload-hint">JPG, PNG, WebP or GIF — max 5 MB</span>
+              </label>
+              <input id="imageFileInput" type="file" accept="image/*" (change)="onImageSelect($event)" class="hidden-file-input" />
+            </div>
+            <div class="upload-progress" *ngIf="uploading">
+              <i class="pi pi-spin pi-spinner"></i>
+              <span>Uploading image...</span>
+            </div>
+            <div class="image-preview-container" *ngIf="imagePreview && !uploading">
+              <img [src]="imagePreview" alt="Product image preview" class="image-preview" />
+              <button type="button" class="remove-image-btn" (click)="removeImage()" title="Remove image">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
           </div>
 
           <!-- Description — full width -->
@@ -107,7 +125,7 @@
             <p-button label="Cancel" severity="secondary" [outlined]="true" routerLink="/products" icon="pi pi-times"></p-button>
             <p-button [label]="saving ? 'Saving...' : (isEdit ? 'Update Product' : 'Create Product')"
                       type="submit" icon="pi pi-check"
-                      [disabled]="saving || productForm.invalid"
+                      [disabled]="saving || uploading || productForm.invalid || f['name'].pending"
                       [loading]="saving"></p-button>
           </div>
         </form>
@@ -131,7 +149,7 @@
         </div>
         <div class="tip-item">
           <i class="pi pi-check-circle"></i>
-          <span>Image URLs should be direct links (ending in .jpg, .png, etc.)</span>
+          <span>Upload product images (JPG, PNG, WebP, GIF — max 5 MB)</span>
         </div>
         <div class="tip-item">
           <i class="pi pi-check-circle"></i>

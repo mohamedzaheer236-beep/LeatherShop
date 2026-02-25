@@ -74,4 +74,28 @@ public class ProductsController : ControllerBase
         var brands = await _productService.GetBrandsAsync();
         return Ok(ApiResponse<List<string>>.Ok(brands));
     }
+
+    [HttpGet("check-name")]
+    public async Task<IActionResult> CheckName([FromQuery] string name, [FromQuery] int? excludeId)
+    {
+        var exists = await _productService.NameExistsAsync(name, excludeId);
+        return Ok(ApiResponse<bool>.Ok(exists));
+    }
+
+    [HttpPost("upload-image")]
+    public async Task<IActionResult> UploadImage(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(ApiResponse.Fail("No file provided."));
+
+        try
+        {
+            var relativePath = await _productService.UploadImageAsync(file);
+            return Ok(ApiResponse<string>.Ok(relativePath, "Image uploaded successfully."));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse.Fail(ex.Message));
+        }
+    }
 }

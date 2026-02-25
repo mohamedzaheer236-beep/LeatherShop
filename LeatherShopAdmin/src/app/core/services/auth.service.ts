@@ -34,10 +34,16 @@ export class AuthService {
     );
   }
 
-  logout(): void {
+  /** Clear tokens without navigating (used by navbar safe-logout flow) */
+  clearSession(): void {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
     localStorage.removeItem(this.EXPIRES_KEY);
+  }
+
+  /** Immediate logout — clears tokens and navigates (used by error interceptor on 401) */
+  logout(): void {
+    this.clearSession();
     this.router.navigate(['/login']);
   }
 

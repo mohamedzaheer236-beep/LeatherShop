@@ -24,8 +24,10 @@ export class LoginComponent {
     private auth: AuthService,
     private router: Router
   ) {
-    // Redirect if already logged in
-    if (this.auth.isLoggedIn()) {
+    // Redirect if already logged in (skip if arriving from logout)
+    const nav = this.router.getCurrentNavigation();
+    const fromLogout = nav?.extras?.state?.['fromLogout'] ?? false;
+    if (this.auth.isLoggedIn() && !fromLogout) {
       this.router.navigate(['/dashboard']);
     }
 

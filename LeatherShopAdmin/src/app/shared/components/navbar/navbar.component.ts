@@ -4,6 +4,7 @@ import { MenuItem } from 'primeng/api';
 import { MenubarModule } from 'primeng/menubar';
 import { ButtonModule } from 'primeng/button';
 import { TooltipModule } from 'primeng/tooltip';
+import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
@@ -80,7 +81,7 @@ export class NavbarComponent implements OnInit {
   items: MenuItem[] = [];
   username = '';
 
-  constructor(private auth: AuthService) {}
+  constructor(private auth: AuthService, private router: Router) {}
 
   ngOnInit(): void {
     this.username = this.auth.getUsername() || 'Admin';
@@ -94,6 +95,12 @@ export class NavbarComponent implements OnInit {
   }
 
   logout(): void {
-    this.auth.logout();
+    // Navigate first so canDeactivate guard can block if there are unsaved changes.
+    // Only clear the session tokens AFTER navigation succeeds.
+    this.router.navigate(['/login'], { state: { fromLogout: true } }).then(navigated => {
+      if (navigated) {
+        this.auth.clearSession();
+      }
+    });
   }
 }
