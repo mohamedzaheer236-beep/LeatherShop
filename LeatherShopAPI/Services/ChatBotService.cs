@@ -241,10 +241,11 @@ public class ChatBotService : IChatBotService
             }
 
             // ---- VIEW PRODUCT FROM CAROUSEL (quick_reply "View Details" button) ----
+            // Show text details + action buttons only (no images/carousel again)
             if (input.StartsWith("view_") && input != "view_cart")
             {
                 var productId = int.Parse(input.Replace("view_", ""));
-                await SendProductDetails(phone, productId);
+                await SendProductDetailsText(phone, productId);
                 return;
             }
 
@@ -451,22 +452,8 @@ public class ChatBotService : IChatBotService
                             });
                         }
 
-                        // Send product details as text first, then carousel for gallery
-                        var detailsText = details.Length > 1024 ? details[..1021] + "..." : details;
-                        await BotSendText(to, detailsText);
+                        // Send carousel only — user taps "View Details" to see full product info
                         await BotSendCarousel(to, "product_gallery", $"Browse {product.Name} images", cards);
-
-                        // Send action buttons
-                        await BotSendButtons(
-                            to,
-                            bodyText: "What would you like to do?",
-                            buttons: new List<ButtonOption>
-                            {
-                                new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
-                                new() { Id = "browse_categories", Title = "🔙 Categories" },
-                                new() { Id = "main_menu", Title = "🏠 Main Menu" }
-                            }
-                        );
                         return;
                     }
                     catch (Exception ex)
@@ -512,6 +499,39 @@ public class ChatBotService : IChatBotService
         }
 
         // Send product details with action buttons (text-only fallback)
+        var bodyText = details.Length > 1024 ? details[..1021] + "..." : details;
+        await BotSendButtons(
+            to,
+            bodyText: bodyText,
+            buttons: new List<ButtonOption>
+            {
+                new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
+                new() { Id = "browse_categories", Title = "🔙 Categories" },
+                new() { Id = "main_menu", Title = "🏠 Main Menu" }
+            }
+        );
+    }
+
+    /// <summary>
+    /// Send product details as text + action buttons only (no images/carousel).
+    /// Used when user taps "View Details" from the carousel — they've already seen the images.
+    /// </summary>
+    private async Task SendProductDetailsText(string to, int productId)
+    {
+        var product = await _db.Products.FirstOrDefaultAsync(p => p.Id == productId);
+        if (product == null)
+        {
+            await BotSendText(to, "Product not found. Type *menu* to browse.");
+            return;
+        }
+
+        var details = $"*{product.Name}*\n\n" +
+                      $"🏷️ Brand: {product.Brand}\n" +
+                      $"📂 Category: {product.Category}\n" +
+                      $"💰 Price: ₹{product.Price}\n" +
+                      $"📦 In Stock: {product.StockQuantity}\n\n" +
+                      $"📝 {product.Description}";
+
         var bodyText = details.Length > 1024 ? details[..1021] + "..." : details;
         await BotSendButtons(
             to,
