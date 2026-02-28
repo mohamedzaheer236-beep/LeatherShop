@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Broadcast;
@@ -43,28 +44,28 @@ public class BroadcastService : IBroadcastService
         if (!recipients.Any())
             throw new InvalidOperationException("No recipients found");
 
+        // Store ALL job data in DB so broadcast survives Railway restarts.
+        // Channel<int> carries just the ID as an immediate trigger.
         var broadcast = new BroadcastMessage
         {
             MessageTemplate = dto.TemplateName,
             MessageBody = string.Join(", ", dto.Parameters ?? new List<string>()),
             TotalRecipients = recipients.Count,
             SentCount = 0,
-            FailedCount = 0
+            FailedCount = 0,
+            Status = BroadcastStatus.Pending,
+            LanguageCode = dto.LanguageCode,
+            ParametersJson = dto.Parameters != null ? JsonSerializer.Serialize(dto.Parameters) : null,
+            ImageUrl = dto.ImageUrl,
+            RecipientsJson = JsonSerializer.Serialize(recipients),
+            ProcessedPhonesJson = "[]"
         };
         _db.BroadcastMessages.Add(broadcast);
         await _db.SaveChangesAsync();
 
-        // Enqueue the job to the background service via Channel<T>.
-        // This is non-blocking and the background service picks it up
-        // with proper concurrency, DI scoping, and graceful shutdown.
-        await _channel.Writer.WriteAsync(new BroadcastJob(
-            BroadcastId: broadcast.Id,
-            Recipients: recipients,
-            TemplateName: dto.TemplateName,
-            LanguageCode: dto.LanguageCode,
-            Parameters: dto.Parameters?.ToList(),
-            ImageUrl: dto.ImageUrl
-        ));
+        // Enqueue just the broadcast ID — background service reads all data from DB.
+        // If app restarts before processing, ResumeIncompleteBroadcastsAsync picks it up.
+        await _channel.Writer.WriteAsync(broadcast.Id);
 
         return new BroadcastResultDto
         {

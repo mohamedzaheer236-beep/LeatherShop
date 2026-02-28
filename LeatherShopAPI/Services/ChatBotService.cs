@@ -453,6 +453,12 @@ public class ChatBotService : IChatBotService
         if (imageUrls.Count > 0)
         {
             var baseUrl = GetPublicBaseUrl();
+            if (string.IsNullOrEmpty(baseUrl))
+            {
+                _logger.LogWarning("GetPublicBaseUrl() returned null — skipping image sends for product {ProductId}", productId);
+                // Fall through to text-only message below
+                goto TextFallback;
+            }
 
             try
             {
@@ -544,6 +550,7 @@ public class ChatBotService : IChatBotService
             }
         }
 
+        TextFallback:
         // Send product details with action buttons (text-only fallback)
         var bodyText = details.Length > 1024 ? details[..1021] + "..." : details;
         await BotSendButtons(
@@ -879,10 +886,18 @@ public class ChatBotService : IChatBotService
 
         // Clear cart
         _db.CartItems.RemoveRange(cartItems);
-        await _db.SaveChangesAsync();
 
         // Generate payment link
-        var paymentUrl = $"{GetPublicBaseUrl()}/api/payment/pay/{order.Id}";
+        var baseUrl = GetPublicBaseUrl();
+        if (string.IsNullOrEmpty(baseUrl))
+        {
+            _logger.LogError("Cannot generate payment link — App:BaseUrl is not configured and RAILWAY_PUBLIC_DOMAIN is not set");
+            await BotSendText(to, "❌ Sorry, we couldn't generate a payment link right now. Please contact us directly to complete your order.");
+            customer.PendingAction = null;
+            await _db.SaveChangesAsync();
+            return;
+        }
+        var paymentUrl = $"{baseUrl}/api/payment/pay/{order.Id}";
 
         var orderSummary = $"✅ *Order Placed!*\n\n" +
                            $"📋 Order: *{order.OrderNumber}*\n" +
@@ -891,7 +906,40 @@ public class ChatBotService : IChatBotService
                            $"💳 Pay here: {paymentUrl}\n\n" +
                            $"We'll confirm once payment is received.";
 
-        await BotSendText(to, orderSummary);
+        // Transactional Outbox: write the WhatsApp message to the DB in the SAME transaction
+        // as the order. If the app crashes after commit, the background processor will find
+        // this row and deliver it. Zero message loss.
+        var outboxMessage = new WhatsAppOutboxMessage
+        {
+            To = to,
+            Content = orderSummary,
+            Context = $"Order confirmation for {order.OrderNumber}",
+            Status = OutboxMessageStatus.Pending
+        };
+        _db.WhatsAppOutboxMessages.Add(outboxMessage);
+
+        // Single atomic commit: order + stock reduction + cart clear + outbox message
+        await _db.SaveChangesAsync();
+
+        // Try to send immediately (fast path — avoids waiting for the 10s poll cycle).
+        // If this succeeds, mark the outbox row as Sent right away.
+        // If rate limit or any error, the outbox row stays Pending → background processor retries.
+        try
+        {
+            await BotSendText(to, orderSummary);
+
+            // Immediate send succeeded — mark outbox as delivered
+            outboxMessage.Status = OutboxMessageStatus.Sent;
+            outboxMessage.SentAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+        }
+        catch (WhatsAppApiException ex)
+        {
+            _logger.LogWarning(ex,
+                "Immediate send failed for {OrderNumber} to {Phone} — outbox message {OutboxId} will be retried by background processor",
+                order.OrderNumber, to, outboxMessage.Id);
+            // Outbox row stays Pending in DB — WhatsAppOutboxProcessor will pick it up
+        }
     }
 
     /// <summary>
@@ -930,7 +978,15 @@ public class ChatBotService : IChatBotService
         customer.PendingAction = null;
         await _db.SaveChangesAsync();
 
-        await BotSendText(to, $"✅ Address saved:\n_{address}_\n\nProceeding to checkout...");
+        try
+        {
+            await BotSendText(to, $"✅ Address saved:\n_{address}_\n\nProceeding to checkout...");
+        }
+        catch (WhatsAppApiException ex)
+        {
+            _logger.LogWarning(ex, "Failed to send address confirmation to {Phone}, continuing to place order", to);
+        }
+
         await PlaceOrder(to, customer);
     }
 

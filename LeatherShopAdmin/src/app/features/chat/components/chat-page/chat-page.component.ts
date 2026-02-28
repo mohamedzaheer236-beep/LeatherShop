@@ -10,7 +10,7 @@ import { DialogModule } from 'primeng/dialog';
 import { Subscription } from 'rxjs';
 import { ChatService } from '../../services/chat.service';
 import { Conversation, ChatMessage } from '../../models/chat.model';
-import { SignalRService, ChatMessageEvent } from '../../../../core/services/signalr.service';
+import { SignalRService } from '../../../../core/services/signalr.service';
 
 @Component({
   selector: 'app-chat-page',

@@ -16,5 +16,33 @@ public class BroadcastMessageConfiguration : IEntityTypeConfiguration<BroadcastM
 
         builder.Property(b => b.MessageBody)
             .HasMaxLength(2000);
+
+        // ─── DB-backed job data for restart survival ───
+
+        builder.Property(b => b.Status)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(BroadcastStatus.Pending);
+
+        builder.Property(b => b.LanguageCode)
+            .HasMaxLength(10)
+            .HasDefaultValue("en");
+
+        builder.Property(b => b.ParametersJson)
+            .HasColumnType("text");
+
+        builder.Property(b => b.ImageUrl)
+            .HasMaxLength(2000);
+
+        builder.Property(b => b.RecipientsJson)
+            .HasColumnType("text")
+            .HasDefaultValue("[]");
+
+        builder.Property(b => b.ProcessedPhonesJson)
+            .HasColumnType("text")
+            .HasDefaultValue("[]");
+
+        // Background processor queries: WHERE Status IN ('Pending', 'Processing')
+        builder.HasIndex(b => b.Status);
     }
 }

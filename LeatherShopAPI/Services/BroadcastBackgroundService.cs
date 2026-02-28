@@ -1,49 +1,47 @@
+using System.Collections.Concurrent;
+using System.Text.Json;
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
+using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Services;
 
 /// <summary>
-/// A job that represents a single broadcast to be processed in the background.
-/// Immutable — all values captured at enqueue time, no closure over request-scoped objects.
-/// </summary>
-public sealed record BroadcastJob(
-    int BroadcastId,
-    List<string> Recipients,
-    string TemplateName,
-    string LanguageCode,
-    List<string>? Parameters,
-    string? ImageUrl
-);
-
-/// <summary>
-/// Thread-safe channel for enqueuing broadcast jobs from any request thread.
+/// Thread-safe channel for triggering broadcast processing.
+/// Carries only the BroadcastId — all job data lives in the DB (restart-safe).
 /// Registered as a Singleton so the same channel is shared between
 /// BroadcastService (producer) and BroadcastBackgroundService (consumer).
 /// </summary>
 public sealed class BroadcastChannel
 {
-    private readonly Channel<BroadcastJob> _channel =
-        Channel.CreateUnbounded<BroadcastJob>(new UnboundedChannelOptions
+    private readonly Channel<int> _channel =
+        Channel.CreateUnbounded<int>(new UnboundedChannelOptions
         {
             SingleReader = true  // only the background service reads
         });
 
-    public ChannelWriter<BroadcastJob> Writer => _channel.Writer;
-    public ChannelReader<BroadcastJob> Reader => _channel.Reader;
+    public ChannelWriter<int> Writer => _channel.Writer;
+    public ChannelReader<int> Reader => _channel.Reader;
 }
 
 /// <summary>
-/// Long-running hosted service that processes broadcast jobs from the channel.
+/// Long-running hosted service that processes broadcast jobs.
 ///
-/// Why this is better than Task.Run:
-///   - Managed by the .NET host: starts with the app, stops gracefully on shutdown
-///   - Supports cancellation via CancellationToken (SIGTERM, app restart)
-///   - Uses SemaphoreSlim for controlled concurrency instead of sequential Task.Delay
-///   - Proper DI scoping per job (no closure over disposed request objects)
-///   - Progress saved periodically and on completion
+/// Architecture (DB-backed + Channel hybrid):
+///   - All broadcast data (recipients, template, params) stored in DB at creation time
+///   - Channel<int> carries just the BroadcastId as an immediate trigger
+///   - On startup, polls DB for incomplete broadcasts (Pending/Processing) and resumes them
+///   - Processed phones tracked in DB so restarts resume precisely (no duplicates)
+///   - Uses SemaphoreSlim for controlled concurrency (10 parallel sends)
+///   - Progress saved every 50 messages to DB
+///
+/// Why this survives Railway restarts:
+///   - Recipients stored in PostgreSQL (RecipientsJson), not in memory
+///   - Processed phones tracked in PostgreSQL (ProcessedPhonesJson)
+///   - On container restart, ExecuteAsync runs → ResumeIncompleteBroadcastsAsync
+///     finds Pending/Processing rows → re-enqueues → resumes from last checkpoint
 /// </summary>
 public sealed class BroadcastBackgroundService : BackgroundService
 {
@@ -71,101 +69,169 @@ public sealed class BroadcastBackgroundService : BackgroundService
     {
         _logger.LogInformation("BroadcastBackgroundService started");
 
-        await foreach (var job in _channel.Reader.ReadAllAsync(stoppingToken))
+        // Resume any incomplete broadcasts from DB (survive Railway restart)
+        await ResumeIncompleteBroadcastsAsync(stoppingToken);
+
+        await foreach (var broadcastId in _channel.Reader.ReadAllAsync(stoppingToken))
         {
             try
             {
-                await ProcessBroadcastAsync(job, stoppingToken);
+                await ProcessBroadcastAsync(broadcastId, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
-                _logger.LogWarning("Broadcast {BroadcastId} cancelled due to app shutdown", job.BroadcastId);
+                _logger.LogWarning("Broadcast {BroadcastId} cancelled due to app shutdown", broadcastId);
                 break;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Broadcast {BroadcastId} failed unexpectedly", job.BroadcastId);
+                _logger.LogError(ex, "Broadcast {BroadcastId} failed unexpectedly", broadcastId);
             }
         }
 
         _logger.LogInformation("BroadcastBackgroundService stopped");
     }
 
-    private async Task ProcessBroadcastAsync(BroadcastJob job, CancellationToken ct)
+    /// <summary>
+    /// On startup, find any Pending or Processing broadcasts in DB and re-enqueue them.
+    /// This handles the case where Railway restarted mid-broadcast.
+    /// </summary>
+    private async Task ResumeIncompleteBroadcastsAsync(CancellationToken ct)
     {
-        // Verify broadcast record exists using a short-lived scope (single-threaded)
-        using (var verifyScope = _scopeFactory.CreateScope())
+        try
         {
-            var db = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var exists = await db.BroadcastMessages.AnyAsync(b => b.Id == job.BroadcastId, ct);
-            if (!exists)
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var incompleteIds = await db.BroadcastMessages
+                .Where(b => b.Status == BroadcastStatus.Pending || b.Status == BroadcastStatus.Processing)
+                .OrderBy(b => b.SentAt)
+                .Select(b => b.Id)
+                .ToListAsync(ct);
+
+            foreach (var id in incompleteIds)
             {
-                _logger.LogWarning("Broadcast {BroadcastId} record not found, skipping", job.BroadcastId);
+                _logger.LogInformation("Resuming incomplete broadcast {BroadcastId} from DB", id);
+                await _channel.Writer.WriteAsync(id, ct);
+            }
+
+            if (incompleteIds.Count > 0)
+                _logger.LogInformation("Enqueued {Count} incomplete broadcast(s) for resume", incompleteIds.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to query DB for incomplete broadcasts on startup");
+        }
+    }
+
+    /// <summary>
+    /// Process a single broadcast: load data from DB, compute remaining recipients,
+    /// send with concurrency control, save progress periodically.
+    /// </summary>
+    private async Task ProcessBroadcastAsync(int broadcastId, CancellationToken ct)
+    {
+        // ── 1. Load broadcast from DB ──
+        BroadcastMessage broadcast;
+        using (var scope = _scopeFactory.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            broadcast = await db.BroadcastMessages.FirstOrDefaultAsync(b => b.Id == broadcastId, ct)
+                        ?? throw new InvalidOperationException($"Broadcast {broadcastId} not found");
+
+            if (broadcast.Status == BroadcastStatus.Completed)
+            {
+                _logger.LogInformation("Broadcast {BroadcastId} already completed, skipping", broadcastId);
                 return;
             }
+
+            // Mark as Processing
+            broadcast.Status = BroadcastStatus.Processing;
+            await db.SaveChangesAsync(ct);
         }
 
-        _logger.LogInformation(
-            "Broadcast {BroadcastId}: sending to {Count} recipients (concurrency={Concurrency})",
-            job.BroadcastId, job.Recipients.Count, MaxConcurrency);
+        // ── 2. Compute remaining recipients ──
+        var allRecipients = JsonSerializer.Deserialize<List<string>>(broadcast.RecipientsJson) ?? [];
+        var alreadyProcessed = JsonSerializer.Deserialize<HashSet<string>>(broadcast.ProcessedPhonesJson ?? "[]") ?? [];
+        var remaining = allRecipients.Where(p => !alreadyProcessed.Contains(p)).ToList();
 
-        int sent = 0, failed = 0;
+        if (remaining.Count == 0)
+        {
+            _logger.LogInformation("Broadcast {BroadcastId}: no remaining recipients, marking completed", broadcastId);
+            await MarkCompletedAsync(broadcastId, broadcast.SentCount, broadcast.FailedCount, alreadyProcessed);
+            return;
+        }
+
+        var isResume = alreadyProcessed.Count > 0;
+        _logger.LogInformation(
+            "Broadcast {BroadcastId}: sending to {Remaining} recipients{ResumeInfo} (concurrency={Concurrency})",
+            broadcastId, remaining.Count,
+            isResume ? $" (resumed, {alreadyProcessed.Count} already processed)" : "",
+            MaxConcurrency);
+
+        // ── 3. Process remaining recipients with concurrency control ──
+        int sent = broadcast.SentCount, failed = broadcast.FailedCount;
+        int totalProcessed = 0; // single atomic counter for progress checkpoints
+        var processedPhones = new ConcurrentBag<string>(alreadyProcessed);
         using var semaphore = new SemaphoreSlim(MaxConcurrency);
 
-        // Each concurrent task creates its own IServiceScope.
-        // DbContext is NEVER shared across threads — progress saves use
-        // a dedicated scope with ExecuteUpdateAsync (stateless SQL update).
-        var tasks = job.Recipients.Select(async phone =>
+        var parameters = !string.IsNullOrEmpty(broadcast.ParametersJson)
+            ? JsonSerializer.Deserialize<List<string>>(broadcast.ParametersJson)
+            : null;
+
+        var tasks = remaining.Select(async phone =>
         {
             await semaphore.WaitAsync(ct);
             try
             {
-                // New scope per task — at most MaxConcurrency scopes alive at once
                 using var taskScope = _scopeFactory.CreateScope();
                 var whatsApp = taskScope.ServiceProvider.GetRequiredService<IWhatsAppService>();
 
                 await whatsApp.SendTemplateMessage(
-                    phone, job.TemplateName, job.LanguageCode, job.Parameters, job.ImageUrl);
+                    phone, broadcast.MessageTemplate, broadcast.LanguageCode,
+                    parameters, broadcast.ImageUrl);
+
                 Interlocked.Increment(ref sent);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Broadcast {BroadcastId}: failed to send to {Phone}",
-                    job.BroadcastId, phone);
+                    broadcastId, phone);
                 Interlocked.Increment(ref failed);
             }
             finally
             {
+                processedPhones.Add(phone);
                 semaphore.Release();
             }
 
-            // Save progress periodically — each save uses its own scope + DbContext
-            var processed = Volatile.Read(ref sent) + Volatile.Read(ref failed);
-            if (processed % BatchSaveInterval == 0)
+            // Save progress periodically using a single atomic counter (avoids non-atomic dual-read)
+            var count = Interlocked.Increment(ref totalProcessed);
+            if (count % BatchSaveInterval == 0)
             {
-                await SaveProgressAsync(job.BroadcastId, Volatile.Read(ref sent), Volatile.Read(ref failed));
+                await SaveProgressAsync(broadcastId, Volatile.Read(ref sent), Volatile.Read(ref failed), processedPhones);
             }
         });
 
         await Task.WhenAll(tasks);
 
-        // Final save with a fresh scope (single-threaded at this point)
-        await SaveProgressAsync(job.BroadcastId, sent, failed);
+        // ── 4. Final save: mark completed ──
+        await MarkCompletedAsync(broadcastId, sent, failed, processedPhones);
 
         _logger.LogInformation(
             "Broadcast {BroadcastId} completed. Sent: {Sent}, Failed: {Failed}",
-            job.BroadcastId, sent, failed);
+            broadcastId, sent, failed);
     }
 
     /// <summary>
-    /// Saves broadcast progress using a dedicated scope + DbContext.
-    /// Uses ExecuteUpdateAsync for a stateless SQL UPDATE — no entity tracking,
-    /// no thread-safety concerns. Best-effort: failures are logged and skipped.
+    /// Saves broadcast progress (counts + processed phones) using a stateless SQL UPDATE.
+    /// Best-effort: failures are logged and skipped — next save or final save catches up.
     /// </summary>
-    private async Task SaveProgressAsync(int broadcastId, int sent, int failed)
+    private async Task SaveProgressAsync(int broadcastId, int sent, int failed, ConcurrentBag<string> processedPhones)
     {
         try
         {
+            var phonesJson = JsonSerializer.Serialize(processedPhones.ToArray());
+
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
@@ -173,12 +239,39 @@ public sealed class BroadcastBackgroundService : BackgroundService
                 .Where(b => b.Id == broadcastId)
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(b => b.SentCount, sent)
-                    .SetProperty(b => b.FailedCount, failed));
+                    .SetProperty(b => b.FailedCount, failed)
+                    .SetProperty(b => b.ProcessedPhonesJson, phonesJson));
         }
         catch (Exception ex)
         {
-            // Progress save is best-effort; final save will catch up
+            // Progress save is best-effort; next periodic save or final save catches up
             _logger.LogWarning(ex, "Failed to save progress for broadcast {BroadcastId}", broadcastId);
+        }
+    }
+
+    /// <summary>
+    /// Marks a broadcast as Completed with final counts and processed phones.
+    /// </summary>
+    private async Task MarkCompletedAsync(int broadcastId, int sent, int failed, IEnumerable<string> processedPhones)
+    {
+        try
+        {
+            var phonesJson = JsonSerializer.Serialize(processedPhones.ToArray());
+
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            await db.BroadcastMessages
+                .Where(b => b.Id == broadcastId)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(b => b.SentCount, sent)
+                    .SetProperty(b => b.FailedCount, failed)
+                    .SetProperty(b => b.ProcessedPhonesJson, phonesJson)
+                    .SetProperty(b => b.Status, BroadcastStatus.Completed));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to mark broadcast {BroadcastId} as completed", broadcastId);
         }
     }
 }

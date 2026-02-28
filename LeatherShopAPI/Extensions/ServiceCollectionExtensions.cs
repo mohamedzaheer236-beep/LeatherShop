@@ -57,6 +57,10 @@ public static class ServiceCollectionExtensions
         // Chat cleanup: deletes messages older than 30 days (runs daily)
         services.AddHostedService<ChatCleanupBackgroundService>();
 
+        // WhatsApp outbox processor: delivers critical messages (order confirmations, payment links)
+        // with exponential backoff retry. Polls DB every 10s for pending messages.
+        services.AddHostedService<WhatsAppOutboxProcessor>();
+
         // Future registrations go here:
         // services.AddScoped<IAuthService, AuthService>();
         // services.AddScoped<IImageUploadService, ImageUploadService>();

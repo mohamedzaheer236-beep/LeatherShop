@@ -3,6 +3,7 @@ using System;
 using LeatherShopAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LeatherShopAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260228221203_AddWhatsAppOutboxTable")]
+    partial class AddWhatsAppOutboxTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -64,17 +67,6 @@ namespace LeatherShopAPI.Migrations
                     b.Property<int>("FailedCount")
                         .HasColumnType("integer");
 
-                    b.Property<string>("ImageUrl")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("LanguageCode")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasDefaultValue("en");
-
                     b.Property<string>("MessageBody")
                         .IsRequired()
                         .HasMaxLength(2000)
@@ -85,40 +77,16 @@ namespace LeatherShopAPI.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<string>("ParametersJson")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ProcessedPhonesJson")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("[]");
-
-                    b.Property<string>("RecipientsJson")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("[]");
-
                     b.Property<DateTime>("SentAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("SentCount")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("Pending");
-
                     b.Property<int>("TotalRecipients")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Status");
 
                     b.ToTable("BroadcastMessages");
                 });
@@ -415,84 +383,84 @@ namespace LeatherShopAPI.Migrations
                             Id = 1,
                             Brand = "Royal Leather",
                             Category = "Wallet",
-                            CreatedAt = new DateTime(2026, 2, 28, 22, 29, 12, 329, DateTimeKind.Utc).AddTicks(1184),
+                            CreatedAt = new DateTime(2026, 2, 28, 22, 12, 3, 370, DateTimeKind.Utc).AddTicks(4889),
                             Description = "Premium genuine leather wallet with multiple card slots",
                             ImageUrl = "/images/wallet1.jpg",
                             IsActive = true,
                             Name = "Classic Leather Wallet",
                             Price = 899m,
                             StockQuantity = 50,
-                            UpdatedAt = new DateTime(2026, 2, 28, 22, 29, 12, 329, DateTimeKind.Utc).AddTicks(1185)
+                            UpdatedAt = new DateTime(2026, 2, 28, 22, 12, 3, 370, DateTimeKind.Utc).AddTicks(4890)
                         },
                         new
                         {
                             Id = 2,
                             Brand = "Royal Leather",
                             Category = "Belt",
-                            CreatedAt = new DateTime(2026, 2, 28, 22, 29, 12, 329, DateTimeKind.Utc).AddTicks(1191),
+                            CreatedAt = new DateTime(2026, 2, 28, 22, 12, 3, 370, DateTimeKind.Utc).AddTicks(4898),
                             Description = "Formal leather belt with silver buckle",
                             ImageUrl = "/images/belt1.jpg",
                             IsActive = true,
                             Name = "Executive Leather Belt",
                             Price = 1299m,
                             StockQuantity = 30,
-                            UpdatedAt = new DateTime(2026, 2, 28, 22, 29, 12, 329, DateTimeKind.Utc).AddTicks(1192)
+                            UpdatedAt = new DateTime(2026, 2, 28, 22, 12, 3, 370, DateTimeKind.Utc).AddTicks(4898)
                         },
                         new
                         {
                             Id = 3,
                             Brand = "Heritage Craft",
                             Category = "Bag",
-                            CreatedAt = new DateTime(2026, 2, 28, 22, 29, 12, 329, DateTimeKind.Utc).AddTicks(1194),
+                            CreatedAt = new DateTime(2026, 2, 28, 22, 12, 3, 370, DateTimeKind.Utc).AddTicks(4900),
                             Description = "Handcrafted messenger bag for daily use",
                             ImageUrl = "/images/bag1.jpg",
                             IsActive = true,
                             Name = "Leather Messenger Bag",
                             Price = 3499m,
                             StockQuantity = 20,
-                            UpdatedAt = new DateTime(2026, 2, 28, 22, 29, 12, 329, DateTimeKind.Utc).AddTicks(1194)
+                            UpdatedAt = new DateTime(2026, 2, 28, 22, 12, 3, 370, DateTimeKind.Utc).AddTicks(4901)
                         },
                         new
                         {
                             Id = 4,
                             Brand = "StepCraft",
                             Category = "Shoes",
-                            CreatedAt = new DateTime(2026, 2, 28, 22, 29, 12, 329, DateTimeKind.Utc).AddTicks(1195),
+                            CreatedAt = new DateTime(2026, 2, 28, 22, 12, 3, 370, DateTimeKind.Utc).AddTicks(4902),
                             Description = "Premium leather formal shoes",
                             ImageUrl = "/images/shoes1.jpg",
                             IsActive = true,
                             Name = "Leather Oxford Shoes",
                             Price = 4999m,
                             StockQuantity = 15,
-                            UpdatedAt = new DateTime(2026, 2, 28, 22, 29, 12, 329, DateTimeKind.Utc).AddTicks(1195)
+                            UpdatedAt = new DateTime(2026, 2, 28, 22, 12, 3, 370, DateTimeKind.Utc).AddTicks(4902)
                         },
                         new
                         {
                             Id = 5,
                             Brand = "Royal Leather",
                             Category = "Accessories",
-                            CreatedAt = new DateTime(2026, 2, 28, 22, 29, 12, 329, DateTimeKind.Utc).AddTicks(1197),
+                            CreatedAt = new DateTime(2026, 2, 28, 22, 12, 3, 370, DateTimeKind.Utc).AddTicks(4904),
                             Description = "Stylish leather keychain with metal ring",
                             ImageUrl = "/images/keychain1.jpg",
                             IsActive = true,
                             Name = "Leather Keychain",
                             Price = 299m,
                             StockQuantity = 100,
-                            UpdatedAt = new DateTime(2026, 2, 28, 22, 29, 12, 329, DateTimeKind.Utc).AddTicks(1197)
+                            UpdatedAt = new DateTime(2026, 2, 28, 22, 12, 3, 370, DateTimeKind.Utc).AddTicks(4904)
                         },
                         new
                         {
                             Id = 6,
                             Brand = "Heritage Craft",
                             Category = "Bag",
-                            CreatedAt = new DateTime(2026, 2, 28, 22, 29, 12, 329, DateTimeKind.Utc).AddTicks(1199),
+                            CreatedAt = new DateTime(2026, 2, 28, 22, 12, 3, 370, DateTimeKind.Utc).AddTicks(4906),
                             Description = "Slim leather sleeve for 15-inch laptops",
                             ImageUrl = "/images/sleeve1.jpg",
                             IsActive = true,
                             Name = "Leather Laptop Sleeve",
                             Price = 2499m,
                             StockQuantity = 25,
-                            UpdatedAt = new DateTime(2026, 2, 28, 22, 29, 12, 329, DateTimeKind.Utc).AddTicks(1199)
+                            UpdatedAt = new DateTime(2026, 2, 28, 22, 12, 3, 370, DateTimeKind.Utc).AddTicks(4906)
                         });
                 });
 

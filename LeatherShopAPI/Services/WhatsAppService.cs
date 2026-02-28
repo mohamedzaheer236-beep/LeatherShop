@@ -13,6 +13,10 @@ namespace LeatherShopAPI.Services;
 /// </summary>
 public class WhatsAppService : IWhatsAppService
 {
+    private const int RateLimitMaxRetries = 2;
+    private static readonly int[] RateLimitRetryDelaysMs = [2000, 5000];
+    private const string RateLimitErrorCode = "131056"; // Meta error: (Business, Consumer) pair rate limit hit
+
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _config;
     private readonly ILogger<WhatsAppService> _logger;
@@ -271,17 +275,31 @@ public class WhatsAppService : IWhatsAppService
         var json = JsonSerializer.Serialize(payload, _jsonOptions);
         _logger.LogInformation("WhatsApp API Request: {Json}", json);
 
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-        var response = await _httpClient.PostAsync(BaseUrl, content);
-        var responseBody = await response.Content.ReadAsStringAsync();
-
-        if (!response.IsSuccessStatusCode)
+        for (int attempt = 0; attempt <= RateLimitMaxRetries; attempt++)
         {
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync(BaseUrl, content);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("WhatsApp API Success: {Body}", responseBody);
+                return;
+            }
+
+            // Retry only on rate limit errors (Meta code 131056) — all other errors fail immediately
+            if (responseBody.Contains(RateLimitErrorCode) && attempt < RateLimitMaxRetries)
+            {
+                var delay = RateLimitRetryDelaysMs[attempt];
+                _logger.LogWarning("WhatsApp rate limit hit (attempt {Attempt}/{Max}), retrying after {Delay}ms",
+                    attempt + 1, RateLimitMaxRetries + 1, delay);
+                await Task.Delay(delay);
+                continue;
+            }
+
             _logger.LogError("WhatsApp API Error: {StatusCode} - {Body}", response.StatusCode, responseBody);
             throw new WhatsAppApiException($"WhatsApp API Error: {response.StatusCode} - {responseBody}");
         }
-
-        _logger.LogInformation("WhatsApp API Success: {Body}", responseBody);
     }
 }
 
