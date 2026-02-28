@@ -226,6 +226,21 @@ public class ChatBotService : IChatBotService
                 return;
             }
 
+            // ---- BROWSE PRODUCTS (Next/Start Over navigation within a category) ----
+            if (input.StartsWith("browse_") && !input.Equals("browse_categories"))
+            {
+                // Format: browse_{category_slug}_{index} e.g. browse_bag_0, browse_laptop_bags_2
+                var withoutPrefix = input.Substring(7); // "bag_0" or "laptop_bags_2"
+                var lastUnderscore = withoutPrefix.LastIndexOf('_');
+                if (lastUnderscore > 0 && int.TryParse(withoutPrefix.Substring(lastUnderscore + 1), out var browseIndex))
+                {
+                    var categorySlug = withoutPrefix.Substring(0, lastUnderscore);
+                    var browseCategory = categorySlug.Replace("_", " ");
+                    await SendProductCard(phone, browseCategory, browseIndex);
+                    return;
+                }
+            }
+
             // ---- SELECTED A PRODUCT (view details) ----
             if (input.StartsWith("prod_"))
             {
@@ -351,11 +366,23 @@ public class ChatBotService : IChatBotService
         );
     }
 
+    /// <summary>Show the first product in a category as a visual card</summary>
     private async Task SendProductsInCategory(string to, string category)
     {
+        await SendProductCard(to, category, 0);
+    }
+
+    /// <summary>
+    /// Sends a single product as a visual card (image + details caption + navigation buttons).
+    /// Products are browsed one at a time within a category using Next/Start Over buttons.
+    /// State is encoded in button IDs (stateless — no DB changes needed).
+    /// </summary>
+    private async Task SendProductCard(string to, string category, int index)
+    {
         var products = await _db.Products
-            .Where(p => p.IsActive && p.StockQuantity > 0 && p.Category.ToLower() == category)
-            .Take(10) // WhatsApp list max 10 rows per section
+            .Where(p => p.IsActive && p.StockQuantity > 0 && p.Category.ToLower() == category.ToLower())
+            .OrderBy(p => p.Id)
+            .Take(10)
             .ToListAsync();
 
         if (!products.Any())
@@ -364,23 +391,73 @@ public class ChatBotService : IChatBotService
             return;
         }
 
-        var rows = products.Select(p => new ListRow
-        {
-            Id = $"prod_{p.Id}",
-            Title = p.Name.Length > 24 ? p.Name[..24] : p.Name,
-            Description = $"₹{p.Price} | {p.Brand} | Stock: {p.StockQuantity}"
-        }).ToList();
+        // Clamp index to valid range (products may have changed since button was generated)
+        if (index < 0 || index >= products.Count)
+            index = 0;
 
-        await BotSendList(
-            to,
-            headerText: $"🛍️ {char.ToUpper(category[0]) + category[1..]}",
-            bodyText: $"Here are our {category} products. Tap to view details:",
-            buttonText: "📦 View Products",
-            sections: new List<ListSection>
+        var product = products[index];
+        var total = products.Count;
+        var categorySlug = category.ToLower().Replace(" ", "_");
+
+        // Build product details for caption
+        var caption = $"📦 *{product.Name}*\n\n" +
+                      $"🏷️ Brand: {product.Brand}\n" +
+                      $"💰 Price: ₹{product.Price}\n" +
+                      $"📦 In Stock: {product.StockQuantity}";
+
+        if (!string.IsNullOrEmpty(product.Description))
+            caption += $"\n\n📝 {product.Description}";
+
+        if (total > 1)
+            caption += $"\n\n📄 Product {index + 1} of {total}";
+
+        // Send product image if available, else text
+        var baseUrl = GetPublicBaseUrl();
+        var imageSent = false;
+
+        if (!string.IsNullOrEmpty(product.ImageUrl) && !string.IsNullOrEmpty(baseUrl))
+        {
+            var imageFullUrl = product.ImageUrl.StartsWith("http")
+                ? product.ImageUrl
+                : $"{baseUrl}{product.ImageUrl}";
+
+            try
             {
-                new() { Title = $"{category} Products", Rows = rows }
+                var truncatedCaption = caption.Length > 1024 ? caption[..1021] + "..." : caption;
+                await BotSendImage(to, imageFullUrl, truncatedCaption);
+                imageSent = true;
             }
-        );
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send product card image for {ProductId}, falling back to text", product.Id);
+            }
+        }
+
+        if (!imageSent)
+            await BotSendText(to, caption);
+
+        // Build navigation buttons (max 3 per WhatsApp interactive button message)
+        var buttons = new List<ButtonOption>
+        {
+            new() { Id = $"addcart_{product.Id}", Title = "\ud83d\uded2 Add to Cart" }
+        };
+
+        if (total > 1)
+        {
+            if (index < total - 1)
+            {
+                var remaining = total - index - 1;
+                buttons.Add(new() { Id = $"browse_{categorySlug}_{index + 1}", Title = $"Next ({remaining} more)" });
+            }
+            else
+            {
+                buttons.Add(new() { Id = $"browse_{categorySlug}_0", Title = "Start Over" });
+            }
+        }
+
+        buttons.Add(new() { Id = "browse_categories", Title = "\ud83d\udcce Categories" });
+
+        await BotSendButtons(to, "What would you like to do?", buttons);
     }
 
     private async Task SendProductDetails(string to, int productId)
