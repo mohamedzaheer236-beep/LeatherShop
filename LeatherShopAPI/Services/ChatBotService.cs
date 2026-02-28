@@ -385,7 +385,8 @@ public class ChatBotService : IChatBotService
 
     private async Task SendProductDetails(string to, int productId)
     {
-        var product = await _db.Products.FindAsync(productId);
+        var product = await _db.Products.Include(p => p.Images)
+            .FirstOrDefaultAsync(p => p.Id == productId);
         if (product == null)
         {
             await BotSendText(to, "Product not found. Type *menu* to browse.");
@@ -399,22 +400,39 @@ public class ChatBotService : IChatBotService
                       $"📦 In Stock: {product.StockQuantity}\n\n" +
                       $"📝 {product.Description}";
 
-        // Send product image if available
+        // Build the full list of image URLs (primary first, then additional ordered)
+        var imageUrls = new List<string>();
         if (!string.IsNullOrEmpty(product.ImageUrl))
+            imageUrls.Add(product.ImageUrl);
+        if (product.Images.Count > 0)
+        {
+            imageUrls.AddRange(
+                product.Images.OrderBy(i => i.DisplayOrder).Select(i => i.ImageUrl)
+            );
+        }
+
+        // Send product images if available
+        if (imageUrls.Count > 0)
         {
             var baseUrl = GetPublicBaseUrl();
 
-            var imageFullUrl = product.ImageUrl.StartsWith("http")
-                ? product.ImageUrl
-                : $"{baseUrl}{product.ImageUrl}";
-
-            _logger.LogInformation("Sending product image: {FullUrl}", imageFullUrl);
-
             try
             {
-                // Caption max 1024 chars for WhatsApp image messages
+                // Send images as consecutive messages — WhatsApp auto-groups them into a swipeable gallery.
+                // The last image carries the product details as caption.
                 var caption = details.Length > 1024 ? details[..1021] + "..." : details;
-                await BotSendImage(to, imageFullUrl, caption);
+
+                for (int i = 0; i < imageUrls.Count; i++)
+                {
+                    var url = imageUrls[i];
+                    var imageFullUrl = url.StartsWith("http") ? url : $"{baseUrl}{url}";
+                    var imgCaption = (i == imageUrls.Count - 1) ? caption : null;
+
+                    _logger.LogInformation("Sending product image {Index}/{Total}: {FullUrl}",
+                        i + 1, imageUrls.Count, imageFullUrl);
+
+                    await BotSendImage(to, imageFullUrl, imgCaption);
+                }
 
                 // Send action buttons separately (image messages don't support inline buttons)
                 await BotSendButtons(
@@ -431,7 +449,7 @@ public class ChatBotService : IChatBotService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to send product image for product {ProductId}, falling back to text", productId);
+                _logger.LogWarning(ex, "Failed to send product images for product {ProductId}, falling back to text", productId);
                 // Fall through to text-only message below
             }
         }

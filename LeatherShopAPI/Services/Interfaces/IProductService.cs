@@ -13,4 +13,5 @@ public interface IProductService
     Task<List<string>> GetBrandsAsync();
     Task<bool> NameExistsAsync(string name, int? excludeId = null);
     Task<string> UploadImageAsync(IFormFile file);
+    Task<List<string>> UploadImagesAsync(IList<IFormFile> files);
 }

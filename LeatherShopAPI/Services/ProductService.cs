@@ -20,7 +20,7 @@ public class ProductService : IProductService
 
     public async Task<List<ProductDto>> GetAllAsync(string? category, string? brand, string? search)
     {
-        var query = _db.Products.AsQueryable();
+        var query = _db.Products.Include(p => p.Images).AsQueryable();
 
         if (!string.IsNullOrEmpty(category))
             query = query.Where(p => p.Category.ToLower() == category.ToLower());
@@ -37,7 +37,7 @@ public class ProductService : IProductService
 
     public async Task<ProductDto?> GetByIdAsync(int id)
     {
-        var p = await _db.Products.FindAsync(id);
+        var p = await _db.Products.Include(p => p.Images).FirstOrDefaultAsync(p => p.Id == id);
         if (p == null) return null;
 
         return p.ToDto();
@@ -56,6 +56,19 @@ public class ProductService : IProductService
             ImageUrl = dto.ImageUrl ?? string.Empty
         };
 
+        // Add additional images if provided
+        if (dto.ImageUrls is { Count: > 0 })
+        {
+            for (int i = 0; i < dto.ImageUrls.Count; i++)
+            {
+                product.Images.Add(new ProductImage
+                {
+                    ImageUrl = dto.ImageUrls[i],
+                    DisplayOrder = i
+                });
+            }
+        }
+
         _db.Products.Add(product);
         await _db.SaveChangesAsync();
 
@@ -64,7 +77,7 @@ public class ProductService : IProductService
 
     public async Task<bool> UpdateAsync(int id, UpdateProductDto dto)
     {
-        var product = await _db.Products.FindAsync(id);
+        var product = await _db.Products.Include(p => p.Images).FirstOrDefaultAsync(p => p.Id == id);
         if (product == null) return false;
 
         if (dto.Name != null) product.Name = dto.Name;
@@ -75,6 +88,23 @@ public class ProductService : IProductService
         if (dto.StockQuantity.HasValue) product.StockQuantity = dto.StockQuantity.Value;
         if (dto.ImageUrl != null) product.ImageUrl = dto.ImageUrl;
         if (dto.IsActive.HasValue) product.IsActive = dto.IsActive.Value;
+
+        // Replace additional images if the list was explicitly provided
+        if (dto.ImageUrls != null)
+        {
+            // Remove existing additional images
+            _db.ProductImages.RemoveRange(product.Images);
+
+            // Add new additional images
+            for (int i = 0; i < dto.ImageUrls.Count; i++)
+            {
+                product.Images.Add(new ProductImage
+                {
+                    ImageUrl = dto.ImageUrls[i],
+                    DisplayOrder = i
+                });
+            }
+        }
 
         product.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -137,5 +167,19 @@ public class ProductService : IProductService
         await file.CopyToAsync(stream);
 
         return $"/uploads/{fileName}";
+    }
+
+    public async Task<List<string>> UploadImagesAsync(IList<IFormFile> files)
+    {
+        if (files.Count > 4)
+            throw new ArgumentException("Maximum 4 images allowed per product.");
+
+        var paths = new List<string>();
+        foreach (var file in files)
+        {
+            var path = await UploadImageAsync(file);
+            paths.Add(path);
+        }
+        return paths;
     }
 }

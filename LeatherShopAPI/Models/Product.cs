@@ -32,4 +32,7 @@ public class Product
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    // Navigation — additional product images
+    public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
 }

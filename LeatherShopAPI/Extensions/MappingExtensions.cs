@@ -12,18 +12,34 @@ public static class MappingExtensions
 {
     // ── Product ──
 
-    public static ProductDto ToDto(this Product p) => new()
+    public static ProductDto ToDto(this Product p)
     {
-        Id = p.Id,
-        Name = p.Name,
-        Description = p.Description,
-        Brand = p.Brand,
-        Category = p.Category,
-        Price = p.Price,
-        StockQuantity = p.StockQuantity,
-        ImageUrl = p.ImageUrl,
-        IsActive = p.IsActive
-    };
+        // Build combined image list: primary image first, then additional images ordered by DisplayOrder
+        var imageUrls = new List<string>();
+        if (!string.IsNullOrEmpty(p.ImageUrl))
+            imageUrls.Add(p.ImageUrl);
+
+        if (p.Images != null)
+        {
+            imageUrls.AddRange(
+                p.Images.OrderBy(i => i.DisplayOrder).Select(i => i.ImageUrl)
+            );
+        }
+
+        return new ProductDto
+        {
+            Id = p.Id,
+            Name = p.Name,
+            Description = p.Description,
+            Brand = p.Brand,
+            Category = p.Category,
+            Price = p.Price,
+            StockQuantity = p.StockQuantity,
+            ImageUrl = p.ImageUrl,
+            ImageUrls = imageUrls,
+            IsActive = p.IsActive
+        };
+    }
 
     // ── Order ──
 

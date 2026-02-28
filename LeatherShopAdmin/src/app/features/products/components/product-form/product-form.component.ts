@@ -35,8 +35,11 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
   saving = false;
   submitted = false;
   savedSuccessfully = false;
+
+  /** Multi-image support: up to 4 images. Index 0 = primary. */
   uploading = false;
-  imagePreview: string | null = null;
+  images: { preview: string; path: string }[] = [];
+  readonly maxImages = 4;
 
   private originalSnapshot = '';
 
@@ -68,10 +71,22 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
           category: data.category, price: data.price,
           stockQuantity: data.stockQuantity, imageUrl: data.imageUrl
         });
-        if (data.imageUrl) {
-          this.imagePreview = data.imageUrl.startsWith('http')
+
+        // Load existing images into the multi-image array
+        this.images = [];
+        if (data.imageUrls && data.imageUrls.length > 0) {
+          for (const url of data.imageUrls) {
+            const preview = url.startsWith('http')
+              ? url
+              : environment.apiUrl.replace('/api', '') + url;
+            this.images.push({ preview, path: url });
+          }
+        } else if (data.imageUrl) {
+          // Fallback: single imageUrl only (no imageUrls from server)
+          const preview = data.imageUrl.startsWith('http')
             ? data.imageUrl
             : environment.apiUrl.replace('/api', '') + data.imageUrl;
+          this.images.push({ preview, path: data.imageUrl });
         }
         // Update snapshot once product data is loaded — this is the real baseline
         this.originalSnapshot = JSON.stringify(this.productForm.value);
@@ -97,6 +112,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
       price: [null, [Validators.required, Validators.min(1)]],
       stockQuantity: [0, [Validators.required, Validators.min(0)]],
       imageUrl: [''],
+      imageUrls: [[] as string[]],
       description: ['']
     });
   }
@@ -115,46 +131,78 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     );
   }
 
-  /** Handle image file selection */
+  /** Handle image file selection — supports multiple files */
   onImageSelect(event: any): void {
-    const file: File = event.files?.[0] || event.target?.files?.[0];
-    if (!file) return;
+    const fileList: FileList | null = event.target?.files || event.files;
+    if (!fileList || fileList.length === 0) return;
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowedTypes.includes(file.type)) {
-      this.notification.error('Only image files (JPG, PNG, WebP, GIF) are allowed.');
-      return;
+    const filesToUpload: File[] = [];
+
+    for (let i = 0; i < fileList.length; i++) {
+      if (this.images.length + filesToUpload.length >= this.maxImages) {
+        this.notification.error(`Maximum ${this.maxImages} images allowed.`);
+        break;
+      }
+      const file = fileList[i];
+      if (!allowedTypes.includes(file.type)) {
+        this.notification.error(`"${file.name}" is not a supported image format.`);
+        continue;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        this.notification.error(`"${file.name}" exceeds the 5 MB limit.`);
+        continue;
+      }
+      filesToUpload.push(file);
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      this.notification.error('Image size must be under 5 MB.');
-      return;
-    }
+    if (filesToUpload.length === 0) return;
 
-    // Show local preview
-    const reader = new FileReader();
-    reader.onload = () => this.imagePreview = reader.result as string;
-    reader.readAsDataURL(file);
+    // Show local previews immediately
+    const previewPromises = filesToUpload.map(file =>
+      new Promise<string>(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      })
+    );
 
-    // Upload to server
     this.uploading = true;
-    this.productService.uploadImage(file).subscribe({
-      next: (path) => {
-        this.productForm.patchValue({ imageUrl: path });
-        this.uploading = false;
-        this.notification.success('Image uploaded successfully!');
+
+    // Upload all files to server
+    this.productService.uploadImages(filesToUpload).subscribe({
+      next: (paths) => {
+        Promise.all(previewPromises).then(previews => {
+          for (let i = 0; i < paths.length; i++) {
+            this.images.push({ preview: previews[i], path: paths[i] });
+          }
+          this.syncFormImages();
+          this.uploading = false;
+          this.notification.success(
+            paths.length === 1 ? 'Image uploaded!' : `${paths.length} images uploaded!`
+          );
+        });
       },
       error: () => {
         this.uploading = false;
-        // Toast shown by error interceptor
       }
     });
+
+    // Reset the file input so the same file(s) can be re-selected
+    if (event.target) event.target.value = '';
   }
 
-  /** Remove the currently selected image */
-  removeImage(): void {
-    this.imagePreview = null;
-    this.productForm.patchValue({ imageUrl: '' });
+  /** Remove an image by index */
+  removeImage(index: number): void {
+    this.images.splice(index, 1);
+    this.syncFormImages();
+  }
+
+  /** Sync the images array back to form controls */
+  private syncFormImages(): void {
+    const primary = this.images.length > 0 ? this.images[0].path : '';
+    const additional = this.images.slice(1).map(img => img.path);
+    this.productForm.patchValue({ imageUrl: primary, imageUrls: additional });
   }
 
   get f() { return this.productForm.controls; }
@@ -226,6 +274,10 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     const formValue = { ...this.productForm.value };
     // Send null instead of empty string for optional imageUrl (backend [Url] validator rejects "")
     if (!formValue.imageUrl) formValue.imageUrl = null;
+    // Ensure imageUrls is sent as array (even if empty) so backend replaces the old set
+    if (!formValue.imageUrls || formValue.imageUrls.length === 0) {
+      formValue.imageUrls = [];
+    }
 
     if (this.isEdit) {
       this.productService.updateProduct(this.productId, formValue).subscribe({

@@ -7,6 +7,7 @@ export interface Product {
   price: number;
   stockQuantity: number;
   imageUrl: string;
+  imageUrls: string[];
   isActive: boolean;
 }
 
@@ -18,4 +19,5 @@ export interface CreateProduct {
   price: number;
   stockQuantity: number;
   imageUrl: string;
+  imageUrls?: string[];
 }

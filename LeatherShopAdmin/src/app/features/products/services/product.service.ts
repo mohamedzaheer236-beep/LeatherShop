@@ -59,4 +59,10 @@ export class ProductService {
     formData.append('file', file);
     return this.http.post<any>(`${this.baseUrl}/upload-image`, formData).pipe(map(res => res.data));
   }
+
+  uploadImages(files: File[]): Observable<string[]> {
+    const formData = new FormData();
+    files.forEach(f => formData.append('files', f));
+    return this.http.post<any>(`${this.baseUrl}/upload-images`, formData).pipe(map(res => res.data));
+  }
 }

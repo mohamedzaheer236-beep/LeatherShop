@@ -98,4 +98,21 @@ public class ProductsController : ControllerBase
             return BadRequest(ApiResponse.Fail(ex.Message));
         }
     }
+
+    [HttpPost("upload-images")]
+    public async Task<IActionResult> UploadImages([FromForm] List<IFormFile> files)
+    {
+        if (files == null || files.Count == 0)
+            return BadRequest(ApiResponse.Fail("No files provided."));
+
+        try
+        {
+            var relativePaths = await _productService.UploadImagesAsync(files);
+            return Ok(ApiResponse<List<string>>.Ok(relativePaths, "Images uploaded successfully."));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse.Fail(ex.Message));
+        }
+    }
 }

@@ -12,6 +12,8 @@ public class ProductDto
     public decimal Price { get; set; }
     public int StockQuantity { get; set; }
     public string ImageUrl { get; set; } = string.Empty;
+    /// <summary>All image URLs in display order (primary first, then additional).</summary>
+    public List<string> ImageUrls { get; set; } = new();
     public bool IsActive { get; set; }
 }
 
@@ -39,6 +41,9 @@ public class CreateProductDto
     public int StockQuantity { get; set; }
 
     public string? ImageUrl { get; set; }
+
+    /// <summary>Additional image URLs (beyond the primary ImageUrl). Max 3.</summary>
+    public List<string>? ImageUrls { get; set; }
 }
 
 public class UpdateProductDto
@@ -62,6 +67,9 @@ public class UpdateProductDto
     public int? StockQuantity { get; set; }
 
     public string? ImageUrl { get; set; }
+
+    /// <summary>Additional image URLs (beyond the primary ImageUrl). Max 3. Pass empty list to clear.</summary>
+    public List<string>? ImageUrls { get; set; }
 
     public bool? IsActive { get; set; }
 }
