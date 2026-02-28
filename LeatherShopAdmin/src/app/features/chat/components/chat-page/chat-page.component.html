@@ -19,7 +19,7 @@
         <i class="pi pi-inbox"></i>
         <span>No conversations yet</span>
       </div>
-      <div *ngFor="let conv of conversations"
+      <div *ngFor="let conv of conversations; trackBy: trackByConversation"
            class="conversation-item"
            [class.active]="selectedCustomerId === conv.customerId"
            (click)="selectConversation(conv)">
@@ -89,7 +89,7 @@
         <div *ngIf="hasMoreMessages && !loadingMessages" class="load-more">
           <button pButton label="Load older messages" class="p-button-text p-button-sm" (click)="loadMoreMessages()"></button>
         </div>
-        <div *ngFor="let msg of messages" class="message-wrapper" [class.outgoing]="msg.direction === 'Outgoing'" [class.incoming]="msg.direction === 'Incoming'">
+        <div *ngFor="let msg of messages; trackBy: trackByMessage" class="message-wrapper" [class.outgoing]="msg.direction === 'Outgoing'" [class.incoming]="msg.direction === 'Incoming'">
           <div class="message-bubble">
             <div class="message-sender" *ngIf="msg.direction === 'Outgoing'">
               <span [class.bot-label]="msg.isFromBot" [class.admin-label]="!msg.isFromBot">

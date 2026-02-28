@@ -26,8 +26,8 @@ import { TooltipModule } from 'primeng/tooltip';
 })
 export class ProductListComponent implements OnInit {
   products: Product[] = [];
-  categoryOptions: any[] = [];
-  brandOptions: any[] = [];
+  categoryOptions: { label: string; value: string }[] = [];
+  brandOptions: { label: string; value: string }[] = [];
   loading = true;
   filterForm!: FormGroup;
 
@@ -51,10 +51,12 @@ export class ProductListComponent implements OnInit {
 
     this.loadProducts();
     this.productService.getCategories().subscribe({
-      next: (data) => { this.categoryOptions = data.map(c => ({ label: c, value: c })); }
+      next: (data) => { this.categoryOptions = data.map(c => ({ label: c, value: c })); },
+      error: () => { /* Toast shown by error interceptor */ }
     });
     this.productService.getBrands().subscribe({
-      next: (data) => { this.brandOptions = data.map(b => ({ label: b, value: b })); }
+      next: (data) => { this.brandOptions = data.map(b => ({ label: b, value: b })); },
+      error: () => { /* Toast shown by error interceptor */ }
     });
   }
 

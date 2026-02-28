@@ -16,14 +16,12 @@ import { DropdownModule } from 'primeng/dropdown';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToolbarModule } from 'primeng/toolbar';
-import { FileUploadModule } from 'primeng/fileupload';
-import { ProgressBarModule } from 'primeng/progressbar';
 import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-product-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, CardModule, InputTextModule, InputNumberModule, InputTextareaModule, DropdownModule, ButtonModule, ConfirmDialogModule, ToolbarModule, FileUploadModule, ProgressBarModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, CardModule, InputTextModule, InputNumberModule, InputTextareaModule, DropdownModule, ButtonModule, ConfirmDialogModule, ToolbarModule],
   templateUrl: './product-form.component.html',
   styleUrl: './product-form.component.scss',
   providers: [ConfirmationService]
@@ -66,7 +64,8 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     if (id) {
       this.isEdit = true;
       this.productId = +id;
-      this.productService.getProduct(this.productId).subscribe(data => {
+      this.productService.getProduct(this.productId).subscribe({
+        next: (data) => {
         this.productForm.patchValue({
           name: data.name, description: data.description, brand: data.brand,
           category: data.category, price: data.price,
@@ -91,6 +90,11 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
         }
         // Update snapshot once product data is loaded — this is the real baseline
         this.originalSnapshot = JSON.stringify(this.productForm.value);
+        },
+        error: () => {
+          this.notification.error('Failed to load product.');
+          this.router.navigate(['/products']);
+        }
       });
     }
 

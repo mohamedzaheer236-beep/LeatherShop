@@ -71,8 +71,9 @@ export class BroadcastComponent implements OnInit, OnDestroy {
     this.initForm();
     this.loadHistory();
     this.templateLoader.loadTemplates();
-    this.broadcastService.getSubscriberCount().subscribe(data => {
-      this.subscriberCount = data.subscriberCount;
+    this.broadcastService.getSubscriberCount().subscribe({
+      next: (data) => { this.subscriberCount = data.subscriberCount; },
+      error: () => { /* Toast shown by error interceptor */ }
     });
   }
 
@@ -128,9 +129,12 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   }
 
   loadHistory(): void {
-    this.broadcastService.getBroadcastHistory().subscribe(data => {
-      this.history = data;
-      this.totalSent = data.reduce((sum, b) => sum + b.sentCount, 0);
+    this.broadcastService.getBroadcastHistory().subscribe({
+      next: (data) => {
+        this.history = data;
+        this.totalSent = data.reduce((sum, b) => sum + b.sentCount, 0);
+      },
+      error: () => { /* Toast shown by error interceptor */ }
     });
   }
 

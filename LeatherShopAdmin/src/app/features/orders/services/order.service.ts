@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { Order, PaginatedResult } from '../models/order.model';
+import { ApiResponse } from '../../../core/models/api-response.model';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({
@@ -17,7 +18,7 @@ export class OrderService {
       .set('page', page.toString())
       .set('pageSize', pageSize.toString());
     if (status) params = params.set('status', status);
-    return this.http.get<any>(this.baseUrl, { params }).pipe(map(res => res.data));
+    return this.http.get<ApiResponse<PaginatedResult<Order>>>(this.baseUrl, { params }).pipe(map(res => res.data));
   }
 
   updateOrderStatus(id: number, status: string): Observable<void> {

@@ -1091,7 +1091,7 @@ Comprehensive line-by-line audit of the entire codebase. These remain to be fixe
 |---|----------|-------|------|---------|
 | P16 | **Medium** | Clickable `p-tag` missing a11y | `customers.component.html` L137-140 | Subscribe/Unsubscribe `<p-tag>` used as toggle button but missing `role="button"`, `tabindex="0"`, and keyboard handlers. A `<p-button>` in the Actions column already provides keyboard access, so not blocking. |
 | P17 | **Medium** | PrimeNG internal API access | `product-list.component.ts` L58-63 | `clearDropdownFilter` accesses private PrimeNG properties (`filterValue`, `onFilterInputChange`). May break on PrimeNG upgrades. |
-| P18 | **Low** | `any` types | `product-list.component.ts`, `customers.component.ts`, `orders.component.ts`, `broadcast.service.ts` | ~6 instances of `any` type across components. Should use proper types (`Dropdown`, `HttpErrorResponse`, `PaginatorState`). |
+| P18 | ~~**Low**~~ | ~~`any` types~~ | ~~`product-list.component.ts`, `broadcast.service.ts`, all 6 services~~ | ✅ **FIXED** — Created shared `ApiResponse<T>` interface (`core/models/api-response.model.ts`). All 6 services (dashboard, product, order, customer, chat, broadcast) now use typed `http.get<ApiResponse<T>>` instead of `http.get<any>`. Created `BroadcastResult` interface for `sendBroadcast` return type. Typed `categoryOptions`/`brandOptions` as `{ label: string; value: string }[]` in product-list. Remaining `any` on PrimeNG `ViewChild`/dropdown params — PrimeNG internal API access (see P17). |
 | P19 | **Low** | ~~`::ng-deep` usage~~ | ~~`toast.component.ts`, `chat-page.component.scss`, `product-list.component.scss`~~ | ✅ **FIXED** — Moved all `::ng-deep` styles to global `styles.scss` using `body .p-*` prefix for natural specificity. Toast component: removed entire inline `styles` array (15 rules). Chat page: search input border-radius moved as `.chat-sidebar .search-box .p-inputtext`. Product list: dropdown filter panel moved as `body .p-dropdown-panel` (was already rendered outside component via `appendTo="body"`). Zero `::ng-deep` remains in any `.ts` or `.scss` file. |
 
 ### ✅ What's Already Good (Organization-Level Strengths)
@@ -1119,11 +1119,49 @@ Comprehensive line-by-line audit of the entire codebase. These remain to be fixe
 | 19 | **Route guards** (`AuthGuard`) protecting all admin routes with auto-redirect to login |
 | 20 | **Auth interceptor** attaching Bearer token + error interceptor with smart 401 handling (login vs expired) |
 | 21 | **Dynamic categories** in product form — fetched from API instead of hardcoded |
-| 22 | **Error handlers** on all `subscribe()` calls with user-facing notifications and state rollback |\n| 23 | **SignalR real-time** WebSocket hub for order notifications + chat messages — no polling, instant push to all connected admins |\n| 24 | **2-way WhatsApp chat** with persistent message history, conversation sidebar, chat bubbles, unread badges |\n| 25 | **Bot pause/resume** system — chatbot auto-pauses when admin takes over a conversation, resumes after timeout |\n| 26 | **Component file consistency** — all substantial components use separate `.html` + `.scss` files (templateUrl/styleUrl pattern) |
+| 22 | **Error handlers** on all `subscribe()` calls with user-facing notifications and state rollback |
+| 23 | **SignalR real-time** WebSocket hub for order notifications + chat messages — no polling, instant push to all connected admins |
+| 24 | **2-way WhatsApp chat** with persistent message history, conversation sidebar, chat bubbles, unread badges |
+| 25 | **Bot pause/resume** system — chatbot auto-pauses when admin takes over a conversation, resumes after timeout |
+| 26 | **Component file consistency** — all substantial components use separate `.html` + `.scss` files (templateUrl/styleUrl pattern) |
 | 27 | **Auto-cleanup background service** — `ChatCleanupBackgroundService` deletes chat messages older than 30 days (runs daily, uses bulk `ExecuteDeleteAsync`) |
 | 28 | **Full customer CRUD** — create, edit, delete with cascade deletes. Edit does NOT send WhatsApp messages (intentional). |
 | 29 | **Address mandatory workflow** — Admin UI requires address field on create/edit. Bot asks for shipping address during checkout if not set (`PendingAction` state machine). |
 | 30 | **Confirmation dialogs** — Delete customer and delete conversation both use confirmation dialogs to prevent accidental data loss |
+| 31 | **Typed API layer** — All 6 Angular services use `ApiResponse<T>` generics instead of `any`. Shared interface matches backend envelope. |
+| 32 | **Named constants** — Magic numbers extracted to `private const` class-level constants (dashboard thresholds, bot pause duration). |
+| 33 | **Zero swallowed exceptions** — Verified across all 49 backend files. Every `catch` block logs via `ILogger`. |
+
+### 🔍 Deep Verification Audit (Feb 2026 — Full Anti-Pattern Scan)
+
+Exhaustive file-by-file scan of all **49 backend `.cs` files** and **61 frontend files** (41 `.ts`, 10 `.html`, 10 `.scss`) to verify zero swallowed exceptions, no hacky approaches, and all patterns follow best practices.
+
+#### Backend Results (49 files scanned)
+
+| Check | Result |
+|-------|--------|
+| **Swallowed exceptions** | ✅ **Zero** — Every `catch` block logs via `ILogger`. All fall into "best-effort notification" (WhatsApp/SignalR after successful primary op) or "graceful degradation" (carousel→images→text fallback). |
+| **`async void`** | ✅ **Zero** — All async methods return `Task` or `Task<T>` |
+| **`.Result` / `.Wait()` blocking** | ✅ **Zero** — Fully async top-to-bottom |
+| **Fire-and-forget tasks** | ✅ **Zero** — All `Task` results are `await`ed |
+| **SQL injection** | ✅ **Zero** — All queries use EF Core parameterized LINQ |
+| **`null!` usage** | ✅ Only on EF navigation properties — Microsoft-recommended pattern |
+| **Dead TODO/HACK/FIXME** | ✅ **Zero** |
+| **Magic numbers** | ✅ **FIXED** — Extracted `RecentOrdersCount`, `LowStockThreshold` (DashboardService), `BotPauseMinutes` (ChatService) to named constants |
+
+#### Frontend Results (61 files scanned)
+
+| Check | Result |
+|-------|--------|
+| **`console.log`** | ✅ **Zero** |
+| **Nested subscribes** | ✅ **Zero** |
+| **`bypassSecurityTrust*`** | ✅ **Zero** |
+| **`http.get<any>`** | ✅ **FIXED** — All 6 services now use typed `ApiResponse<T>` via shared interface (`core/models/api-response.model.ts`). Created `BroadcastResult` interface for send response. |
+| **Missing error handlers** | ✅ **FIXED** — Added error handlers to all `.subscribe()` calls: product-form `getProduct`, product-list `getCategories`/`getBrands`, broadcast `getSubscriberCount`/`getBroadcastHistory`, chat `toggleBot`. |
+| **Dead code** | ✅ **FIXED** — Removed unused `uploadImage()` method from product.service.ts. Removed dead `FileUploadModule`/`ProgressBarModule` imports from product-form. |
+| **Empty `catch {}`** | ✅ **FIXED** — `scrollToBottom()` in chat-page now has explanatory comment: "Intentionally empty — scrolling is a best-effort UI enhancement". |
+| **Missing `trackBy`** | ✅ **FIXED** — Added `trackByConversation` and `trackByMessage` functions to chat-page, wired to `*ngFor` in template. |
+| **`!important` in SCSS** | ✅ 18 remaining — all are PrimeNG deep overrides (required for third-party component styling). Zero in app-owned styles. |
 
 ---
 

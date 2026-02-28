@@ -190,7 +190,8 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
         if (this.selectedConversation) {
           this.selectedConversation.isBotPaused = result.isBotPaused;
         }
-      }
+      },
+      error: () => { /* Toast shown by error interceptor */ }
     });
   }
 
@@ -241,11 +242,21 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
+  trackByConversation(_index: number, conv: Conversation): number {
+    return conv.customerId;
+  }
+
+  trackByMessage(_index: number, msg: ChatMessage): number {
+    return msg.id;
+  }
+
   private scrollToBottom(): void {
     try {
       if (this.messagesContainer) {
         this.messagesContainer.nativeElement.scrollTop = this.messagesContainer.nativeElement.scrollHeight;
       }
-    } catch {}
+    } catch {
+      // Intentionally empty — scrolling is a best-effort UI enhancement
+    }
   }
 }

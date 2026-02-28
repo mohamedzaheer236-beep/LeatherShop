@@ -8,6 +8,8 @@ namespace LeatherShopAPI.Services;
 
 public class ChatService : IChatService
 {
+    private const int BotPauseMinutes = 30;
+
     private readonly AppDbContext _db;
     private readonly IWhatsAppService _whatsApp;
     private readonly ILogger<ChatService> _logger;
@@ -121,7 +123,7 @@ public class ChatService : IChatService
 
         // Pause bot for 30 minutes
         customer.IsBotPaused = true;
-        customer.BotPausedUntil = DateTime.UtcNow.AddMinutes(30);
+        customer.BotPausedUntil = DateTime.UtcNow.AddMinutes(BotPauseMinutes);
 
         // Save to chat history
         var msg = await SaveMessageAsync(customerId, MessageDirection.Outgoing, text, "Admin", false);

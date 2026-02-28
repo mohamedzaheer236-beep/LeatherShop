@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { Customer, CreateCustomer, UpdateCustomer } from '../models/customer.model';
+import { ApiResponse } from '../../../core/models/api-response.model';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({
@@ -16,23 +17,23 @@ export class CustomerService {
     let params = new HttpParams();
     if (subscribedOnly) params = params.set('subscribedOnly', 'true');
     if (search) params = params.set('search', search);
-    return this.http.get<any>(this.baseUrl, { params }).pipe(map(res => res.data));
+    return this.http.get<ApiResponse<Customer[]>>(this.baseUrl, { params }).pipe(map(res => res.data));
   }
 
-  createCustomer(customer: CreateCustomer): Observable<any> {
-    return this.http.post<any>(this.baseUrl, customer).pipe(map(res => res.data));
+  createCustomer(customer: CreateCustomer): Observable<Customer> {
+    return this.http.post<ApiResponse<Customer>>(this.baseUrl, customer).pipe(map(res => res.data));
   }
 
   updateCustomer(id: number, customer: UpdateCustomer): Observable<Customer> {
-    return this.http.put<any>(`${this.baseUrl}/${id}`, customer).pipe(map(res => res.data));
+    return this.http.put<ApiResponse<Customer>>(`${this.baseUrl}/${id}`, customer).pipe(map(res => res.data));
   }
 
-  deleteCustomer(id: number): Observable<any> {
-    return this.http.delete<any>(`${this.baseUrl}/${id}`).pipe(map(res => res));
+  deleteCustomer(id: number): Observable<ApiResponse<void>> {
+    return this.http.delete<ApiResponse<void>>(`${this.baseUrl}/${id}`);
   }
 
-  bulkImportCustomers(customers: CreateCustomer[]): Observable<any> {
-    return this.http.post<any>(`${this.baseUrl}/import`, { customers }).pipe(map(res => res.data));
+  bulkImportCustomers(customers: CreateCustomer[]): Observable<Customer[]> {
+    return this.http.post<ApiResponse<Customer[]>>(`${this.baseUrl}/import`, { customers }).pipe(map(res => res.data));
   }
 
   toggleSubscription(id: number, isSubscribed: boolean): Observable<void> {
@@ -42,6 +43,6 @@ export class CustomerService {
   }
 
   getSubscriberCount(): Observable<{ subscriberCount: number; totalCount: number }> {
-    return this.http.get<any>(`${this.baseUrl}/count`).pipe(map(res => res.data));
+    return this.http.get<ApiResponse<{ subscriberCount: number; totalCount: number }>>(`${this.baseUrl}/count`).pipe(map(res => res.data));
   }
 }

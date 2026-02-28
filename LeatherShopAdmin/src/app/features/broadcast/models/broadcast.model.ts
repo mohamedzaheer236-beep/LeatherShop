@@ -6,6 +6,12 @@ export interface BroadcastRequest {
   phoneNumbers?: string[];
 }
 
+export interface BroadcastResult {
+  message: string;
+  broadcastId: number;
+  totalRecipients: number;
+}
+
 export interface BroadcastHistory {
   id: number;
   messageTemplate: string;

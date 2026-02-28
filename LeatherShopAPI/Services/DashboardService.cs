@@ -9,6 +9,9 @@ namespace LeatherShopAPI.Services;
 
 public class DashboardService : IDashboardService
 {
+    private const int RecentOrdersCount = 10;
+    private const int LowStockThreshold = 5;
+
     private readonly AppDbContext _db;
 
     public DashboardService(AppDbContext db)
@@ -25,7 +28,7 @@ public class DashboardService : IDashboardService
             .Include(o => o.Customer)
             .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
             .OrderByDescending(o => o.CreatedAt)
-            .Take(10)
+            .Take(RecentOrdersCount)
             .ToListAsync();
 
         return new DashboardDto
@@ -35,7 +38,7 @@ public class DashboardService : IDashboardService
             TotalOrders = await _db.Orders.CountAsync(),
             TotalRevenue = await _db.Orders.Where(o => o.IsPaid).SumAsync(o => o.TotalAmount),
             PendingOrders = await _db.Orders.CountAsync(o => o.Status == OrderStatus.Pending),
-            LowStockProducts = await _db.Products.CountAsync(p => p.IsActive && p.StockQuantity <= 5),
+            LowStockProducts = await _db.Products.CountAsync(p => p.IsActive && p.StockQuantity <= LowStockThreshold),
             RecentOrders = recentOrders.Select(o => o.ToDto()).ToList()
         };
     }

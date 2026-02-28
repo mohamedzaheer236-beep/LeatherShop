@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { BroadcastRequest, BroadcastHistory, WhatsAppTemplate } from '../models/broadcast.model';
+import { BroadcastRequest, BroadcastResult, BroadcastHistory, WhatsAppTemplate } from '../models/broadcast.model';
+import { ApiResponse } from '../../../core/models/api-response.model';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({
@@ -13,23 +14,23 @@ export class BroadcastService {
 
   constructor(private http: HttpClient) {}
 
-  sendBroadcast(request: BroadcastRequest): Observable<any> {
-    return this.http.post<any>(`${this.baseUrl}/send`, request).pipe(map(res => res.data));
+  sendBroadcast(request: BroadcastRequest): Observable<BroadcastResult> {
+    return this.http.post<ApiResponse<BroadcastResult>>(`${this.baseUrl}/send`, request).pipe(map(res => res.data));
   }
 
   getBroadcastStatus(broadcastId: number): Observable<BroadcastHistory> {
-    return this.http.get<any>(`${this.baseUrl}/${broadcastId}/status`).pipe(map(res => res.data));
+    return this.http.get<ApiResponse<BroadcastHistory>>(`${this.baseUrl}/${broadcastId}/status`).pipe(map(res => res.data));
   }
 
   getBroadcastHistory(): Observable<BroadcastHistory[]> {
-    return this.http.get<any>(`${this.baseUrl}/history`).pipe(map(res => res.data));
+    return this.http.get<ApiResponse<BroadcastHistory[]>>(`${this.baseUrl}/history`).pipe(map(res => res.data));
   }
 
   getApprovedTemplates(): Observable<WhatsAppTemplate[]> {
-    return this.http.get<any>(`${this.baseUrl}/templates`).pipe(map(res => res.data));
+    return this.http.get<ApiResponse<WhatsAppTemplate[]>>(`${this.baseUrl}/templates`).pipe(map(res => res.data));
   }
 
   getSubscriberCount(): Observable<{ subscriberCount: number; totalCount: number }> {
-    return this.http.get<any>(`${this.customerUrl}/count`).pipe(map(res => res.data));
+    return this.http.get<ApiResponse<{ subscriberCount: number; totalCount: number }>>(`${this.customerUrl}/count`).pipe(map(res => res.data));
   }
 }
