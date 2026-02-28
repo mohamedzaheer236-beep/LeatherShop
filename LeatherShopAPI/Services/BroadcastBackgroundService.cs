@@ -49,8 +49,11 @@ public sealed class BroadcastBackgroundService : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<BroadcastBackgroundService> _logger;
 
-    /// <summary>Max concurrent WhatsApp API calls per broadcast.</summary>
-    private const int MaxConcurrency = 10;
+    /// <summary>Max concurrent WhatsApp API calls per batch.</summary>
+    private const int BatchSize = 10;
+
+    /// <summary>Delay between batches to stay under Meta's per-second throughput limit (~50 msgs/sec).</summary>
+    private const int BatchDelayMs = 200;
 
     /// <summary>Save DB progress every N messages.</summary>
     private const int BatchSaveInterval = 50;
@@ -163,56 +166,66 @@ public sealed class BroadcastBackgroundService : BackgroundService
 
         var isResume = alreadyProcessed.Count > 0;
         _logger.LogInformation(
-            "Broadcast {BroadcastId}: sending to {Remaining} recipients{ResumeInfo} (concurrency={Concurrency})",
+            "Broadcast {BroadcastId}: sending to {Remaining} recipients{ResumeInfo} (batch={BatchSize}, delay={DelayMs}ms)",
             broadcastId, remaining.Count,
             isResume ? $" (resumed, {alreadyProcessed.Count} already processed)" : "",
-            MaxConcurrency);
+            BatchSize, BatchDelayMs);
 
-        // ── 3. Process remaining recipients with concurrency control ──
+        // ── 3. Process remaining recipients in throttled batches ──
+        // Sends BatchSize messages concurrently, then pauses BatchDelayMs before next batch.
+        // This keeps throughput at ~50 msgs/sec — well under Meta's per-second limit.
         int sent = broadcast.SentCount, failed = broadcast.FailedCount;
-        int totalProcessed = 0; // single atomic counter for progress checkpoints
+        int totalProcessed = 0;
         var processedPhones = new ConcurrentBag<string>(alreadyProcessed);
-        using var semaphore = new SemaphoreSlim(MaxConcurrency);
 
         var parameters = !string.IsNullOrEmpty(broadcast.ParametersJson)
             ? JsonSerializer.Deserialize<List<string>>(broadcast.ParametersJson)
             : null;
 
-        var tasks = remaining.Select(async phone =>
+        // Process in chunks of BatchSize
+        var batches = remaining.Chunk(BatchSize);
+        foreach (var batch in batches)
         {
-            await semaphore.WaitAsync(ct);
-            try
-            {
-                using var taskScope = _scopeFactory.CreateScope();
-                var whatsApp = taskScope.ServiceProvider.GetRequiredService<IWhatsAppService>();
+            if (ct.IsCancellationRequested) break;
 
-                await whatsApp.SendTemplateMessage(
-                    phone, broadcast.MessageTemplate, broadcast.LanguageCode,
-                    parameters, broadcast.ImageUrl);
-
-                Interlocked.Increment(ref sent);
-            }
-            catch (Exception ex)
+            var tasks = batch.Select(async phone =>
             {
-                _logger.LogError(ex, "Broadcast {BroadcastId}: failed to send to {Phone}",
-                    broadcastId, phone);
-                Interlocked.Increment(ref failed);
-            }
-            finally
-            {
-                processedPhones.Add(phone);
-                semaphore.Release();
-            }
+                try
+                {
+                    using var taskScope = _scopeFactory.CreateScope();
+                    var whatsApp = taskScope.ServiceProvider.GetRequiredService<IWhatsAppService>();
 
-            // Save progress periodically using a single atomic counter (avoids non-atomic dual-read)
-            var count = Interlocked.Increment(ref totalProcessed);
-            if (count % BatchSaveInterval == 0)
+                    await whatsApp.SendTemplateMessage(
+                        phone, broadcast.MessageTemplate, broadcast.LanguageCode,
+                        parameters, broadcast.ImageUrl);
+
+                    Interlocked.Increment(ref sent);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Broadcast {BroadcastId}: failed to send to {Phone}",
+                        broadcastId, phone);
+                    Interlocked.Increment(ref failed);
+                }
+                finally
+                {
+                    processedPhones.Add(phone);
+                }
+            });
+
+            await Task.WhenAll(tasks);
+
+            // Save progress periodically
+            totalProcessed += batch.Length;
+            if (totalProcessed % BatchSaveInterval < BatchSize)
             {
                 await SaveProgressAsync(broadcastId, Volatile.Read(ref sent), Volatile.Read(ref failed), processedPhones);
             }
-        });
 
-        await Task.WhenAll(tasks);
+            // Throttle: pause between batches to avoid Meta per-second rate limit
+            if (!ct.IsCancellationRequested)
+                await Task.Delay(BatchDelayMs, ct).ConfigureAwait(false);
+        }
 
         // ── 4. Final save: mark completed ──
         await MarkCompletedAsync(broadcastId, sent, failed, processedPhones);
