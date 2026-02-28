@@ -26,4 +26,8 @@ export class OrderService {
       headers: { 'Content-Type': 'application/json' }
     });
   }
+
+  downloadInvoice(orderId: number): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/${orderId}/invoice`, { responseType: 'blob' });
+  }
 }

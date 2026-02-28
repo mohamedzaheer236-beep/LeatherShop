@@ -64,6 +64,24 @@ public static class MappingExtensions
     {
         ProductName = oi.Product?.Name ?? string.Empty,
         Quantity = oi.Quantity,
-        UnitPrice = oi.UnitPrice
+        UnitPrice = oi.UnitPrice,
+        SelectedImageUrl = ResolveSelectedImageUrl(oi)
     };
+
+    /// <summary>
+    /// Resolves the display image URL for an order item:
+    ///   - If SelectedImageId is set, look up the ProductImage by ID in the navigation.
+    ///   - If not found (image deleted) or null, fall back to Product.ImageUrl (primary).
+    /// </summary>
+    private static string? ResolveSelectedImageUrl(OrderItem oi)
+    {
+        if (oi.SelectedImageId.HasValue && oi.Product?.Images != null)
+        {
+            var selectedImg = oi.Product.Images.FirstOrDefault(pi => pi.Id == oi.SelectedImageId.Value);
+            if (selectedImg != null)
+                return selectedImg.ImageUrl;
+        }
+        // Fallback to primary image
+        return string.IsNullOrEmpty(oi.Product?.ImageUrl) ? null : oi.Product.ImageUrl;
+    }
 }

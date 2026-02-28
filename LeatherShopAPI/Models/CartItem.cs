@@ -16,5 +16,8 @@ public class CartItem
 
     public int Quantity { get; set; } = 1;
 
+    /// <summary>Which ProductImage the customer selected from the carousel. Null = primary image.</summary>
+    public int? SelectedImageId { get; set; }
+
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
 }

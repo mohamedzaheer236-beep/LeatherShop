@@ -207,6 +207,7 @@ public class ChatBotService : IChatBotService
             if (customer.PendingProductId.HasValue)
             {
                 customer.PendingProductId = null;
+                customer.PendingImageId = null;
                 await _db.SaveChangesAsync();
             }
 
@@ -245,12 +246,13 @@ public class ChatBotService : IChatBotService
             }
 
             // ---- VIEW PRODUCT FROM CAROUSEL (quick_reply "View Details" button) ----
-            // Show text details + action buttons only (no images/carousel again)
+            // Payload format: view_{productId}_pi{imageId} or legacy view_{productId}
             if (input.StartsWith("view_") && input != "view_cart")
             {
-                if (int.TryParse(input.Replace("view_", ""), out var viewProductId))
+                var (viewProdId, viewImgId) = ParseProductImagePayload(input, "view_");
+                if (viewProdId.HasValue)
                 {
-                    await SendProductDetailsText(phone, viewProductId);
+                    await SendProductDetailsText(phone, viewProdId.Value, viewImgId);
                     return;
                 }
                 await BotSendText(phone, "Invalid product. Type *menu* to browse.");
@@ -258,11 +260,13 @@ public class ChatBotService : IChatBotService
             }
 
             // ---- ADD TO CART (ask for quantity) ----
+            // Payload format: addcart_{productId}_pi{imageId} or legacy addcart_{productId}
             if (input.StartsWith("addcart_"))
             {
-                if (int.TryParse(input.Replace("addcart_", ""), out var cartProductId))
+                var (cartProdId, cartImgId) = ParseProductImagePayload(input, "addcart_");
+                if (cartProdId.HasValue)
                 {
-                    await AskQuantity(phone, customer, cartProductId);
+                    await AskQuantity(phone, customer, cartProdId.Value, cartImgId);
                     return;
                 }
                 await BotSendText(phone, "Invalid product. Type *menu* to browse.");
@@ -428,14 +432,21 @@ public class ChatBotService : IChatBotService
                       $"📝 {product.Description}";
 
         // Build the full list of image URLs (primary first, then additional ordered)
+        // Also build a parallel list of image IDs: 0 = primary, otherwise ProductImage.Id
         var imageUrls = new List<string>();
+        var imageIds = new List<int>();  // parallel to imageUrls: 0 = primary, N = ProductImage.Id
         if (!string.IsNullOrEmpty(product.ImageUrl))
+        {
             imageUrls.Add(product.ImageUrl);
+            imageIds.Add(0);  // 0 means primary image (not in ProductImages table)
+        }
         if (product.Images.Count > 0)
         {
-            imageUrls.AddRange(
-                product.Images.OrderBy(i => i.DisplayOrder).Select(i => i.ImageUrl)
-            );
+            foreach (var img in product.Images.OrderBy(i => i.DisplayOrder))
+            {
+                imageUrls.Add(img.ImageUrl);
+                imageIds.Add(img.Id);
+            }
         }
 
         // Send product images if available
@@ -466,16 +477,24 @@ public class ChatBotService : IChatBotService
                             _ => "product_gallery_4"  // 4 or more images → 4-card template
                         };
 
+                        // Build a filtered list of image IDs that match carousel-supported images
+                        var carouselImageIds = imageUrls
+                            .Select((url, idx) => new { url, id = imageIds[idx] })
+                            .Where(x => carouselSupportedExts.Contains(Path.GetExtension(x.url).ToLower()))
+                            .Select(x => x.id)
+                            .ToList();
+
                         var cards = new List<CarouselCard>();
                         for (int i = 0; i < cardCount; i++)
                         {
                             var url = carouselImageUrls[i];
+                            var imgId = carouselImageIds[i];
                             var imageFullUrl = url.StartsWith("http") ? url : $"{baseUrl}{url}";
                             cards.Add(new CarouselCard
                             {
                                 ImageUrl = imageFullUrl,
                                 BodyParam = $"{product.Name} - ₹{product.Price}",
-                                ButtonPayload = $"view_{product.Id}"
+                                ButtonPayload = $"view_{product.Id}_pi{imgId}"
                             });
                         }
 
@@ -543,7 +562,7 @@ public class ChatBotService : IChatBotService
     /// Send product details as text + action buttons only (no images/carousel).
     /// Used when user taps "View Details" from the carousel — they've already seen the images.
     /// </summary>
-    private async Task SendProductDetailsText(string to, int productId)
+    private async Task SendProductDetailsText(string to, int productId, int? selectedImageId = null)
     {
         var product = await _db.Products.FirstOrDefaultAsync(p => p.Id == productId);
         if (product == null)
@@ -559,13 +578,18 @@ public class ChatBotService : IChatBotService
                       $"📦 In Stock: {product.StockQuantity}\n\n" +
                       $"📝 {product.Description}";
 
+        // Carry the selected image ID forward into the addcart_ payload
+        var addCartPayload = selectedImageId.HasValue
+            ? $"addcart_{product.Id}_pi{selectedImageId.Value}"
+            : $"addcart_{product.Id}";
+
         var bodyText = details.Length > 1024 ? details[..1021] + "..." : details;
         await BotSendButtons(
             to,
             bodyText: bodyText,
             buttons: new List<ButtonOption>
             {
-                new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
+                new() { Id = addCartPayload, Title = "🛒 Add to Cart" },
                 new() { Id = "browse_categories", Title = "🔙 Categories" },
                 new() { Id = "main_menu", Title = "🏠 Main Menu" }
             }
@@ -573,7 +597,7 @@ public class ChatBotService : IChatBotService
     }
 
     /// <summary>Ask the customer how many they want to add</summary>
-    private async Task AskQuantity(string to, Customer customer, int productId)
+    private async Task AskQuantity(string to, Customer customer, int productId, int? selectedImageId = null)
     {
         var product = await _db.Products.FindAsync(productId);
         if (product == null || !product.IsActive || product.StockQuantity <= 0)
@@ -582,8 +606,9 @@ public class ChatBotService : IChatBotService
             return;
         }
 
-        // Save pending product so we know what they're adding when they type a number
+        // Save pending product and selected image so we know what to add when they type a number
         customer.PendingProductId = productId;
+        customer.PendingImageId = selectedImageId;
         await _db.SaveChangesAsync();
 
         await BotSendText(to,
@@ -600,6 +625,7 @@ public class ChatBotService : IChatBotService
         if (product == null || !product.IsActive || product.StockQuantity <= 0)
         {
             customer.PendingProductId = null;
+            customer.PendingImageId = null;
             await _db.SaveChangesAsync();
             await BotSendText(to, "Sorry, this product is no longer available.");
             return;
@@ -624,6 +650,7 @@ public class ChatBotService : IChatBotService
             if (canAdd <= 0)
             {
                 customer.PendingProductId = null;
+                customer.PendingImageId = null;
                 await _db.SaveChangesAsync();
                 await BotSendButtons(to,
                     bodyText: $"❌ You already have *{alreadyInCart}* of *{product.Name}* in your cart, which is the maximum available stock.\n\nYou can't add more.",
@@ -647,6 +674,9 @@ public class ChatBotService : IChatBotService
         if (existingItem != null)
         {
             existingItem.Quantity += quantity;
+            // If user previously had no image selection but now selected one, update it
+            if (existingItem.SelectedImageId == null && customer.PendingImageId.HasValue)
+                existingItem.SelectedImageId = customer.PendingImageId;
         }
         else
         {
@@ -654,12 +684,14 @@ public class ChatBotService : IChatBotService
             {
                 CustomerId = customer.Id,
                 ProductId = productId,
-                Quantity = quantity
+                Quantity = quantity,
+                SelectedImageId = customer.PendingImageId
             });
         }
 
         // Clear pending state
         customer.PendingProductId = null;
+        customer.PendingImageId = null;
         await _db.SaveChangesAsync();
 
         var cartCount = await _db.CartItems.Where(ci => ci.CustomerId == customer.Id).SumAsync(ci => ci.Quantity);
@@ -828,7 +860,8 @@ public class ChatBotService : IChatBotService
             {
                 ProductId = ci.ProductId,
                 Quantity = ci.Quantity,
-                UnitPrice = ci.Product.Price
+                UnitPrice = ci.Product.Price,
+                SelectedImageId = ci.SelectedImageId
             }).ToList()
         };
 
@@ -855,6 +888,35 @@ public class ChatBotService : IChatBotService
                            $"We'll confirm once payment is received.";
 
         await BotSendText(to, orderSummary);
+    }
+
+    /// <summary>
+    /// Parses payload format: {prefix}{productId}_pi{imageId} or {prefix}{productId}
+    /// Returns (productId, imageId) where imageId is null if not present, or 0 maps to null (primary).
+    /// </summary>
+    private static (int? productId, int? imageId) ParseProductImagePayload(string input, string prefix)
+    {
+        var remainder = input[prefix.Length..];
+
+        // Check for _pi suffix: e.g. "3_pi16" or "3_pi0"
+        var piIndex = remainder.IndexOf("_pi", StringComparison.Ordinal);
+        if (piIndex >= 0)
+        {
+            var prodPart = remainder[..piIndex];
+            var imgPart = remainder[(piIndex + 3)..]; // skip "_pi"
+            if (int.TryParse(prodPart, out var prodId) && int.TryParse(imgPart, out var imgId))
+            {
+                // imgId 0 = primary image, store as null
+                return (prodId, imgId == 0 ? null : imgId);
+            }
+            return (null, null);
+        }
+
+        // Legacy format: just productId
+        if (int.TryParse(remainder, out var legacyProdId))
+            return (legacyProdId, null);
+
+        return (null, null);
     }
 
     /// <summary>Saves the customer's address and proceeds to place the order</summary>

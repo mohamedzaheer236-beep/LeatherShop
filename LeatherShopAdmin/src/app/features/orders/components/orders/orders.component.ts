@@ -108,4 +108,24 @@ export class OrdersComponent implements OnInit {
   trackByOrderId(_index: number, order: Order): number {
     return order.id;
   }
+
+  downloadInvoice(event: Event, order: Order): void {
+    event.stopPropagation(); // Don't toggle expand
+    order.downloading = true;
+    this.orderService.downloadInvoice(order.id).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Invoice-${order.orderNumber || order.id}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        order.downloading = false;
+      },
+      error: () => {
+        order.downloading = false;
+        this.notification.error('Failed to download invoice.');
+      }
+    });
+  }
 }

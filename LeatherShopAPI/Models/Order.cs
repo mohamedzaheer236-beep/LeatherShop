@@ -58,4 +58,7 @@ public class OrderItem
 
     [Column(TypeName = "decimal(10,2)")]
     public decimal UnitPrice { get; set; }
+
+    /// <summary>Which ProductImage the customer selected from the carousel. Null = primary image.</summary>
+    public int? SelectedImageId { get; set; }
 }

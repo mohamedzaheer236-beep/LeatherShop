@@ -24,6 +24,9 @@
           <span class="order-customer">{{ order.customerName || order.customerPhone }}</span>
         </div>
         <div class="order-meta">
+          <button class="invoice-btn" (click)="downloadInvoice($event, order)" title="Download Invoice" [disabled]="order.downloading">
+            <i class="pi" [ngClass]="order.downloading ? 'pi-spin pi-spinner' : 'pi-file-pdf'"></i>
+          </button>
           <strong class="order-amount">&#8377;{{ order.totalAmount | number:'1.0-0' }}</strong>
           <p-tag [value]="order.status" [severity]="getSeverity(order.status)"></p-tag>
           <p-tag [value]="order.isPaid ? 'Paid' : 'Unpaid'" [severity]="order.isPaid ? 'success' : 'danger'"></p-tag>
@@ -36,6 +39,7 @@
         <p-table [value]="order.items" styleClass="p-datatable-sm" [tableStyle]="{'min-width': '30rem'}">
           <ng-template pTemplate="header">
             <tr>
+              <th style="width:60px">Image</th>
               <th>Product</th>
               <th>Qty</th>
               <th>Price</th>
@@ -44,6 +48,10 @@
           </ng-template>
           <ng-template pTemplate="body" let-item>
             <tr>
+              <td>
+                <img *ngIf="item.selectedImageUrl" [src]="item.selectedImageUrl" class="item-thumb" alt="Product" />
+                <span *ngIf="!item.selectedImageUrl" class="no-image">—</span>
+              </td>
               <td>{{ item.productName }}</td>
               <td>{{ item.quantity }}</td>
               <td>&#8377;{{ item.unitPrice | number:'1.0-0' }}</td>

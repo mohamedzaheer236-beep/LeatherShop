@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using LeatherShopAPI.DTOs.Order;
 using LeatherShopAPI.Models;
+using LeatherShopAPI.Services;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Controllers;
@@ -12,10 +13,12 @@ namespace LeatherShopAPI.Controllers;
 public class OrdersController : ControllerBase
 {
     private readonly IOrderService _orderService;
+    private readonly InvoicePdfService _pdfService;
 
-    public OrdersController(IOrderService orderService)
+    public OrdersController(IOrderService orderService, InvoicePdfService pdfService)
     {
         _orderService = orderService;
+        _pdfService = pdfService;
     }
 
     [HttpGet]
@@ -39,5 +42,16 @@ public class OrdersController : ControllerBase
         if (!success)
             return NotFound(ApiResponse.Fail("Order not found."));
         return Ok(ApiResponse.Ok("Order status updated successfully."));
+    }
+
+    [HttpGet("{id}/invoice")]
+    public async Task<IActionResult> DownloadInvoice(int id)
+    {
+        var order = await _orderService.GetByIdWithDetailsAsync(id);
+        if (order is null)
+            return NotFound(ApiResponse.Fail("Order not found."));
+
+        var pdfBytes = _pdfService.GenerateInvoice(order);
+        return File(pdfBytes, "application/pdf", $"Invoice-{order.Id}.pdf");
     }
 }

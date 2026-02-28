@@ -21,6 +21,9 @@ public class Customer
     /// <summary>When set, the bot is waiting for the customer to type a quantity for this product.</summary>
     public int? PendingProductId { get; set; }
 
+    /// <summary>Temporarily stores the selected ProductImage ID while the bot asks for quantity. Null = primary image.</summary>
+    public int? PendingImageId { get; set; }
+
     /// <summary>Tracks a pending bot action, e.g. "awaiting_address". Null when idle.</summary>
     [MaxLength(50)]
     public string? PendingAction { get; set; }

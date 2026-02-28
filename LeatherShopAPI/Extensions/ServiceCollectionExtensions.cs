@@ -48,6 +48,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBroadcastService, BroadcastService>();
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IChatService, ChatService>();
+        services.AddScoped<InvoicePdfService>();
 
         // Broadcast background processing (Channel + hosted service)
         services.AddSingleton<BroadcastChannel>();

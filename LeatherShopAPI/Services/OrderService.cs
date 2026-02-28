@@ -29,7 +29,7 @@ public class OrderService : IOrderService
     {
         var query = _db.Orders
             .Include(o => o.Customer)
-            .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
+            .Include(o => o.OrderItems).ThenInclude(oi => oi.Product).ThenInclude(p => p.Images)
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(status) && Enum.TryParse<OrderStatus>(status, true, out var orderStatus))
@@ -50,6 +50,14 @@ public class OrderService : IOrderService
             Page = page,
             PageSize = pageSize
         };
+    }
+
+    public async Task<Order?> GetByIdWithDetailsAsync(int id)
+    {
+        return await _db.Orders
+            .Include(o => o.Customer)
+            .Include(o => o.OrderItems).ThenInclude(oi => oi.Product).ThenInclude(p => p.Images)
+            .FirstOrDefaultAsync(o => o.Id == id);
     }
 
     public async Task<bool> UpdateStatusAsync(int id, string newStatus)
