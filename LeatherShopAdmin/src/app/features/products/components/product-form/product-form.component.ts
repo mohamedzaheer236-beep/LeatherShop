@@ -40,6 +40,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
   uploading = false;
   images: { preview: string; path: string }[] = [];
   readonly maxImages = 4;
+  imageErrors: string[] = [];
 
   private originalSnapshot = '';
 
@@ -137,59 +138,123 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     if (!fileList || fileList.length === 0) return;
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    const filesToUpload: File[] = [];
+    const allowedLabel = 'JPG, PNG, WebP, GIF';
+    const filesToProcess: File[] = [];
+    this.imageErrors = [];
 
     for (let i = 0; i < fileList.length; i++) {
-      if (this.images.length + filesToUpload.length >= this.maxImages) {
-        this.notification.error(`Maximum ${this.maxImages} images allowed.`);
+      if (this.images.length + filesToProcess.length >= this.maxImages) {
+        this.imageErrors.push(`Maximum ${this.maxImages} images allowed.`);
         break;
       }
       const file = fileList[i];
       if (!allowedTypes.includes(file.type)) {
-        this.notification.error(`"${file.name}" is not a supported image format.`);
+        this.imageErrors.push(`"${file.name}" — unsupported format. Only ${allowedLabel} are allowed.`);
         continue;
       }
-      if (file.size > 5 * 1024 * 1024) {
-        this.notification.error(`"${file.name}" exceeds the 5 MB limit.`);
-        continue;
-      }
-      filesToUpload.push(file);
+      filesToProcess.push(file);
     }
 
-    if (filesToUpload.length === 0) return;
-
-    // Show local previews immediately
-    const previewPromises = filesToUpload.map(file =>
-      new Promise<string>(resolve => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
-      })
-    );
+    if (filesToProcess.length === 0) {
+      // Reset the file input
+      if (event.target) event.target.value = '';
+      return;
+    }
 
     this.uploading = true;
 
-    // Upload all files to server
-    this.productService.uploadImages(filesToUpload).subscribe({
-      next: (paths) => {
-        Promise.all(previewPromises).then(previews => {
-          for (let i = 0; i < paths.length; i++) {
-            this.images.push({ preview: previews[i], path: paths[i] });
+    // Compress images client-side before uploading (resize + quality reduction)
+    Promise.all(filesToProcess.map(f => this.compressImage(f)))
+      .then(compressedFiles => {
+        // Generate local previews
+        const previewPromises = compressedFiles.map(file =>
+          new Promise<string>(resolve => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          })
+        );
+
+        // Upload compressed files to server
+        this.productService.uploadImages(compressedFiles).subscribe({
+          next: (paths) => {
+            Promise.all(previewPromises).then(previews => {
+              for (let i = 0; i < paths.length; i++) {
+                this.images.push({ preview: previews[i], path: paths[i] });
+              }
+              this.syncFormImages();
+              this.uploading = false;
+              this.notification.success(
+                paths.length === 1 ? 'Image uploaded!' : `${paths.length} images uploaded!`
+              );
+            });
+          },
+          error: () => {
+            this.uploading = false;
           }
-          this.syncFormImages();
-          this.uploading = false;
-          this.notification.success(
-            paths.length === 1 ? 'Image uploaded!' : `${paths.length} images uploaded!`
-          );
         });
-      },
-      error: () => {
+      })
+      .catch(() => {
         this.uploading = false;
-      }
-    });
+        this.notification.error('Failed to process images. Please try again.');
+      });
 
     // Reset the file input so the same file(s) can be re-selected
     if (event.target) event.target.value = '';
+  }
+
+  /**
+   * Compress an image client-side to target ~300KB.
+   * Resizes to max 1200px and iteratively lowers JPEG quality until under 300KB.
+   */
+  private compressImage(file: File, maxDimension = 1200): Promise<File> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+
+        // Resize if larger than maxDimension
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round(height * (maxDimension / width));
+            width = maxDimension;
+          } else {
+            width = Math.round(width * (maxDimension / height));
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const targetBytes = 300 * 1024; // 300 KB
+
+        // Try decreasing quality until we're under 300KB
+        const tryCompress = (quality: number) => {
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) { reject(new Error('Compression failed')); return; }
+              // If still too big and quality can go lower, try again
+              if (blob.size > targetBytes && quality > 0.3) {
+                tryCompress(quality - 0.1);
+                return;
+              }
+              const compressedName = file.name.replace(/\.[^.]+$/, '.jpg');
+              resolve(new File([blob], compressedName, { type: 'image/jpeg' }));
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+
+        tryCompress(0.85);
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
+    });
   }
 
   /** Remove an image by index */

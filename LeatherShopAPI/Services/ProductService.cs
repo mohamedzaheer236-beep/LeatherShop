@@ -6,6 +6,7 @@ using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Processing;
 
 namespace LeatherShopAPI.Services;
 
@@ -159,32 +160,42 @@ public class ProductService : IProductService
         if (!allowedExts.Contains(ext))
             throw new ArgumentException("Only image files (.jpg, .png, .webp, .gif) are allowed.");
 
-        if (file.Length > 5 * 1024 * 1024)
-            throw new ArgumentException("Image size must be under 5 MB.");
+        // All images are resized + compressed to ~300KB JPEG
+        // This ensures WhatsApp carousel compatibility and saves storage
+        var fileName = $"{Guid.NewGuid()}.jpg";
+        var filePath = Path.Combine(uploadsDir, fileName);
 
-        // Convert WebP/GIF to JPEG for WhatsApp carousel compatibility
-        // (WhatsApp template image headers only support JPEG and PNG)
-        if (ext is ".webp" or ".gif")
+        using var inputStream = file.OpenReadStream();
+        using var image = await Image.LoadAsync(inputStream);
+
+        // Resize if larger than 1200px on either dimension
+        const int maxDimension = 1200;
+        if (image.Width > maxDimension || image.Height > maxDimension)
         {
-            var fileName = $"{Guid.NewGuid()}.jpg";
-            var filePath = Path.Combine(uploadsDir, fileName);
-
-            using var inputStream = file.OpenReadStream();
-            using var image = await Image.LoadAsync(inputStream);
-            await image.SaveAsJpegAsync(filePath, new JpegEncoder { Quality = 90 });
-
-            return $"/uploads/{fileName}";
+            var options = new SixLabors.ImageSharp.Processing.ResizeOptions
+            {
+                Mode = SixLabors.ImageSharp.Processing.ResizeMode.Max,
+                Size = new SixLabors.ImageSharp.Size(maxDimension, maxDimension)
+            };
+            image.Mutate(x => x.Resize(options));
         }
-        else
+
+        // Iteratively lower quality to target ~300KB
+        const int targetBytes = 300 * 1024;
+        int quality = 85;
+        while (quality >= 30)
         {
-            var fileName = $"{Guid.NewGuid()}{ext}";
-            var filePath = Path.Combine(uploadsDir, fileName);
-
-            using var stream = new FileStream(filePath, FileMode.Create);
-            await file.CopyToAsync(stream);
-
-            return $"/uploads/{fileName}";
+            using var testStream = new MemoryStream();
+            await image.SaveAsJpegAsync(testStream, new JpegEncoder { Quality = quality });
+            if (testStream.Length <= targetBytes || quality <= 30)
+            {
+                await System.IO.File.WriteAllBytesAsync(filePath, testStream.ToArray());
+                break;
+            }
+            quality -= 10;
         }
+
+        return $"/uploads/{fileName}";
     }
 
     public async Task<List<string>> UploadImagesAsync(IList<IFormFile> files)

@@ -219,6 +219,32 @@
   font-weight: 500;
 }
 
+/* Image validation errors */
+.image-errors {
+  margin-bottom: 10px;
+
+  .image-error-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    color: #dc2626;
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1.4;
+
+    i {
+      font-size: 13px;
+      margin-top: 1px;
+      flex-shrink: 0;
+    }
+  }
+}
+
 .image-card .remove-image-btn {
   position: absolute;
   top: 6px;
