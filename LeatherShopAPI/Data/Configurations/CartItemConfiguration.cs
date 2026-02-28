@@ -10,9 +10,8 @@ public class CartItemConfiguration : IEntityTypeConfiguration<CartItem>
     {
         builder.HasKey(ci => ci.Id);
 
-        // Unique constraint: one item per product per customer
-        builder.HasIndex(ci => new { ci.CustomerId, ci.ProductId })
-            .IsUnique();
+        // Index for fast lookup (not unique — same product can appear with different images)
+        builder.HasIndex(ci => new { ci.CustomerId, ci.ProductId });
 
         // Many-to-one: CartItem → Customer
         builder.HasOne(ci => ci.Customer)

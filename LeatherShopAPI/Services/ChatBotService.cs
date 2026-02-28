@@ -639,9 +639,10 @@ public class ChatBotService : IChatBotService
         }
 
         // Check against existing cart quantity + new quantity vs stock
-        var existingItem = await _db.CartItems
-            .FirstOrDefaultAsync(ci => ci.CustomerId == customer.Id && ci.ProductId == productId);
-        var alreadyInCart = existingItem?.Quantity ?? 0;
+        // Stock check: sum ALL items for this product across all image selections
+        var alreadyInCart = await _db.CartItems
+            .Where(ci => ci.CustomerId == customer.Id && ci.ProductId == productId)
+            .SumAsync(ci => ci.Quantity);
         var totalNeeded = alreadyInCart + quantity;
 
         if (totalNeeded > product.StockQuantity)
@@ -670,13 +671,16 @@ public class ChatBotService : IChatBotService
             return; // Keep PendingProductId so they can try again
         }
 
-        // Add to cart
+        // Add to cart — merge only when same product AND same selected image
+        var pendingImageId = customer.PendingImageId;
+        var existingItem = await _db.CartItems
+            .FirstOrDefaultAsync(ci => ci.CustomerId == customer.Id
+                                    && ci.ProductId == productId
+                                    && ci.SelectedImageId == pendingImageId);
+
         if (existingItem != null)
         {
             existingItem.Quantity += quantity;
-            // If user previously had no image selection but now selected one, update it
-            if (existingItem.SelectedImageId == null && customer.PendingImageId.HasValue)
-                existingItem.SelectedImageId = customer.PendingImageId;
         }
         else
         {
