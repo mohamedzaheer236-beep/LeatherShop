@@ -434,13 +434,22 @@ public class ChatBotService : IChatBotService
             try
             {
                 // If we have multiple images, try to send as carousel template (swipeable gallery)
-                // Template 'product_gallery' has exactly 2 cards — runtime must match
+                // Templates: product_gallery (2 cards), product_gallery_3 (3 cards), product_gallery_4 (4 cards)
                 if (imageUrls.Count >= 2)
                 {
                     try
                     {
+                        // Pick the right template based on available images (max 4 cards)
+                        var cardCount = Math.Min(imageUrls.Count, 4);
+                        var templateName = cardCount switch
+                        {
+                            2 => "product_gallery",
+                            3 => "product_gallery_3",
+                            _ => "product_gallery_4"  // 4 or more images → 4-card template
+                        };
+
                         var cards = new List<CarouselCard>();
-                        for (int i = 0; i < 2; i++)
+                        for (int i = 0; i < cardCount; i++)
                         {
                             var url = imageUrls[i];
                             var imageFullUrl = url.StartsWith("http") ? url : $"{baseUrl}{url}";
@@ -453,7 +462,7 @@ public class ChatBotService : IChatBotService
                         }
 
                         // Send carousel only — user taps "View Details" to see full product info
-                        await BotSendCarousel(to, "product_gallery", $"Browse {product.Name} images", cards);
+                        await BotSendCarousel(to, templateName, $"Browse {product.Name} images", cards);
                         return;
                     }
                     catch (Exception ex)
