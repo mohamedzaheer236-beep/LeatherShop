@@ -85,6 +85,12 @@ public class ChatBotService : IChatBotService
         await SaveAndPushBotMessage(caption ?? "[image]", "image");
     }
 
+    private async Task BotSendCarousel(string to, string templateName, string bodyText, List<CarouselCard> cards)
+    {
+        await _whatsApp.SendCarouselTemplateMessage(to, templateName, bodyText, cards);
+        await SaveAndPushBotMessage($"[carousel] {bodyText}", "template");
+    }
+
     private async Task SaveAndPushBotMessage(string content, string messageType)
     {
         if (!_currentCustomerId.HasValue) return;
@@ -230,6 +236,14 @@ public class ChatBotService : IChatBotService
             if (input.StartsWith("prod_"))
             {
                 var productId = int.Parse(input.Replace("prod_", ""));
+                await SendProductDetails(phone, productId);
+                return;
+            }
+
+            // ---- VIEW PRODUCT FROM CAROUSEL (quick_reply "View Details" button) ----
+            if (input.StartsWith("view_") && input != "view_cart")
+            {
+                var productId = int.Parse(input.Replace("view_", ""));
                 await SendProductDetails(phone, productId);
                 return;
             }
@@ -418,8 +432,51 @@ public class ChatBotService : IChatBotService
 
             try
             {
-                // Caption on the FIRST (primary) image so product details are always visible.
-                // Additional images follow without captions.
+                // If we have multiple images, try to send as carousel template (swipeable gallery)
+                // Template 'product_gallery' has exactly 2 cards — runtime must match
+                if (imageUrls.Count >= 2)
+                {
+                    try
+                    {
+                        var cards = new List<CarouselCard>();
+                        for (int i = 0; i < 2; i++)
+                        {
+                            var url = imageUrls[i];
+                            var imageFullUrl = url.StartsWith("http") ? url : $"{baseUrl}{url}";
+                            cards.Add(new CarouselCard
+                            {
+                                ImageUrl = imageFullUrl,
+                                BodyParam = $"{product.Name} - ₹{product.Price}",
+                                ButtonPayload = $"view_{product.Id}"
+                            });
+                        }
+
+                        // Send product details as text first, then carousel for gallery
+                        var detailsText = details.Length > 1024 ? details[..1021] + "..." : details;
+                        await BotSendText(to, detailsText);
+                        await BotSendCarousel(to, "product_gallery", $"Browse {product.Name} images", cards);
+
+                        // Send action buttons
+                        await BotSendButtons(
+                            to,
+                            bodyText: "What would you like to do?",
+                            buttons: new List<ButtonOption>
+                            {
+                                new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
+                                new() { Id = "browse_categories", Title = "🔙 Categories" },
+                                new() { Id = "main_menu", Title = "🏠 Main Menu" }
+                            }
+                        );
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Carousel template failed for product {ProductId}, falling back to individual images", productId);
+                        // Fall through to individual image sending below
+                    }
+                }
+
+                // Single image or carousel fallback: send images individually
                 var caption = details.Length > 1024 ? details[..1021] + "..." : details;
 
                 for (int i = 0; i < imageUrls.Count; i++)

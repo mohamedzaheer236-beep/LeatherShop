@@ -182,6 +182,48 @@ public class WhatsAppService : IWhatsAppService
     }
 
     /// <summary>
+    /// Send a carousel template message with dynamic image cards.
+    /// Each card has a header image, body text with a parameter, and a quick-reply button.
+    /// Template must be pre-approved in Meta Business Manager.
+    /// The number of cards MUST match the template definition (e.g., product_gallery has 2 cards).
+    /// </summary>
+    public async Task SendCarouselTemplateMessage(string to, string templateName, string bodyText, List<CarouselCard> cards, string languageCode = "en")
+    {
+        // Build card components — each card has header (image), body (text param), and button (quick_reply payload)
+        var carouselCards = cards.Select((card, idx) => new Dictionary<string, object>
+        {
+            ["card_index"] = idx,
+            ["components"] = new object[]
+            {
+                new { type = "header", parameters = new[] { new { type = "image", image = new { link = card.ImageUrl } } } },
+                new { type = "body", parameters = new[] { new { type = "text", text = card.BodyParam } } },
+                new { type = "button", sub_type = "quick_reply", index = 0, parameters = new[] { new { type = "payload", payload = card.ButtonPayload } } }
+            }
+        }).ToList<object>();
+
+        var payload = new Dictionary<string, object>
+        {
+            ["messaging_product"] = "whatsapp",
+            ["to"] = to,
+            ["type"] = "template",
+            ["template"] = new Dictionary<string, object>
+            {
+                ["name"] = templateName,
+                ["language"] = new { code = languageCode },
+                ["components"] = new object[]
+                {
+                    new Dictionary<string, object>
+                    {
+                        ["type"] = "carousel",
+                        ["cards"] = carouselCards
+                    }
+                }
+            }
+        };
+        await SendRequest(payload);
+    }
+
+    /// <summary>
     /// Fetch approved message templates from Meta Business API.
     /// Uses the WABA ID to query templates with status=APPROVED.
     /// </summary>
@@ -269,4 +311,11 @@ public class WhatsAppTemplate
     public string Language { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
+}
+
+public class CarouselCard
+{
+    public string ImageUrl { get; set; } = string.Empty;
+    public string BodyParam { get; set; } = string.Empty;
+    public string ButtonPayload { get; set; } = string.Empty;
 }

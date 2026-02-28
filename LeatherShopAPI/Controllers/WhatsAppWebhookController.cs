@@ -92,6 +92,11 @@ public class WhatsAppWebhookController : ControllerBase
                                 interactiveId = reply?.Id;
                                 interactiveTitle = reply?.Title;
                                 break;
+                            case "button":
+                                // Template quick_reply buttons come as type "button" with payload
+                                interactiveId = message.Button?.Payload;
+                                interactiveTitle = message.Button?.Text;
+                                break;
                             default:
                                 textBody = "menu";
                                 break;

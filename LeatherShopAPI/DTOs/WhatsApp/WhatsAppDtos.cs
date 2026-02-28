@@ -57,6 +57,7 @@ public class Message
     public string Type { get; set; } = string.Empty;
     public TextContent? Text { get; set; }
     public Interactive? Interactive { get; set; }
+    public ButtonReplyContent? Button { get; set; }
 }
 
 public class TextContent
@@ -78,4 +79,14 @@ public class InteractiveReply
     public string Id { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
+}
+
+/// <summary>
+/// Represents a quick_reply button response from a template message.
+/// Unlike interactive button replies, template quick_reply comes as type "button".
+/// </summary>
+public class ButtonReplyContent
+{
+    public string Payload { get; set; } = string.Empty;
+    public string Text { get; set; } = string.Empty;
 }
