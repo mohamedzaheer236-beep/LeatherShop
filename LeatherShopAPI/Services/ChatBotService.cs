@@ -38,6 +38,25 @@ public class ChatBotService : IChatBotService
         _config = config;
     }
 
+    /// <summary>
+    /// Returns the public base URL for constructing externally-reachable links (images, payment).
+    /// Prefers App:BaseUrl config, falls back to RAILWAY_PUBLIC_DOMAIN env var.
+    /// Skips localhost/placeholder values since WhatsApp servers can't reach them.
+    /// </summary>
+    private string? GetPublicBaseUrl()
+    {
+        var baseUrl = _config["App:BaseUrl"]?.TrimEnd('/');
+        if (string.IsNullOrEmpty(baseUrl) || baseUrl.Contains("WILL_BE_SET") || baseUrl.Contains("localhost"))
+        {
+            var railwayDomain = Environment.GetEnvironmentVariable("RAILWAY_PUBLIC_DOMAIN");
+            if (!string.IsNullOrEmpty(railwayDomain))
+                baseUrl = $"https://{railwayDomain}";
+            else
+                baseUrl = null;
+        }
+        return baseUrl;
+    }
+
     // ================================================
     //  SEND + SAVE HELPERS (wraps WhatsApp send + saves to chat history + pushes via SignalR)
     // ================================================
@@ -383,14 +402,7 @@ public class ChatBotService : IChatBotService
         // Send product image if available
         if (!string.IsNullOrEmpty(product.ImageUrl))
         {
-            var baseUrl = _config["App:BaseUrl"]?.TrimEnd('/');
-            // Fallback: use Railway's auto-provided public domain
-            if (string.IsNullOrEmpty(baseUrl) || baseUrl.Contains("WILL_BE_SET"))
-            {
-                var railwayDomain = Environment.GetEnvironmentVariable("RAILWAY_PUBLIC_DOMAIN");
-                if (!string.IsNullOrEmpty(railwayDomain))
-                    baseUrl = $"https://{railwayDomain}";
-            }
+            var baseUrl = GetPublicBaseUrl();
 
             var imageFullUrl = product.ImageUrl.StartsWith("http")
                 ? product.ImageUrl
@@ -711,7 +723,7 @@ public class ChatBotService : IChatBotService
         await _db.SaveChangesAsync();
 
         // Generate payment link
-        var paymentUrl = $"{_config["App:BaseUrl"]}/api/payment/pay/{order.Id}";
+        var paymentUrl = $"{GetPublicBaseUrl()}/api/payment/pay/{order.Id}";
 
         var orderSummary = $"✅ *Order Placed!*\n\n" +
                            $"📋 Order: *{order.OrderNumber}*\n" +
