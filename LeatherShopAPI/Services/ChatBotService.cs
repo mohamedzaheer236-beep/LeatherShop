@@ -235,8 +235,12 @@ public class ChatBotService : IChatBotService
             // ---- SELECTED A PRODUCT (view details) ----
             if (input.StartsWith("prod_"))
             {
-                var productId = int.Parse(input.Replace("prod_", ""));
-                await SendProductDetails(phone, productId);
+                if (int.TryParse(input.Replace("prod_", ""), out var productId))
+                {
+                    await SendProductDetails(phone, productId);
+                    return;
+                }
+                await BotSendText(phone, "Invalid product. Type *menu* to browse.");
                 return;
             }
 
@@ -244,16 +248,24 @@ public class ChatBotService : IChatBotService
             // Show text details + action buttons only (no images/carousel again)
             if (input.StartsWith("view_") && input != "view_cart")
             {
-                var productId = int.Parse(input.Replace("view_", ""));
-                await SendProductDetailsText(phone, productId);
+                if (int.TryParse(input.Replace("view_", ""), out var viewProductId))
+                {
+                    await SendProductDetailsText(phone, viewProductId);
+                    return;
+                }
+                await BotSendText(phone, "Invalid product. Type *menu* to browse.");
                 return;
             }
 
             // ---- ADD TO CART (ask for quantity) ----
             if (input.StartsWith("addcart_"))
             {
-                var productId = int.Parse(input.Replace("addcart_", ""));
-                await AskQuantity(phone, customer, productId);
+                if (int.TryParse(input.Replace("addcart_", ""), out var cartProductId))
+                {
+                    await AskQuantity(phone, customer, cartProductId);
+                    return;
+                }
+                await BotSendText(phone, "Invalid product. Type *menu* to browse.");
                 return;
             }
 

@@ -9,7 +9,10 @@ public class OrderDto
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = string.Empty;
     public bool IsPaid { get; set; }
+    public string? ShippingAddress { get; set; }
+    public string? PaymentId { get; set; }
     public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
     public List<OrderItemDto> Items { get; set; } = new();
 }
 

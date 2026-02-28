@@ -211,6 +211,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
+        URL.revokeObjectURL(img.src); // free blob memory immediately
         let { width, height } = img;
 
         // Resize if larger than maxDimension
@@ -252,7 +253,10 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
 
         tryCompress(0.85);
       };
-      img.onerror = () => reject(new Error('Failed to load image'));
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src);
+        reject(new Error('Failed to load image'));
+      };
       img.src = URL.createObjectURL(file);
     });
   }

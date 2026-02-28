@@ -119,6 +119,11 @@ public class ProductService : IProductService
         var product = await _db.Products.FindAsync(id);
         if (product == null) return false;
 
+        // Check if product has been ordered — can't delete products with order history
+        var hasOrders = await _db.OrderItems.AnyAsync(oi => oi.ProductId == id);
+        if (hasOrders)
+            throw new InvalidOperationException("Cannot delete a product that has been ordered. Deactivate it instead.");
+
         _db.Products.Remove(product);
         await _db.SaveChangesAsync();
         return true;
@@ -159,6 +164,10 @@ public class ProductService : IProductService
         var allowedExts = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
         if (!allowedExts.Contains(ext))
             throw new ArgumentException("Only image files (.jpg, .png, .webp, .gif) are allowed.");
+
+        // Guard against extremely large files before loading into memory
+        if (file.Length > 20 * 1024 * 1024)
+            throw new ArgumentException("Image file is too large. Please upload a smaller file.");
 
         // All images are resized + compressed to ~300KB JPEG
         // This ensures WhatsApp carousel compatibility and saves storage

@@ -55,10 +55,17 @@ public class ProductsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var success = await _productService.DeleteAsync(id);
-        if (!success)
-            return NotFound(ApiResponse.Fail("Product not found."));
-        return Ok(ApiResponse.Ok("Product deleted successfully."));
+        try
+        {
+            var success = await _productService.DeleteAsync(id);
+            if (!success)
+                return NotFound(ApiResponse.Fail("Product not found."));
+            return Ok(ApiResponse.Ok("Product deleted successfully."));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse.Fail(ex.Message));
+        }
     }
 
     [HttpGet("categories")]

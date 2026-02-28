@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
-using LeatherShopAPI.DTOs.Chat;
 using LeatherShopAPI.DTOs.Order;
 using LeatherShopAPI.Extensions;
 using LeatherShopAPI.Hubs;
@@ -64,7 +63,23 @@ public class OrderService : IOrderService
         if (!Enum.TryParse<OrderStatus>(newStatus, true, out var status))
             return false;
 
+        // Validate status transitions — prevent invalid state changes
         var previousStatus = order.Status;
+        var validTransitions = new Dictionary<OrderStatus, OrderStatus[]>
+        {
+            [OrderStatus.Pending] = new[] { OrderStatus.Confirmed, OrderStatus.Cancelled },
+            [OrderStatus.Confirmed] = new[] { OrderStatus.Shipped, OrderStatus.Cancelled },
+            [OrderStatus.Shipped] = new[] { OrderStatus.Delivered, OrderStatus.Cancelled },
+            [OrderStatus.Delivered] = Array.Empty<OrderStatus>(),
+            [OrderStatus.Cancelled] = Array.Empty<OrderStatus>()
+        };
+
+        if (!validTransitions.TryGetValue(previousStatus, out var allowed) || !allowed.Contains(status))
+        {
+            _logger.LogWarning("Invalid order status transition: {From} -> {To} for order {OrderId}", previousStatus, status, id);
+            return false;
+        }
+
         order.Status = status;
         order.UpdatedAt = DateTime.UtcNow;
 

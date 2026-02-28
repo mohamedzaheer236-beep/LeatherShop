@@ -37,7 +37,8 @@ public static class MappingExtensions
             StockQuantity = p.StockQuantity,
             ImageUrl = p.ImageUrl,
             ImageUrls = imageUrls,
-            IsActive = p.IsActive
+            IsActive = p.IsActive,
+            CreatedAt = p.CreatedAt
         };
     }
 
@@ -52,7 +53,10 @@ public static class MappingExtensions
         TotalAmount = o.TotalAmount,
         Status = o.Status.ToString(),
         IsPaid = o.IsPaid,
+        ShippingAddress = o.ShippingAddress,
+        PaymentId = o.PaymentId,
         CreatedAt = o.CreatedAt,
+        UpdatedAt = o.UpdatedAt,
         Items = o.OrderItems.Select(oi => oi.ToDto()).ToList()
     };
 

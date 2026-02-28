@@ -10,6 +10,8 @@ import { SignalRService } from '../services/signalr.service';
  * On 401, clears auth state and redirects to login.
  * Registered in app.config.ts via withInterceptors([]).
  */
+let isLoggingOut = false;
+
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const notification = inject(NotificationService);
   const auth = inject(AuthService);
@@ -17,10 +19,15 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
-      // On 401, redirect to login (skip if already on login page)
+      // On 401, redirect to login (skip if already on login page, prevent concurrent logouts)
       if (error.status === 401 && !req.url.includes('/auth/login')) {
-        signalR.stop(); // fire-and-forget — close hub before clearing tokens
-        auth.logout();
+        if (!isLoggingOut) {
+          isLoggingOut = true;
+          signalR.stop(); // fire-and-forget — close hub before clearing tokens
+          auth.logout();
+          // Reset flag after a short delay to allow future logouts if user logs in again
+          setTimeout(() => (isLoggingOut = false), 2000);
+        }
         return throwError(() => error);
       }
 

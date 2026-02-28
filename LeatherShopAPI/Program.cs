@@ -104,9 +104,12 @@ using (var scope = app.Services.CreateScope())
 // --- Global exception handling (must be first in pipeline) ---
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-// Swagger enabled in all environments (used as health check endpoint)
-app.UseSwagger();
-app.UseSwaggerUI();
+// Swagger — only exposed in Development for security
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseStaticFiles(); // Serve uploaded images from wwwroot
 
@@ -117,5 +120,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 app.Run();

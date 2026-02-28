@@ -105,9 +105,10 @@ public class WhatsAppWebhookController : ControllerBase
                         // --- Save incoming message to chat history ---
                         var phone = LeatherShopAPI.Extensions.PhoneNumberHelper.Normalize(from);
                         var customer = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone);
+                        var incomingContent = textBody ?? interactiveTitle ?? interactiveId ?? "[media]";
+
                         if (customer != null)
                         {
-                            var incomingContent = textBody ?? interactiveTitle ?? interactiveId ?? "[media]";
                             var savedMsg = await _chatService.SaveMessageAsync(
                                 customer.Id, MessageDirection.Incoming, incomingContent,
                                 string.IsNullOrEmpty(contactName) ? phone : contactName, false, message.Type);
@@ -143,6 +144,18 @@ public class WhatsAppWebhookController : ControllerBase
                         }
 
                         await _chatBot.ProcessMessage(from, contactName, message.Type, textBody, interactiveId, interactiveTitle);
+
+                        // Save first message for brand-new customers (customer created inside ProcessMessage)
+                        if (customer == null)
+                        {
+                            var newCustomer = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone);
+                            if (newCustomer != null)
+                            {
+                                await _chatService.SaveMessageAsync(
+                                    newCustomer.Id, MessageDirection.Incoming, incomingContent,
+                                    string.IsNullOrEmpty(contactName) ? phone : contactName, false, message.Type);
+                            }
+                        }
                     }
                 }
             }

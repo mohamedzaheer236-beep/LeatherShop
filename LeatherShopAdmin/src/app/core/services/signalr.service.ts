@@ -45,11 +45,10 @@ export class SignalRService implements OnDestroy {
   start(): void {
     if (this.hubConnection) return; // already connected
 
-    const token = this.auth.getToken();
-    if (!token) return;
+    if (!this.auth.getToken()) return;
 
     this.hubConnection = new signalR.HubConnectionBuilder()
-      .withUrl(environment.hubUrl, { accessTokenFactory: () => token })
+      .withUrl(environment.hubUrl, { accessTokenFactory: () => this.auth.getToken()! })
       .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
       .configureLogging(signalR.LogLevel.Warning)
       .build();

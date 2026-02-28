@@ -15,6 +15,7 @@ public class ProductDto
     /// <summary>All image URLs in display order (primary first, then additional).</summary>
     public List<string> ImageUrls { get; set; } = new();
     public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
 
 public class CreateProductDto
@@ -42,7 +43,7 @@ public class CreateProductDto
 
     public string? ImageUrl { get; set; }
 
-    /// <summary>Additional image URLs (beyond the primary ImageUrl). Max 3.</summary>
+    /// <summary>Additional image URLs (beyond the primary ImageUrl). Max 4 total.</summary>
     public List<string>? ImageUrls { get; set; }
 }
 
@@ -68,7 +69,7 @@ public class UpdateProductDto
 
     public string? ImageUrl { get; set; }
 
-    /// <summary>Additional image URLs (beyond the primary ImageUrl). Max 3. Pass empty list to clear.</summary>
+    /// <summary>Additional image URLs (beyond the primary ImageUrl). Max 4 total. Pass empty list to clear.</summary>
     public List<string>? ImageUrls { get; set; }
 
     public bool? IsActive { get; set; }
