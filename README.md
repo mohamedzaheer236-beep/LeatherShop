@@ -1080,7 +1080,7 @@ Comprehensive line-by-line audit of the entire codebase. These remain to be fixe
 |---|----------|-------|------|---------|
 | P10 | ~~**Medium**~~ | ~~No order status transition validation~~ | ~~`OrderService.cs` L64~~ | ✅ **FIXED** — State machine with valid transition map added. See L16 fix above. |
 | P11 | **Medium** | `.ToLower()` kills DB indexes | `CustomerService.cs` L35, `ProductService.cs` | *(Duplicate of M3 / F21)* — `p.Category.ToLower()` generates `LOWER()` SQL preventing index usage. **Fix:** Use `EF.Functions.ILike()` for PostgreSQL. |
-| P12 | **Medium** | ~~Null-forgiving config access~~ | ~~`WhatsAppService.cs` L22-24~~ | ✅ **FIXED** — Replaced `_config["WhatsApp:PhoneNumberId"]!` null-forgiving operator with `?? throw new InvalidOperationException("WhatsApp:PhoneNumberId not configured")` for `PhoneNumberId`, `AccessToken`, and `VerifyToken`. Missing config now fails fast at startup with a clear error message. Also uses new `WhatsAppApiException` typed exception for API call failures. See F76 (also marked fixed). |
+| P12 | **Medium** | ~~Null-forgiving config access~~ | ~~`WhatsAppService.cs` L22-24~~ | ✅ **FIXED** — Replaced `_config["WhatsApp:PhoneNumberId"]!` null-forgiving operator with `?? throw new InvalidOperationException("WhatsApp:PhoneNumberId not configured")` for `PhoneNumberId` and `AccessToken`. Missing config now fails fast at startup with a clear error message. Also uses new `WhatsAppApiException` typed exception for API call failures. Note: `VerifyToken` is read in `WhatsAppWebhookController`, not in this service. See F76 (also marked fixed). |
 | P13 | **Low** | No `AsNoTracking()` on read queries | `OrderService.cs` L24-28, `CustomerService.cs` L27, `ProductService.cs` L20 | Read-only queries track entities needlessly. Add `.AsNoTracking()`. |
 | P14 | **Low** | Shared HttpClient header mutation | `WhatsAppService.cs` L37 | Sets `DefaultRequestHeaders.Authorization` in constructor. If `HttpClient` is shared, this is not thread-safe. **Fix:** Set per-request or configure in `AddHttpClient<>`. |
 | P15 | **Low** | `Information`-level payload logging | `WhatsAppService.cs` L188 | Logs full WhatsApp request JSON (contains phone numbers) at `Information` level. Should be `Debug`. |
@@ -1098,12 +1098,12 @@ Comprehensive line-by-line audit of the entire codebase. These remain to be fixe
 
 | # | Strength |
 |---|----------|
-| 1 | All 5 features properly **lazy-loaded** with `loadChildren` |
+| 1 | All 6 features properly **lazy-loaded** with `loadChildren` |
 | 2 | Clean **service → controller** separation with interfaces in the backend |
 | 3 | Global **exception handling middleware** that prevents stack trace leaks |
 | 4 | **Unified API response** envelope (`ApiResponse<T>`) across all endpoints |
 | 5 | **Standalone components** throughout (Angular 18 best practice, no NgModules) |
-| 6 | PrimeNG overrides in global styles. One scoped `::ng-deep` in product-list for dropdown panel (required by `appendTo="body"`) |
+| 6 | PrimeNG overrides in global styles using `body .p-*` prefix for natural specificity. Zero `::ng-deep` in any component |
 | 7 | **Channel\<T\> + BackgroundService** pattern for async broadcast processing |
 | 8 | **EF Core Fluent API configurations** properly separated with index definitions |
 | 9 | **Strict TypeScript** config with all Angular strict compiler flags enabled |
@@ -1125,7 +1125,7 @@ Comprehensive line-by-line audit of the entire codebase. These remain to be fixe
 | 25 | **Bot pause/resume** system — chatbot auto-pauses when admin takes over a conversation, resumes after timeout |
 | 26 | **Component file consistency** — all substantial components use separate `.html` + `.scss` files (templateUrl/styleUrl pattern) |
 | 27 | **Auto-cleanup background service** — `ChatCleanupBackgroundService` deletes chat messages older than 30 days (runs daily, uses bulk `ExecuteDeleteAsync`) |
-| 28 | **Full customer CRUD** — create, edit, delete with cascade deletes. Edit does NOT send WhatsApp messages (intentional). |
+| 28 | **Full customer CRUD** — create, edit, delete with FK protection (orders use `Restrict`, cart items and chat messages cascade). Edit does NOT send WhatsApp messages (intentional). |
 | 29 | **Address mandatory workflow** — Admin UI requires address field on create/edit. Bot asks for shipping address during checkout if not set (`PendingAction` state machine). |
 | 30 | **Confirmation dialogs** — Delete customer and delete conversation both use confirmation dialogs to prevent accidental data loss |
 | 31 | **Typed API layer** — All 6 Angular services use `ApiResponse<T>` generics instead of `any`. Shared interface matches backend envelope. |
@@ -1161,7 +1161,7 @@ Exhaustive file-by-file scan of all **49 backend `.cs` files** and **61 frontend
 | **Dead code** | ✅ **FIXED** — Removed unused `uploadImage()` method from product.service.ts. Removed dead `FileUploadModule`/`ProgressBarModule` imports from product-form. |
 | **Empty `catch {}`** | ✅ **FIXED** — `scrollToBottom()` in chat-page now has explanatory comment: "Intentionally empty — scrolling is a best-effort UI enhancement". |
 | **Missing `trackBy`** | ✅ **FIXED** — Added `trackByConversation` and `trackByMessage` functions to chat-page, wired to `*ngFor` in template. |
-| **`!important` in SCSS** | ✅ 18 remaining — all are PrimeNG deep overrides (required for third-party component styling). Zero in app-owned styles. |
+| **`!important` in SCSS** | ✅ 18 remaining — used for PrimeNG overrides and component-specific styling (navbar logout button, chat send button, login form). Zero in core app layout styles. |
 
 ---
 
@@ -1567,7 +1567,7 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 | F65 | **Medium** | ~~**Broadcast: polling conflict on second broadcast**~~ | ~~`broadcast.component.ts`~~ | ✅ **FIXED** — Replaced single `pollingInterval` with `Map<number, ReturnType<typeof setInterval>>` (`pollingIntervals`). Each broadcast gets its own interval tracked by `broadcastId`. When a broadcast completes, only its own interval is cleared. `sending` flag is true while any poll is active (`pollingIntervals.size > 0`). `ngOnDestroy` clears all intervals in the map. Duplicate polls for the same broadcast are prevented by `has()` check. | ~~Track per-broadcast~~ ✅ Done |
 | F66 | **Medium** | **Missing accessible labels on filter controls** | `orders.component.html`, `chat-page.component.html` | Status dropdown, search input, and message input lack `aria-label`. Screen readers only read placeholder or generic "edit text". | Add `aria-label` attributes on all interactive controls. |
 | F67 | **Low** | **Broadcast result banner leaks between Quick/Template modes** | `broadcast.component.ts` | `resultMessage` and `resultType` are shared state. Success/error banner from one mode visible when switching to the other. | Clear `resultMessage = ''` when switching modes. |
-| F68 | **Low** | **`getStatusButtonSeverity` is dead code** | `severity.utils.ts`, `orders.component.ts` | Returns `'primary' as TagSeverity` (invalid cast — not in union type). Template uses inline logic instead. Both the util function and component wrapper are unused. | Remove dead function and wrapper. |
+| F68 | **Low** | **`getStatusButtonSeverity` is dead code** | `severity.utils.ts`, `orders.component.ts` | Function exists but template uses inline logic instead. Both the util function and component wrapper method are unused. | Remove dead function and wrapper. |
 | F69 | **Low** | **Product list: unreachable `emptymessage` template** | `product-list.component.html` | `<p-table>` only mounts when `products.length > 0`, so the `emptymessage` template inside can never render. | Remove the dead template. |
 | F70 | **Low** | **Chat: `deleteConversation` shows no success toast** | `chat-page.component.ts` | Every other destructive action shows a confirmation toast, but conversation delete does not. Inconsistent UX. | Add `this.notification.success('Conversation deleted.')`. |
 | F71 | **Low** | ~~**SignalR `stop()` doesn't await the Promise**~~ | ~~`signalr.service.ts`~~ | ✅ **FIXED** — `stop()` now returns `Promise<void>`. Saves the connection reference to a local variable, nulls `hubConnection` first (prevents new calls during shutdown), then returns `conn.stop()` which the caller can await. `ngOnDestroy` doesn't need to await (service is being destroyed anyway). Navbar logout awaits `stop()` before clearing session (see F60). | ~~Make async, await stop~~ ✅ Done |
@@ -1582,7 +1582,7 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 | F73 | **High** | **Webhook error aborts entire batch** | `WhatsAppWebhookController.cs` L60-134 | The try/catch wraps the **entire** message processing loop. If one message in a batch throws, all subsequent messages in the same webhook payload are silently dropped. | Move try/catch **inside** the per-message `foreach` loop. |
 | F74 | ~~**High**~~ | ~~**Stock inflation on un-cancellation**~~ | ~~`OrderService.cs` L63-69~~ | ✅ **FIXED** — Order status transition validation now blocks Cancelled→any transition. Un-cancellation is no longer possible, preventing phantom inventory. See L16. |
 | F75 | **Medium** | **`AmountInPaise` truncation risk** | `PaymentService.cs` L47 | `(int)(order.TotalAmount * 100)` truncates instead of rounding. `99.999m` → 9999 instead of 10000. | Use `(int)Math.Round(order.TotalAmount * 100)`. |
-| F76 | **Medium** | ~~**WhatsApp service fail-open on missing config**~~ | ~~`WhatsAppService.cs` L18-20~~ | ✅ **FIXED** — Replaced null-forgiving `!` with `?? throw new InvalidOperationException(...)` for `PhoneNumberId`, `AccessToken`, and `VerifyToken`. Missing config now fails fast at service construction with a clear error message instead of silently making failing API calls. See P12 (also marked fixed). | ~~Null-coalescing throw~~ ✅ Done |
+| F76 | **Medium** | ~~**WhatsApp service fail-open on missing config**~~ | ~~`WhatsAppService.cs` L18-20~~ | ✅ **FIXED** — Replaced null-forgiving `!` with `?? throw new InvalidOperationException(...)` for `PhoneNumberId` and `AccessToken`. Missing config now fails fast at service construction with a clear error message instead of silently making failing API calls. Note: `VerifyToken` is read in `WhatsAppWebhookController.cs`, not in this service — still uses direct indexer without null check. See P12 (also marked fixed). | ~~Null-coalescing throw~~ ✅ Done |
 | F77 | **Medium** | **No HTTPS enforcement/HSTS** | `Program.cs` L74 | App binds HTTP only. No `UseHttpsRedirection()` or HSTS headers. Railway provides TLS termination but direct HTTP is possible. | Add `app.UseHttpsRedirection()` and HSTS headers. |
 | F78 | **Medium** | **Chat: stale messages on quick conversation switch** | `chat-page.component.ts` `selectConversation/loadMessages` | Setting `selectedCustomerId` and calling HTTP `loadMessages()` without cancelling previous in-flight request. Quick A→B switch can briefly show A's messages in B's panel until B's response arrives. | Use `switchMap` or check `selectedCustomerId` still matches in the subscribe callback. |
 | F79 | **Medium** | **Chat: `loadConversations()` called on every message** | `chat-page.component.ts` `newChatMessage$` | No debounce/throttle on the SignalR event handler. In busy chat, N messages = N full conversation-list API calls in quick succession. | Add `debounceTime(1000)` to the subscription, or update conversation metadata locally. |

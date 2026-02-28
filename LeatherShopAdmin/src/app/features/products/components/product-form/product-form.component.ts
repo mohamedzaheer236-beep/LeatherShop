@@ -92,7 +92,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
         this.originalSnapshot = JSON.stringify(this.productForm.value);
         },
         error: () => {
-          this.notification.error('Failed to load product.');
+          // Toast shown by error interceptor — just navigate back
           this.router.navigate(['/products']);
         }
       });
