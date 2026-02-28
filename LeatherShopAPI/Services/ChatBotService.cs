@@ -418,15 +418,15 @@ public class ChatBotService : IChatBotService
 
             try
             {
-                // Send images as consecutive messages — WhatsApp auto-groups them into a swipeable gallery.
-                // The last image carries the product details as caption.
+                // Caption on the FIRST (primary) image so product details are always visible.
+                // Additional images follow without captions.
                 var caption = details.Length > 1024 ? details[..1021] + "..." : details;
 
                 for (int i = 0; i < imageUrls.Count; i++)
                 {
                     var url = imageUrls[i];
                     var imageFullUrl = url.StartsWith("http") ? url : $"{baseUrl}{url}";
-                    var imgCaption = (i == imageUrls.Count - 1) ? caption : null;
+                    var imgCaption = (i == 0) ? caption : null;
 
                     _logger.LogInformation("Sending product image {Index}/{Total}: {FullUrl}",
                         i + 1, imageUrls.Count, imageFullUrl);
