@@ -433,14 +433,20 @@ public class ChatBotService : IChatBotService
 
             try
             {
-                // If we have multiple images, try to send as carousel template (swipeable gallery)
+                // WhatsApp template headers only support JPEG & PNG — filter for carousel
+                var carouselSupportedExts = new[] { ".jpg", ".jpeg", ".png" };
+                var carouselImageUrls = imageUrls
+                    .Where(u => carouselSupportedExts.Contains(Path.GetExtension(u).ToLower()))
+                    .ToList();
+
+                // If we have multiple carousel-compatible images, try to send as carousel template
                 // Templates: product_gallery (2 cards), product_gallery_3 (3 cards), product_gallery_4 (4 cards)
-                if (imageUrls.Count >= 2)
+                if (carouselImageUrls.Count >= 2)
                 {
                     try
                     {
                         // Pick the right template based on available images (max 4 cards)
-                        var cardCount = Math.Min(imageUrls.Count, 4);
+                        var cardCount = Math.Min(carouselImageUrls.Count, 4);
                         var templateName = cardCount switch
                         {
                             2 => "product_gallery",
@@ -451,7 +457,7 @@ public class ChatBotService : IChatBotService
                         var cards = new List<CarouselCard>();
                         for (int i = 0; i < cardCount; i++)
                         {
-                            var url = imageUrls[i];
+                            var url = carouselImageUrls[i];
                             var imageFullUrl = url.StartsWith("http") ? url : $"{baseUrl}{url}";
                             cards.Add(new CarouselCard
                             {
