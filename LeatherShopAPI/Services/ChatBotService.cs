@@ -428,15 +428,7 @@ public class ChatBotService : IChatBotService
         if (!string.IsNullOrEmpty(product.Description))
             details += $"\n\n📝 {product.Description}";
 
-        // Action buttons (always sent)
-        var buttons = new List<ButtonOption>
-        {
-            new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
-            new() { Id = "browse_categories", Title = "🔙 Categories" },
-            new() { Id = "main_menu", Title = "🏠 Main Menu" }
-        };
-
-        // Send product image if available
+        // Send product image if available (brief caption — full details go in the button message below)
         if (!string.IsNullOrEmpty(product.ImageUrl))
         {
             var baseUrl = GetPublicBaseUrl();
@@ -450,29 +442,27 @@ public class ChatBotService : IChatBotService
 
                 try
                 {
-                    // Send action buttons FIRST — WhatsApp downloads images async,
-                    // so sending buttons first ensures correct visual order:
-                    // buttons appear on top, image with full details appears below (most recent)
-                    var bodyText = "Tap to continue:";
-                    await BotSendButtons(to, bodyText, buttons);
-
-                    // Send image WITH full details as caption — renders as one cohesive message
-                    // (image + caption text at bottom, like screenshot 3 in user's example)
-                    var caption = details.Length > 1024 ? details[..1021] + "..." : details;
-                    await BotSendImage(to, imageFullUrl, caption);
-                    return;
+                    await BotSendImage(to, imageFullUrl, product.Name);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Failed to send product image for product {ProductId}", productId);
-                    // Fall through to text-only button message below
                 }
             }
         }
 
-        // Text-only fallback (no image or image failed): details + buttons in one message
-        var fallbackBody = details.Length > 1024 ? details[..1021] + "..." : details;
-        await BotSendButtons(to, fallbackBody, buttons);
+        // Send product details WITH action buttons in one message (always sent, regardless of image)
+        var bodyText = details.Length > 1024 ? details[..1021] + "..." : details;
+        await BotSendButtons(
+            to,
+            bodyText: bodyText,
+            buttons: new List<ButtonOption>
+            {
+                new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
+                new() { Id = "browse_categories", Title = "🔙 Categories" },
+                new() { Id = "main_menu", Title = "🏠 Main Menu" }
+            }
+        );
     }
 
     /// <summary>Show interactive +/- quantity selector with live price calculation</summary>
