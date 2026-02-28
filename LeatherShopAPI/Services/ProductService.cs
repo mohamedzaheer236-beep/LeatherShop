@@ -107,6 +107,12 @@ public class ProductService : IProductService
                     DisplayOrder = i
                 });
             }
+
+            // If imageUrls was sent as empty AND imageUrl is null, clear the primary image too
+            if (dto.ImageUrls.Count == 0 && dto.ImageUrl == null)
+            {
+                product.ImageUrl = string.Empty;
+            }
         }
 
         product.UpdatedAt = DateTime.UtcNow;
