@@ -1,6 +1,6 @@
 {
   "buildCommand": "ng build --configuration production",
-  "outputDirectory": "dist/leather-shop-admin/browser",
+  "outputDirectory": "dist/leather-shop-admin",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
