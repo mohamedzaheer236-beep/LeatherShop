@@ -78,10 +78,13 @@
             <div class="form-field">
               <label for="stock">Stock Quantity <span [class]="isFieldInvalid('stockQuantity') ? 'req-star error' : 'req-star'">*</span></label>
               <p-inputNumber inputId="stock" formControlName="stockQuantity"
-                            [min]="0" [showButtons]="true" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"
+                            [min]="isEdit ? 0 : 1" [showButtons]="true" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"
                             [class.ng-invalid]="isFieldInvalid('stockQuantity')" [class.ng-dirty]="isFieldInvalid('stockQuantity')"></p-inputNumber>
-              <small class="p-error" *ngIf="isFieldInvalid('stockQuantity')">
+              <small class="p-error" *ngIf="isFieldInvalid('stockQuantity') && productForm.get('stockQuantity')?.errors?.['required']">
                 <i class="pi pi-exclamation-circle"></i> Stock quantity is required.
+              </small>
+              <small class="p-error" *ngIf="isFieldInvalid('stockQuantity') && productForm.get('stockQuantity')?.errors?.['min']">
+                <i class="pi pi-exclamation-circle"></i> Stock quantity must be at least 1.
               </small>
             </div>
           </div>
@@ -163,7 +166,7 @@
         </div>
         <div class="tip-item">
           <i class="pi pi-check-circle"></i>
-          <span>Set stock to 0 to mark a product as out of stock</span>
+          <span>{{ isEdit ? 'Set stock to 0 to mark a product as out of stock' : 'Stock must be at least 1 when creating a product' }}</span>
         </div>
         <div class="tip-item">
           <i class="pi pi-check-circle"></i>

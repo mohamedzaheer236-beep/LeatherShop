@@ -88,6 +88,9 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
             : environment.apiUrl.replace('/api', '') + data.imageUrl;
           this.images.push({ preview, path: data.imageUrl });
         }
+        // In edit mode, allow stock of 0 (out of stock)
+        this.productForm.get('stockQuantity')!.setValidators([Validators.required, Validators.min(0)]);
+        this.productForm.get('stockQuantity')!.updateValueAndValidity();
         // Update snapshot once product data is loaded — this is the real baseline
         this.originalSnapshot = JSON.stringify(this.productForm.value);
         },
@@ -115,7 +118,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
       brand: ['', [Validators.required]],
       category: ['', [Validators.required]],
       price: [null, [Validators.required, Validators.min(1)]],
-      stockQuantity: [0, [Validators.required, Validators.min(0)]],
+      stockQuantity: [null, [Validators.required, Validators.min(1)]],
       imageUrl: [''],
       imageUrls: [[] as string[]],
       description: ['']
@@ -339,7 +342,8 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
       else if (this.f['brand'].errors) this.notification.error('Brand is required');
       else if (this.f['category'].errors) this.notification.error('Category is required');
       else if (this.f['price'].errors) this.notification.error('Price must be at least ₹1');
-      else if (this.f['stockQuantity'].errors) this.notification.error('Stock quantity is required');
+      else if (this.f['stockQuantity'].errors?.['required']) this.notification.error('Stock quantity is required');
+      else if (this.f['stockQuantity'].errors?.['min']) this.notification.error('Stock quantity must be at least 1 when creating a product');
       return;
     }
 
