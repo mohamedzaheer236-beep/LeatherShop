@@ -305,10 +305,23 @@ public class ChatBotService : IChatBotService
             await BotSendText(phone, "🙏 Welcome to our Leather Shop! Type *menu* to see options.");
             await SendMainMenu(phone, customer.Name);
         }
+        catch (WhatsAppApiException ex)
+        {
+            // WhatsApp API failure (rate limit, etc.) — do NOT try to send another message
+            // as that would also likely fail and worsen the rate limit situation.
+            _logger.LogError(ex, "WhatsApp API error processing message from {Phone}", phone);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing message from {Phone}", phone);
-            await BotSendText(phone, "Sorry, something went wrong. Please type *menu* to start again.");
+            try
+            {
+                await BotSendText(phone, "Sorry, something went wrong. Please type *menu* to start again.");
+            }
+            catch (Exception sendEx)
+            {
+                _logger.LogWarning(sendEx, "Failed to send error message to {Phone}", phone);
+            }
         }
     }
 
@@ -531,16 +544,24 @@ public class ChatBotService : IChatBotService
                 }
 
                 // Send action buttons separately (image messages don't support inline buttons)
-                await BotSendButtons(
-                    to,
-                    bodyText: "What would you like to do?",
-                    buttons: new List<ButtonOption>
-                    {
-                        new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
-                        new() { Id = "browse_categories", Title = "🔙 Categories" },
-                        new() { Id = "main_menu", Title = "🏠 Main Menu" }
-                    }
-                );
+                // Best-effort: if buttons fail (e.g. rate limit), images were already sent.
+                try
+                {
+                    await BotSendButtons(
+                        to,
+                        bodyText: "What would you like to do?",
+                        buttons: new List<ButtonOption>
+                        {
+                            new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
+                            new() { Id = "browse_categories", Title = "🔙 Categories" },
+                            new() { Id = "main_menu", Title = "🏠 Main Menu" }
+                        }
+                    );
+                }
+                catch (WhatsAppApiException ex)
+                {
+                    _logger.LogWarning(ex, "Failed to send action buttons after product images (rate limit), product {ProductId}", productId);
+                }
                 return;
             }
             catch (Exception ex)
@@ -553,16 +574,25 @@ public class ChatBotService : IChatBotService
         TextFallback:
         // Send product details with action buttons (text-only fallback)
         var bodyText = details.Length > 1024 ? details[..1021] + "..." : details;
-        await BotSendButtons(
-            to,
-            bodyText: bodyText,
-            buttons: new List<ButtonOption>
-            {
-                new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
-                new() { Id = "browse_categories", Title = "🔙 Categories" },
-                new() { Id = "main_menu", Title = "🏠 Main Menu" }
-            }
-        );
+        try
+        {
+            await BotSendButtons(
+                to,
+                bodyText: bodyText,
+                buttons: new List<ButtonOption>
+                {
+                    new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
+                    new() { Id = "browse_categories", Title = "🔙 Categories" },
+                    new() { Id = "main_menu", Title = "🏠 Main Menu" }
+                }
+            );
+        }
+        catch (WhatsAppApiException ex)
+        {
+            // If images were already sent above, buttons are non-critical.
+            // If no images (direct TextFallback), we still can't do anything during rate limit.
+            _logger.LogWarning(ex, "Failed to send product detail buttons for product {ProductId}", productId);
+        }
     }
 
     /// <summary>
