@@ -4,6 +4,8 @@ using LeatherShopAPI.DTOs.Product;
 using LeatherShopAPI.Extensions;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
 
 namespace LeatherShopAPI.Services;
 
@@ -160,13 +162,29 @@ public class ProductService : IProductService
         if (file.Length > 5 * 1024 * 1024)
             throw new ArgumentException("Image size must be under 5 MB.");
 
-        var fileName = $"{Guid.NewGuid()}{ext}";
-        var filePath = Path.Combine(uploadsDir, fileName);
+        // Convert WebP/GIF to JPEG for WhatsApp carousel compatibility
+        // (WhatsApp template image headers only support JPEG and PNG)
+        if (ext is ".webp" or ".gif")
+        {
+            var fileName = $"{Guid.NewGuid()}.jpg";
+            var filePath = Path.Combine(uploadsDir, fileName);
 
-        using var stream = new FileStream(filePath, FileMode.Create);
-        await file.CopyToAsync(stream);
+            using var inputStream = file.OpenReadStream();
+            using var image = await Image.LoadAsync(inputStream);
+            await image.SaveAsJpegAsync(filePath, new JpegEncoder { Quality = 90 });
 
-        return $"/uploads/{fileName}";
+            return $"/uploads/{fileName}";
+        }
+        else
+        {
+            var fileName = $"{Guid.NewGuid()}{ext}";
+            var filePath = Path.Combine(uploadsDir, fileName);
+
+            using var stream = new FileStream(filePath, FileMode.Create);
+            await file.CopyToAsync(stream);
+
+            return $"/uploads/{fileName}";
+        }
     }
 
     public async Task<List<string>> UploadImagesAsync(IList<IFormFile> files)
