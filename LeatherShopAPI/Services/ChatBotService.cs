@@ -197,33 +197,6 @@ public class ChatBotService : IChatBotService
                 return;
             }
 
-            // ---- QUANTITY +/- BUTTONS ----
-            if (input.StartsWith("qty_"))
-            {
-                // Format: qty_{productId}_{currentQty}_{action} e.g. qty_5_2_plus, qty_5_3_minus, qty_5_1_confirm
-                var parts = input.Split('_');
-                if (parts.Length == 4 && int.TryParse(parts[1], out var qtyProductId)
-                    && int.TryParse(parts[2], out var currentQty) && !string.IsNullOrEmpty(parts[3]))
-                {
-                    var action = parts[3];
-                    if (action == "plus")
-                    {
-                        await SendQuantitySelector(phone, qtyProductId, currentQty + 1);
-                        return;
-                    }
-                    if (action == "minus" && currentQty > 1)
-                    {
-                        await SendQuantitySelector(phone, qtyProductId, currentQty - 1);
-                        return;
-                    }
-                    if (action == "confirm")
-                    {
-                        await AddToCartWithQuantity(phone, customer, qtyProductId, currentQty);
-                        return;
-                    }
-                }
-            }
-
             // If customer had a pending product but typed something else, clear it
             if (customer.PendingProductId.HasValue)
             {
@@ -423,35 +396,47 @@ public class ChatBotService : IChatBotService
                       $"🏷️ Brand: {product.Brand}\n" +
                       $"📂 Category: {product.Category}\n" +
                       $"💰 Price: ₹{product.Price}\n" +
-                      $"📦 In Stock: {product.StockQuantity}";
+                      $"📦 In Stock: {product.StockQuantity}\n\n" +
+                      $"📝 {product.Description}";
 
-        if (!string.IsNullOrEmpty(product.Description))
-            details += $"\n\n📝 {product.Description}";
-
-        // Send product image if available (brief caption — full details go in the button message below)
+        // Send product image if available
         if (!string.IsNullOrEmpty(product.ImageUrl))
         {
             var baseUrl = GetPublicBaseUrl();
-            if (!string.IsNullOrEmpty(baseUrl))
+
+            var imageFullUrl = product.ImageUrl.StartsWith("http")
+                ? product.ImageUrl
+                : $"{baseUrl}{product.ImageUrl}";
+
+            _logger.LogInformation("Sending product image: {FullUrl}", imageFullUrl);
+
+            try
             {
-                var imageFullUrl = product.ImageUrl.StartsWith("http")
-                    ? product.ImageUrl
-                    : $"{baseUrl}{product.ImageUrl}";
+                // Caption max 1024 chars for WhatsApp image messages
+                var caption = details.Length > 1024 ? details[..1021] + "..." : details;
+                await BotSendImage(to, imageFullUrl, caption);
 
-                _logger.LogInformation("Sending product image: {FullUrl}", imageFullUrl);
-
-                try
-                {
-                    await BotSendImage(to, imageFullUrl, product.Name);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to send product image for product {ProductId}", productId);
-                }
+                // Send action buttons separately (image messages don't support inline buttons)
+                await BotSendButtons(
+                    to,
+                    bodyText: "What would you like to do?",
+                    buttons: new List<ButtonOption>
+                    {
+                        new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
+                        new() { Id = "browse_categories", Title = "🔙 Categories" },
+                        new() { Id = "main_menu", Title = "🏠 Main Menu" }
+                    }
+                );
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send product image for product {ProductId}, falling back to text", productId);
+                // Fall through to text-only message below
             }
         }
 
-        // Send product details WITH action buttons in one message (always sent, regardless of image)
+        // Send product details with action buttons (text-only fallback)
         var bodyText = details.Length > 1024 ? details[..1021] + "..." : details;
         await BotSendButtons(
             to,
@@ -465,7 +450,7 @@ public class ChatBotService : IChatBotService
         );
     }
 
-    /// <summary>Show interactive +/- quantity selector with live price calculation</summary>
+    /// <summary>Ask the customer how many they want to add</summary>
     private async Task AskQuantity(string to, Customer customer, int productId)
     {
         var product = await _db.Products.FindAsync(productId);
@@ -475,75 +460,15 @@ public class ChatBotService : IChatBotService
             return;
         }
 
-        // Check what's already in cart
-        var existingItem = await _db.CartItems
-            .FirstOrDefaultAsync(ci => ci.CustomerId == customer.Id && ci.ProductId == productId);
-        var alreadyInCart = existingItem?.Quantity ?? 0;
-        var maxCanAdd = product.StockQuantity - alreadyInCart;
+        // Save pending product so we know what they're adding when they type a number
+        customer.PendingProductId = productId;
+        await _db.SaveChangesAsync();
 
-        if (maxCanAdd <= 0)
-        {
-            await BotSendButtons(to,
-                bodyText: $"\u274c You already have *{alreadyInCart}* of *{product.Name}* in your cart, which is the maximum available stock.\n\nYou can't add more.",
-                buttons: new List<ButtonOption>
-                {
-                    new() { Id = "view_cart", Title = "\ud83d\uded2 View Cart" },
-                    new() { Id = "browse_categories", Title = "\ud83d\udecd\ufe0f Browse" },
-                    new() { Id = "checkout", Title = "\ud83d\udcb3 Checkout" }
-                });
-            return;
-        }
-
-        // Clear any pending product (qty buttons are stateless)
-        if (customer.PendingProductId.HasValue)
-        {
-            customer.PendingProductId = null;
-            await _db.SaveChangesAsync();
-        }
-
-        // Show quantity selector starting at 1
-        await SendQuantitySelector(to, productId, 1);
-    }
-
-    /// <summary>
-    /// Sends a quantity selector message with +/- buttons and live price calculation.
-    /// Stateless: quantity is encoded in button IDs.
-    /// </summary>
-    private async Task SendQuantitySelector(string to, int productId, int currentQty)
-    {
-        var product = await _db.Products.FindAsync(productId);
-        if (product == null || !product.IsActive || product.StockQuantity <= 0)
-        {
-            await BotSendText(to, "Sorry, this product is no longer available.");
-            return;
-        }
-
-        // Clamp quantity to valid range
-        if (currentQty < 1) currentQty = 1;
-        if (currentQty > product.StockQuantity) currentQty = product.StockQuantity;
-
-        var totalPrice = product.Price * currentQty;
-
-        var body = $"\ud83d\uded2 *{product.Name}*\n\n" +
-                   $"\ud83d\udcb0 Price: \u20b9{product.Price} each\n" +
-                   $"\ud83d\udce6 Available: {product.StockQuantity}\n\n" +
-                   $"\ud83d\udd22 Quantity: *{currentQty}*\n" +
-                   $"\ud83d\udcb5 Total: *\u20b9{totalPrice}*";
-
-        var buttons = new List<ButtonOption>();
-
-        // ➖ Minus (only if qty > 1)
-        if (currentQty > 1)
-            buttons.Add(new() { Id = $"qty_{productId}_{currentQty}_minus", Title = "\u2796 Less" });
-
-        // ✅ Confirm
-        buttons.Add(new() { Id = $"qty_{productId}_{currentQty}_confirm", Title = $"\u2705 Add {currentQty} to Cart" });
-
-        // ➕ Plus (only if below stock)
-        if (currentQty < product.StockQuantity)
-            buttons.Add(new() { Id = $"qty_{productId}_{currentQty}_plus", Title = "\u2795 More" });
-
-        await BotSendButtons(to, body, buttons);
+        await BotSendText(to,
+            $"How many *{product.Name}* would you like to add?\n\n" +
+            $"📦 Available: *{product.StockQuantity}*\n" +
+            $"💰 Price: ₹{product.Price} each\n\n" +
+            $"Type a number (e.g. *1*, *2*, *5*):");
     }
 
     /// <summary>Add to cart with the quantity the customer typed</summary>
