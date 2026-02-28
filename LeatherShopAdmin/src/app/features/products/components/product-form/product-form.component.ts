@@ -88,6 +88,8 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
             : environment.apiUrl.replace('/api', '') + data.imageUrl;
           this.images.push({ preview, path: data.imageUrl });
         }
+        // Sync loaded images back to form controls so imageUrls is not stale
+        this.syncFormImages();
         // In edit mode, allow stock of 0 (out of stock)
         this.productForm.get('stockQuantity')!.setValidators([Validators.required, Validators.min(0)]);
         this.productForm.get('stockQuantity')!.updateValueAndValidity();
