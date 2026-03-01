@@ -399,7 +399,7 @@ public class ChatBotService : IChatBotService
     private async Task SendProductsInCategory(string to, string category)
     {
         var products = await _db.Products
-            .Where(p => p.IsActive && p.StockQuantity > 0 && p.Category.ToLower() == category)
+            .Where(p => p.IsActive && p.StockQuantity > 0 && EF.Functions.ILike(p.Category, category))
             .OrderBy(p => p.Name)
             .Take(10) // WhatsApp list max 10 rows per section
             .ToListAsync();
@@ -930,7 +930,7 @@ public class ChatBotService : IChatBotService
         // Clear cart
         _db.CartItems.RemoveRange(cartItems);
 
-        var paymentUrl = $"{baseUrl}/api/payment/pay/{order.Id}";
+        var paymentUrl = $"{baseUrl}/api/payment/pay/{Uri.EscapeDataString(order.OrderNumber)}";
 
         var orderSummary = $"✅ *Order Placed!*\n\n" +
                            $"📋 Order: *{order.OrderNumber}*\n" +

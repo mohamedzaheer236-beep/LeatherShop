@@ -28,7 +28,7 @@ public class CustomerService : ICustomerService
             query = query.Where(c => c.IsSubscribed);
 
         if (!string.IsNullOrEmpty(search))
-            query = query.Where(c => c.PhoneNumber.Contains(search) || c.Name.ToLower().Contains(search.ToLower()));
+            query = query.Where(c => c.PhoneNumber.Contains(search) || EF.Functions.ILike(c.Name, $"%{search}%"));
 
         return await query.OrderByDescending(c => c.CreatedAt)
             .Select(c => new CustomerListDto

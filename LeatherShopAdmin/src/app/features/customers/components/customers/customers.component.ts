@@ -200,6 +200,12 @@ export class CustomersComponent implements OnInit {
     this.allSelected = this._selectedCount === this.customers.length;
   }
 
+  clearSelection(): void {
+    this.customers.forEach(c => c.selected = false);
+    this._selectedCount = 0;
+    this.allSelected = false;
+  }
+
   openAddDialog(): void {
     this.showAddDialog = true;
     this.addSubmitted = false;
@@ -323,12 +329,35 @@ export class CustomersComponent implements OnInit {
       this.notification.error('Paste at least one phone number');
       return;
     }
-    const customers: CreateCustomer[] = lines.map((line: string) => {
+
+    const phonePattern = /^\d{10,15}$/;
+    const validCustomers: CreateCustomer[] = [];
+    const invalidLines: number[] = [];
+
+    lines.forEach((line: string, index: number) => {
       const parts = line.split(',').map((p: string) => p.trim());
-      return { phoneNumber: parts[0], name: parts[1] || '' };
+      const phone = parts[0];
+      if (phonePattern.test(phone)) {
+        validCustomers.push({ phoneNumber: phone, name: parts[1] || '' });
+      } else {
+        invalidLines.push(index + 1);
+      }
     });
+
+    if (validCustomers.length === 0) {
+      this.notification.error(`All ${lines.length} line(s) have invalid phone numbers. Phone must be 10-15 digits.`);
+      return;
+    }
+
+    if (invalidLines.length > 0) {
+      const lineNums = invalidLines.length <= 5
+        ? invalidLines.join(', ')
+        : invalidLines.slice(0, 5).join(', ') + `, ... (${invalidLines.length} total)`;
+      this.notification.warning(`Skipping ${invalidLines.length} line(s) with invalid phone numbers (line ${lineNums}). Importing ${validCustomers.length} valid entries.`);
+    }
+
     this.importing = true;
-    this.customerService.bulkImportCustomers(customers).subscribe({
+    this.customerService.bulkImportCustomers(validCustomers).subscribe({
       next: (res: any) => {
         this.notification.success(`Imported ${res.imported} customers (${res.skippedDuplicates} duplicates skipped)`);
         this.importing = false;

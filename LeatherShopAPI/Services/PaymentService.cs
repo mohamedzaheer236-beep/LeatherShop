@@ -29,12 +29,12 @@ public class PaymentService : IPaymentService
         _logger = logger;
     }
 
-    public async Task<PaymentPageDto?> GetPaymentPageDataAsync(int orderId)
+    public async Task<PaymentPageDto?> GetPaymentPageDataAsync(string orderNumber)
     {
         var order = await _db.Orders
             .Include(o => o.Customer)
             .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
-            .FirstOrDefaultAsync(o => o.Id == orderId);
+            .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
 
         if (order == null || order.IsPaid) return null;
 
@@ -44,7 +44,7 @@ public class PaymentService : IPaymentService
             OrderNumber = order.OrderNumber,
             CustomerPhone = order.Customer.PhoneNumber,
             TotalAmount = order.TotalAmount,
-            AmountInPaise = (int)(order.TotalAmount * 100),
+            AmountInPaise = (int)Math.Round(order.TotalAmount * 100, MidpointRounding.AwayFromZero),
             RazorpayKeyId = _config["Razorpay:KeyId"] ?? throw new InvalidOperationException("Razorpay:KeyId not configured. Set it in appsettings or environment variables."),
             Items = order.OrderItems.Select(oi => new PaymentPageItemDto
             {
@@ -59,7 +59,13 @@ public class PaymentService : IPaymentService
     public async Task<PaymentVerifyResultDto?> VerifyPaymentAsync(PaymentVerifyDto dto)
     {
         if (!int.TryParse(dto.OrderId, out var orderId))
-            return null;
+        {
+            // OrderId field now carries OrderNumber (string), look up by OrderNumber
+            var orderByNumber = await _db.Orders.Include(o => o.Customer)
+                .FirstOrDefaultAsync(o => o.OrderNumber == dto.OrderId);
+            if (orderByNumber == null) return null;
+            orderId = orderByNumber.Id;
+        }
 
         var order = await _db.Orders.Include(o => o.Customer).FirstOrDefaultAsync(o => o.Id == orderId);
         if (order == null) return null;

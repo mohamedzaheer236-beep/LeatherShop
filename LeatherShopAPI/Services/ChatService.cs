@@ -23,58 +23,58 @@ public class ChatService : IChatService
 
     public async Task<List<ConversationDto>> GetConversationsAsync(string? search)
     {
-        var query = _db.Customers
-            .Include(c => c.Orders)
-            .AsQueryable();
+        var query = _db.Customers.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var s = search.ToLower();
-            query = query.Where(c => c.Name.ToLower().Contains(s) || c.PhoneNumber.Contains(s));
+            query = query.Where(c => EF.Functions.ILike(c.Name, $"%{search}%") || c.PhoneNumber.Contains(search));
         }
 
-        // Only include customers that have at least one chat message
-        var customers = await query
+        // Single query: project all conversation data in the DB — eliminates N+1 per-customer queries
+        var conversations = await query
             .Where(c => _db.ChatMessages.Any(m => m.CustomerId == c.Id))
+            .Select(c => new
+            {
+                c.Id,
+                c.Name,
+                c.PhoneNumber,
+                c.IsBotPaused,
+                c.BotPausedUntil,
+                LastMessageContent = _db.ChatMessages
+                    .Where(m => m.CustomerId == c.Id)
+                    .OrderByDescending(m => m.Timestamp)
+                    .Select(m => m.Content)
+                    .FirstOrDefault(),
+                LastMessageAt = _db.ChatMessages
+                    .Where(m => m.CustomerId == c.Id)
+                    .Max(m => (DateTime?)m.Timestamp),
+                UnreadCount = _db.ChatMessages
+                    .Count(m => m.CustomerId == c.Id
+                        && m.Direction == MessageDirection.Incoming
+                        && m.Timestamp > (
+                            _db.ChatMessages
+                                .Where(m2 => m2.CustomerId == c.Id
+                                    && m2.Direction == MessageDirection.Outgoing
+                                    && !m2.IsFromBot)
+                                .Max(m2 => (DateTime?)m2.Timestamp)
+                            ?? DateTime.MinValue
+                        ))
+            })
+            .OrderByDescending(x => x.LastMessageAt)
             .ToListAsync();
 
-        var conversations = new List<ConversationDto>();
-        foreach (var c in customers)
+        return conversations.Select(c => new ConversationDto
         {
-            var lastMsg = await _db.ChatMessages
-                .Where(m => m.CustomerId == c.Id)
-                .OrderByDescending(m => m.Timestamp)
-                .FirstOrDefaultAsync();
-
-            if (lastMsg == null) continue;
-
-            // Count incoming messages that arrived after the last admin outgoing message
-            var lastAdminMsg = await _db.ChatMessages
-                .Where(m => m.CustomerId == c.Id
-                         && m.Direction == MessageDirection.Outgoing
-                         && !m.IsFromBot)
-                .OrderByDescending(m => m.Timestamp)
-                .FirstOrDefaultAsync();
-
-            var unreadCutoff = lastAdminMsg?.Timestamp ?? DateTime.MinValue;
-            var unread = await _db.ChatMessages
-                .CountAsync(m => m.CustomerId == c.Id
-                              && m.Direction == MessageDirection.Incoming
-                              && m.Timestamp > unreadCutoff);
-
-            conversations.Add(new ConversationDto
-            {
-                CustomerId = c.Id,
-                CustomerName = string.IsNullOrEmpty(c.Name) ? c.PhoneNumber : c.Name,
-                PhoneNumber = c.PhoneNumber,
-                LastMessage = lastMsg.Content.Length > 80 ? lastMsg.Content[..80] + "…" : lastMsg.Content,
-                LastMessageAt = lastMsg.Timestamp,
-                UnreadCount = unread,
-                IsBotPaused = IsBotEffectivelyPaused(c)
-            });
-        }
-
-        return conversations.OrderByDescending(c => c.LastMessageAt).ToList();
+            CustomerId = c.Id,
+            CustomerName = string.IsNullOrEmpty(c.Name) ? c.PhoneNumber : c.Name,
+            PhoneNumber = c.PhoneNumber,
+            LastMessage = (c.LastMessageContent?.Length ?? 0) > 80
+                ? c.LastMessageContent![..80] + "…"
+                : c.LastMessageContent ?? "",
+            LastMessageAt = c.LastMessageAt ?? DateTime.MinValue,
+            UnreadCount = c.UnreadCount,
+            IsBotPaused = c.IsBotPaused && (!c.BotPausedUntil.HasValue || c.BotPausedUntil.Value > DateTime.UtcNow)
+        }).ToList();
     }
 
     public async Task<PaginatedResult<ChatMessageDto>> GetMessagesAsync(int customerId, int page = 1, int pageSize = 50)
@@ -195,15 +195,13 @@ public class ChatService : IChatService
 
     public async Task<bool> DeleteConversationAsync(int customerId)
     {
-        var messages = await _db.ChatMessages
+        var deletedCount = await _db.ChatMessages
             .Where(m => m.CustomerId == customerId)
-            .ToListAsync();
+            .ExecuteDeleteAsync();
 
-        if (!messages.Any()) return false;
+        if (deletedCount == 0) return false;
 
-        _db.ChatMessages.RemoveRange(messages);
-        await _db.SaveChangesAsync();
-        _logger.LogInformation("Deleted {Count} chat messages for customer {CustomerId}", messages.Count, customerId);
+        _logger.LogInformation("Deleted {Count} chat messages for customer {CustomerId}", deletedCount, customerId);
         return true;
     }
 

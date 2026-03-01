@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
@@ -12,6 +13,7 @@ namespace LeatherShopAPI.Controllers;
 
 [ApiController]
 [Route("api/whatsapp")]
+[EnableRateLimiting("fixed")]
 public class WhatsAppWebhookController : ControllerBase
 {
     private readonly IChatBotService _chatBot;

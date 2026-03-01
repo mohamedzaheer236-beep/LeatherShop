@@ -17,14 +17,15 @@ public class PaymentController : ControllerBase
         _paymentService = paymentService;
     }
 
-    [HttpGet("pay/{orderId}")]
-    public async Task<IActionResult> PaymentPage(int orderId)
+    [HttpGet("pay/{orderNumber}")]
+    public async Task<IActionResult> PaymentPage(string orderNumber)
     {
-        var data = await _paymentService.GetPaymentPageDataAsync(orderId);
+        var data = await _paymentService.GetPaymentPageDataAsync(orderNumber);
         if (data == null) return NotFound("Order not found or already paid.");
 
         var safeOrderNumber = WebUtility.HtmlEncode(data.OrderNumber);
         var safeCustomerPhone = WebUtility.HtmlEncode(data.CustomerPhone);
+        var safeRazorpayKey = WebUtility.HtmlEncode(data.RazorpayKeyId);
 
         var itemsHtml = string.Join("", data.Items.Select(i =>
             $"<tr><td>{WebUtility.HtmlEncode(i.ProductName)}</td><td>{i.Quantity}</td><td>₹{i.UnitPrice}</td><td>₹{i.Subtotal}</td></tr>"
@@ -61,7 +62,7 @@ public class PaymentController : ControllerBase
     <script>
         function pay() {{
             var options = {{
-                key: '{data.RazorpayKeyId}',
+                key: '{safeRazorpayKey}',
                 amount: {data.AmountInPaise},
                 currency: 'INR',
                 name: 'Leather Shop',
@@ -72,14 +73,17 @@ public class PaymentController : ControllerBase
                         headers: {{ 'Content-Type': 'application/json' }},
                         body: JSON.stringify({{
                             paymentId: response.razorpay_payment_id,
-                            orderId: '{data.OrderId}',
+                            orderId: '{safeOrderNumber}',
                             razorpayOrderId: response.razorpay_order_id || '',
                             signature: response.razorpay_signature || ''
                         }})
-                    }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+                    }}).then(function(r) {{
+                        if (!r.ok) throw new Error('Verification failed');
+                        return r.json();
+                    }}).then(function(d) {{
                         document.body.innerHTML = '<div class=card><h2>Payment Successful!</h2><p>Thank you! Check WhatsApp for confirmation.</p></div>';
                     }}).catch(function() {{
-                        document.body.innerHTML = '<div class=card><h2>Payment Received!</h2><p>Check WhatsApp for details.</p></div>';
+                        document.body.innerHTML = '<div class=card><h2>Payment Status Unknown</h2><p>We could not confirm your payment. If money was deducted, please contact us — your payment is safe.</p></div>';
                     }});
                 }},
                 prefill: {{ contact: '{safeCustomerPhone}' }},

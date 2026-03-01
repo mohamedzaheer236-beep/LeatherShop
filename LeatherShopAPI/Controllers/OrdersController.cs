@@ -38,10 +38,18 @@ public class OrdersController : ControllerBase
     [HttpPut("{id}/status")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] string newStatus)
     {
-        var success = await _orderService.UpdateStatusAsync(id, newStatus);
-        if (!success)
-            return NotFound(ApiResponse.Fail("Order not found."));
-        return Ok(ApiResponse.Ok("Order status updated successfully."));
+        // Validate status string at controller level — return 400 for garbage input
+        if (!Enum.TryParse<OrderStatus>(newStatus, true, out _))
+            return BadRequest(ApiResponse.Fail($"Invalid status '{newStatus}'. Valid values: {string.Join(", ", Enum.GetNames<OrderStatus>())}."));
+
+        var result = await _orderService.UpdateStatusAsync(id, newStatus);
+        return result switch
+        {
+            UpdateStatusResult.NotFound => NotFound(ApiResponse.Fail("Order not found.")),
+            UpdateStatusResult.InvalidStatus => BadRequest(ApiResponse.Fail($"Invalid status '{newStatus}'.")),
+            UpdateStatusResult.InvalidTransition => BadRequest(ApiResponse.Fail($"Cannot transition to '{newStatus}' from the current order status.")),
+            _ => Ok(ApiResponse.Ok("Order status updated successfully."))
+        };
     }
 
     [HttpGet("{id}/invoice")]

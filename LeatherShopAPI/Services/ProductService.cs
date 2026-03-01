@@ -26,13 +26,13 @@ public class ProductService : IProductService
         var query = _db.Products.Include(p => p.Images).AsQueryable();
 
         if (!string.IsNullOrEmpty(category))
-            query = query.Where(p => p.Category.ToLower() == category.ToLower());
+            query = query.Where(p => EF.Functions.ILike(p.Category, category));
 
         if (!string.IsNullOrEmpty(brand))
-            query = query.Where(p => p.Brand.ToLower() == brand.ToLower());
+            query = query.Where(p => EF.Functions.ILike(p.Brand, brand));
 
         if (!string.IsNullOrEmpty(search))
-            query = query.Where(p => p.Name.ToLower().Contains(search.ToLower()) || p.Description.ToLower().Contains(search.ToLower()));
+            query = query.Where(p => EF.Functions.ILike(p.Name, $"%{search}%") || EF.Functions.ILike(p.Description, $"%{search}%"));
 
         var products = await query.OrderByDescending(p => p.CreatedAt).ToListAsync();
         return products.Select(p => p.ToDto()).ToList();
@@ -155,7 +155,7 @@ public class ProductService : IProductService
 
     public async Task<bool> NameExistsAsync(string name, int? excludeId = null)
     {
-        var query = _db.Products.Where(p => p.Name.ToLower() == name.ToLower());
+        var query = _db.Products.Where(p => EF.Functions.ILike(p.Name, name));
         if (excludeId.HasValue)
             query = query.Where(p => p.Id != excludeId.Value);
         return await query.AnyAsync();

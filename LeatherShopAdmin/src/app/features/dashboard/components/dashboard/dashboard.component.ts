@@ -20,6 +20,7 @@ import { ButtonModule } from 'primeng/button';
 export class DashboardComponent implements OnInit {
   dashboard: Dashboard | null = null;
   loading = true;
+  errorMessage: string | null = null;
 
   constructor(private dashboardService: DashboardService) {}
 
@@ -30,9 +31,16 @@ export class DashboardComponent implements OnInit {
         this.loading = false;
       },
       error: () => {
+        this.errorMessage = 'Failed to load dashboard data. Please try again.';
         this.loading = false;
       }
     });
+  }
+
+  retry(): void {
+    this.loading = true;
+    this.errorMessage = null;
+    this.ngOnInit();
   }
 
   getSeverity(status: string): TagSeverity {

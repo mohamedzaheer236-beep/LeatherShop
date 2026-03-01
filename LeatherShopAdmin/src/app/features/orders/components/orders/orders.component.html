@@ -6,7 +6,7 @@
     <ng-template pTemplate="right">
       <span [formGroup]="filterForm">
         <p-dropdown [options]="statusDropdownOptions" formControlName="filterStatus" (onChange)="onFilterChange()"
-                    [style]="{'min-width': '180px'}"></p-dropdown>
+                    [style]="{'min-width': '180px'}" ariaLabel="Filter orders by status"></p-dropdown>
       </span>
     </ng-template>
   </p-toolbar>
@@ -75,6 +75,7 @@
     </div>
 
     <p-paginator *ngIf="totalRecords > 0"
+      [first]="(currentPage - 1) * pageSize"
       [rows]="pageSize"
       [totalRecords]="totalRecords"
       [rowsPerPageOptions]="[25, 50, 100]"

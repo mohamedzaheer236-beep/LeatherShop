@@ -38,8 +38,7 @@ public class CustomersController : ControllerBase
         try
         {
             var result = await _customerService.CreateAsync(dto);
-            return CreatedAtAction(nameof(GetAll), new { id = result.Id },
-                ApiResponse<CustomerCreatedDto>.Ok(result, "Customer created successfully."));
+            return Ok(ApiResponse<CustomerCreatedDto>.Ok(result, "Customer created successfully."));
         }
         catch (InvalidOperationException ex)
         {

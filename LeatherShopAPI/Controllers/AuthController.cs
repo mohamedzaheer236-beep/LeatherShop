@@ -6,6 +6,7 @@ using LeatherShopAPI.DTOs.Auth;
 using LeatherShopAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -13,6 +14,7 @@ namespace LeatherShopAPI.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("auth")]
 public class AuthController : ControllerBase
 {
     private const int TokenExpiryHours = 24;

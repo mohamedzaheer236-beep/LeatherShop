@@ -19,7 +19,7 @@
              (keyup.enter)="search()" aria-label="Search products" autocomplete="off" />
     </span>
     <p-dropdown #catDropdown [options]="categoryOptions" formControlName="filterCategory"
-                inputId="filterCategory"
+                inputId="filterCategory" ariaLabel="Filter by category"
                 placeholder="All Categories" [style]="{'min-width': '190px'}"
                 [filter]="true" filterBy="label" [showClear]="true" appendTo="body"
                 [resetFilterOnHide]="true"
@@ -30,7 +30,7 @@
       </ng-template>
     </p-dropdown>
     <p-dropdown #brandDropdown [options]="brandOptions" formControlName="filterBrand"
-                inputId="filterBrand"
+                inputId="filterBrand" ariaLabel="Filter by brand"
                 placeholder="All Brands" [style]="{'min-width': '190px'}"
                 [filter]="true" filterBy="label" [showClear]="true" appendTo="body"
                 [resetFilterOnHide]="true"
@@ -50,7 +50,13 @@
 
   <app-loading-spinner [loading]="loading" message="Loading products..."></app-loading-spinner>
 
-  <p-table [value]="products" *ngIf="!loading && products.length > 0"
+  <div *ngIf="errorMessage && !loading" class="error-state" style="text-align:center; padding:60px 20px;">
+    <i class="pi pi-exclamation-circle" style="font-size:3rem; color:#e74c3c; margin-bottom:16px; display:block;"></i>
+    <p style="font-size:1.1rem; color:#666; margin-bottom:16px;">{{ errorMessage }}</p>
+    <p-button label="Retry" icon="pi pi-refresh" (onClick)="loadProducts()"></p-button>
+  </div>
+
+  <p-table [value]="products" *ngIf="!loading && !errorMessage && products.length > 0"
            [tableStyle]="{'min-width': '60rem'}" styleClass="p-datatable-striped"
            [rowHover]="true">
     <ng-template pTemplate="header">
@@ -101,7 +107,7 @@
     </ng-template>
   </p-table>
 
-  <div *ngIf="!loading && products.length === 0" class="empty-state">
+  <div *ngIf="!loading && !errorMessage && products.length === 0" class="empty-state">
     <i class="pi pi-box"></i>
     <p>No products found. Add your first product!</p>
   </div>

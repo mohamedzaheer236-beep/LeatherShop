@@ -38,7 +38,9 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   private subs: Subscription[] = [];
   private shouldScrollToBottom = false;
+  private preserveScrollPosition = false;
   private searchTimeout: number | null = null;
+  private conversationRefreshTimeout: number | null = null;
 
   constructor(
     private chatService: ChatService,
@@ -51,7 +53,8 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     // Listen for real-time incoming messages for the active chat
     this.subs.push(
       this.signalR.chatMessage$.subscribe(msg => {
-        // Only append messages that belong to the currently viewed conversation
+        // F78 fix: Guard against stale messages from a previously-selected conversation
+        // (can happen if conversation was switched while a SignalR message was in flight)
         if (this.selectedCustomerId && msg.customerId === this.selectedCustomerId) {
           // Avoid duplicates (admin's own sent message already added optimistically)
           const exists = this.messages.some(m => m.id === msg.id);
@@ -71,10 +74,10 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
       })
     );
 
-    // Listen for new chat messages to refresh conversation list
+    // Listen for new chat messages to refresh conversation list (debounced — F79 fix)
     this.subs.push(
       this.signalR.newChatMessage$.subscribe(() => {
-        this.loadConversations();
+        this.debouncedLoadConversations();
       })
     );
   }
@@ -93,7 +96,21 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (this.searchTimeout) {
       clearTimeout(this.searchTimeout);
     }
+    if (this.conversationRefreshTimeout) {
+      clearTimeout(this.conversationRefreshTimeout);
+    }
     this.subs.forEach(s => s.unsubscribe());
+  }
+
+  /** F79 fix: Debounce conversation list refreshes to avoid spamming the API on rapid SignalR events */
+  private debouncedLoadConversations(): void {
+    if (this.conversationRefreshTimeout) {
+      clearTimeout(this.conversationRefreshTimeout);
+    }
+    this.conversationRefreshTimeout = window.setTimeout(() => {
+      this.loadConversations();
+      this.conversationRefreshTimeout = null;
+    }, 500);
   }
 
   loadConversations(): void {
@@ -135,15 +152,30 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   loadMessages(): void {
     if (!this.selectedCustomerId) return;
+    // F78 fix: capture the customer ID at call time to detect stale responses
+    const requestedCustomerId = this.selectedCustomerId;
     this.loadingMessages = true;
     this.chatService.getMessages(this.selectedCustomerId, this.currentPage).subscribe({
       next: result => {
+        // F78 fix: discard response if user switched conversations while loading
+        if (this.selectedCustomerId !== requestedCustomerId) return;
+
         if (this.currentPage === 1) {
           this.messages = result.items;
           this.shouldScrollToBottom = true;
         } else {
-          // Prepend older messages
+          // F64 fix: preserve scroll position when prepending older messages
+          const container = this.messagesContainer?.nativeElement;
+          const previousScrollHeight = container?.scrollHeight ?? 0;
           this.messages = [...result.items, ...this.messages];
+          this.preserveScrollPosition = true;
+          // Restore after DOM update
+          setTimeout(() => {
+            if (container) {
+              container.scrollTop = container.scrollHeight - previousScrollHeight;
+            }
+            this.preserveScrollPosition = false;
+          });
         }
         this.hasMoreMessages = this.currentPage < result.totalPages;
         this.loadingMessages = false;

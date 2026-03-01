@@ -29,6 +29,7 @@ export class ProductListComponent implements OnInit {
   categoryOptions: { label: string; value: string }[] = [];
   brandOptions: { label: string; value: string }[] = [];
   loading = true;
+  errorMessage: string | null = null;
   filterForm!: FormGroup;
 
   @ViewChild('catDropdown') catDropdown: any;
@@ -91,13 +92,17 @@ export class ProductListComponent implements OnInit {
 
   loadProducts(): void {
     this.loading = true;
+    this.errorMessage = null;
     const { searchText, filterCategory, filterBrand } = this.filterForm.value;
     this.productService.getProducts(filterCategory || '', filterBrand || '', searchText || '').subscribe({
       next: (data) => {
         this.products = data;
         this.loading = false;
       },
-      error: () => this.loading = false
+      error: () => {
+        this.errorMessage = 'Failed to load products. Please try again.';
+        this.loading = false;
+      }
     });
   }
 

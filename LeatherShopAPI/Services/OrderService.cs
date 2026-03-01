@@ -60,16 +60,16 @@ public class OrderService : IOrderService
             .FirstOrDefaultAsync(o => o.Id == id);
     }
 
-    public async Task<bool> UpdateStatusAsync(int id, string newStatus)
+    public async Task<UpdateStatusResult> UpdateStatusAsync(int id, string newStatus)
     {
         var order = await _db.Orders
             .Include(o => o.Customer)
             .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(o => o.Id == id);
-        if (order == null) return false;
+        if (order == null) return UpdateStatusResult.NotFound;
 
         if (!Enum.TryParse<OrderStatus>(newStatus, true, out var status))
-            return false;
+            return UpdateStatusResult.InvalidStatus;
 
         // Validate status transitions — prevent invalid state changes
         var previousStatus = order.Status;
@@ -85,7 +85,7 @@ public class OrderService : IOrderService
         if (!validTransitions.TryGetValue(previousStatus, out var allowed) || !allowed.Contains(status))
         {
             _logger.LogWarning("Invalid order status transition: {From} -> {To} for order {OrderId}", previousStatus, status, id);
-            return false;
+            return UpdateStatusResult.InvalidTransition;
         }
 
         order.Status = status;
@@ -121,6 +121,6 @@ public class OrderService : IOrderService
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Best-effort WhatsApp notification failed for order {OrderId}", id); }
 
-        return true;
+        return UpdateStatusResult.Success;
     }
 }

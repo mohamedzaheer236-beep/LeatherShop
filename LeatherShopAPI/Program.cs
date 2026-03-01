@@ -1,10 +1,12 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.Extensions;
 using LeatherShopAPI.Hubs;
 using LeatherShopAPI.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using QuestPDF.Infrastructure;
@@ -81,6 +83,36 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// --- Rate Limiting (per-IP) ---
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Global fixed-window: max 100 requests per minute per IP
+    options.AddPolicy("fixed", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 100,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    // Strict policy for auth endpoints: max 10 attempts per minute per IP
+    options.AddPolicy("auth", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+});
+
 // Railway provides PORT env variable
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://+:{port}");
@@ -116,6 +148,19 @@ using (var scope = app.Services.CreateScope())
 // --- Global exception handling (must be first in pipeline) ---
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+// --- HTTPS forwarding headers (Railway terminates TLS at the proxy) ---
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+                     | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+});
+
+// --- HSTS: tell browsers to always use HTTPS (skip in Development) ---
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
 // Swagger — only exposed in Development for security
 if (app.Environment.IsDevelopment())
 {
@@ -126,6 +171,8 @@ if (app.Environment.IsDevelopment())
 app.UseStaticFiles(); // Serve uploaded images from wwwroot
 
 app.UseCors("AllowAngular");
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

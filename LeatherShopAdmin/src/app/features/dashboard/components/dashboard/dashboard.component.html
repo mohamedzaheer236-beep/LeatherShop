@@ -3,6 +3,12 @@
 
   <app-loading-spinner [loading]="loading" message="Loading dashboard..."></app-loading-spinner>
 
+  <div *ngIf="errorMessage && !loading" class="error-state" style="text-align:center; padding:60px 20px;">
+    <i class="pi pi-exclamation-circle" style="font-size:3rem; color:#e74c3c; margin-bottom:16px; display:block;"></i>
+    <p style="font-size:1.1rem; color:#666; margin-bottom:16px;">{{ errorMessage }}</p>
+    <p-button label="Retry" icon="pi pi-refresh" (onClick)="retry()"></p-button>
+  </div>
+
   <div *ngIf="dashboard && !loading">
     <div class="stats-grid">
       <p-card styleClass="stat-card">
