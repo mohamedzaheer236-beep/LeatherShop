@@ -4,6 +4,14 @@ export interface BroadcastRequest {
   parameters: string[];
   imageUrl?: string;
   phoneNumbers?: string[];
+  isCarousel?: boolean;
+  carouselCards?: CarouselCard[];
+}
+
+export interface CarouselCard {
+  imageUrl: string;
+  bodyParam: string;
+  buttonPayload: string;
 }
 
 export interface BroadcastResult {
@@ -27,4 +35,6 @@ export interface WhatsAppTemplate {
   language: string;
   status: string;
   category: string;
+  isCarousel: boolean;
+  cardCount: number;
 }

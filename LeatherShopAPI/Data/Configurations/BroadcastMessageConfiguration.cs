@@ -42,6 +42,14 @@ public class BroadcastMessageConfiguration : IEntityTypeConfiguration<BroadcastM
             .HasColumnType("text")
             .HasDefaultValue("[]");
 
+        // ─── Carousel broadcast support ───
+
+        builder.Property(b => b.IsCarousel)
+            .HasDefaultValue(false);
+
+        builder.Property(b => b.CarouselCardsJson)
+            .HasColumnType("text");
+
         // Background processor queries: WHERE Status IN ('Pending', 'Processing')
         builder.HasIndex(b => b.Status);
     }

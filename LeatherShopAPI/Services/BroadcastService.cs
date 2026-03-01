@@ -58,7 +58,11 @@ public class BroadcastService : IBroadcastService
             ParametersJson = dto.Parameters != null ? JsonSerializer.Serialize(dto.Parameters) : null,
             ImageUrl = dto.ImageUrl,
             RecipientsJson = JsonSerializer.Serialize(recipients),
-            ProcessedPhonesJson = "[]"
+            ProcessedPhonesJson = "[]",
+            IsCarousel = dto.IsCarousel,
+            CarouselCardsJson = dto.IsCarousel && dto.CarouselCards != null
+                ? JsonSerializer.Serialize(dto.CarouselCards)
+                : null
         };
         _db.BroadcastMessages.Add(broadcast);
         await _db.SaveChangesAsync();

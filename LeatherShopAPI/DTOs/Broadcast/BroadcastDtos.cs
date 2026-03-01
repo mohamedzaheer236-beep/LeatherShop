@@ -16,6 +16,26 @@ public class BroadcastRequestDto
     public string? ImageUrl { get; set; }
 
     public List<string>? PhoneNumbers { get; set; }
+
+    /// <summary>True if the selected template is a carousel type.</summary>
+    public bool IsCarousel { get; set; }
+
+    /// <summary>Carousel card data — required when IsCarousel is true.</summary>
+    public List<CarouselCardDto>? CarouselCards { get; set; }
+}
+
+public class CarouselCardDto
+{
+    /// <summary>Server-relative image path (e.g., /uploads/abc.jpg) — will be resolved to full URL.</summary>
+    [Required]
+    public string ImageUrl { get; set; } = string.Empty;
+
+    /// <summary>Body text parameter for this card.</summary>
+    [Required]
+    public string BodyParam { get; set; } = string.Empty;
+
+    /// <summary>Quick-reply button payload for this card.</summary>
+    public string ButtonPayload { get; set; } = string.Empty;
 }
 
 public class BroadcastHistoryDto

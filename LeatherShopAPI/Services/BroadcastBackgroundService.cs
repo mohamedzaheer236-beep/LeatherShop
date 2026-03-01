@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
+using LeatherShopAPI.DTOs.Broadcast;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 
@@ -47,6 +48,7 @@ public sealed class BroadcastBackgroundService : BackgroundService
 {
     private readonly BroadcastChannel _channel;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IConfiguration _config;
     private readonly ILogger<BroadcastBackgroundService> _logger;
 
     /// <summary>Max concurrent WhatsApp API calls per batch.</summary>
@@ -61,11 +63,34 @@ public sealed class BroadcastBackgroundService : BackgroundService
     public BroadcastBackgroundService(
         BroadcastChannel channel,
         IServiceScopeFactory scopeFactory,
+        IConfiguration config,
         ILogger<BroadcastBackgroundService> logger)
     {
         _channel = channel;
         _scopeFactory = scopeFactory;
+        _config = config;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Resolve a relative image path (e.g., /uploads/abc.jpg) to a full public URL.
+    /// Uses App:BaseUrl config with RAILWAY_PUBLIC_DOMAIN fallback.
+    /// </summary>
+    private string? ResolveImageUrl(string? relativePath)
+    {
+        if (string.IsNullOrEmpty(relativePath)) return null;
+        if (relativePath.StartsWith("http")) return relativePath; // already full URL
+
+        var baseUrl = _config["App:BaseUrl"]?.TrimEnd('/');
+        if (string.IsNullOrEmpty(baseUrl) || baseUrl.Contains("WILL_BE_SET") || baseUrl.Contains("localhost"))
+        {
+            var railwayDomain = Environment.GetEnvironmentVariable("RAILWAY_PUBLIC_DOMAIN");
+            if (!string.IsNullOrEmpty(railwayDomain))
+                baseUrl = $"https://{railwayDomain}";
+            else
+                return null;
+        }
+        return $"{baseUrl}{relativePath}";
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -182,6 +207,21 @@ public sealed class BroadcastBackgroundService : BackgroundService
             ? JsonSerializer.Deserialize<List<string>>(broadcast.ParametersJson)
             : null;
 
+        // Deserialize carousel cards if this is a carousel broadcast
+        List<CarouselCard>? carouselCards = null;
+        if (broadcast.IsCarousel && !string.IsNullOrEmpty(broadcast.CarouselCardsJson))
+        {
+            var cardDtos = JsonSerializer.Deserialize<List<CarouselCardDto>>(broadcast.CarouselCardsJson);
+            if (cardDtos != null)
+            {
+                carouselCards = cardDtos.Select(c => new CarouselCard
+                {
+                    ImageUrl = ResolveImageUrl(c.ImageUrl) ?? c.ImageUrl,
+                    BodyParam = c.BodyParam,
+                    ButtonPayload = c.ButtonPayload
+                }).ToList();
+            }
+        }
         // Process in chunks of BatchSize
         var batches = remaining.Chunk(BatchSize);
         foreach (var batch in batches)
@@ -195,9 +235,18 @@ public sealed class BroadcastBackgroundService : BackgroundService
                     using var taskScope = _scopeFactory.CreateScope();
                     var whatsApp = taskScope.ServiceProvider.GetRequiredService<IWhatsAppService>();
 
-                    await whatsApp.SendTemplateMessage(
-                        phone, broadcast.MessageTemplate, broadcast.LanguageCode,
-                        parameters, broadcast.ImageUrl);
+                    if (broadcast.IsCarousel && carouselCards != null && carouselCards.Count > 0)
+                    {
+                        await whatsApp.SendCarouselTemplateMessage(
+                            phone, broadcast.MessageTemplate,
+                            carouselCards, broadcast.LanguageCode);
+                    }
+                    else
+                    {
+                        await whatsApp.SendTemplateMessage(
+                            phone, broadcast.MessageTemplate, broadcast.LanguageCode,
+                            parameters, ResolveImageUrl(broadcast.ImageUrl) ?? broadcast.ImageUrl);
+                    }
 
                     Interlocked.Increment(ref sent);
                 }

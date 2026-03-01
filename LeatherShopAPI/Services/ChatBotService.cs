@@ -87,7 +87,7 @@ public class ChatBotService : IChatBotService
 
     private async Task BotSendCarousel(string to, string templateName, string bodyText, List<CarouselCard> cards)
     {
-        await _whatsApp.SendCarouselTemplateMessage(to, templateName, bodyText, cards);
+        await _whatsApp.SendCarouselTemplateMessage(to, templateName, cards);
         await SaveAndPushBotMessage($"[carousel] {bodyText}", "template");
     }
 

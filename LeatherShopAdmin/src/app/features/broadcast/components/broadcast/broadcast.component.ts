@@ -10,7 +10,7 @@ import {
   ValidationErrors
 } from '@angular/forms';
 import { BroadcastService } from '../../services/broadcast.service';
-import { BroadcastHistory } from '../../models/broadcast.model';
+import { BroadcastHistory, CarouselCard } from '../../models/broadcast.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { TemplateLoaderService } from '../../../../shared/services/template-loader.service';
 
@@ -23,6 +23,14 @@ import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToolbarModule } from 'primeng/toolbar';
 import { DividerModule } from 'primeng/divider';
+
+interface CarouselCardUI {
+  imageUrl: string;
+  imagePreview: string | null;
+  bodyParam: string;
+  buttonPayload: string;
+  uploading: boolean;
+}
 
 @Component({
   selector: 'app-broadcast',
@@ -57,6 +65,14 @@ export class BroadcastComponent implements OnInit, OnDestroy {
 
   broadcastMode: 'custom' | 'template' = 'custom';
   customMessage = '';
+
+  // Carousel template support
+  selectedTemplateIsCarousel = false;
+  carouselCards: CarouselCardUI[] = [];
+
+  // Header image upload (for standard templates)
+  headerImagePreview: string | null = null;
+  headerImageUploading = false;
 
   private pollingIntervals = new Map<number, ReturnType<typeof setInterval>>();
 
@@ -101,6 +117,21 @@ export class BroadcastComponent implements OnInit, OnDestroy {
 
   onTemplateSelect(): void {
     this.f['templateName'].updateValueAndValidity();
+    const templateName = this.f['templateName'].value;
+    if (templateName && this.templateLoader.isCarouselTemplate(templateName)) {
+      this.selectedTemplateIsCarousel = true;
+      const cardCount = this.templateLoader.getCardCount(templateName);
+      this.carouselCards = Array.from({ length: cardCount }, () => ({
+        imageUrl: '',
+        imagePreview: null,
+        bodyParam: '',
+        buttonPayload: '',
+        uploading: false
+      }));
+    } else {
+      this.selectedTemplateIsCarousel = false;
+      this.carouselCards = [];
+    }
   }
 
   /** Mark control touched when dropdown closes */
@@ -120,6 +151,95 @@ export class BroadcastComponent implements OnInit, OnDestroy {
 
   getResultSeverity(): 'success' | 'error' {
     return this.resultType === 'success' ? 'success' : 'error';
+  }
+
+  /** Check if any carousel card image is currently uploading */
+  get anyUploading(): boolean {
+    return this.headerImageUploading || this.carouselCards.some(c => c.uploading);
+  }
+
+  /** Check if carousel cards are fully filled (all cards have image + bodyParam) */
+  get carouselCardsValid(): boolean {
+    if (!this.selectedTemplateIsCarousel) return true;
+    return this.carouselCards.every(c => c.imageUrl.trim() !== '');
+  }
+
+  // ─── Image Upload for Standard Templates ───
+
+  onHeaderImageSelect(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    const file = input.files[0];
+    if (!file.type.startsWith('image/')) {
+      this.notification.error('Please select an image file.');
+      return;
+    }
+
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = () => { this.headerImagePreview = reader.result as string; };
+    reader.readAsDataURL(file);
+
+    // Upload to server
+    this.headerImageUploading = true;
+    this.broadcastService.uploadImage(file).subscribe({
+      next: (path) => {
+        this.broadcastForm.patchValue({ imageUrl: path });
+        this.headerImageUploading = false;
+      },
+      error: () => {
+        this.headerImagePreview = null;
+        this.headerImageUploading = false;
+        this.notification.error('Image upload failed. Please try again.');
+      }
+    });
+    // Reset input so same file can be selected again
+    input.value = '';
+  }
+
+  removeHeaderImage(): void {
+    this.headerImagePreview = null;
+    this.broadcastForm.patchValue({ imageUrl: '' });
+  }
+
+  // ─── Image Upload for Carousel Cards ───
+
+  onCardImageSelect(event: Event, index: number): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    const file = input.files[0];
+    if (!file.type.startsWith('image/')) {
+      this.notification.error('Please select an image file.');
+      return;
+    }
+
+    const card = this.carouselCards[index];
+
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = () => { card.imagePreview = reader.result as string; };
+    reader.readAsDataURL(file);
+
+    // Upload to server
+    card.uploading = true;
+    this.broadcastService.uploadImage(file).subscribe({
+      next: (path) => {
+        card.imageUrl = path;
+        card.uploading = false;
+      },
+      error: () => {
+        card.imagePreview = null;
+        card.uploading = false;
+        this.notification.error(`Card ${index + 1} image upload failed.`);
+      }
+    });
+    input.value = '';
+  }
+
+  removeCardImage(index: number): void {
+    const card = this.carouselCards[index];
+    card.imageUrl = '';
+    card.imagePreview = null;
   }
 
   ngOnDestroy(): void {
@@ -217,34 +337,76 @@ export class BroadcastComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Validate carousel cards if carousel template
+    if (this.selectedTemplateIsCarousel && !this.carouselCardsValid) {
+      this.resultMessage = 'Please upload images for all carousel cards.';
+      this.resultType = 'error';
+      return;
+    }
+
     this.sending = true;
     this.resultMessage = '';
 
-    const { templateName, parameters, imageUrl } = this.broadcastForm.value;
-    const params = parameters && parameters.trim()
-      ? parameters.split(',').map((p: string) => p.trim())
-      : [];
-
+    const { templateName, parameters } = this.broadcastForm.value;
     const languageCode = this.templateLoader.getLanguageCode(templateName);
 
-    this.broadcastService.sendBroadcast({
-      templateName,
-      languageCode,
-      parameters: params,
-      imageUrl: imageUrl || undefined
-    }).subscribe({
-      next: (res) => {
-        this.resultMessage = `Sending to ${res.totalRecipients} subscribers...`;
-        this.resultType = 'success';
-        this.submitted = false;
-        this.broadcastForm.reset();
-        this.pollBroadcastStatus(res.broadcastId, res.totalRecipients);
-      },
-      error: () => {
-        this.sending = false;
-        this.resultMessage = 'Failed to send broadcast. Check your template.';
-        this.resultType = 'error';
-      }
-    });
+    if (this.selectedTemplateIsCarousel) {
+      // Build carousel request
+      const cards: CarouselCard[] = this.carouselCards.map(c => ({
+        imageUrl: c.imageUrl,
+        bodyParam: c.bodyParam,
+        buttonPayload: c.buttonPayload
+      }));
+
+      this.broadcastService.sendBroadcast({
+        templateName,
+        languageCode,
+        parameters: [],
+        isCarousel: true,
+        carouselCards: cards
+      }).subscribe({
+        next: (res) => {
+          this.resultMessage = `Sending carousel to ${res.totalRecipients} subscribers...`;
+          this.resultType = 'success';
+          this.submitted = false;
+          this.broadcastForm.reset();
+          this.selectedTemplateIsCarousel = false;
+          this.carouselCards = [];
+          this.pollBroadcastStatus(res.broadcastId, res.totalRecipients);
+        },
+        error: () => {
+          this.sending = false;
+          this.resultMessage = 'Failed to send carousel broadcast. Check your template.';
+          this.resultType = 'error';
+        }
+      });
+    } else {
+      // Standard template
+      const params = parameters && parameters.trim()
+        ? parameters.split(',').map((p: string) => p.trim())
+        : [];
+      const imageUrl = this.broadcastForm.value.imageUrl;
+
+      this.broadcastService.sendBroadcast({
+        templateName,
+        languageCode,
+        parameters: params,
+        imageUrl: imageUrl || undefined
+      }).subscribe({
+        next: (res) => {
+          this.resultMessage = `Sending to ${res.totalRecipients} subscribers...`;
+          this.resultType = 'success';
+          this.submitted = false;
+          this.broadcastForm.reset();
+          this.headerImagePreview = null;
+          this.pollBroadcastStatus(res.broadcastId, res.totalRecipients);
+        },
+        error: () => {
+          this.sending = false;
+          this.resultMessage = 'Failed to send broadcast. Check your template.';
+          this.resultType = 'error';
+        }
+      });
+    }
   }
 }

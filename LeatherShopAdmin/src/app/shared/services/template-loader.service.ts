@@ -72,4 +72,18 @@ export class TemplateLoaderService {
     const selected = this.state.templates.find(t => t.name === templateName);
     return selected ? selected.language : 'en_US';
   }
+
+  getTemplate(templateName: string): WhatsAppTemplate | undefined {
+    return this.state.templates.find(t => t.name === templateName);
+  }
+
+  isCarouselTemplate(templateName: string): boolean {
+    const t = this.state.templates.find(tpl => tpl.name === templateName);
+    return t?.isCarousel ?? false;
+  }
+
+  getCardCount(templateName: string): number {
+    const t = this.state.templates.find(tpl => tpl.name === templateName);
+    return t?.cardCount ?? 0;
+  }
 }

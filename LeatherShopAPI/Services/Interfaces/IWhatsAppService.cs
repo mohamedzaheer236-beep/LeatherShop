@@ -7,6 +7,6 @@ public interface IWhatsAppService
     Task SendListMessage(string to, string headerText, string bodyText, string buttonText, List<ListSection> sections);
     Task SendButtonMessage(string to, string bodyText, List<ButtonOption> buttons);
     Task SendTemplateMessage(string to, string templateName, string languageCode = "en", List<string>? parameters = null, string? imageUrl = null);
-    Task SendCarouselTemplateMessage(string to, string templateName, string bodyText, List<CarouselCard> cards, string languageCode = "en");
+    Task SendCarouselTemplateMessage(string to, string templateName, List<CarouselCard> cards, string languageCode = "en");
     Task<List<WhatsAppTemplate>> GetApprovedTemplates();
 }

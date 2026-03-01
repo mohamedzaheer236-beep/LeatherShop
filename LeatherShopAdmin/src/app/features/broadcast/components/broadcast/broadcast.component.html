@@ -155,34 +155,111 @@
               <small *ngIf="isFieldInvalid('templateName') && f['templateName'].errors?.['invalidTemplate']" class="p-error">
                 <i class="pi pi-times-circle"></i> Invalid template. Select from the list or type an approved name.
               </small>
+
+              <!-- Carousel badge -->
+              <small *ngIf="selectedTemplateIsCarousel" class="hint carousel-badge">
+                <i class="pi pi-images"></i> Carousel template — {{ carouselCards.length }} cards
+              </small>
             </div>
 
-            <div class="form-field">
-              <label for="parameters">Template Parameters (comma separated)</label>
-              <input pInputText id="parameters"
-                     formControlName="parameters"
-                     placeholder="e.g. Classic Wallet, 899, 50% OFF"
-                     class="w-full" />
-            </div>
+            <!-- ═══ Standard Template Fields (hidden when carousel) ═══ -->
+            <ng-container *ngIf="!selectedTemplateIsCarousel">
+              <div class="form-field">
+                <label for="parameters">Template Parameters (comma separated)</label>
+                <input pInputText id="parameters"
+                       formControlName="parameters"
+                       placeholder="e.g. Classic Wallet, 899, 50% OFF"
+                       class="w-full" />
+              </div>
 
-            <div class="form-field">
-              <label for="broadcastImage">Image URL (optional, for header image)</label>
-              <input pInputText id="broadcastImage"
-                     formControlName="imageUrl"
-                     placeholder="https://example.com/product.jpg"
-                     class="w-full" />
-            </div>
+              <div class="form-field">
+                <label>Header Image (optional)</label>
+                <div class="image-upload-zone" *ngIf="!headerImagePreview">
+                  <label class="upload-dropzone" for="headerImageInput">
+                    <i class="pi pi-cloud-upload"></i>
+                    <span>Click to choose image</span>
+                    <small>JPG, PNG — auto-compressed</small>
+                  </label>
+                  <input type="file" id="headerImageInput" accept="image/*"
+                         (change)="onHeaderImageSelect($event)" hidden />
+                </div>
+                <div class="image-preview-wrap" *ngIf="headerImagePreview">
+                  <img [src]="headerImagePreview" alt="Header preview" class="image-preview" />
+                  <div class="image-preview-overlay" *ngIf="headerImageUploading">
+                    <i class="pi pi-spin pi-spinner"></i> Uploading...
+                  </div>
+                  <button type="button" class="remove-image-btn" (click)="removeHeaderImage()" *ngIf="!headerImageUploading">
+                    <i class="pi pi-times"></i>
+                  </button>
+                </div>
+              </div>
+            </ng-container>
+
+            <!-- ═══ Carousel Card Fields (shown when carousel) ═══ -->
+            <ng-container *ngIf="selectedTemplateIsCarousel">
+              <div class="carousel-cards-section">
+                <div class="carousel-card-item" *ngFor="let card of carouselCards; let i = index">
+                  <div class="carousel-card-header">
+                    <span class="card-number">Card {{ i + 1 }} of {{ carouselCards.length }}</span>
+                  </div>
+
+                  <!-- Card Image Upload -->
+                  <div class="form-field">
+                    <label>Card Image <span class="req-star">*</span></label>
+                    <div class="image-upload-zone" *ngIf="!card.imagePreview">
+                      <label class="upload-dropzone" [for]="'cardImage_' + i">
+                        <i class="pi pi-cloud-upload"></i>
+                        <span>Choose image for card {{ i + 1 }}</span>
+                        <small>JPG, PNG — auto-compressed</small>
+                      </label>
+                      <input type="file" [id]="'cardImage_' + i" accept="image/*"
+                             (change)="onCardImageSelect($event, i)" hidden />
+                    </div>
+                    <div class="image-preview-wrap" *ngIf="card.imagePreview">
+                      <img [src]="card.imagePreview" alt="Card {{ i + 1 }} preview" class="image-preview" />
+                      <div class="image-preview-overlay" *ngIf="card.uploading">
+                        <i class="pi pi-spin pi-spinner"></i> Uploading...
+                      </div>
+                      <button type="button" class="remove-image-btn" (click)="removeCardImage(i)" *ngIf="!card.uploading">
+                        <i class="pi pi-times"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Card Body Param -->
+                  <div class="form-field">
+                    <label [for]="'cardBody_' + i">Body Parameter</label>
+                    <input pInputText [id]="'cardBody_' + i"
+                           [(ngModel)]="card.bodyParam" [ngModelOptions]="{standalone: true}"
+                           placeholder="e.g. Premium Leather Wallet"
+                           class="w-full" />
+                  </div>
+
+                  <!-- Card Button Payload -->
+                  <div class="form-field">
+                    <label [for]="'cardPayload_' + i">Button Payload</label>
+                    <input pInputText [id]="'cardPayload_' + i"
+                           [(ngModel)]="card.buttonPayload" [ngModelOptions]="{standalone: true}"
+                           placeholder="e.g. product_1"
+                           class="w-full" />
+                  </div>
+                </div>
+              </div>
+            </ng-container>
           </div>
 
           <div class="send-action">
             <small class="form-warning" *ngIf="broadcastForm.invalid">
               <i class="pi pi-exclamation-triangle"></i> Please select a valid template to enable sending.
             </small>
+            <small class="form-warning" *ngIf="selectedTemplateIsCarousel && !carouselCardsValid && !broadcastForm.invalid">
+              <i class="pi pi-exclamation-triangle"></i> Please upload images for all carousel cards.
+            </small>
             <p-button type="submit"
                       label="Send to All Subscribers"
                       icon="pi pi-send"
                       [loading]="sending"
-                      [disabled]="sending || broadcastForm.invalid"
+                      [disabled]="sending || broadcastForm.invalid || anyUploading || (selectedTemplateIsCarousel && !carouselCardsValid)"
                       styleClass="w-full">
             </p-button>
             <small class="send-hint">

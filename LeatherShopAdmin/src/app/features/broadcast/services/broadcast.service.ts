@@ -30,6 +30,12 @@ export class BroadcastService {
     return this.http.get<ApiResponse<WhatsAppTemplate[]>>(`${this.baseUrl}/templates`).pipe(map(res => res.data));
   }
 
+  uploadImage(file: File): Observable<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<ApiResponse<string>>(`${this.baseUrl}/upload-image`, formData).pipe(map(res => res.data));
+  }
+
   getSubscriberCount(): Observable<{ subscriberCount: number; totalCount: number }> {
     return this.http.get<ApiResponse<{ subscriberCount: number; totalCount: number }>>(`${this.customerUrl}/count`).pipe(map(res => res.data));
   }

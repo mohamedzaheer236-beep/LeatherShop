@@ -191,7 +191,7 @@ public class WhatsAppService : IWhatsAppService
     /// Template must be pre-approved in Meta Business Manager.
     /// The number of cards MUST match the template definition (e.g., product_gallery has 2 cards).
     /// </summary>
-    public async Task SendCarouselTemplateMessage(string to, string templateName, string bodyText, List<CarouselCard> cards, string languageCode = "en")
+    public async Task SendCarouselTemplateMessage(string to, string templateName, List<CarouselCard> cards, string languageCode = "en")
     {
         // Build card components — each card has header (image), body (text param), and button (quick_reply payload)
         var carouselCards = cards.Select((card, idx) => new Dictionary<string, object>
@@ -257,12 +257,30 @@ public class WhatsAppService : IWhatsAppService
         {
             foreach (var item in data.EnumerateArray())
             {
+                var isCarousel = false;
+                var cardCount = 0;
+                if (item.TryGetProperty("components", out var components))
+                {
+                    foreach (var comp in components.EnumerateArray())
+                    {
+                        if (comp.TryGetProperty("type", out var compType) &&
+                            compType.GetString()?.Equals("CAROUSEL", StringComparison.OrdinalIgnoreCase) == true)
+                        {
+                            isCarousel = true;
+                            if (comp.TryGetProperty("cards", out var cards))
+                                cardCount = cards.GetArrayLength();
+                            break;
+                        }
+                    }
+                }
                 templates.Add(new WhatsAppTemplate
                 {
                     Name = item.GetProperty("name").GetString() ?? "",
                     Language = item.GetProperty("language").GetString() ?? "en",
                     Status = item.GetProperty("status").GetString() ?? "",
-                    Category = item.TryGetProperty("category", out var cat) ? cat.GetString() ?? "" : ""
+                    Category = item.TryGetProperty("category", out var cat) ? cat.GetString() ?? "" : "",
+                    IsCarousel = isCarousel,
+                    CardCount = cardCount
                 });
             }
         }
@@ -329,6 +347,10 @@ public class WhatsAppTemplate
     public string Language { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
+    /// <summary>True if the template contains a CAROUSEL component.</summary>
+    public bool IsCarousel { get; set; }
+    /// <summary>Number of cards defined in the carousel (0 for non-carousel templates).</summary>
+    public int CardCount { get; set; }
 }
 
 public class CarouselCard

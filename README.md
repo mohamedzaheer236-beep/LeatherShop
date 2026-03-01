@@ -259,8 +259,13 @@ Admin opens http://localhost:4200
 └────────────────────────────────────────────────────────┘
 
 ┌── BROADCAST (/broadcast) ──────────────────────────────┐
-│  Template Name: [________]  Language: [en]              │
-│  Parameters: [________]     Image URL: [________]       │
+│  [Quick Message] [Template Message]                     │
+│  Template Name: [dropdown ▾]  (auto-detects carousel)   │
+│  ── Standard Template ──                                │
+│  Parameters: [________]  Image: [Choose File] [Preview] │
+│  ── Carousel Template ──                                │
+│  Card 1: [Choose Image][Body Param][Button Payload]     │
+│  Card 2: [Choose Image][Body Param][Button Payload]     │
 │  [Send to All Subscribers]                              │
 │  ┌─ Broadcast History ──────────────────────────────┐  │
 │  │ Template │ Recipients │ Sent │ Failed │ Date      │  │
@@ -860,8 +865,11 @@ Temporary tokens expire every 24 hours. For production, use a **permanent System
 ### Broadcast
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/broadcast/send` | Send template message to all subscribers |
+| POST | `/api/broadcast/send` | Send template message to all subscribers (standard + carousel) |
 | GET | `/api/broadcast/history` | Last 20 broadcast records |
+| GET | `/api/broadcast/{id}/status` | Poll broadcast delivery status |
+| GET | `/api/broadcast/templates` | List approved WhatsApp templates from Meta (detects carousel) |
+| POST | `/api/broadcast/upload-image` | Upload image file for broadcast header/carousel cards |
 
 ### Chat (2-Way Admin ↔ Customer)
 | Method | Endpoint | Description |
@@ -1795,3 +1803,37 @@ Exhaustive re-read of all 70+ files (49 backend `.cs`, 29 frontend `.ts`/`.html`
 - Zero `async void`, zero `.Result`/.Wait()` sync-over-async, zero `TODO`/`FIXME`/`HACK` ✅
 - Zero untyped `throw new Exception()` — all use typed exceptions ✅
 - **No new issues found** — codebase is production-ready ✅
+
+### Phase 20 — Carousel Template Broadcast + Image Upload (March 2026)
+
+Carousel templates (e.g., `product_gallery`, `product_gallery_3`) were failing from the broadcast page — the broadcast flow always called `SendTemplateMessage()` which only works for standard templates. Carousel templates require Meta's carousel payload format with per-card data (header image, body parameter, quick-reply button). Additionally, image URLs had to be typed manually — replaced with file upload from system.
+
+**Problem:** Carousel templates returned "0 sent, N failed" because `BroadcastBackgroundService` didn't know how to build the carousel payload.
+
+**Solution (12 files modified):**
+
+| # | Category | Change | Files |
+|----|----------|--------|-------|
+| 1 | **Meta API Detection** | `GetApprovedTemplates()` now parses the `components` array from Meta's response to detect `CAROUSEL` type and count cards | `WhatsAppService.cs` |
+| 2 | **Template Model** | `WhatsAppTemplate` class extended with `IsCarousel` (bool) and `CardCount` (int) | `WhatsAppService.cs`, `IWhatsAppService.cs` |
+| 3 | **DB Model** | `BroadcastMessage` extended with `IsCarousel` (bool) and `CarouselCardsJson` (text, nullable) | `BroadcastMessage.cs` |
+| 4 | **Fluent API Config** | `BroadcastMessageConfiguration` — added column type `text` for `CarouselCardsJson`, default `false` for `IsCarousel` | `BroadcastMessageConfiguration.cs` |
+| 5 | **EF Migration** | `AddCarouselBroadcastColumns` migration — adds both columns to `BroadcastMessages` table | `Migrations/` |
+| 6 | **DTOs** | `BroadcastRequestDto` extended with `IsCarousel` + `List<CarouselCardDto>`. New `CarouselCardDto` class with `ImageUrl`, `BodyParam`, `ButtonPayload` | `BroadcastDtos.cs` |
+| 7 | **Service Layer** | `BroadcastService.SendBroadcastAsync()` saves carousel flag + serialized card data to DB | `BroadcastService.cs` |
+| 8 | **Background Processor** | Branches on `IsCarousel`: carousel path deserializes cards, resolves relative image paths to public URLs via `ResolveImageUrl()`, calls `SendCarouselTemplateMessage()`. Standard path unchanged. | `BroadcastBackgroundService.cs` |
+| 9 | **Image Upload Endpoint** | `POST /api/broadcast/upload-image` — reuses `ProductService.UploadImageAsync()` (resize to 1200px, compress to ~300KB JPEG) | `BroadcastController.cs` |
+| 10 | **Dead Code Cleanup** | Removed unused `bodyText` parameter from `SendCarouselTemplateMessage()` signature (interface + implementation + all callers) | `IWhatsAppService.cs`, `WhatsAppService.cs`, `BroadcastBackgroundService.cs`, `ChatBotService.cs` |
+| 11 | **Frontend Models** | `CarouselCard` interface, `WhatsAppTemplate` extended with `isCarousel`/`cardCount`, `BroadcastRequest` extended with carousel fields | `broadcast.model.ts` |
+| 12 | **Frontend Service** | `uploadImage(file: File)` method using FormData | `broadcast.service.ts` |
+| 13 | **Template Loader** | `isCarouselTemplate()` and `getCardCount()` helpers for shared carousel detection | `template-loader.service.ts` |
+| 14 | **Broadcast Component** | Auto-detects carousel on template selection, shows N card inputs (image upload + body param + button payload per card). Standard templates get file upload instead of URL text input. Send button disabled during uploads. | `broadcast.component.ts`, `.html`, `.scss` |
+
+**Architecture decisions:**
+- **Reuses existing `SendCarouselTemplateMessage()`** — no new WhatsApp API code, just routing the broadcast flow to the correct method
+- **Reuses existing `ProductService.UploadImageAsync()`** — same resize/compress pipeline, images stored in `wwwroot/uploads/`
+- **`ResolveImageUrl()` in BackgroundService** — converts relative paths (`/uploads/abc.jpg`) to full public URLs using `App:BaseUrl` or `RAILWAY_PUBLIC_DOMAIN`, same pattern as `ChatBotService.GetPublicBaseUrl()`
+- **JSON serialization** — `CarouselCardsJson` stored as JSON string in DB, serialized with `System.Text.Json`. Both serialize (service) and deserialize (background processor) use same `CarouselCardDto` type — no case mismatch
+- **Frontend carousel detection** — template dropdown auto-detects carousel from Meta API metadata, dynamically shows N card slots matching the template definition
+
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors.

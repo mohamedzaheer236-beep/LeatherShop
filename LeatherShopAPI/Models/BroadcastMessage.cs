@@ -61,4 +61,14 @@ public class BroadcastMessage
     /// Updated periodically during broadcast. On restart, remaining = Recipients - Processed.
     /// </summary>
     public string ProcessedPhonesJson { get; set; } = "[]";
+
+    /// <summary>True if this broadcast uses a carousel template.</summary>
+    public bool IsCarousel { get; set; }
+
+    /// <summary>
+    /// JSON-serialized List&lt;CarouselCardDto&gt; for carousel templates.
+    /// Each card has ImageUrl, BodyParam, ButtonPayload.
+    /// Null for non-carousel templates.
+    /// </summary>
+    public string? CarouselCardsJson { get; set; }
 }
