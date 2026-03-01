@@ -13,6 +13,8 @@ import { BroadcastService } from '../../services/broadcast.service';
 import { BroadcastHistory, CarouselCard } from '../../models/broadcast.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { TemplateLoaderService } from '../../../../shared/services/template-loader.service';
+import { ProductService } from '../../../products/services/product.service';
+import { Product } from '../../../products/models/product.model';
 
 import { CardModule } from 'primeng/card';
 import { DropdownModule } from 'primeng/dropdown';
@@ -29,6 +31,7 @@ interface CarouselCardUI {
   imagePreview: string | null;
   bodyParam: string;
   buttonPayload: string;
+  selectedProductId: number | null;
   uploading: boolean;
 }
 
@@ -74,6 +77,10 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   selectedTemplateHasImageHeader = false;
   selectedTemplateBodyParamCount = 0;
 
+  // Product list for carousel card "View Details" button
+  products: Product[] = [];
+  productOptions: { label: string; value: number }[] = [];
+
   // Header image upload (for standard templates)
   headerImagePreview: string | null = null;
   headerImageUploading = false;
@@ -84,7 +91,8 @@ export class BroadcastComponent implements OnInit, OnDestroy {
     private fb: FormBuilder,
     private broadcastService: BroadcastService,
     private notification: NotificationService,
-    public templateLoader: TemplateLoaderService
+    public templateLoader: TemplateLoaderService,
+    private productService: ProductService
   ) {}
 
   ngOnInit(): void {
@@ -94,6 +102,20 @@ export class BroadcastComponent implements OnInit, OnDestroy {
     this.broadcastService.getSubscriberCount().subscribe({
       next: (data) => { this.subscriberCount = data.subscriberCount; },
       error: () => { /* Toast shown by error interceptor */ }
+    });
+    this.loadProducts();
+  }
+
+  private loadProducts(): void {
+    this.productService.getProducts().subscribe({
+      next: (products) => {
+        this.products = products.filter(p => p.isActive);
+        this.productOptions = this.products.map(p => ({
+          label: `${p.name} — ₹${p.price}`,
+          value: p.id
+        }));
+      },
+      error: () => { /* Products dropdown will be empty — admin can still type payload manually */ }
     });
   }
 
@@ -142,6 +164,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
         imagePreview: null,
         bodyParam: '',
         buttonPayload: '',
+        selectedProductId: null,
         uploading: false
       }));
     } else {
@@ -256,6 +279,23 @@ export class BroadcastComponent implements OnInit, OnDestroy {
     const card = this.carouselCards[index];
     card.imageUrl = '';
     card.imagePreview = null;
+  }
+
+  /** When admin selects a product for a carousel card, auto-generate the view_ payload */
+  onCardProductSelect(index: number): void {
+    const card = this.carouselCards[index];
+    if (card.selectedProductId) {
+      card.buttonPayload = `view_${card.selectedProductId}`;
+      // Auto-fill body param with product name if empty
+      if (!card.bodyParam.trim()) {
+        const product = this.products.find(p => p.id === card.selectedProductId);
+        if (product) {
+          card.bodyParam = product.name.substring(0, 120);
+        }
+      }
+    } else {
+      card.buttonPayload = '';
+    }
   }
 
   ngOnDestroy(): void {

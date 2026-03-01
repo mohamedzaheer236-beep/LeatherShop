@@ -240,13 +240,27 @@
                     <small class="hint">{{ card.bodyParam.length }}/120 characters</small>
                   </div>
 
-                  <!-- Card Button Payload -->
+                  <!-- Card Button → Product Selector -->
                   <div class="form-field">
-                    <label [for]="'cardPayload_' + i">Button Payload</label>
-                    <input pInputText [id]="'cardPayload_' + i"
-                           [(ngModel)]="card.buttonPayload" [ngModelOptions]="{standalone: true}"
-                           placeholder="e.g. product_1"
-                           class="w-full" />
+                    <label [for]="'cardProduct_' + i">Link to Product (View Details)</label>
+                    <p-dropdown [inputId]="'cardProduct_' + i"
+                                [options]="productOptions"
+                                [(ngModel)]="card.selectedProductId"
+                                [ngModelOptions]="{standalone: true}"
+                                (onChange)="onCardProductSelect(i)"
+                                placeholder="Select a product"
+                                [style]="{'width': '100%'}"
+                                [showClear]="true"
+                                [filter]="true"
+                                filterPlaceholder="Search products..."
+                                appendTo="body">
+                    </p-dropdown>
+                    <small class="hint" *ngIf="card.selectedProductId">
+                      <i class="pi pi-link"></i> "View Details" will show this product to the customer
+                    </small>
+                    <small class="hint" *ngIf="!card.selectedProductId">
+                      <i class="pi pi-info-circle"></i> Select which product to show when customer taps "View Details"
+                    </small>
                   </div>
                 </div>
               </div>
