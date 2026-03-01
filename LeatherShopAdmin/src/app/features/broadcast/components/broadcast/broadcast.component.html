@@ -206,43 +206,9 @@
                     <span class="card-number">Card {{ i + 1 }} of {{ carouselCards.length }}</span>
                   </div>
 
-                  <!-- Card Image Upload -->
+                  <!-- 1. Product Selector (first — drives image + payload) -->
                   <div class="form-field">
-                    <label>Card Image <span class="req-star">*</span></label>
-                    <div class="image-upload-zone" *ngIf="!card.imagePreview">
-                      <label class="upload-dropzone" [for]="'cardImage_' + i">
-                        <i class="pi pi-cloud-upload"></i>
-                        <span>Choose image for card {{ i + 1 }}</span>
-                        <small>JPG, PNG — auto-compressed</small>
-                      </label>
-                      <input type="file" [id]="'cardImage_' + i" accept="image/*"
-                             (change)="onCardImageSelect($event, i)" hidden />
-                    </div>
-                    <div class="image-preview-wrap" *ngIf="card.imagePreview">
-                      <img [src]="card.imagePreview" alt="Card {{ i + 1 }} preview" class="image-preview" />
-                      <div class="image-preview-overlay" *ngIf="card.uploading">
-                        <i class="pi pi-spin pi-spinner"></i> Uploading...
-                      </div>
-                      <button type="button" class="remove-image-btn" (click)="removeCardImage(i)" *ngIf="!card.uploading">
-                        <i class="pi pi-times"></i>
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Card Body Param -->
-                  <div class="form-field">
-                    <label [for]="'cardBody_' + i">Body Parameter</label>
-                    <input pInputText [id]="'cardBody_' + i"
-                           [(ngModel)]="card.bodyParam" [ngModelOptions]="{standalone: true}"
-                           placeholder="e.g. Premium Leather Wallet"
-                           [maxlength]="cardBodyMaxLength"
-                           class="w-full" />
-                    <small class="hint">{{ card.bodyParam.length }}/{{ cardBodyMaxLength }} characters</small>
-                  </div>
-
-                  <!-- Card Button → Product Selector -->
-                  <div class="form-field">
-                    <label [for]="'cardProduct_' + i">Link to Product (View Details)</label>
+                    <label [for]="'cardProduct_' + i">Link to Product <span class="req-star">*</span></label>
                     <p-dropdown [inputId]="'cardProduct_' + i"
                                 [options]="productOptions"
                                 [(ngModel)]="card.selectedProductId"
@@ -255,12 +221,60 @@
                                 filterPlaceholder="Search products..."
                                 appendTo="body">
                     </p-dropdown>
-                    <small class="hint" *ngIf="card.selectedProductId">
-                      <i class="pi pi-link"></i> "View Details" will show this product to the customer
-                    </small>
                     <small class="hint" *ngIf="!card.selectedProductId">
-                      <i class="pi pi-info-circle"></i> Select which product to show when customer taps "View Details"
+                      <i class="pi pi-info-circle"></i> Select product to show when customer taps "View Details"
                     </small>
+                  </div>
+
+                  <!-- 2. Product Image Picker (shown after product selected) -->
+                  <div class="form-field" *ngIf="card.selectedProductId && getCardProductImages(i).length > 0">
+                    <label>Select Image for Card <span class="req-star">*</span></label>
+                    <div class="product-image-picker">
+                      <div class="picker-thumb"
+                           *ngFor="let img of getCardProductImages(i)"
+                           [class.selected]="card.selectedImageId === img.id"
+                           (click)="selectCardImage(i, img)">
+                        <img [src]="img.url" [alt]="'Product image'" />
+                        <i class="pi pi-check-circle selected-badge" *ngIf="card.selectedImageId === img.id"></i>
+                      </div>
+                    </div>
+                    <small class="hint" *ngIf="card.selectedImageId !== null">
+                      <i class="pi pi-check"></i> This image will appear in the carousel card and on the invoice
+                    </small>
+                  </div>
+
+                  <!-- 2b. File Upload fallback (only when product has no images) -->
+                  <div class="form-field" *ngIf="!card.selectedProductId || getCardProductImages(i).length === 0">
+                    <label>Card Image <span class="req-star">*</span></label>
+                    <div class="image-upload-zone" *ngIf="!card.imagePreview">
+                      <label class="upload-dropzone" [for]="'cardImage_' + i">
+                        <i class="pi pi-cloud-upload"></i>
+                        <span>{{ card.selectedProductId ? 'No product images — upload one' : 'Select a product first, or upload' }}</span>
+                        <small>JPG, PNG — auto-compressed</small>
+                      </label>
+                      <input type="file" [id]="'cardImage_' + i" accept="image/*"
+                             (change)="onCardImageSelect($event, i)" hidden />
+                    </div>
+                    <div class="image-preview-wrap" *ngIf="card.imagePreview && !card.selectedProductId">
+                      <img [src]="card.imagePreview" alt="Card {{ i + 1 }} preview" class="image-preview" />
+                      <div class="image-preview-overlay" *ngIf="card.uploading">
+                        <i class="pi pi-spin pi-spinner"></i> Uploading...
+                      </div>
+                      <button type="button" class="remove-image-btn" (click)="removeCardImage(i)" *ngIf="!card.uploading">
+                        <i class="pi pi-times"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- 3. Card Body Param -->
+                  <div class="form-field">
+                    <label [for]="'cardBody_' + i">Body Parameter</label>
+                    <input pInputText [id]="'cardBody_' + i"
+                           [(ngModel)]="card.bodyParam" [ngModelOptions]="{standalone: true}"
+                           placeholder="e.g. Premium Leather Wallet"
+                           [maxlength]="cardBodyMaxLength"
+                           class="w-full" />
+                    <small class="hint">{{ card.bodyParam.length }}/{{ cardBodyMaxLength }} characters</small>
                   </div>
                 </div>
               </div>

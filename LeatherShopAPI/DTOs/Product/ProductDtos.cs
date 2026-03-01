@@ -14,8 +14,17 @@ public class ProductDto
     public string ImageUrl { get; set; } = string.Empty;
     /// <summary>All image URLs in display order (primary first, then additional).</summary>
     public List<string> ImageUrls { get; set; } = new();
+    /// <summary>All images with IDs, in display order. Primary image has id=0.</summary>
+    public List<ProductImageItemDto> ImageItems { get; set; } = new();
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>Image ID + URL pair for product image selection (e.g., carousel cards).</summary>
+public class ProductImageItemDto
+{
+    public int Id { get; set; }
+    public string Url { get; set; } = string.Empty;
 }
 
 public class CreateProductDto

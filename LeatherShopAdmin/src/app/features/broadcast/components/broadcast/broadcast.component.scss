@@ -347,6 +347,51 @@
   font-size: 12px !important;
 }
 
+/* ─── Product Image Picker (carousel cards) ─── */
+.product-image-picker {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.picker-thumb {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+
+  &:hover {
+    border-color: #a5b4fc;
+    transform: scale(1.05);
+  }
+
+  &.selected {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .selected-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    color: #fff;
+    background: #6366f1;
+    border-radius: 50%;
+    font-size: 16px;
+    padding: 2px;
+  }
+}
+
 /* ─── Status Banner ─── */
 .status-banner {
   display: flex;

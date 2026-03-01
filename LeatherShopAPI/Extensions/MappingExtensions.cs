@@ -16,14 +16,20 @@ public static class MappingExtensions
     {
         // Build combined image list: primary image first, then additional images ordered by DisplayOrder
         var imageUrls = new List<string>();
+        var imageItems = new List<DTOs.Product.ProductImageItemDto>();
         if (!string.IsNullOrEmpty(p.ImageUrl))
+        {
             imageUrls.Add(p.ImageUrl);
+            imageItems.Add(new DTOs.Product.ProductImageItemDto { Id = 0, Url = p.ImageUrl });
+        }
 
         if (p.Images != null)
         {
-            imageUrls.AddRange(
-                p.Images.OrderBy(i => i.DisplayOrder).Select(i => i.ImageUrl)
-            );
+            foreach (var img in p.Images.OrderBy(i => i.DisplayOrder))
+            {
+                imageUrls.Add(img.ImageUrl);
+                imageItems.Add(new DTOs.Product.ProductImageItemDto { Id = img.Id, Url = img.ImageUrl });
+            }
         }
 
         return new ProductDto
@@ -37,6 +43,7 @@ public static class MappingExtensions
             StockQuantity = p.StockQuantity,
             ImageUrl = p.ImageUrl,
             ImageUrls = imageUrls,
+            ImageItems = imageItems,
             IsActive = p.IsActive,
             CreatedAt = p.CreatedAt
         };

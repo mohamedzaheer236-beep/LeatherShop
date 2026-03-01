@@ -14,7 +14,7 @@ import { BroadcastHistory, CarouselCard } from '../../models/broadcast.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { TemplateLoaderService } from '../../../../shared/services/template-loader.service';
 import { ProductService } from '../../../products/services/product.service';
-import { Product } from '../../../products/models/product.model';
+import { Product, ProductImageItem } from '../../../products/models/product.model';
 
 import { CardModule } from 'primeng/card';
 import { DropdownModule } from 'primeng/dropdown';
@@ -32,6 +32,7 @@ interface CarouselCardUI {
   bodyParam: string;
   buttonPayload: string;
   selectedProductId: number | null;
+  selectedImageId: number | null;
   uploading: boolean;
 }
 
@@ -167,6 +168,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
         bodyParam: '',
         buttonPayload: '',
         selectedProductId: null,
+        selectedImageId: null,
         uploading: false
       }));
     } else {
@@ -287,17 +289,48 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   onCardProductSelect(index: number): void {
     const card = this.carouselCards[index];
     if (card.selectedProductId) {
-      card.buttonPayload = `view_${card.selectedProductId}`;
+      const product = this.products.find(p => p.id === card.selectedProductId);
       // Auto-fill body param with product name if empty
-      if (!card.bodyParam.trim()) {
-        const product = this.products.find(p => p.id === card.selectedProductId);
-        if (product) {
-          card.bodyParam = product.name.substring(0, 120);
-        }
+      if (!card.bodyParam.trim() && product) {
+        card.bodyParam = product.name.substring(0, this.cardBodyMaxLength);
+      }
+      // Auto-select the first image and set payload
+      if (product?.imageItems?.length) {
+        this.selectCardImage(index, product.imageItems[0]);
+      } else {
+        card.buttonPayload = `view_${card.selectedProductId}`;
+        card.selectedImageId = null;
+        card.imageUrl = '';
+        card.imagePreview = null;
       }
     } else {
       card.buttonPayload = '';
+      card.selectedImageId = null;
+      card.imageUrl = '';
+      card.imagePreview = null;
     }
+  }
+
+  /** Select a specific product image for a carousel card */
+  selectCardImage(index: number, img: ProductImageItem): void {
+    const card = this.carouselCards[index];
+    card.selectedImageId = img.id;
+    card.imageUrl = img.url;
+    card.imagePreview = img.url;
+    // Build payload with image tracking: view_{productId}_pi{imageId}
+    if (card.selectedProductId) {
+      card.buttonPayload = img.id > 0
+        ? `view_${card.selectedProductId}_pi${img.id}`
+        : `view_${card.selectedProductId}`;
+    }
+  }
+
+  /** Get images for a specific carousel card's selected product */
+  getCardProductImages(index: number): ProductImageItem[] {
+    const card = this.carouselCards[index];
+    if (!card.selectedProductId) return [];
+    const product = this.products.find(p => p.id === card.selectedProductId);
+    return product?.imageItems ?? [];
   }
 
   ngOnDestroy(): void {

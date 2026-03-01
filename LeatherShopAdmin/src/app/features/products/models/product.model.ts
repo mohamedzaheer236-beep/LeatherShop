@@ -1,3 +1,8 @@
+export interface ProductImageItem {
+  id: number;
+  url: string;
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -8,6 +13,7 @@ export interface Product {
   stockQuantity: number;
   imageUrl: string;
   imageUrls: string[];
+  imageItems: ProductImageItem[];
   isActive: boolean;
 }
 
