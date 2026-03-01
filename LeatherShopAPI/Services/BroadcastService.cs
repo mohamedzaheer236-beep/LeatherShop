@@ -44,12 +44,21 @@ public class BroadcastService : IBroadcastService
         if (!recipients.Any())
             throw new InvalidOperationException("No recipients found");
 
+        // Validate carousel broadcasts have card data
+        if (dto.IsCarousel && (dto.CarouselCards == null || dto.CarouselCards.Count == 0))
+            throw new InvalidOperationException("Carousel broadcasts require at least one card.");
+
+        if (dto.IsCarousel && dto.CarouselCards!.Any(c => string.IsNullOrWhiteSpace(c.ImageUrl)))
+            throw new InvalidOperationException("All carousel cards must have an image.");
+
         // Store ALL job data in DB so broadcast survives Railway restarts.
         // Channel<int> carries just the ID as an immediate trigger.
         var broadcast = new BroadcastMessage
         {
             MessageTemplate = dto.TemplateName,
-            MessageBody = string.Join(", ", dto.Parameters ?? new List<string>()),
+            MessageBody = dto.IsCarousel && dto.CarouselCards?.Any() == true
+                ? $"Carousel: {dto.CarouselCards.Count} cards"
+                : string.Join(", ", dto.Parameters ?? new List<string>()),
             TotalRecipients = recipients.Count,
             SentCount = 0,
             FailedCount = 0,
@@ -93,7 +102,9 @@ public class BroadcastService : IBroadcastService
                 TotalRecipients = b.TotalRecipients,
                 SentCount = b.SentCount,
                 FailedCount = b.FailedCount,
-                SentAt = b.SentAt
+                SentAt = b.SentAt,
+                Status = b.Status.ToString(),
+                IsCarousel = b.IsCarousel
             })
             .FirstOrDefaultAsync();
     }
@@ -111,7 +122,9 @@ public class BroadcastService : IBroadcastService
                 TotalRecipients = b.TotalRecipients,
                 SentCount = b.SentCount,
                 FailedCount = b.FailedCount,
-                SentAt = b.SentAt
+                SentAt = b.SentAt,
+                Status = b.Status.ToString(),
+                IsCarousel = b.IsCarousel
             })
             .ToListAsync();
     }

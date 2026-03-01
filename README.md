@@ -1837,3 +1837,55 @@ Carousel templates (e.g., `product_gallery`, `product_gallery_3`) were failing f
 - **Frontend carousel detection** — template dropdown auto-detects carousel from Meta API metadata, dynamically shows N card slots matching the template definition
 
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors.
+
+### Phase 20.1 — Carousel on Customers Page + Product Image Picker (March 2026)
+
+Extended the Customers page "Broadcast to Selected" dialog with the same carousel, smart field visibility, and product image picker features as the Broadcast page. Also added product image selectors to carousel cards (pick which product photo appears on each carousel card and tracks through to invoices via `view_{productId}_pi{imageId}` button payload).
+
+| # | Category | Change | Files |
+|----|----------|--------|-------|
+| 1 | **Frontend — Image Picker** | Each carousel card now has a product selector dropdown → product image thumbnails appear → click to select which image goes on the card. Selected image ID embedded in button payload for invoice tracking. | `broadcast.component.ts`, `.html` |
+| 2 | **Frontend — URL Resolution** | Product image URLs are relative (`/uploads/x.jpg`) but frontend is on Vercel. Added `resolveImageUrl()` using `environment.apiUrl.replace('/api', '') + url`. | `broadcast.component.ts`, `customers.component.ts` |
+| 3 | **Frontend — Customers Dialog** | Ported full carousel support to Customers page dialog: carousel badge, conditional standard fields, product image picker, file upload fallback, body param with dynamic maxlength. | `customers.component.ts`, `.html`, `.scss` |
+| 4 | **Backend — Product Images DTO** | `ProductDto` now includes `imageItems: ProductImageItemDto[]` — array of `{id, url}` pairs. Primary image gets sentinel `Id = 0`, additional images use DB IDs. | `ProductDtos.cs`, `MappingExtensions.cs` |
+| 5 | **Frontend — Product Model** | `Product` interface extended with `imageItems: ProductImageItem[]`. `ProductImageItem = { id: number; url: string }`. | `product.model.ts` |
+| 6 | **Backend — Smart Field Detection** | `GetApprovedTemplates()` now detects: `HasImageHeader` (HEADER+IMAGE format), `BodyParamCount` ({{1}}, {{2}} count), `CardBodyMaxLength` (160 - static card body text length). | `WhatsAppService.cs` |
+| 7 | **Frontend — Smart Visibility** | Template fields (params, image, carousel cards) only appear when the selected template actually uses them. Prevents confusion with unrelated fields. | `broadcast.component.ts`, `customers.component.ts` |
+| 8 | **Frontend — Dynamic Body MaxLength** | Carousel card body input has `[maxlength]="cardBodyMaxLength"` calculated from template metadata. Different templates with different static text get different limits. | `broadcast.component.html`, `customers.component.html` |
+
+### Phase 20.2 — Deep Code Quality Audit & Hardening (March 2026)
+
+Full deep-dive code review of all recent broadcast/carousel/image changes across backend and frontend. Found and fixed 19 issues across critical, medium, and low severity.
+
+**Backend Fixes:**
+
+| # | Severity | Summary | Files |
+|----|----------|---------|-------|
+| B1 | **CRITICAL** | Carousel broadcast with no cards silently fell through to standard template (Meta API rejects) — added validation in `SendBroadcastAsync` | `BroadcastService.cs` |
+| B2 | **CRITICAL** | Empty carousel card `ImageUrl` passed to Meta API after resolution failure — added pre-send validation with abort | `BroadcastBackgroundService.cs` |
+| B3 | **MEDIUM** | `BroadcastHistoryDto` missing `Status` and `IsCarousel` fields — added for proper frontend display | `BroadcastDtos.cs`, `BroadcastService.cs` |
+| B4 | **MEDIUM** | `MessageBody` was empty for carousel broadcasts in history — now stores "Carousel: N cards" | `BroadcastService.cs` |
+| B5 | **MEDIUM** | Unsafe `GetProperty()` in template parsing could throw `KeyNotFoundException` — changed to `TryGetProperty` | `WhatsAppService.cs` |
+| B6 | **MEDIUM** | Success API log at `Information` level caused log spam for large broadcasts — downgraded to `Debug` | `WhatsAppService.cs` |
+
+**Frontend Fixes:**
+
+| # | Severity | Summary | Files |
+|----|----------|---------|-------|
+| F1 | **CRITICAL** | Image preview hidden when product selected but has zero images (uploaded image never shown) — fixed `*ngIf` condition | `broadcast.component.html`, `customers.component.html` |
+| F2 | **CRITICAL** | Customers dialog missing remove button for uploaded carousel card images + missing `removeBcCardImage()` method | `customers.component.ts`, `customers.component.html` |
+| F3 | **CRITICAL** | `sendCustomMessage()` used `languageCode: 'en'` (wrong) — Meta uses `en_US`. Fixed to use `templateLoader.getLanguageCode()` | `broadcast.component.ts` |
+| F4 | **MEDIUM** | Customers send button missing `broadcastForm.invalid` and `bcCarouselCardsValid` disabled checks — added `bcCarouselCardsValid` getter | `customers.component.ts`, `customers.component.html` |
+| F5 | **MEDIUM** | No file size validation on image uploads — added 5 MB limit check on all upload handlers | `broadcast.component.ts`, `customers.component.ts` |
+| F6 | **MEDIUM** | Broadcast template dropdown missing `[filter]="true"` search — added to match customers dialog | `broadcast.component.html` |
+| F7 | **MEDIUM** | Success messages said "sent" but broadcast is only queued — changed to "sending to..." wording | `customers.component.ts` |
+
+**Architecture Improvements:**
+
+| # | Category | Summary | Files |
+|----|----------|---------|-------|
+| A1 | **DRY** | Extracted ~180 lines of duplicate carousel SCSS into shared `_carousel.scss` partial. Both components use `@use`. | `shared/styles/_carousel.scss` (new), `broadcast.component.scss`, `customers.component.scss` |
+| A2 | **DRY** | Exported `CarouselCardUI` interface from `broadcast.model.ts` — both components import it instead of inline object types | `broadcast.model.ts`, `broadcast.component.ts`, `customers.component.ts` |
+| A3 | **Cleanup** | Removed dead `getResultSeverity()` method, fixed misleading comments on `cardBodyMaxLength` and `carouselCardsValid` | `broadcast.component.ts` |
+
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors.

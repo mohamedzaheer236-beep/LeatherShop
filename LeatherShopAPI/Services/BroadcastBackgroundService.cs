@@ -222,6 +222,14 @@ public sealed class BroadcastBackgroundService : BackgroundService
                     BodyParam = c.BodyParam.Length > 160 ? c.BodyParam[..160] : c.BodyParam,
                     ButtonPayload = c.ButtonPayload
                 }).ToList();
+
+                // Validate all cards have resolved image URLs
+                if (carouselCards.Any(c => string.IsNullOrWhiteSpace(c.ImageUrl)))
+                {
+                    _logger.LogError("Broadcast {BroadcastId}: carousel card has empty image URL after resolution, aborting", broadcastId);
+                    await MarkCompletedAsync(broadcastId, 0, broadcast.TotalRecipients, alreadyProcessed);
+                    return;
+                }
             }
         }
         // Process in chunks of BatchSize

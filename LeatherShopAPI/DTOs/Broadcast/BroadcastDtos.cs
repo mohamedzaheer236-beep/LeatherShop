@@ -50,6 +50,8 @@ public class BroadcastHistoryDto
     public int SentCount { get; set; }
     public int FailedCount { get; set; }
     public DateTime SentAt { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public bool IsCarousel { get; set; }
 }
 
 public class BroadcastResultDto

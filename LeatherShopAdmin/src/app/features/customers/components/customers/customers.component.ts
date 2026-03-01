@@ -12,7 +12,7 @@ import {
 import { CustomerService } from '../../services/customer.service';
 import { Customer, CreateCustomer, UpdateCustomer } from '../../models/customer.model';
 import { BroadcastService } from '../../../broadcast/services/broadcast.service';
-import { CarouselCard } from '../../../broadcast/models/broadcast.model';
+import { CarouselCard, CarouselCardUI } from '../../../broadcast/models/broadcast.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { TemplateLoaderService } from '../../../../shared/services/template-loader.service';
 import { ProductService } from '../../../products/services/product.service';
@@ -86,7 +86,7 @@ export class CustomersComponent implements OnInit {
 
   // Carousel + smart field state for broadcast dialog
   bcIsCarousel = false;
-  bcCarouselCards: { imageUrl: string; imagePreview: string | null; bodyParam: string; buttonPayload: string; selectedProductId: number | null; selectedImageId: number | null; uploading: boolean }[] = [];
+  bcCarouselCards: CarouselCardUI[] = [];
   bcHasImageHeader = false;
   bcBodyParamCount = 0;
   bcCardBodyMaxLength = 120;
@@ -487,7 +487,7 @@ export class CustomersComponent implements OnInit {
         next: (res) => {
           this.sendingBroadcast = false;
           this.showBroadcastDialog = false;
-          this.notification.success(`Carousel sent to ${res.totalRecipients} selected customers!`);
+          this.notification.success(`Carousel sending to ${res.totalRecipients} selected customers...`);
         },
         error: () => { this.sendingBroadcast = false; }
       });
@@ -502,7 +502,7 @@ export class CustomersComponent implements OnInit {
         next: (res) => {
           this.sendingBroadcast = false;
           this.showBroadcastDialog = false;
-          this.notification.success(`Broadcast sent to ${res.totalRecipients} selected customers!`);
+          this.notification.success(`Broadcast sending to ${res.totalRecipients} selected customers...`);
         },
         error: () => { this.sendingBroadcast = false; }
       });
@@ -520,11 +520,17 @@ export class CustomersComponent implements OnInit {
     return this.bcHeaderImageUploading || this.bcCarouselCards.some(c => c.uploading);
   }
 
+  get bcCarouselCardsValid(): boolean {
+    if (!this.bcIsCarousel) return true;
+    return this.bcCarouselCards.every(c => c.imageUrl.trim() !== '');
+  }
+
   onBcHeaderImageSelect(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
     const file = input.files[0];
     if (!file.type.startsWith('image/')) { this.notification.error('Please select an image file.'); return; }
+    if (file.size > 5 * 1024 * 1024) { this.notification.error('Image must be under 5 MB.'); return; }
     const reader = new FileReader();
     reader.onload = () => { this.bcHeaderImagePreview = reader.result as string; };
     reader.readAsDataURL(file);
@@ -546,6 +552,7 @@ export class CustomersComponent implements OnInit {
     if (!input.files?.length) return;
     const file = input.files[0];
     if (!file.type.startsWith('image/')) { this.notification.error('Please select an image file.'); return; }
+    if (file.size > 5 * 1024 * 1024) { this.notification.error('Image must be under 5 MB.'); return; }
     const card = this.bcCarouselCards[index];
     const reader = new FileReader();
     reader.onload = () => { card.imagePreview = reader.result as string; };
@@ -584,6 +591,12 @@ export class CustomersComponent implements OnInit {
     if (card.selectedProductId) {
       card.buttonPayload = img.id > 0 ? `view_${card.selectedProductId}_pi${img.id}` : `view_${card.selectedProductId}`;
     }
+  }
+
+  removeBcCardImage(index: number): void {
+    const card = this.bcCarouselCards[index];
+    card.imageUrl = '';
+    card.imagePreview = null;
   }
 
   getBcCardProductImages(index: number): ProductImageItem[] {

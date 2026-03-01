@@ -131,6 +131,8 @@
                           placeholder="Select a template"
                           [style]="{'width': '100%'}"
                           [showClear]="true"
+                          [filter]="true"
+                          filterPlaceholder="Search templates..."
                           appendTo="body">
               </p-dropdown>
 
@@ -255,7 +257,7 @@
                       <input type="file" [id]="'cardImage_' + i" accept="image/*"
                              (change)="onCardImageSelect($event, i)" hidden />
                     </div>
-                    <div class="image-preview-wrap" *ngIf="card.imagePreview && !card.selectedProductId">
+                    <div class="image-preview-wrap" *ngIf="card.imagePreview && (!card.selectedProductId || getCardProductImages(i).length === 0)">
                       <img [src]="card.imagePreview" alt="Card {{ i + 1 }} preview" class="image-preview" />
                       <div class="image-preview-overlay" *ngIf="card.uploading">
                         <i class="pi pi-spin pi-spinner"></i> Uploading...

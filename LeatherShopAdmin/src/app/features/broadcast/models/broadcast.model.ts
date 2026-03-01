@@ -14,6 +14,17 @@ export interface CarouselCard {
   buttonPayload: string;
 }
 
+/** UI state for a single carousel card in the broadcast form */
+export interface CarouselCardUI {
+  imageUrl: string;
+  imagePreview: string | null;
+  bodyParam: string;
+  buttonPayload: string;
+  selectedProductId: number | null;
+  selectedImageId: number | null;
+  uploading: boolean;
+}
+
 export interface BroadcastResult {
   message: string;
   broadcastId: number;
@@ -28,6 +39,8 @@ export interface BroadcastHistory {
   sentCount: number;
   failedCount: number;
   sentAt: string;
+  status: string;
+  isCarousel: boolean;
 }
 
 export interface WhatsAppTemplate {

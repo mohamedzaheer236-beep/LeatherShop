@@ -321,9 +321,9 @@ public class WhatsAppService : IWhatsAppService
                 }
                 templates.Add(new WhatsAppTemplate
                 {
-                    Name = item.GetProperty("name").GetString() ?? "",
-                    Language = item.GetProperty("language").GetString() ?? "en",
-                    Status = item.GetProperty("status").GetString() ?? "",
+                    Name = item.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "",
+                    Language = item.TryGetProperty("language", out var l) ? l.GetString() ?? "en" : "en",
+                    Status = item.TryGetProperty("status", out var s) ? s.GetString() ?? "" : "",
                     Category = item.TryGetProperty("category", out var cat) ? cat.GetString() ?? "" : "",
                     IsCarousel = isCarousel,
                     CardCount = cardCount,
@@ -352,7 +352,7 @@ public class WhatsAppService : IWhatsAppService
 
             if (response.IsSuccessStatusCode)
             {
-                _logger.LogInformation("WhatsApp API Success: {Body}", responseBody);
+                _logger.LogDebug("WhatsApp API Success: {Body}", responseBody);
                 return;
             }
 

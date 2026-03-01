@@ -10,7 +10,7 @@ import {
   ValidationErrors
 } from '@angular/forms';
 import { BroadcastService } from '../../services/broadcast.service';
-import { BroadcastHistory, CarouselCard } from '../../models/broadcast.model';
+import { BroadcastHistory, CarouselCard, CarouselCardUI } from '../../models/broadcast.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { TemplateLoaderService } from '../../../../shared/services/template-loader.service';
 import { ProductService } from '../../../products/services/product.service';
@@ -26,16 +26,6 @@ import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToolbarModule } from 'primeng/toolbar';
 import { DividerModule } from 'primeng/divider';
-
-interface CarouselCardUI {
-  imageUrl: string;
-  imagePreview: string | null;
-  bodyParam: string;
-  buttonPayload: string;
-  selectedProductId: number | null;
-  selectedImageId: number | null;
-  uploading: boolean;
-}
 
 @Component({
   selector: 'app-broadcast',
@@ -78,7 +68,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   // Template metadata for field visibility
   selectedTemplateHasImageHeader = false;
   selectedTemplateBodyParamCount = 0;
-  cardBodyMaxLength = 120; // dynamic: calculated from template's card body static text
+  cardBodyMaxLength = 120; // fallback default; overridden by template metadata
 
   // Product list for carousel card "View Details" button
   products: Product[] = [];
@@ -193,16 +183,12 @@ export class BroadcastComponent implements OnInit, OnDestroy {
     return control.invalid && (control.dirty || control.touched || this.submitted);
   }
 
-  getResultSeverity(): 'success' | 'error' {
-    return this.resultType === 'success' ? 'success' : 'error';
-  }
-
   /** Check if any carousel card image is currently uploading */
   get anyUploading(): boolean {
     return this.headerImageUploading || this.carouselCards.some(c => c.uploading);
   }
 
-  /** Check if carousel cards are fully filled (all cards have image + bodyParam) */
+  /** Check if carousel cards are fully filled (all cards have an image) */
   get carouselCardsValid(): boolean {
     if (!this.selectedTemplateIsCarousel) return true;
     return this.carouselCards.every(c => c.imageUrl.trim() !== '');
@@ -216,6 +202,10 @@ export class BroadcastComponent implements OnInit, OnDestroy {
     const file = input.files[0];
     if (!file.type.startsWith('image/')) {
       this.notification.error('Please select an image file.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      this.notification.error('Image must be under 5 MB.');
       return;
     }
 
@@ -254,6 +244,10 @@ export class BroadcastComponent implements OnInit, OnDestroy {
     const file = input.files[0];
     if (!file.type.startsWith('image/')) {
       this.notification.error('Please select an image file.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      this.notification.error('Image must be under 5 MB.');
       return;
     }
 
@@ -364,7 +358,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
 
     this.broadcastService.sendBroadcast({
       templateName: 'shop_deals',
-      languageCode: 'en',
+      languageCode: this.templateLoader.getLanguageCode('shop_deals') || 'en_US',
       parameters: [this.customMessage.trim()]
     }).subscribe({
       next: (res) => {
