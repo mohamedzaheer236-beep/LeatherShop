@@ -10,7 +10,7 @@ import {
   ValidationErrors
 } from '@angular/forms';
 import { CustomerService } from '../../services/customer.service';
-import { Customer, CreateCustomer, UpdateCustomer, BulkImportResult } from '../../models/customer.model';
+import { Customer, CreateCustomer, UpdateCustomer } from '../../models/customer.model';
 import { BroadcastService } from '../../../broadcast/services/broadcast.service';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { TemplateLoaderService } from '../../../../shared/services/template-loader.service';

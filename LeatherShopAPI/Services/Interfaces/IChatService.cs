@@ -14,8 +14,8 @@ public interface IChatService
     /// <summary>Admin sends a WhatsApp message to a customer (auto-pauses bot for 30 min).</summary>
     Task<ChatMessageDto> SendMessageAsync(int customerId, string text);
 
-    /// <summary>Toggle bot pause state for a customer.</summary>
-    Task<bool> ToggleBotAsync(int customerId);
+    /// <summary>Toggle bot pause state for a customer. Returns null if customer not found.</summary>
+    Task<bool?> ToggleBotAsync(int customerId);
 
     /// <summary>Save an incoming or outgoing message to the database.</summary>
     Task<ChatMessage> SaveMessageAsync(int customerId, MessageDirection direction, string content,

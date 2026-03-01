@@ -1721,6 +1721,19 @@ Follow-up fixes found during Phase 18 verification pass.
 | F138 | **LOW — Cleanup** | Cleaned 21 duplicate groups (30 redundant entries) across all README audit tables — marked originals as FIXED with cross-refs | `README.md` |
 | F139 | **LOW — Cleanup** | Marked all resolved items in "What Is NOT Yet Implemented" and original audit tables with FIXED cross-references | `README.md` |
 
+### Phase 18.2 — Definitive Anti-Pattern Audit (F140–F146)
+
+Deep read of every `.cs`, `.ts`, `.html`, and `.scss` file searching for swallowed exceptions, `goto`, ambiguous returns, dead code, and magic numbers.
+
+| ID | Category | Summary | Files Changed |
+|----|----------|---------|---------------|
+| F140 | **HIGH — Anti-pattern** | Removed `goto TextFallback` flow control in `SendProductDetails` — restructured to `if/else` with natural fall-through | `ChatBotService.cs` |
+| F141 | **HIGH — Ambiguous Return** | `ToggleBotAsync` changed from `bool` to `bool?` — `null` = customer not found. Controller now returns 404 instead of 200 "Bot resumed" for missing customers | `ChatService.cs`, `IChatService.cs`, `ChatController.cs` |
+| F142 | **LOW — Dead Code** | Removed unused `ButtonSeverity` type and `getStatusButtonSeverity()` function (no importers after F136) | `severity.utils.ts` |
+| F143 | **LOW — Dead Code** | Removed unused `BulkImportResult` import from customers component | `customers.component.ts` |
+| F144 | **LOW — Magic Number** | Extracted `MessagePreviewMaxLength = 80` constant in `ChatService` and `WhatsAppWebhookController` | `ChatService.cs`, `WhatsAppWebhookController.cs` |
+| F145 | **LOW — Dead Code** | Removed commented-out future service registrations (dead noise) | `ServiceCollectionExtensions.cs` |
+
 ### Remaining Unfixed Items (Acceptable Trade-offs / Future Work)
 
 | ID | Severity | Summary | Reason Deferred |

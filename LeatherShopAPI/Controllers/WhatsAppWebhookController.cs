@@ -19,6 +19,8 @@ namespace LeatherShopAPI.Controllers;
 [EnableRateLimiting("fixed")]
 public class WhatsAppWebhookController : ControllerBase
 {
+    private const int MessagePreviewMaxLength = 80;
+
     private readonly IChatBotService _chatBot;
     private readonly IChatService _chatService;
     private readonly IHubContext<NotificationHub> _hubContext;
@@ -194,7 +196,7 @@ public class WhatsAppWebhookController : ControllerBase
                                 {
                                     customerId = customer.Id,
                                     customerName = string.IsNullOrEmpty(customer.Name) ? phone : customer.Name,
-                                    content = incomingContent.Length > 80 ? incomingContent[..80] + "…" : incomingContent,
+                                    content = incomingContent.Length > MessagePreviewMaxLength ? incomingContent[..MessagePreviewMaxLength] + "…" : incomingContent,
                                     timestamp = DateTime.UtcNow
                                 });
 
@@ -237,7 +239,7 @@ public class WhatsAppWebhookController : ControllerBase
                                     {
                                         customerId = newCustomer.Id,
                                         customerName = string.IsNullOrEmpty(newCustomer.Name) ? phone : newCustomer.Name,
-                                        content = incomingContent.Length > 80 ? incomingContent[..80] + "…" : incomingContent,
+                                    content = incomingContent.Length > MessagePreviewMaxLength ? incomingContent[..MessagePreviewMaxLength] + "…" : incomingContent,
                                         timestamp = DateTime.UtcNow
                                     });
                                 }

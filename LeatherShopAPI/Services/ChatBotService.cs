@@ -471,11 +471,9 @@ public class ChatBotService : IChatBotService
             if (string.IsNullOrEmpty(baseUrl))
             {
                 _logger.LogWarning("GetPublicBaseUrl() returned null — skipping image sends for product {ProductId}", productId);
-                // Fall through to text-only message below
-                goto TextFallback;
+                // Fall through to text-only fallback below
             }
-
-            try
+            else try
             {
                 // WhatsApp template headers only support JPEG & PNG — filter for carousel
                 var carouselSupportedExts = new[] { ".jpg", ".jpeg", ".png" };
@@ -569,12 +567,11 @@ public class ChatBotService : IChatBotService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to send product images for product {ProductId}, falling back to text", productId);
-                // Fall through to text-only message below
+                // Fall through to text-only fallback below
             }
         }
 
-        TextFallback:
-        // Send product details with action buttons (text-only fallback)
+        // Text fallback: send product details with action buttons
         var bodyText = details.Length > 1024 ? details[..1021] + "..." : details;
         try
         {

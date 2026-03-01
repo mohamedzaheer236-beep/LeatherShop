@@ -10,6 +10,7 @@ namespace LeatherShopAPI.Services;
 public class ChatService : IChatService
 {
     private const int BotPauseMinutes = 30;
+    private const int MessagePreviewMaxLength = 80;
 
     private readonly AppDbContext _db;
     private readonly IWhatsAppService _whatsApp;
@@ -70,8 +71,8 @@ public class ChatService : IChatService
             CustomerId = c.Id,
             CustomerName = string.IsNullOrEmpty(c.Name) ? c.PhoneNumber : c.Name,
             PhoneNumber = c.PhoneNumber,
-            LastMessage = (c.LastMessageContent?.Length ?? 0) > 80
-                ? c.LastMessageContent![..80] + "…"
+            LastMessage = (c.LastMessageContent?.Length ?? 0) > MessagePreviewMaxLength
+                ? c.LastMessageContent![..MessagePreviewMaxLength] + "…"
                 : c.LastMessageContent ?? "",
             LastMessageAt = c.LastMessageAt ?? DateTime.MinValue,
             UnreadCount = c.UnreadCount,
@@ -143,10 +144,10 @@ public class ChatService : IChatService
         };
     }
 
-    public async Task<bool> ToggleBotAsync(int customerId)
+    public async Task<bool?> ToggleBotAsync(int customerId)
     {
         var customer = await _db.Customers.FindAsync(customerId);
-        if (customer == null) return false;
+        if (customer == null) return null;
 
         if (IsBotEffectivelyPaused(customer))
         {

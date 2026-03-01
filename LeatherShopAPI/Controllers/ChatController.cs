@@ -53,9 +53,12 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> ToggleBot(int customerId)
     {
         var isPaused = await _chatService.ToggleBotAsync(customerId);
+        if (isPaused == null)
+            return NotFound(ApiResponse.Fail($"Customer {customerId} not found"));
+
         return Ok(ApiResponse<object>.Ok(
-            new { isBotPaused = isPaused },
-            isPaused ? "Bot paused" : "Bot resumed"));
+            new { isBotPaused = isPaused.Value },
+            isPaused.Value ? "Bot paused" : "Bot resumed"));
     }
 
     /// <summary>Delete all chat messages for a customer.</summary>
