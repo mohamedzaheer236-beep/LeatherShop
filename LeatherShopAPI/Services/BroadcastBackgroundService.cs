@@ -217,8 +217,9 @@ public sealed class BroadcastBackgroundService : BackgroundService
                 carouselCards = cardDtos.Select(c => new CarouselCard
                 {
                     ImageUrl = ResolveImageUrl(c.ImageUrl) ?? c.ImageUrl,
-                    // Meta limits carousel card body text to 160 chars (hydrated)
-                    BodyParam = c.BodyParam.Length > 160 ? c.BodyParam[..160] : c.BodyParam,
+                    // Meta limits hydrated carousel card body to 160 chars total
+                    // (template text + parameter). Cap param at 120 to leave room.
+                    BodyParam = c.BodyParam.Length > 120 ? c.BodyParam[..120] : c.BodyParam,
                     ButtonPayload = c.ButtonPayload
                 }).ToList();
             }
