@@ -259,17 +259,40 @@ public class WhatsAppService : IWhatsAppService
             {
                 var isCarousel = false;
                 var cardCount = 0;
+                var hasImageHeader = false;
+                var bodyParamCount = 0;
+
                 if (item.TryGetProperty("components", out var components))
                 {
                     foreach (var comp in components.EnumerateArray())
                     {
-                        if (comp.TryGetProperty("type", out var compType) &&
-                            compType.GetString()?.Equals("CAROUSEL", StringComparison.OrdinalIgnoreCase) == true)
+                        var compTypeStr = comp.TryGetProperty("type", out var compType)
+                            ? compType.GetString() ?? ""
+                            : "";
+
+                        if (compTypeStr.Equals("CAROUSEL", StringComparison.OrdinalIgnoreCase))
                         {
                             isCarousel = true;
                             if (comp.TryGetProperty("cards", out var cards))
                                 cardCount = cards.GetArrayLength();
-                            break;
+                        }
+                        else if (compTypeStr.Equals("HEADER", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (comp.TryGetProperty("format", out var fmt) &&
+                                fmt.GetString()?.Equals("IMAGE", StringComparison.OrdinalIgnoreCase) == true)
+                            {
+                                hasImageHeader = true;
+                            }
+                        }
+                        else if (compTypeStr.Equals("BODY", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (comp.TryGetProperty("text", out var bodyText))
+                            {
+                                var text = bodyText.GetString() ?? "";
+                                // Count {{1}}, {{2}}, etc. placeholders
+                                var matches = System.Text.RegularExpressions.Regex.Matches(text, @"\{\{\d+\}\}");
+                                bodyParamCount = matches.Count;
+                            }
                         }
                     }
                 }
@@ -280,7 +303,9 @@ public class WhatsAppService : IWhatsAppService
                     Status = item.GetProperty("status").GetString() ?? "",
                     Category = item.TryGetProperty("category", out var cat) ? cat.GetString() ?? "" : "",
                     IsCarousel = isCarousel,
-                    CardCount = cardCount
+                    CardCount = cardCount,
+                    HasImageHeader = hasImageHeader,
+                    BodyParamCount = bodyParamCount
                 });
             }
         }
@@ -351,6 +376,10 @@ public class WhatsAppTemplate
     public bool IsCarousel { get; set; }
     /// <summary>Number of cards defined in the carousel (0 for non-carousel templates).</summary>
     public int CardCount { get; set; }
+    /// <summary>True if the template has a HEADER component with IMAGE format.</summary>
+    public bool HasImageHeader { get; set; }
+    /// <summary>Number of body parameters expected (e.g., 2 means {{1}} and {{2}}).</summary>
+    public int BodyParamCount { get; set; }
 }
 
 public class CarouselCard

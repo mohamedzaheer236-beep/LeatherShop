@@ -37,4 +37,6 @@ export interface WhatsAppTemplate {
   category: string;
   isCarousel: boolean;
   cardCount: number;
+  hasImageHeader: boolean;
+  bodyParamCount: number;
 }

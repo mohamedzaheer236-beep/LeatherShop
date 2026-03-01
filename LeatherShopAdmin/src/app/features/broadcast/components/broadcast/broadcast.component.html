@@ -164,15 +164,18 @@
 
             <!-- ═══ Standard Template Fields (hidden when carousel) ═══ -->
             <ng-container *ngIf="!selectedTemplateIsCarousel">
-              <div class="form-field">
+              <div class="form-field" *ngIf="selectedTemplateBodyParamCount > 0">
                 <label for="parameters">Template Parameters (comma separated)</label>
                 <input pInputText id="parameters"
                        formControlName="parameters"
                        placeholder="e.g. Classic Wallet, 899, 50% OFF"
                        class="w-full" />
+                <small class="hint">
+                  <i class="pi pi-info-circle"></i> This template requires {{ selectedTemplateBodyParamCount }} parameter(s)
+                </small>
               </div>
 
-              <div class="form-field">
+              <div class="form-field" *ngIf="selectedTemplateHasImageHeader">
                 <label>Header Image (optional)</label>
                 <div class="image-upload-zone" *ngIf="!headerImagePreview">
                   <label class="upload-dropzone" for="headerImageInput">

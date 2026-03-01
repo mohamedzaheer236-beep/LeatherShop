@@ -70,6 +70,10 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   selectedTemplateIsCarousel = false;
   carouselCards: CarouselCardUI[] = [];
 
+  // Template metadata for field visibility
+  selectedTemplateHasImageHeader = false;
+  selectedTemplateBodyParamCount = 0;
+
   // Header image upload (for standard templates)
   headerImagePreview: string | null = null;
   headerImageUploading = false;
@@ -118,9 +122,21 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   onTemplateSelect(): void {
     this.f['templateName'].updateValueAndValidity();
     const templateName = this.f['templateName'].value;
-    if (templateName && this.templateLoader.isCarouselTemplate(templateName)) {
+    const tpl = templateName ? this.templateLoader.getTemplate(templateName) : undefined;
+
+    // Set template metadata for field visibility
+    this.selectedTemplateHasImageHeader = tpl?.hasImageHeader ?? false;
+    this.selectedTemplateBodyParamCount = tpl?.bodyParamCount ?? 0;
+
+    // Clear image when switching to a template without header
+    if (!this.selectedTemplateHasImageHeader) {
+      this.headerImagePreview = null;
+      this.broadcastForm.patchValue({ imageUrl: '' });
+    }
+
+    if (tpl?.isCarousel) {
       this.selectedTemplateIsCarousel = true;
-      const cardCount = this.templateLoader.getCardCount(templateName);
+      const cardCount = tpl.cardCount;
       this.carouselCards = Array.from({ length: cardCount }, () => ({
         imageUrl: '',
         imagePreview: null,
