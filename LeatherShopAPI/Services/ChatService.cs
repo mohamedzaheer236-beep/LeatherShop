@@ -240,4 +240,64 @@ public class ChatService : IChatService
 
         return true;
     }
+
+    public async Task<List<FailedOutboxMessageDto>> GetFailedOutboxMessagesAsync()
+    {
+        var failedMessages = await _db.WhatsAppOutboxMessages
+            .Where(m => m.Status == OutboxMessageStatus.Failed)
+            .OrderByDescending(m => m.CreatedAt)
+            .Select(m => new
+            {
+                m.Id,
+                m.To,
+                m.Context,
+                m.Content,
+                m.RetryCount,
+                m.LastError,
+                m.CreatedAt,
+                CustomerName = _db.Customers
+                    .Where(c => c.PhoneNumber == m.To)
+                    .Select(c => c.Name)
+                    .FirstOrDefault()
+            })
+            .AsNoTracking()
+            .ToListAsync();
+
+        return failedMessages.Select(m => new FailedOutboxMessageDto
+        {
+            Id = m.Id,
+            To = m.To,
+            CustomerName = string.IsNullOrEmpty(m.CustomerName) ? m.To : m.CustomerName,
+            Context = m.Context,
+            ContentPreview = (m.Content.Length > MessagePreviewMaxLength)
+                ? m.Content[..MessagePreviewMaxLength] + "…"
+                : m.Content,
+            RetryCount = m.RetryCount,
+            LastError = m.LastError ?? "Unknown error",
+            CreatedAt = m.CreatedAt
+        }).ToList();
+    }
+
+    public async Task<bool> RetryOutboxMessageAsync(int outboxMessageId)
+    {
+        var message = await _db.WhatsAppOutboxMessages.FindAsync(outboxMessageId);
+        if (message == null || message.Status != OutboxMessageStatus.Failed)
+            return false;
+
+        // Reset to Pending with fresh retry budget
+        message.Status = OutboxMessageStatus.Pending;
+        message.RetryCount = 0;
+        message.NextRetryAt = null;
+        message.LastError = null;
+
+        await _db.SaveChangesAsync();
+        _logger.LogInformation("Outbox message {Id} manually retried by admin — reset to Pending", outboxMessageId);
+        return true;
+    }
+
+    public async Task<int> GetFailedOutboxCountAsync()
+    {
+        return await _db.WhatsAppOutboxMessages
+            .CountAsync(m => m.Status == OutboxMessageStatus.Failed);
+    }
 }

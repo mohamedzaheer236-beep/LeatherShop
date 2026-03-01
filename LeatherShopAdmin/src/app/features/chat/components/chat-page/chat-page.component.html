@@ -11,6 +11,12 @@
         </span>
       </div>
     </div>
+    <!-- Failed Messages Alert Banner -->
+    <div *ngIf="failedCount > 0" class="failed-banner" (click)="openFailedMessages()" role="button" tabindex="0" (keydown.enter)="openFailedMessages()">
+      <i class="pi pi-exclamation-triangle"></i>
+      <span>{{ failedCount }} failed message{{ failedCount > 1 ? 's' : '' }}</span>
+      <i class="pi pi-chevron-right"></i>
+    </div>
     <div class="conversation-list">
       <div *ngIf="loadingConversations" class="loading-state">
         <p-progressSpinner [style]="{width: '30px', height: '30px'}" strokeWidth="3"></p-progressSpinner>
@@ -130,4 +136,41 @@
     <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showDeleteConversation = false" icon="pi pi-times"></p-button>
     <p-button label="Delete" severity="danger" (onClick)="deleteConversation()" [disabled]="deletingConversation" [loading]="deletingConversation" icon="pi pi-trash"></p-button>
   </ng-template>
+</p-dialog>
+
+<!-- Failed Outbox Messages Dialog -->
+<p-dialog header="Failed Messages" [(visible)]="showFailedMessages" [modal]="true" [style]="{'width': '560px', 'max-height': '80vh'}">
+  <div class="failed-messages-content">
+    <p class="failed-messages-info">
+      These WhatsApp messages could not be delivered after 5 attempts. You can retry or manually contact the customer.
+    </p>
+    <div *ngIf="failedMessages.length === 0" class="failed-empty">
+      <i class="pi pi-check-circle"></i>
+      <span>No failed messages</span>
+    </div>
+    <div *ngFor="let msg of failedMessages; trackBy: trackByFailedMessage" class="failed-message-card">
+      <div class="failed-msg-header">
+        <div class="failed-msg-customer">
+          <i class="pi pi-user"></i>
+          <strong>{{ msg.customerName }}</strong>
+          <span class="failed-msg-phone">({{ msg.to }})</span>
+        </div>
+        <p-tag severity="danger" value="Failed"></p-tag>
+      </div>
+      <div class="failed-msg-context">{{ msg.context }}</div>
+      <div class="failed-msg-preview">{{ msg.contentPreview }}</div>
+      <div class="failed-msg-error">
+        <i class="pi pi-exclamation-circle"></i>
+        {{ msg.lastError }}
+      </div>
+      <div class="failed-msg-footer">
+        <span class="failed-msg-time">{{ msg.createdAt | messageTime }} · {{ msg.retryCount }} attempts</span>
+        <button pButton label="Retry" icon="pi pi-refresh"
+                class="p-button-sm p-button-outlined"
+                [loading]="retryingId === msg.id"
+                [disabled]="retryingId !== null"
+                (click)="retryMessage(msg)"></button>
+      </div>
+    </div>
+  </div>
 </p-dialog>

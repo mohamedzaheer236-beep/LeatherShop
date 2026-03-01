@@ -7,9 +7,10 @@ import { BadgeModule } from 'primeng/badge';
 import { TooltipModule } from 'primeng/tooltip';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { DialogModule } from 'primeng/dialog';
+import { TagModule } from 'primeng/tag';
 import { Subscription } from 'rxjs';
 import { ChatService } from '../../services/chat.service';
-import { Conversation, ChatMessage } from '../../models/chat.model';
+import { Conversation, ChatMessage, FailedOutboxMessage } from '../../models/chat.model';
 import { SignalRService } from '../../../../core/services/signalr.service';
 import { FormatMessagePipe } from '../../../../shared/pipes/format-message.pipe';
 import { ConversationTimePipe, MessageTimePipe } from '../../../../shared/pipes/time.pipes';
@@ -17,7 +18,7 @@ import { ConversationTimePipe, MessageTimePipe } from '../../../../shared/pipes/
 @Component({
   selector: 'app-chat-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, InputTextModule, ButtonModule, BadgeModule, TooltipModule, ProgressSpinnerModule, DialogModule, FormatMessagePipe, ConversationTimePipe, MessageTimePipe],
+  imports: [CommonModule, FormsModule, InputTextModule, ButtonModule, BadgeModule, TooltipModule, ProgressSpinnerModule, DialogModule, TagModule, FormatMessagePipe, ConversationTimePipe, MessageTimePipe],
   templateUrl: './chat-page.component.html',
   styleUrl: './chat-page.component.scss'
 })
@@ -38,6 +39,12 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
   showDeleteConversation = false;
   deletingConversation = false;
 
+  // Failed outbox messages
+  failedMessages: FailedOutboxMessage[] = [];
+  failedCount = 0;
+  showFailedMessages = false;
+  retryingId: number | null = null;
+
   private subs: Subscription[] = [];
   private shouldScrollToBottom = false;
 
@@ -51,6 +58,7 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   ngOnInit(): void {
     this.loadConversations();
+    this.loadFailedMessageCount();
 
     // Listen for real-time incoming messages for the active chat
     this.subs.push(
@@ -80,6 +88,17 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.subs.push(
       this.signalR.newChatMessage$.subscribe(() => {
         this.debouncedLoadConversations();
+      })
+    );
+
+    // Listen for outbox message failures — update badge count in real time
+    this.subs.push(
+      this.signalR.outboxFailed$.subscribe(() => {
+        this.loadFailedMessageCount();
+        // If the dialog is open, refresh the list too
+        if (this.showFailedMessages) {
+          this.loadFailedMessages();
+        }
       })
     );
   }
@@ -256,6 +275,47 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   trackByMessage(_index: number, msg: ChatMessage): number {
     return msg.id;
+  }
+
+  trackByFailedMessage(_index: number, msg: FailedOutboxMessage): number {
+    return msg.id;
+  }
+
+  // ── Failed outbox messages ──
+
+  loadFailedMessageCount(): void {
+    this.chatService.getFailedMessageCount().subscribe({
+      next: count => this.failedCount = count,
+      error: () => { /* Silent — badge is optional */ }
+    });
+  }
+
+  openFailedMessages(): void {
+    this.showFailedMessages = true;
+    this.loadFailedMessages();
+  }
+
+  loadFailedMessages(): void {
+    this.chatService.getFailedMessages().subscribe({
+      next: msgs => this.failedMessages = msgs,
+      error: () => { /* Toast shown by error interceptor */ }
+    });
+  }
+
+  retryMessage(msg: FailedOutboxMessage): void {
+    this.retryingId = msg.id;
+    this.chatService.retryOutboxMessage(msg.id).subscribe({
+      next: () => {
+        // Remove from list and update count
+        this.failedMessages = this.failedMessages.filter(m => m.id !== msg.id);
+        this.failedCount = Math.max(0, this.failedCount - 1);
+        this.retryingId = null;
+        if (this.failedMessages.length === 0) {
+          this.showFailedMessages = false;
+        }
+      },
+      error: () => this.retryingId = null
+    });
   }
 
   private scrollToBottom(): void {

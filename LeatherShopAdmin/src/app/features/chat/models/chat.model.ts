@@ -25,3 +25,14 @@ export interface PaginatedMessages {
   pageSize: number;
   totalPages: number;
 }
+
+export interface FailedOutboxMessage {
+  id: number;
+  to: string;
+  customerName: string;
+  context: string;
+  contentPreview: string;
+  retryCount: number;
+  lastError: string;
+  createdAt: string;
+}

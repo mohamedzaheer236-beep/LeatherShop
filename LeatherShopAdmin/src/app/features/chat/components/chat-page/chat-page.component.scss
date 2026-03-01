@@ -334,3 +334,125 @@
   font-size: 2rem;
   opacity: 0.3;
 }
+
+/* Failed Messages Banner */
+.failed-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: #fef2f2;
+  border-bottom: 1px solid #fecaca;
+  color: #dc2626;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #fee2e2;
+  }
+
+  .pi-exclamation-triangle { font-size: 0.9rem; }
+  .pi-chevron-right {
+    margin-left: auto;
+    font-size: 0.75rem;
+    opacity: 0.6;
+  }
+}
+
+/* Failed Messages Dialog Content */
+.failed-messages-content {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.failed-messages-info {
+  margin: 0 0 1rem 0;
+  font-size: 0.85rem;
+  color: var(--text-color-secondary);
+  line-height: 1.4;
+}
+
+.failed-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  color: var(--text-color-secondary);
+
+  i { font-size: 2rem; color: #22c55e; }
+}
+
+.failed-message-card {
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  padding: 0.85rem;
+  margin-bottom: 0.75rem;
+  background: var(--surface-card);
+
+  &:last-child { margin-bottom: 0; }
+}
+
+.failed-msg-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.failed-msg-customer {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+
+  .pi-user { font-size: 0.8rem; color: var(--text-color-secondary); }
+}
+
+.failed-msg-phone {
+  font-size: 0.8rem;
+  color: var(--text-color-secondary);
+  font-weight: 400;
+}
+
+.failed-msg-context {
+  font-size: 0.82rem;
+  color: var(--text-color);
+  font-weight: 500;
+  margin-bottom: 0.3rem;
+}
+
+.failed-msg-preview {
+  font-size: 0.8rem;
+  color: var(--text-color-secondary);
+  background: var(--surface-ground);
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  margin-bottom: 0.4rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.failed-msg-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: #dc2626;
+  margin-bottom: 0.5rem;
+
+  .pi-exclamation-circle { font-size: 0.8rem; margin-top: 1px; }
+}
+
+.failed-msg-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.failed-msg-time {
+  font-size: 0.75rem;
+  color: var(--text-color-secondary);
+}

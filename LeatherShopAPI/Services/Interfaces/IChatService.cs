@@ -26,4 +26,13 @@ public interface IChatService
 
     /// <summary>Delete all chat messages for a customer.</summary>
     Task<bool> DeleteConversationAsync(int customerId);
+
+    /// <summary>Get all permanently failed outbox messages (for admin follow-up).</summary>
+    Task<List<FailedOutboxMessageDto>> GetFailedOutboxMessagesAsync();
+
+    /// <summary>Retry a permanently failed outbox message (resets to Pending). Returns false if not found or not Failed.</summary>
+    Task<bool> RetryOutboxMessageAsync(int outboxMessageId);
+
+    /// <summary>Get count of failed outbox messages (for badge display).</summary>
+    Task<int> GetFailedOutboxCountAsync();
 }

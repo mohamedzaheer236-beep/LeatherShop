@@ -40,3 +40,26 @@ public class OrderNotificationDto
     public decimal Amount { get; set; }
     public DateTime Timestamp { get; set; }
 }
+
+/// <summary>A failed outbox message shown to the admin for manual follow-up.</summary>
+public class FailedOutboxMessageDto
+{
+    public int Id { get; set; }
+    public string To { get; set; } = string.Empty;
+    public string CustomerName { get; set; } = string.Empty;
+    public string Context { get; set; } = string.Empty;
+    public string ContentPreview { get; set; } = string.Empty;
+    public int RetryCount { get; set; }
+    public string LastError { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>SignalR event pushed to admins when an outbox message permanently fails.</summary>
+public class OutboxFailedEvent
+{
+    public int OutboxMessageId { get; set; }
+    public string CustomerName { get; set; } = string.Empty;
+    public string Context { get; set; } = string.Empty;
+    public string LastError { get; set; } = string.Empty;
+    public DateTime FailedAt { get; set; }
+}

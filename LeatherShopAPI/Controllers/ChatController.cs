@@ -70,4 +70,30 @@ public class ChatController : ControllerBase
             return NotFound(ApiResponse.Fail("No conversation found"));
         return Ok(ApiResponse.Ok("Conversation deleted"));
     }
+
+    /// <summary>Get all permanently failed outbox messages (for admin follow-up).</summary>
+    [HttpGet("failed-messages")]
+    public async Task<IActionResult> GetFailedMessages()
+    {
+        var messages = await _chatService.GetFailedOutboxMessagesAsync();
+        return Ok(ApiResponse<List<FailedOutboxMessageDto>>.Ok(messages));
+    }
+
+    /// <summary>Retry a permanently failed outbox message (resets to Pending for another round of attempts).</summary>
+    [HttpPost("outbox/{id:int}/retry")]
+    public async Task<IActionResult> RetryOutboxMessage(int id)
+    {
+        var retried = await _chatService.RetryOutboxMessageAsync(id);
+        if (!retried)
+            return NotFound(ApiResponse.Fail("Message not found or not in Failed state"));
+        return Ok(ApiResponse.Ok("Message queued for retry"));
+    }
+
+    /// <summary>Get count of failed outbox messages (for badge display).</summary>
+    [HttpGet("failed-messages/count")]
+    public async Task<IActionResult> GetFailedMessageCount()
+    {
+        var count = await _chatService.GetFailedOutboxCountAsync();
+        return Ok(ApiResponse<object>.Ok(new { count }));
+    }
 }

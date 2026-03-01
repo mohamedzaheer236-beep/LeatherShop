@@ -10,6 +10,7 @@ import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { SignalRService, OrderNotification } from '../../../core/services/signalr.service';
+import { NotificationService } from '../../services/notification.service';
 import { TimeAgoPipe } from '../../pipes/time.pipes';
 
 @Component({
@@ -28,6 +29,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
   constructor(
     private auth: AuthService,
     private signalR: SignalRService,
+    private notification: NotificationService,
     private router: Router
   ) {}
 
@@ -49,6 +51,11 @@ export class NavbarComponent implements OnInit, OnDestroy {
         this.notifications.unshift(order);
         // Keep max 20 notifications
         if (this.notifications.length > 20) this.notifications.pop();
+      }),
+      this.signalR.outboxFailed$.subscribe(event => {
+        this.notification.error(
+          `Message delivery failed for ${event.customerName}: ${event.context}. Go to Chat → Failed Messages to retry.`
+        );
       })
     );
   }

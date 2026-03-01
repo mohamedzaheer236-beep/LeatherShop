@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { Conversation, PaginatedMessages, ChatMessage } from '../models/chat.model';
+import { Conversation, PaginatedMessages, ChatMessage, FailedOutboxMessage } from '../models/chat.model';
 import { ApiResponse } from '../../../core/models/api-response.model';
 import { environment } from '../../../../environments/environment';
 
@@ -34,5 +34,17 @@ export class ChatService {
 
   deleteConversation(customerId: number): Observable<ApiResponse<void>> {
     return this.http.delete<ApiResponse<void>>(`${this.baseUrl}/${customerId}/messages`);
+  }
+
+  getFailedMessages(): Observable<FailedOutboxMessage[]> {
+    return this.http.get<ApiResponse<FailedOutboxMessage[]>>(`${this.baseUrl}/failed-messages`).pipe(map(res => res.data));
+  }
+
+  retryOutboxMessage(id: number): Observable<void> {
+    return this.http.post<ApiResponse<void>>(`${this.baseUrl}/outbox/${id}/retry`, {}).pipe(map(() => void 0));
+  }
+
+  getFailedMessageCount(): Observable<number> {
+    return this.http.get<ApiResponse<{ count: number }>>(`${this.baseUrl}/failed-messages/count`).pipe(map(res => res.data.count));
   }
 }

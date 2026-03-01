@@ -1,5 +1,8 @@
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
+using LeatherShopAPI.DTOs.Chat;
+using LeatherShopAPI.Hubs;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 
@@ -28,6 +31,7 @@ namespace LeatherShopAPI.Services;
 public sealed class WhatsAppOutboxProcessor : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IHubContext<NotificationHub> _hubContext;
     private readonly ILogger<WhatsAppOutboxProcessor> _logger;
 
     /// <summary>How often to poll the outbox table for due messages (seconds)</summary>
@@ -45,9 +49,11 @@ public sealed class WhatsAppOutboxProcessor : BackgroundService
 
     public WhatsAppOutboxProcessor(
         IServiceScopeFactory scopeFactory,
+        IHubContext<NotificationHub> hubContext,
         ILogger<WhatsAppOutboxProcessor> logger)
     {
         _scopeFactory = scopeFactory;
+        _hubContext = hubContext;
         _logger = logger;
     }
 
@@ -152,14 +158,14 @@ public sealed class WhatsAppOutboxProcessor : BackgroundService
 
             _logger.LogInformation("Outbox: message {Id} sent successfully — {Context}", message.Id, message.Context);
         }
-        catch (WhatsAppApiException ex)
+        catch (Exception ex)
         {
             message.RetryCount++;
             message.LastError = ex.Message.Length > 2000 ? ex.Message[..2000] : ex.Message;
 
             if (message.RetryCount >= message.MaxRetries)
             {
-                // Exhausted all retries — mark as failed
+                // Exhausted all retries — mark as permanently failed
                 message.Status = OutboxMessageStatus.Failed;
                 await db.SaveChangesAsync();
 
@@ -167,6 +173,9 @@ public sealed class WhatsAppOutboxProcessor : BackgroundService
                     "Outbox: message {Id} FAILED permanently after {Retries} attempts — {Context}. " +
                     "Admin must manually follow up via chat panel.",
                     message.Id, message.RetryCount, message.Context);
+
+                // Push real-time alert to all connected admins
+                await NotifyAdminsOfFailureAsync(db, message);
             }
             else
             {
@@ -176,32 +185,41 @@ public sealed class WhatsAppOutboxProcessor : BackgroundService
                 message.NextRetryAt = DateTime.UtcNow.AddSeconds(delaySec);
                 await db.SaveChangesAsync();
 
+                var level = ex is WhatsAppApiException ? LogLevel.Warning : LogLevel.Warning;
                 _logger.LogWarning(ex,
                     "Outbox: message {Id} failed (attempt {Attempt}/{Max}), next retry in {Delay}s — {Context}",
                     message.Id, message.RetryCount, message.MaxRetries, delaySec, message.Context);
             }
         }
-        catch (Exception ex)
-        {
-            // Unexpected error (network, DB, etc.) — treat like a WhatsApp failure
-            message.RetryCount++;
-            message.LastError = ex.Message.Length > 2000 ? ex.Message[..2000] : ex.Message;
+    }
 
-            if (message.RetryCount >= message.MaxRetries)
+    /// <summary>
+    /// Pushes a real-time SignalR notification to all connected admins when an outbox message permanently fails.
+    /// This is best-effort: if the push fails, the message is still marked Failed in the DB.
+    /// </summary>
+    private async Task NotifyAdminsOfFailureAsync(AppDbContext db, WhatsAppOutboxMessage message)
+    {
+        try
+        {
+            // Look up customer name from the phone number (same DB scope)
+            var customerName = await db.Customers
+                .Where(c => c.PhoneNumber == message.To)
+                .Select(c => c.Name)
+                .FirstOrDefaultAsync();
+
+            await _hubContext.Clients.Group("admins").SendAsync("OutboxMessageFailed", new OutboxFailedEvent
             {
-                message.Status = OutboxMessageStatus.Failed;
-                await db.SaveChangesAsync();
-                _logger.LogError(ex, "Outbox: message {Id} FAILED permanently (unexpected error) — {Context}", message.Id, message.Context);
-            }
-            else
-            {
-                var backoffIndex = Math.Min(message.RetryCount - 1, BackoffDelaysSeconds.Length - 1);
-                var delaySec = BackoffDelaysSeconds[backoffIndex];
-                message.NextRetryAt = DateTime.UtcNow.AddSeconds(delaySec);
-                await db.SaveChangesAsync();
-                _logger.LogWarning(ex, "Outbox: message {Id} failed unexpectedly (attempt {Attempt}/{Max}), retry in {Delay}s — {Context}",
-                    message.Id, message.RetryCount, message.MaxRetries, delaySec, message.Context);
-            }
+                OutboxMessageId = message.Id,
+                CustomerName = string.IsNullOrEmpty(customerName) ? message.To : customerName,
+                Context = message.Context,
+                LastError = message.LastError ?? "Unknown error",
+                FailedAt = DateTime.UtcNow
+            });
+        }
+        catch (Exception hubEx)
+        {
+            // Best-effort — don't crash the processor if SignalR push fails
+            _logger.LogWarning(hubEx, "Outbox: failed to push SignalR notification for message {Id}", message.Id);
         }
     }
 }

@@ -30,6 +30,14 @@ export interface NewChatMessageEvent {
   timestamp: string;
 }
 
+export interface OutboxFailedEvent {
+  outboxMessageId: number;
+  customerName: string;
+  context: string;
+  lastError: string;
+  failedAt: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SignalRService implements OnDestroy {
   private hubConnection: signalR.HubConnection | null = null;
@@ -38,6 +46,7 @@ export class SignalRService implements OnDestroy {
   readonly newOrder$ = new Subject<OrderNotification>();
   readonly chatMessage$ = new Subject<ChatMessageEvent>();
   readonly newChatMessage$ = new Subject<NewChatMessageEvent>();
+  readonly outboxFailed$ = new Subject<OutboxFailedEvent>();
 
   constructor(private auth: AuthService) {}
 
@@ -57,6 +66,7 @@ export class SignalRService implements OnDestroy {
     this.hubConnection.on('NewOrder', (data: OrderNotification) => this.newOrder$.next(data));
     this.hubConnection.on('ReceiveMessage', (data: ChatMessageEvent) => this.chatMessage$.next(data));
     this.hubConnection.on('NewChatMessage', (data: NewChatMessageEvent) => this.newChatMessage$.next(data));
+    this.hubConnection.on('OutboxMessageFailed', (data: OutboxFailedEvent) => this.outboxFailed$.next(data));
 
     this.hubConnection.onclose(() => {
       this.hubConnection = null; // allow start() to create a new connection
@@ -93,5 +103,6 @@ export class SignalRService implements OnDestroy {
     this.newOrder$.complete();
     this.chatMessage$.complete();
     this.newChatMessage$.complete();
+    this.outboxFailed$.complete();
   }
 }
