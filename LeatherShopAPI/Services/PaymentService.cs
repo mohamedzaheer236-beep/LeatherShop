@@ -32,6 +32,7 @@ public class PaymentService : IPaymentService
     public async Task<PaymentPageDto?> GetPaymentPageDataAsync(string orderNumber)
     {
         var order = await _db.Orders
+            .AsNoTracking()
             .Include(o => o.Customer)
             .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
@@ -95,7 +96,7 @@ public class PaymentService : IPaymentService
 
         if (!CryptographicOperations.FixedTimeEquals(
                 Encoding.UTF8.GetBytes(computedHash),
-                Encoding.UTF8.GetBytes(dto.Signature ?? "")))
+                Encoding.UTF8.GetBytes((dto.Signature ?? "").ToLowerInvariant())))
         {
             _logger.LogWarning("Razorpay signature mismatch for order {OrderId}. Possible tampering.", order.Id);
             return null;

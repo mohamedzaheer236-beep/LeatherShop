@@ -50,7 +50,7 @@ export class TemplateLoaderService {
       error: () => {
         this.state.templatesLoaded = true;
         this.state.loadingTemplates = false;
-        this.loaded = true;
+        // Don't set this.loaded = true — allow next navigation to retry on transient failures
       }
     });
   }

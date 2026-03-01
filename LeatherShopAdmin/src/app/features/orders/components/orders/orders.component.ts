@@ -6,7 +6,7 @@ import { OrderService } from '../../services/order.service';
 import { Order } from '../../models/order.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
-import { getStatusSeverity, getStatusButtonSeverity, TagSeverity, ButtonSeverity } from '../../../../shared/utils/severity.utils';
+import { getStatusSeverity, TagSeverity } from '../../../../shared/utils/severity.utils';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
@@ -100,10 +100,6 @@ export class OrdersComponent implements OnInit {
 
   getSeverity(status: string): TagSeverity {
     return getStatusSeverity(status);
-  }
-
-  getStatusButtonSeverity(status: string, currentStatus: string): ButtonSeverity {
-    return getStatusButtonSeverity(status, currentStatus);
   }
 
   trackByOrderId(_index: number, order: Order): number {

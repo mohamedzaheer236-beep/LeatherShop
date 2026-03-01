@@ -77,7 +77,8 @@ public class WhatsAppWebhookController : ControllerBase
         if (!string.IsNullOrEmpty(appSecret))
         {
             Request.EnableBuffering();
-            var rawBody = await new StreamReader(Request.Body).ReadToEndAsync();
+            using var reader = new StreamReader(Request.Body, leaveOpen: true);
+            var rawBody = await reader.ReadToEndAsync();
             Request.Body.Position = 0; // rewind for deserialization below
 
             var signatureHeader = Request.Headers["X-Hub-Signature-256"].FirstOrDefault();
@@ -87,7 +88,7 @@ public class WhatsAppWebhookController : ControllerBase
                 return Unauthorized();
             }
 
-            var expectedSignature = signatureHeader["sha256=".Length..];
+            var expectedSignature = signatureHeader["sha256=".Length..].ToLowerInvariant();
             using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(appSecret));
             var computedHash = BitConverter.ToString(hmac.ComputeHash(Encoding.UTF8.GetBytes(rawBody)))
                 .Replace("-", "").ToLowerInvariant();
@@ -138,7 +139,7 @@ public class WhatsAppWebhookController : ControllerBase
                         try
                         {
                             var from = message.From;
-                            var contactName = contacts?.FirstOrDefault()?.Profile.Name ?? "";
+                            var contactName = contacts?.FirstOrDefault()?.Profile?.Name ?? "";
 
                             string? textBody = null;
                             string? interactiveId = null;

@@ -27,10 +27,10 @@ public class ProductService : IProductService
         var query = _db.Products.AsNoTracking().Include(p => p.Images).AsQueryable();
 
         if (!string.IsNullOrEmpty(category))
-            query = query.Where(p => EF.Functions.ILike(p.Category, category));
+            query = query.Where(p => EF.Functions.ILike(p.Category, EscapeLikePattern(category)));
 
         if (!string.IsNullOrEmpty(brand))
-            query = query.Where(p => EF.Functions.ILike(p.Brand, brand));
+            query = query.Where(p => EF.Functions.ILike(p.Brand, EscapeLikePattern(brand)));
 
         if (!string.IsNullOrEmpty(search))
         {
@@ -159,7 +159,8 @@ public class ProductService : IProductService
 
     public async Task<bool> NameExistsAsync(string name, int? excludeId = null)
     {
-        var query = _db.Products.Where(p => EF.Functions.ILike(p.Name, name));
+        var escaped = EscapeLikePattern(name);
+        var query = _db.Products.Where(p => EF.Functions.ILike(p.Name, escaped));
         if (excludeId.HasValue)
             query = query.Where(p => p.Id != excludeId.Value);
         return await query.AnyAsync();
@@ -170,7 +171,7 @@ public class ProductService : IProductService
         var uploadsDir = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads");
         Directory.CreateDirectory(uploadsDir);
 
-        var ext = Path.GetExtension(file.FileName).ToLower();
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
         var allowedExts = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
         if (!allowedExts.Contains(ext))
             throw new ArgumentException("Only image files (.jpg, .png, .webp, .gif) are allowed.");

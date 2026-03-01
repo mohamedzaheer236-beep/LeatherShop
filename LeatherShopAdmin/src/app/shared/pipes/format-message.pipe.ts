@@ -15,6 +15,8 @@ export class FormatMessagePipe implements PipeTransform {
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/\*([^*]+)\*/g, '<strong>$1</strong>')
+      .replace(/_([^_]+)_/g, '<em>$1</em>')
+      .replace(/~([^~]+)~/g, '<del>$1</del>')
       .replace(/\n/g, '<br>');
   }
 }

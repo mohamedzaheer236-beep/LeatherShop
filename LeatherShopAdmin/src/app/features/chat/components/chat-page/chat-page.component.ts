@@ -40,7 +40,7 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   private subs: Subscription[] = [];
   private shouldScrollToBottom = false;
-  private preserveScrollPosition = false;
+
   private searchTimeout: number | null = null;
   private conversationRefreshTimeout: number | null = null;
 
@@ -170,13 +170,11 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
           const container = this.messagesContainer?.nativeElement;
           const previousScrollHeight = container?.scrollHeight ?? 0;
           this.messages = [...result.items, ...this.messages];
-          this.preserveScrollPosition = true;
-          // Restore after DOM update
+          // Restore scroll position after DOM update
           setTimeout(() => {
             if (container) {
               container.scrollTop = container.scrollHeight - previousScrollHeight;
             }
-            this.preserveScrollPosition = false;
           });
         }
         this.hasMoreMessages = this.currentPage < result.totalPages;

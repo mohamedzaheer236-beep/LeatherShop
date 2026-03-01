@@ -29,7 +29,7 @@ public class ChatService : IChatService
         if (!string.IsNullOrWhiteSpace(search))
         {
             var escaped = EscapeLikePattern(search);
-            query = query.Where(c => EF.Functions.ILike(c.Name, $"%{escaped}%") || c.PhoneNumber.Contains(search));
+            query = query.Where(c => EF.Functions.ILike(c.Name, $"%{escaped}%") || EF.Functions.ILike(c.PhoneNumber, $"%{escaped}%"));
         }
 
         // Single query: project all conversation data in the DB — eliminates N+1 per-customer queries

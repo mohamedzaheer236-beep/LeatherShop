@@ -48,6 +48,7 @@ public class OrdersController : ControllerBase
             UpdateStatusResult.NotFound => NotFound(ApiResponse.Fail("Order not found.")),
             UpdateStatusResult.InvalidStatus => BadRequest(ApiResponse.Fail($"Invalid status '{newStatus}'.")),
             UpdateStatusResult.InvalidTransition => BadRequest(ApiResponse.Fail($"Cannot transition to '{newStatus}' from the current order status.")),
+            UpdateStatusResult.ConcurrencyConflict => Conflict(ApiResponse.Fail("Another operation modified this product's stock concurrently. Please retry.")),
             _ => Ok(ApiResponse.Ok("Order status updated successfully."))
         };
     }

@@ -23,7 +23,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       if (error.status === 401 && !req.url.includes('/auth/login')) {
         // Check if we're already navigating to login (prevents concurrent logout glitches)
         const currentUrl = router.url;
-        if (currentUrl !== '/login') {
+        if (currentUrl !== '/login' && auth.getToken()) {
           signalR.stop(); // fire-and-forget — close hub before clearing tokens
           auth.logout();
         }

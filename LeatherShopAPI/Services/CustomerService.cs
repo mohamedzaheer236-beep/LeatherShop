@@ -31,7 +31,7 @@ public class CustomerService : ICustomerService
         if (!string.IsNullOrEmpty(search))
         {
             var escaped = EscapeLikePattern(search);
-            query = query.Where(c => c.PhoneNumber.Contains(search) || EF.Functions.ILike(c.Name, $"%{escaped}%"));
+            query = query.Where(c => EF.Functions.ILike(c.PhoneNumber, $"%{escaped}%") || EF.Functions.ILike(c.Name, $"%{escaped}%"));
         }
 
         return await query.OrderByDescending(c => c.CreatedAt)

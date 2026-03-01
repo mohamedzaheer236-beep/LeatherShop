@@ -84,7 +84,7 @@
                 <i class="pi pi-exclamation-circle"></i> Stock quantity is required.
               </small>
               <small class="p-error" *ngIf="isFieldInvalid('stockQuantity') && productForm.get('stockQuantity')?.errors?.['min']">
-                <i class="pi pi-exclamation-circle"></i> Stock quantity must be at least 1.
+                <i class="pi pi-exclamation-circle"></i> Stock quantity must be at least {{ isEdit ? 0 : 1 }}.
               </small>
             </div>
           </div>

@@ -28,7 +28,12 @@ export class ConversationTimePipe implements PipeTransform {
     if (!timestamp) return '';
     const date = new Date(timestamp);
     const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000);
+
+    // Compare calendar dates (not elapsed time) so 23:55 → 00:05 correctly shows "Yesterday"
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffDays = Math.round((startOfToday.getTime() - startOfDate.getTime()) / 86400000);
+
     if (diffDays === 0) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return date.toLocaleDateString([], { weekday: 'short' });

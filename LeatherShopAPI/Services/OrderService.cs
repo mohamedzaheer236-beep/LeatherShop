@@ -56,6 +56,7 @@ public class OrderService : IOrderService
     public async Task<Order?> GetByIdWithDetailsAsync(int id)
     {
         return await _db.Orders
+            .AsNoTracking()
             .Include(o => o.Customer)
             .Include(o => o.OrderItems).ThenInclude(oi => oi.Product).ThenInclude(p => p.Images)
             .FirstOrDefaultAsync(o => o.Id == id);
@@ -101,7 +102,16 @@ public class OrderService : IOrderService
             }
         }
 
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Concurrency conflict while updating order {OrderId} status to {Status}. " +
+                "Another operation modified the same product stock.", id, status);
+            return UpdateStatusResult.ConcurrencyConflict;
+        }
 
         // Notify customer via WhatsApp (best-effort — don't fail the update)
         try

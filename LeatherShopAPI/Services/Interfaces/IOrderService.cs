@@ -9,7 +9,8 @@ public enum UpdateStatusResult
     Success,
     NotFound,
     InvalidStatus,
-    InvalidTransition
+    InvalidTransition,
+    ConcurrencyConflict
 }
 
 public interface IOrderService
