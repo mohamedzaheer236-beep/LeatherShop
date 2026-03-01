@@ -82,7 +82,7 @@
 </p-dialog>
 
 <!-- Broadcast to Selected Dialog -->
-<p-dialog header="Broadcast to {{selectedCount}} Selected" [(visible)]="showBroadcastDialog" [modal]="true" [style]="{'width': '500px'}">
+<p-dialog header="Broadcast to {{selectedCount}} Selected" [(visible)]="showBroadcastDialog" [modal]="true" [style]="{'width': '600px', 'max-height': '85vh'}" [contentStyle]="{'overflow-y': 'auto'}">
   <form [formGroup]="broadcastForm">
     <div class="dialog-form">
       <div class="form-field">
@@ -99,21 +99,115 @@
         <small class="p-error" *ngIf="isBroadcastFieldInvalid('broadcastTemplate') && broadcastForm.get('broadcastTemplate')?.errors?.['invalidTemplate']">
           <i class="pi pi-times-circle"></i> This template is not approved.
         </small>
+        <small class="carousel-badge" *ngIf="bcIsCarousel">
+          <i class="pi pi-images"></i> Carousel template — {{ bcCarouselCards.length }} cards
+        </small>
       </div>
-      <div class="form-field">
-        <label for="bcParams">Parameters (comma separated)</label>
-        <input type="text" pInputText id="bcParams" formControlName="broadcastParams" placeholder="param1, param2" class="w-full" />
-      </div>
-      <div class="form-field">
-        <label for="bcImage">Image URL (optional)</label>
-        <input type="text" pInputText id="bcImage" formControlName="broadcastImageUrl" placeholder="https://..." class="w-full" />
-      </div>
+
+      <!-- ═══ Standard Template Fields ═══ -->
+      <ng-container *ngIf="!bcIsCarousel">
+        <div class="form-field" *ngIf="bcBodyParamCount > 0">
+          <label for="bcParams">Parameters (comma separated)</label>
+          <input type="text" pInputText id="bcParams" formControlName="broadcastParams" placeholder="param1, param2" class="w-full" />
+          <small class="hint"><i class="pi pi-info-circle"></i> This template requires {{ bcBodyParamCount }} parameter(s)</small>
+        </div>
+        <div class="form-field" *ngIf="bcHasImageHeader">
+          <label>Header Image (optional)</label>
+          <div class="image-upload-zone" *ngIf="!bcHeaderImagePreview">
+            <label class="upload-dropzone" for="bcHeaderImageInput">
+              <i class="pi pi-cloud-upload"></i>
+              <span>Click to choose image</span>
+              <small>JPG, PNG — auto-compressed</small>
+            </label>
+            <input type="file" id="bcHeaderImageInput" accept="image/*" (change)="onBcHeaderImageSelect($event)" hidden />
+          </div>
+          <div class="image-preview-wrap" *ngIf="bcHeaderImagePreview">
+            <img [src]="bcHeaderImagePreview" alt="Header preview" class="image-preview" />
+            <div class="image-preview-overlay" *ngIf="bcHeaderImageUploading">
+              <i class="pi pi-spin pi-spinner"></i> Uploading...
+            </div>
+            <button type="button" class="remove-image-btn" (click)="removeBcHeaderImage()" *ngIf="!bcHeaderImageUploading">
+              <i class="pi pi-times"></i>
+            </button>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- ═══ Carousel Card Fields ═══ -->
+      <ng-container *ngIf="bcIsCarousel">
+        <div class="carousel-cards-section">
+          <div class="carousel-card-item" *ngFor="let card of bcCarouselCards; let i = index">
+            <div class="carousel-card-header">
+              <span class="card-number">Card {{ i + 1 }} of {{ bcCarouselCards.length }}</span>
+            </div>
+
+            <!-- Product Selector -->
+            <div class="form-field">
+              <label [for]="'bcCardProduct_' + i">Link to Product *</label>
+              <p-dropdown [inputId]="'bcCardProduct_' + i"
+                          [options]="productOptions"
+                          [(ngModel)]="card.selectedProductId" [ngModelOptions]="{standalone: true}"
+                          (onChange)="onBcCardProductSelect(i)"
+                          placeholder="Select a product" [style]="{'width': '100%'}"
+                          [showClear]="true" [filter]="true" filterPlaceholder="Search products..."
+                          appendTo="body">
+              </p-dropdown>
+              <small class="hint" *ngIf="!card.selectedProductId">
+                <i class="pi pi-info-circle"></i> Select product for "View Details"
+              </small>
+            </div>
+
+            <!-- Product Image Picker -->
+            <div class="form-field" *ngIf="card.selectedProductId && getBcCardProductImages(i).length > 0">
+              <label>Select Image for Card *</label>
+              <div class="product-image-picker">
+                <div class="picker-thumb" *ngFor="let img of getBcCardProductImages(i)"
+                     [class.selected]="card.selectedImageId === img.id"
+                     (click)="selectBcCardImage(i, img)">
+                  <img [src]="resolveImageUrl(img.url)" alt="Product image" />
+                  <i class="pi pi-check-circle selected-badge" *ngIf="card.selectedImageId === img.id"></i>
+                </div>
+              </div>
+              <small class="hint" *ngIf="card.selectedImageId !== null">
+                <i class="pi pi-check"></i> This image will appear on the carousel card and invoice
+              </small>
+            </div>
+
+            <!-- File Upload fallback -->
+            <div class="form-field" *ngIf="!card.selectedProductId || getBcCardProductImages(i).length === 0">
+              <label>Card Image *</label>
+              <div class="image-upload-zone" *ngIf="!card.imagePreview">
+                <label class="upload-dropzone" [for]="'bcCardImage_' + i">
+                  <i class="pi pi-cloud-upload"></i>
+                  <span>{{ card.selectedProductId ? 'No product images — upload one' : 'Select a product first, or upload' }}</span>
+                  <small>JPG, PNG — auto-compressed</small>
+                </label>
+                <input type="file" [id]="'bcCardImage_' + i" accept="image/*" (change)="onBcCardImageSelect($event, i)" hidden />
+              </div>
+              <div class="image-preview-wrap" *ngIf="card.imagePreview && !card.selectedProductId">
+                <img [src]="card.imagePreview" alt="Card preview" class="image-preview" />
+                <div class="image-preview-overlay" *ngIf="card.uploading"><i class="pi pi-spin pi-spinner"></i> Uploading...</div>
+              </div>
+            </div>
+
+            <!-- Body Parameter -->
+            <div class="form-field">
+              <label [for]="'bcCardBody_' + i">Body Parameter</label>
+              <input pInputText [id]="'bcCardBody_' + i"
+                     [(ngModel)]="card.bodyParam" [ngModelOptions]="{standalone: true}"
+                     placeholder="e.g. Premium Leather Wallet"
+                     [maxlength]="bcCardBodyMaxLength" class="w-full" />
+              <small class="hint">{{ card.bodyParam.length }}/{{ bcCardBodyMaxLength }} characters</small>
+            </div>
+          </div>
+        </div>
+      </ng-container>
     </div>
   </form>
   <ng-template pTemplate="footer">
     <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showBroadcastDialog = false" icon="pi pi-times"></p-button>
     <p-button [label]="'Send to ' + selectedCount + ' Customers'" (onClick)="sendToSelected()"
-              [disabled]="sendingBroadcast" [loading]="sendingBroadcast" icon="pi pi-send"></p-button>
+              [disabled]="sendingBroadcast || bcAnyUploading" [loading]="sendingBroadcast" icon="pi pi-send"></p-button>
   </ng-template>
 </p-dialog>
 

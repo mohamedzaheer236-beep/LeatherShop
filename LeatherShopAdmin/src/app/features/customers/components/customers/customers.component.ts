@@ -12,8 +12,12 @@ import {
 import { CustomerService } from '../../services/customer.service';
 import { Customer, CreateCustomer, UpdateCustomer } from '../../models/customer.model';
 import { BroadcastService } from '../../../broadcast/services/broadcast.service';
+import { CarouselCard } from '../../../broadcast/models/broadcast.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { TemplateLoaderService } from '../../../../shared/services/template-loader.service';
+import { ProductService } from '../../../products/services/product.service';
+import { Product, ProductImageItem } from '../../../products/models/product.model';
+import { environment } from '../../../../../environments/environment';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -80,12 +84,26 @@ export class CustomersComponent implements OnInit {
   sendingBroadcast = false;
   broadcastSubmitted = false;
 
+  // Carousel + smart field state for broadcast dialog
+  bcIsCarousel = false;
+  bcCarouselCards: { imageUrl: string; imagePreview: string | null; bodyParam: string; buttonPayload: string; selectedProductId: number | null; selectedImageId: number | null; uploading: boolean }[] = [];
+  bcHasImageHeader = false;
+  bcBodyParamCount = 0;
+  bcCardBodyMaxLength = 120;
+  bcHeaderImagePreview: string | null = null;
+  bcHeaderImageUploading = false;
+
+  // Products for carousel card picker
+  products: Product[] = [];
+  productOptions: { label: string; value: number }[] = [];
+
   constructor(
     private fb: FormBuilder,
     private customerService: CustomerService,
     private broadcastService: BroadcastService,
     private notification: NotificationService,
-    public templateLoader: TemplateLoaderService
+    public templateLoader: TemplateLoaderService,
+    private productService: ProductService
   ) {}
 
   ngOnInit(): void {
@@ -93,6 +111,20 @@ export class CustomersComponent implements OnInit {
     this.loadCustomers();
     this.loadCounts();
     this.templateLoader.loadTemplates();
+    this.loadProducts();
+  }
+
+  private loadProducts(): void {
+    this.productService.getProducts().subscribe({
+      next: (products) => {
+        this.products = products.filter(p => p.isActive);
+        this.productOptions = this.products.map(p => ({
+          label: `${p.name} — ₹${p.price}`,
+          value: p.id
+        }));
+      },
+      error: () => {}
+    });
   }
 
   private initForms(): void {
@@ -142,6 +174,27 @@ export class CustomersComponent implements OnInit {
     const name = this.broadcastForm.get('broadcastTemplate')?.value;
     this.broadcastLang = this.templateLoader.getLanguageCode(name);
     this.broadcastForm.get('broadcastTemplate')?.updateValueAndValidity();
+
+    const tpl = name ? this.templateLoader.getTemplate(name) : undefined;
+    this.bcHasImageHeader = tpl?.hasImageHeader ?? false;
+    this.bcBodyParamCount = tpl?.bodyParamCount ?? 0;
+    this.bcCardBodyMaxLength = tpl?.cardBodyMaxLength && tpl.cardBodyMaxLength > 0 ? tpl.cardBodyMaxLength : 120;
+
+    if (!this.bcHasImageHeader) {
+      this.bcHeaderImagePreview = null;
+      this.broadcastForm.patchValue({ broadcastImageUrl: '' });
+    }
+
+    if (tpl?.isCarousel) {
+      this.bcIsCarousel = true;
+      this.bcCarouselCards = Array.from({ length: tpl.cardCount }, () => ({
+        imageUrl: '', imagePreview: null, bodyParam: '', buttonPayload: '',
+        selectedProductId: null, selectedImageId: null, uploading: false
+      }));
+    } else {
+      this.bcIsCarousel = false;
+      this.bcCarouselCards = [];
+    }
   }
 
   onBroadcastTemplateFilter(event: { originalEvent: Event; filter: string }): void {
@@ -389,6 +442,11 @@ export class CustomersComponent implements OnInit {
     this.showBroadcastDialog = true;
     this.broadcastSubmitted = false;
     this.broadcastForm.reset({ broadcastTemplate: '', broadcastParams: '', broadcastImageUrl: '' });
+    this.bcIsCarousel = false;
+    this.bcCarouselCards = [];
+    this.bcHasImageHeader = false;
+    this.bcBodyParamCount = 0;
+    this.bcHeaderImagePreview = null;
   }
 
   sendToSelected(): void {
@@ -400,6 +458,11 @@ export class CustomersComponent implements OnInit {
       return;
     }
 
+    if (this.bcIsCarousel && !this.bcCarouselCards.every(c => c.imageUrl.trim() !== '')) {
+      this.notification.error('Please select images for all carousel cards.');
+      return;
+    }
+
     const phoneNumbers = this.customers.filter(c => c.selected).map(c => c.phoneNumber);
     if (phoneNumbers.length === 0) {
       this.notification.error('No customers selected!');
@@ -407,25 +470,127 @@ export class CustomersComponent implements OnInit {
     }
 
     const { broadcastTemplate, broadcastParams, broadcastImageUrl } = this.broadcastForm.value;
-    const params = broadcastParams && broadcastParams.trim()
-      ? broadcastParams.split(',').map((p: string) => p.trim()) : [];
 
     this.sendingBroadcast = true;
-    this.broadcastService.sendBroadcast({
-      templateName: broadcastTemplate, languageCode: this.broadcastLang,
-      parameters: params, imageUrl: broadcastImageUrl || undefined,
-      phoneNumbers: phoneNumbers
-    }).subscribe({
-      next: (res) => {
-        this.sendingBroadcast = false;
-        this.showBroadcastDialog = false;
-        this.notification.success(`Broadcast sent to ${res.totalRecipients} selected customers!`);
-      },
-      error: () => {
-        this.sendingBroadcast = false;
-        // Toast shown by error interceptor
-      }
+
+    if (this.bcIsCarousel) {
+      const cards: CarouselCard[] = this.bcCarouselCards.map(c => ({
+        imageUrl: c.imageUrl,
+        bodyParam: c.bodyParam,
+        buttonPayload: c.buttonPayload
+      }));
+      this.broadcastService.sendBroadcast({
+        templateName: broadcastTemplate, languageCode: this.broadcastLang,
+        parameters: [], isCarousel: true, carouselCards: cards,
+        phoneNumbers: phoneNumbers
+      }).subscribe({
+        next: (res) => {
+          this.sendingBroadcast = false;
+          this.showBroadcastDialog = false;
+          this.notification.success(`Carousel sent to ${res.totalRecipients} selected customers!`);
+        },
+        error: () => { this.sendingBroadcast = false; }
+      });
+    } else {
+      const params = broadcastParams && broadcastParams.trim()
+        ? broadcastParams.split(',').map((p: string) => p.trim()) : [];
+      this.broadcastService.sendBroadcast({
+        templateName: broadcastTemplate, languageCode: this.broadcastLang,
+        parameters: params, imageUrl: broadcastImageUrl || undefined,
+        phoneNumbers: phoneNumbers
+      }).subscribe({
+        next: (res) => {
+          this.sendingBroadcast = false;
+          this.showBroadcastDialog = false;
+          this.notification.success(`Broadcast sent to ${res.totalRecipients} selected customers!`);
+        },
+        error: () => { this.sendingBroadcast = false; }
+      });
+    }
+  }
+
+  // ─── Broadcast dialog helpers ───
+
+  resolveImageUrl(url: string): string {
+    if (!url) return '';
+    return url.startsWith('http') ? url : environment.apiUrl.replace('/api', '') + url;
+  }
+
+  get bcAnyUploading(): boolean {
+    return this.bcHeaderImageUploading || this.bcCarouselCards.some(c => c.uploading);
+  }
+
+  onBcHeaderImageSelect(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    const file = input.files[0];
+    if (!file.type.startsWith('image/')) { this.notification.error('Please select an image file.'); return; }
+    const reader = new FileReader();
+    reader.onload = () => { this.bcHeaderImagePreview = reader.result as string; };
+    reader.readAsDataURL(file);
+    this.bcHeaderImageUploading = true;
+    this.broadcastService.uploadImage(file).subscribe({
+      next: (path) => { this.broadcastForm.patchValue({ broadcastImageUrl: path }); this.bcHeaderImageUploading = false; },
+      error: () => { this.bcHeaderImagePreview = null; this.bcHeaderImageUploading = false; this.notification.error('Image upload failed.'); }
     });
+    input.value = '';
+  }
+
+  removeBcHeaderImage(): void {
+    this.bcHeaderImagePreview = null;
+    this.broadcastForm.patchValue({ broadcastImageUrl: '' });
+  }
+
+  onBcCardImageSelect(event: Event, index: number): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    const file = input.files[0];
+    if (!file.type.startsWith('image/')) { this.notification.error('Please select an image file.'); return; }
+    const card = this.bcCarouselCards[index];
+    const reader = new FileReader();
+    reader.onload = () => { card.imagePreview = reader.result as string; };
+    reader.readAsDataURL(file);
+    card.uploading = true;
+    this.broadcastService.uploadImage(file).subscribe({
+      next: (path) => { card.imageUrl = path; card.uploading = false; },
+      error: () => { card.imagePreview = null; card.uploading = false; this.notification.error(`Card ${index + 1} image upload failed.`); }
+    });
+    input.value = '';
+  }
+
+  onBcCardProductSelect(index: number): void {
+    const card = this.bcCarouselCards[index];
+    if (card.selectedProductId) {
+      const product = this.products.find(p => p.id === card.selectedProductId);
+      if (!card.bodyParam.trim() && product) {
+        card.bodyParam = product.name.substring(0, this.bcCardBodyMaxLength);
+      }
+      if (product?.imageItems?.length) {
+        this.selectBcCardImage(index, product.imageItems[0]);
+      } else {
+        card.buttonPayload = `view_${card.selectedProductId}`;
+        card.selectedImageId = null; card.imageUrl = ''; card.imagePreview = null;
+      }
+    } else {
+      card.buttonPayload = ''; card.selectedImageId = null; card.imageUrl = ''; card.imagePreview = null;
+    }
+  }
+
+  selectBcCardImage(index: number, img: ProductImageItem): void {
+    const card = this.bcCarouselCards[index];
+    card.selectedImageId = img.id;
+    card.imageUrl = img.url;
+    card.imagePreview = this.resolveImageUrl(img.url);
+    if (card.selectedProductId) {
+      card.buttonPayload = img.id > 0 ? `view_${card.selectedProductId}_pi${img.id}` : `view_${card.selectedProductId}`;
+    }
+  }
+
+  getBcCardProductImages(index: number): ProductImageItem[] {
+    const card = this.bcCarouselCards[index];
+    if (!card.selectedProductId) return [];
+    const product = this.products.find(p => p.id === card.selectedProductId);
+    return product?.imageItems ?? [];
   }
 
   isBroadcastFieldInvalid(field: string): boolean {
