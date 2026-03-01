@@ -59,10 +59,14 @@ public class BroadcastController : ControllerBase
 
     /// <summary>Upload an image for broadcast carousel cards. Reuses product image pipeline (resize + compress).</summary>
     [HttpPost("upload-image")]
+    [RequestSizeLimit(5 * 1024 * 1024)] // 5 MB
     public async Task<IActionResult> UploadImage(IFormFile file)
     {
         if (file == null || file.Length == 0)
             return BadRequest(ApiResponse.Fail("No file provided."));
+
+        if (file.Length > 5 * 1024 * 1024)
+            return BadRequest(ApiResponse.Fail("File size must be under 5 MB."));
 
         try
         {

@@ -8,7 +8,14 @@
   <ng-template pTemplate="end">
     <div class="navbar-end">
       <!-- Notification Bell -->
-      <div class="notification-wrapper" (click)="op.toggle($event)">
+      <div class="notification-wrapper"
+           role="button"
+           tabindex="0"
+           aria-label="Notifications"
+           [attr.aria-expanded]="op.overlayVisible || false"
+           (click)="op.toggle($event)"
+           (keydown.enter)="op.toggle($event)"
+           (keydown.space)="$event.preventDefault(); op.toggle($event)">
         <i class="pi pi-bell notification-bell" [class.has-notifications]="notifications.length > 0"></i>
         <span *ngIf="notifications.length > 0" class="notification-badge">{{ notifications.length }}</span>
       </div>

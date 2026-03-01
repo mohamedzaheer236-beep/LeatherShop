@@ -1,13 +1,17 @@
 using System.Net;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using LeatherShopAPI.DTOs.Payment;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Controllers;
 
+/// <summary>Public (customer-facing). No [Authorize] — customers access payment page and Razorpay calls verify.</summary>
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("fixed")]
 public class PaymentController : ControllerBase
 {
     private readonly IPaymentService _paymentService;

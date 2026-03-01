@@ -111,12 +111,14 @@
       <!-- Message Input -->
       <div class="chat-input">
         <input pInputText type="text" placeholder="Type a message..."
+               aria-label="Type a message"
                [(ngModel)]="messageText"
                (keyup.enter)="sendMessage()"
                [disabled]="sending"
                class="message-input" />
         <button pButton icon="pi pi-send"
                 class="p-button-rounded send-btn"
+                aria-label="Send message"
                 [disabled]="!messageText.trim() || sending"
                 [loading]="sending"
                 (click)="sendMessage()"></button>

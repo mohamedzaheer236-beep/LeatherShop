@@ -90,10 +90,14 @@ public class ProductsController : ControllerBase
     }
 
     [HttpPost("upload-image")]
+    [RequestSizeLimit(5 * 1024 * 1024)] // 5 MB
     public async Task<IActionResult> UploadImage(IFormFile file)
     {
         if (file == null || file.Length == 0)
             return BadRequest(ApiResponse.Fail("No file provided."));
+
+        if (file.Length > 5 * 1024 * 1024)
+            return BadRequest(ApiResponse.Fail("File size must be under 5 MB."));
 
         try
         {
@@ -107,10 +111,18 @@ public class ProductsController : ControllerBase
     }
 
     [HttpPost("upload-images")]
+    [RequestSizeLimit(25 * 1024 * 1024)] // 25 MB total (5 files × 5 MB)
     public async Task<IActionResult> UploadImages([FromForm] List<IFormFile> files)
     {
         if (files == null || files.Count == 0)
             return BadRequest(ApiResponse.Fail("No files provided."));
+
+        const int MaxFiles = 10;
+        if (files.Count > MaxFiles)
+            return BadRequest(ApiResponse.Fail($"Maximum {MaxFiles} files per upload."));
+
+        if (files.Any(f => f.Length > 5 * 1024 * 1024))
+            return BadRequest(ApiResponse.Fail("Each file must be under 5 MB."));
 
         try
         {

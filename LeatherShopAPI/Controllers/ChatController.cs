@@ -41,8 +41,8 @@ public class ChatController : ControllerBase
     [HttpPost("{customerId:int}/send")]
     public async Task<IActionResult> SendMessage(int customerId, [FromBody] SendMessageDto dto)
     {
-        if (string.IsNullOrWhiteSpace(dto.Message))
-            return BadRequest(ApiResponse<object>.Fail("Message cannot be empty"));
+        // Note: [Required] + [MinLength(1)] on SendMessageDto.Message + [ApiController] auto-validation
+        // handles empty/null input. Manual check removed — model validation is sufficient.
 
         var message = await _chatService.SendMessageAsync(customerId, dto.Message);
         return Ok(ApiResponse<ChatMessageDto>.Ok(message));

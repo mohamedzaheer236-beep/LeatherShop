@@ -83,7 +83,7 @@ public class CustomersController : ControllerBase
         };
     }
 
-    [HttpPut("{id}/subscribe")]
+    [HttpPut("{id:int}/subscribe")]
     public async Task<IActionResult> ToggleSubscription(int id, [FromBody] bool isSubscribed)
     {
         var success = await _customerService.ToggleSubscriptionAsync(id, isSubscribed);

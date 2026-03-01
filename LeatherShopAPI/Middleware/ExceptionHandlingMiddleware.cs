@@ -26,6 +26,12 @@ public class ExceptionHandlingMiddleware
         {
             await _next(context);
         }
+        catch (OperationCanceledException) when (!context.Response.HasStarted)
+        {
+            // Client disconnected or request was cancelled — not an error.
+            _logger.LogInformation("Request cancelled: {Method} {Path}", context.Request.Method, context.Request.Path);
+            context.Response.StatusCode = 499; // Client Closed Request (nginx convention)
+        }
         catch (Exception ex)
         {
             await HandleExceptionAsync(context, ex);
@@ -34,6 +40,13 @@ public class ExceptionHandlingMiddleware
 
     private async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
+        // If the response has already started streaming, we cannot write a new response body.
+        if (context.Response.HasStarted)
+        {
+            _logger.LogError(exception, "Exception after response started: {Message}", exception.Message);
+            return;
+        }
+
         var (statusCode, message) = exception switch
         {
             KeyNotFoundException => (HttpStatusCode.NotFound, exception.Message),
