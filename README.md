@@ -398,8 +398,8 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   ├── DashboardService.cs              # Implements IDashboardService
 │   ├── BroadcastService.cs              # Implements IBroadcastService (enqueues to Channel)
 │   ├── BroadcastBackgroundService.cs    # Hosted BackgroundService — reads from Channel<T>,
-│   │                                    #   processes broadcasts with SemaphoreSlim(10)
-│   │                                    #   concurrency, saves progress every 50 messages
+│   │                                    #   processes broadcasts with .Chunk(10) + Task.WhenAll
+│   │                                    #   concurrency (~50 msgs/sec), saves progress every 50 messages
 │   ├── ChatService.cs                   # Implements IChatService — conversations list,
 │   │                                    #   paginated messages, send message via WhatsApp,
 │   │                                    #   bot pause/resume with auto-expiry
@@ -811,7 +811,7 @@ Temporary tokens expire every 24 hours. For production, use a **permanent System
 3. For testing, use **Test Mode** keys (prefix `rzp_test_`)
 4. Paste into `appsettings.json` → `Razorpay:KeyId` and `Razorpay:KeySecret`
 
-> **Note:** The payment verification in the current code does NOT validate the Razorpay signature (marked as TODO). For production, you must implement HMAC SHA256 signature verification.
+> **Note:** Razorpay signature verification is implemented (HMAC-SHA256). When `Razorpay:KeySecret` is configured, verification is mandatory — mismatched signatures reject the payment. In dev mode without `KeySecret`, verification is skipped with a warning.
 
 ---
 
@@ -997,7 +997,7 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 | C3 | ~~**Razorpay Signature Verification TODO'd Out**~~ | ~~`PaymentService.cs`~~ | **FIXED** — `VerifyPaymentAsync` now computes HMAC-SHA256 signature from `RazorpayOrderId|PaymentId` using the `Razorpay:KeySecret` config value. When `KeySecret` is configured, verification is **mandatory** — missing signature or mismatch rejects the payment. When `KeySecret` is not configured (dev mode), logs a warning and allows the payment. `PaymentVerifyDto` updated with `RazorpayOrderId` field. Payment page JS passes `razorpay_order_id` in the verify request. |
 | C4 | **WhatsApp Webhook Signature Not Validated** | `WhatsAppWebhookController.cs` | Meta sends `X-Hub-Signature-256` on every POST. The controller never checks it. Attackers can POST fabricated payloads to trigger chatbot flows and create fake orders. |
 | C5 | ~~**XSS in Payment Page**~~ | ~~`PaymentController.cs`~~ | **FIXED** — All user-controlled values (`OrderNumber`, `CustomerPhone`, `ProductName`) are HTML-encoded with `WebUtility.HtmlEncode()` into safe local variables before interpolation into the payment HTML page. Numeric values (`TotalAmount`, `Quantity`, etc.) are strongly-typed decimals/ints and don't need encoding. |
-| | C6 | ~~**DbContext Thread-Safety Bug**~~ | ~~`BroadcastBackgroundService.cs`~~ | **FIXED** — `ProcessBroadcastAsync` no longer shares a single `DbContext` across concurrent tasks. Each concurrent task creates its own `IServiceScope` (at most 10 alive at once via `SemaphoreSlim`). `SaveProgressAsync` uses a dedicated scope with `ExecuteUpdateAsync` (stateless SQL `UPDATE`, no entity tracking). The initial broadcast existence check uses a short-lived scope that is disposed before concurrency begins. No `DbContext` instance is ever accessed from multiple threads. | |
+| C6 | ~~**DbContext Thread-Safety Bug**~~ | ~~`BroadcastBackgroundService.cs`~~ | **FIXED** — `ProcessBroadcastAsync` no longer shares a single `DbContext` across concurrent tasks. Each concurrent task creates its own `IServiceScope`. `SaveProgressAsync` uses a dedicated scope with `ExecuteUpdateAsync` (stateless SQL `UPDATE`, no entity tracking). Processing uses `.Chunk(10)` + `Task.WhenAll` for controlled concurrency. No `DbContext` instance is ever accessed from multiple threads. |
 
 ### 🟠 HIGH — Data Integrity / Bugs
 
@@ -1023,7 +1023,7 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 | M5 | ~~**Memory Leaks: No Unsubscribe**~~ | All 6 feature components | **FIXED** — Product-list simplified to button-triggered search (no `valueChanges` subscriptions). All HTTP `subscribe()` calls auto-complete — no leak risk. Observable patterns are leak-safe by design. |
 | M6 | ~~**Product Search on Every Keystroke**~~ | `product-list.component.html` | **FIXED** — Removed `(input)="onSearch()"`. API call now fires only via dedicated Search button (`pi pi-search`) or Enter key (`keyup.enter`). No debounce needed — user explicitly triggers search. |
 | M7 | ~~**No `trackBy` on Any `*ngFor`**~~ | ~~All list templates~~ | **FIXED** — Orders list has `trackBy: trackByOrderId` on the main `*ngFor`. Prevents full DOM re-renders when order list is refreshed. Other lists either use `p-table` (handles DOM diffing internally) or have static collections. |
-| M8 | **ChatBotService is a 520-Line God Class** | `ChatBotService.cs` | Cart logic, checkout, order history, menu routing all in one class. Should decompose into smaller handlers (CartHandler, CheckoutHandler, MenuHandler). |
+| M8 | **ChatBotService is a 1053-Line God Class** | `ChatBotService.cs` | Cart logic, checkout, order history, menu routing, address collection all in one class. Should decompose into smaller handlers (CartHandler, CheckoutHandler, MenuHandler, AddressHandler). |
 | M9 | ~~**Dashboard Makes 7 Separate DB Roundtrips**~~ | ~~`DashboardService.cs`~~ | **ANALYZED — Sequential is correct.** EF Core's `DbContext` is NOT thread-safe — `Task.WhenAll` on the same context throws `InvalidOperationException`. The 7 queries are simple COUNTs that execute in <1ms each on PostgreSQL with indexes. Total ~7ms. Added `AsNoTracking()` to the recent orders query to skip change tracking overhead. |
 | M10 | **No Rate Limiting** | All controllers | Broadcast endpoint can be abused to spam all customers. Webhook has no rate limiting. |
 | M11 | ~~**Google Fonts via `@import url()` + PrimeNG Broken Font Files**~~ | ~~`styles.scss`, `angular.json`, `index.html`~~ | **FIXED** — Moved Google Fonts Inter from `@import url()` in SCSS to `<link>` in `index.html` with `preconnect` hints (faster, non-render-blocking). PrimeNG's lara-light-indigo theme ships with corrupted `Inter-roman.var.woff2` / `Inter-italic.var.woff2` that Angular's esbuild bundler can't serve correctly — caused 30+ "Failed to decode downloaded font" + "OTS parsing error" console errors. Fix: copied theme CSS to `public/primeng-theme.css` with broken `@font-face` declarations stripped, loaded as static `<link>` instead of bundled via `styles[]`. Override `--font-family: 'Inter', sans-serif` in `:root` so PrimeNG uses Google Fonts. |
@@ -1033,7 +1033,7 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 
 | # | Issue | Location | Details |
 |---|-------|----------|---------|
-| L1 | **No Health Check Endpoint** | `Program.cs` | No `/health` or `/ready` for load balancers / Kubernetes probes / uptime monitoring. |
+| L1 | ~~**No Health Check Endpoint**~~ | ~~`Program.cs`~~ | ✅ **FIXED** — Added `app.MapGet("/health", () => Results.Ok("healthy"))` endpoint. Railway health check updated from `/swagger/index.html` to `/health`. Swagger restricted to Development only. See F17/F30. |
 | L2 | **No API Versioning** | All controllers | No `/api/v1/...` prefix. Breaking changes will affect all clients simultaneously. |
 | L3 | **No ESLint / Prettier** | `package.json` | Zero static code analysis or formatting enforcement on the frontend. |
 | L4 | **No Tests** | `angular.json` | `skipTests: true` everywhere. Zero test files in the entire project. |
@@ -1250,7 +1250,7 @@ dockerfilePath = "LeatherShopAPI/Dockerfile"
 watchPatterns = ["LeatherShopAPI/**"]
 
 [deploy]
-healthcheckPath = "/swagger/index.html"
+healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
@@ -1323,7 +1323,7 @@ Vercel auto-deploys on every push to the `main` branch. Angular SPA routing is h
 - [x] CORS updated — `FRONTEND_URL` env var for production Angular URL
 - [x] HTTPS working (Railway provides it automatically via Metal Edge)
 - [x] Database migration runs automatically on first startup (`context.Database.Migrate()` in `Program.cs`)
-- [x] Health check configured (`/swagger/index.html` with 300s timeout)
+- [x] Health check configured (`/health` endpoint with 300s timeout)
 - [x] Auto-restart on failure (max 10 retries)
 - [x] Frontend deployed to Vercel with auto-deploy from GitHub
 - [x] Railway Volume `leathershop-volume` mounted at `/app/wwwroot/uploads` (persists product images across deploys)
@@ -1452,7 +1452,7 @@ To fix: `git config user.email "mohamedzaheer236@gmail.com"`
 | **Broadcast Status Polling** | ✅ Added `GET /api/broadcast/{id}/status` endpoint. Frontend polls every 1s for up to 30s after sending. Shows real-time results: all-failed (red error banner), partial (warning), all-success (green). Custom styled status banners with gradient backgrounds, icons, slideDown animation, and dismissible close button. Dark styled toast notifications positioned 60px from top. |
 | **Performance Audit & Fixes (5000+ Scale)** | ✅ Comprehensive deep audit of frontend (26 issues) and backend (30 issues). Fixes applied: (1) Customer table pagination — 25/50/100 rows per page with page report (client-side, correct for selection use-case). (2) Orders server-side pagination — `PaginatedResult<T>` model, `GET /api/orders?page=1&pageSize=25` (clamped 1–100), PrimeNG `p-paginator` on frontend. (3) `selectedCount` getter replaced with cached `_selectedCount` counter — O(1) instead of O(n) on every change detection. (4) `getTotalSent()` method in template replaced with cached `totalSent` property. (5) `setInterval` memory leak fixed — `ngOnDestroy` clears polling interval. (6) Orders `*ngFor` now has `trackBy: trackByOrderId`. (7) BulkImport N+1 fixed — single query loads all phone numbers into HashSet, then O(1) lookups. (8) Dashboard uses sequential awaits with `AsNoTracking()` — EF Core DbContext is NOT thread-safe so `Task.WhenAll` is incorrect. (9) SemaphoreSlim in BroadcastBackgroundService now properly disposed with `using`. (10) WhatsApp notifications in OrderService and PaymentService wrapped in try/catch — prevents 500 errors on successful DB operations. (11) Razorpay signature verification implemented — HMAC-SHA256 mandatory when `KeySecret` is configured, skipped with warning in dev. (12) XSS in PaymentController fully fixed — `WebUtility.HtmlEncode()` on OrderNumber, CustomerPhone, ProductName. (13) DB indexes added: `IsSubscribed`, `CreatedAt` (customers), `Status`, `CreatedAt`, `IsPaid` (orders), `IsActive` (products). |
 | **WhatsApp Business Setup** | ✅ Permanent token with Admin System User "Leathershop" under "Leather Shop" Business Portfolio (ID: 1270862431810807). WABA ID: 2151682048973965, Phone Number ID: 1055485577637232, Phone: +91 79043 03876. 3 custom templates created (`shop_deals`, `order_update`, `store_notification`) — all PENDING Meta approval. Phone number registered via Cloud API `/register` endpoint. |
-| **Railway Deployment** | ✅ Full cloud deployment: (1) `Dockerfile` — multi-stage build (SDK 8.0 → ASP.NET 8.0 runtime). (2) `railway.toml` — build config with `watchPatterns`, health check on `/swagger/index.html`, restart-on-failure policy. (3) `ServiceCollectionExtensions.cs` — `AddDatabase()` auto-parses Railway `DATABASE_URL` URI format to Npgsql connection string, `AddCorsPolicies()` reads `FRONTEND_URL` env var. (4) `Program.cs` — reads `PORT` env var, Swagger enabled in all environments (health check). (5) `appsettings.Production.json` — placeholder values, actual secrets in Railway env vars. (6) `environment.prod.ts` — API URL set to `https://leathershop-production.up.railway.app/api`. (7) PostgreSQL on Railway with persistent volume. Public URL: `leathershop-production.up.railway.app`. |
+| **Railway Deployment** | ✅ Full cloud deployment: (1) `Dockerfile` — multi-stage build (SDK 8.0 → ASP.NET 8.0 runtime). (2) `railway.toml` — build config with `watchPatterns`, health check on `/health`, restart-on-failure policy. (3) `ServiceCollectionExtensions.cs` — `AddDatabase()` auto-parses Railway `DATABASE_URL` URI format to Npgsql connection string with `QuerySplittingBehavior.SplitQuery`, `AddCorsPolicies()` reads `FRONTEND_URL` env var. (4) `Program.cs` — reads `PORT` env var, Swagger in Development only, `/health` endpoint for production. `UseEphemeralDataProtectionProvider()` for containerized JWT-only deployment. (5) `appsettings.Production.json` — placeholder values, actual secrets in Railway env vars. (6) `environment.prod.ts` — API URL set to `https://leathershop-production.up.railway.app/api`. (7) PostgreSQL on Railway with persistent volume. Public URL: `leathershop-production.up.railway.app`. |
 | **Vercel Frontend Deployment** | ✅ Angular admin panel deployed to Vercel: Root directory `LeatherShopAdmin`, framework preset Angular, build command `ng build --configuration production`, output `dist/leather-shop-admin/browser`. Auto-deploys from GitHub `main` branch. |
 | **Image Upload** | ✅ Server-side file upload: `POST /api/products/upload-image` accepts multipart file, validates type (JPG/PNG/WebP/GIF) and size (< 5 MB), saves to `wwwroot/uploads/` with GUID filename, returns relative path. `app.UseStaticFiles()` serves uploaded images. Frontend: clickable browse dropzone replaces URL text input, instant local preview via `FileReader`, remove button (×) to clear. `[Url]` DTO validators removed since images are now server-relative paths. |
 | **Duplicate Product Name Validation** | ✅ Async validator on product name field: `GET /api/products/check-name?name=X&excludeId=Y` endpoint performs case-insensitive DB lookup (excludes current product on edit). Frontend: 300ms debounced `AsyncValidator` with `timer()` + `switchMap()`, spinner while checking, inline error "A product with this name already exists". Submit button disabled while validation pending. |
@@ -1521,7 +1521,7 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 | # | Issue | Location | Details | Fix |
 |---|-------|----------|---------|-----|
 | F29 | **No rate limiting** | All controllers | No rate limiting on login (brute-force), payment, webhook, or admin endpoints. | Add `Microsoft.AspNetCore.RateLimiting` middleware, especially on auth and payment. |
-| F30 | **No health check endpoint** | `Program.cs` | Uses Swagger as health check (exposes API docs). No proper `/health` endpoint. | Add `app.MapHealthChecks("/health")` with `AddHealthChecks()`. |
+| F30 | ~~**No health check endpoint**~~ | ~~`Program.cs`~~ | ✅ **FIXED** — Added `/health` endpoint in `Program.cs`. Swagger restricted to Development only. Railway health check updated to `/health`. See F17 and L1. |
 | F31 | ~~**Order status — no transition validation**~~ | ~~`OrderService.cs`~~ | ✅ **FIXED** — State machine implemented (see L16). Valid transitions enforced: Pending→{Confirmed,Cancelled}, Confirmed→{Shipped,Cancelled}, Shipped→{Delivered,Cancelled}. Delivered and Cancelled are terminal states. |
 | F32 | **No order cancellation refund** | `OrderService.cs` | Cancelling a paid order restores stock but doesn't trigger a Razorpay refund. | Add Razorpay refund API call, or at minimum warn the admin. |
 | F33 | **Navbar notification bell — not keyboard accessible** | `navbar.component.html` | Bell is a `<div>` with `(click)` only. No `role`, `tabindex`, or keyboard handlers. | Add `role="button" tabindex="0" aria-label="Notifications"` + keyboard handlers. |
