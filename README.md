@@ -1428,7 +1428,7 @@ To fix: `git config user.email "mohamedzaheer236@gmail.com"`
 | **Toast Notification System** | ✅ `NotificationService` + `ToastComponent` — centralized pub/sub toast with auto-dismiss |
 | **Loading Spinner** | ✅ Reusable `LoadingSpinnerComponent` integrated into feature components |
 | **DI Extension Methods** | ✅ `ServiceCollectionExtensions` — grouped registration (`AddDatabase`, `AddApplicationServices`, `AddCorsPolicies`) |
-| **Broadcast Background Processing** | ✅ **DB-backed guaranteed delivery** — all broadcast job data (recipients, template, parameters, image URL, language code) stored in `BroadcastMessages` table with `BroadcastStatus` enum (Pending/Processing/Completed). `BroadcastService` writes job to DB → `Channel<int>` passes just the ID → `BroadcastBackgroundService` reads from DB. `ResumeIncompleteBroadcastsAsync()` on startup re-enqueues any Pending/Processing broadcasts (survives Railway restarts). `ProcessedPhonesJson` tracks exact checkpoint per phone for precise resume — no duplicate sends. `SemaphoreSlim(10)` for controlled concurrency. Single atomic `Interlocked.Increment(ref totalProcessed)` counter for progress checkpoints every 50 messages. `MarkCompletedAsync` with final counts. Migration: `PersistBroadcastJobData` (6 new columns + Status index). |
+| **Broadcast Background Processing** | ✅ **DB-backed guaranteed delivery** — all broadcast job data (recipients, template, parameters, image URL, language code) stored in `BroadcastMessages` table with `BroadcastStatus` enum (Pending/Processing/Completed). `BroadcastService` writes job to DB → `Channel<int>` passes just the ID → `BroadcastBackgroundService` reads from DB. `ResumeIncompleteBroadcastsAsync()` on startup re-enqueues any Pending/Processing broadcasts (survives Railway restarts). `ProcessedPhonesJson` tracks exact checkpoint per phone for precise resume — no duplicate sends. `.Chunk(10)` + `Task.WhenAll` for controlled concurrency (~50 msgs/sec). Single atomic `Interlocked.Increment(ref totalProcessed)` counter for progress checkpoints every 50 messages. `MarkCompletedAsync` with final counts. Migration: `PersistBroadcastJobData` (6 new columns + Status index). |
 | **Multi-quantity in Cart** | ✅ Chatbot asks "How many?" via `PendingProductId` state → customer types a number → validates against stock (including existing cart quantity) → adds with chosen quantity |
 | **Immediate Navigation** | ✅ Removed `setTimeout(() => navigate, 1500)` from product form — now navigates immediately after success. Toast notification persists across route changes by design. |
 | **PrimeNG UI Migration** | ✅ Replaced all custom CSS/SCSS with PrimeNG component library (v17.18.15). Migrated every component: Navbar → `p-menubar`, Toast → `p-toast`, Spinner → `p-progressSpinner`, Dashboard → `p-card`/`p-table`/`p-tag`, Products → `p-table`/`p-toolbar`/`p-dropdown`/`p-confirmDialog`/`p-inputNumber`, Orders → `p-card`/`p-table`/`p-tag`/`p-dropdown`, Customers → `p-table`/`p-dialog`/`p-checkbox`/`p-toolbar`, Broadcast → `p-card`/`p-dropdown`/`p-table`/`p-message`. Theme: Lara Light Indigo. |
@@ -1630,3 +1630,21 @@ Audited all files NOT modified this session: all 9 controllers, all 11 services,
 - All `setInterval` timers are properly cleared in `ngOnDestroy` ✅
 - HTTP subscriptions auto-complete (Angular HttpClient) — no leak risk ✅
 - No new security, correctness, or memory leak issues found ✅
+
+---
+
+#### Deployment Warning Fixes & Cleanup (March 1, 2026)
+
+Resolved all Railway startup warnings and remaining NuGet vulnerability. **Build now produces 0 errors, 0 warnings.**
+
+**Fixes Applied:**
+
+| # | Category | Issue | Location | Details |
+|---|----------|-------|----------|---------|
+| F89 | **UI Cleanup** | Removed unnecessary IMAGE column from orders list | `orders.component.html`, `orders.component.scss` | Order items table now shows only Product/Qty/Price/Subtotal. Removed `<th>Image</th>`, `<td>` with `<img>`/`.no-image` span, and unused `.item-thumb`/`.no-image` CSS rules. |
+| F90 | **EF Core Warning** | QuerySplittingBehavior warning on multi-Include queries | `ServiceCollectionExtensions.cs` | Added `UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)` inside the `UseNpgsql` options callback. EF Core now uses split queries globally instead of cartesian joins when multiple collection navigations are included. Eliminates `RelationalEventId.MultipleCollectionIncludeWarning`. |
+| F91 | **EF Core Warning** | Skip/Take without OrderBy produces non-deterministic results | `ChatBotService.cs` | Added `.OrderBy(p => p.Name)` before `.Take(10)` in `SendProductsInCategory()` and `.OrderBy(c => c)` after `.Distinct()` in `SendCategoryList()`. Eliminates `CoreEventId.RowLimitingOperationWithoutOrderByWarning`. |
+| F92 | **DataProtection Warning** | Ephemeral key warning on container startup | `Program.cs` | Added `UseEphemeralDataProtectionProvider()` with `SetApplicationName("LeatherShopAPI")`. Proper for JWT-only containerized apps that don't use cookies, antiforgery tokens, or TempData. Eliminates `DataProtection` key ring warning. |
+| F93 | **CVE Fix** | SixLabors.ImageSharp vulnerability (GHSA-rxmq-m78w-7wmc) | `LeatherShopAPI.csproj` | Updated `SixLabors.ImageSharp` from 3.1.8 → 3.1.12. Fixes security advisory for image processing library. |
+
+**Build Status:** ✅ **0 errors, 0 warnings** (verified via `dotnet build`)
