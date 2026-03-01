@@ -235,7 +235,9 @@
                     <input pInputText [id]="'cardBody_' + i"
                            [(ngModel)]="card.bodyParam" [ngModelOptions]="{standalone: true}"
                            placeholder="e.g. Premium Leather Wallet"
+                           maxlength="160"
                            class="w-full" />
+                    <small class="hint">{{ card.bodyParam.length }}/160 characters</small>
                   </div>
 
                   <!-- Card Button Payload -->
