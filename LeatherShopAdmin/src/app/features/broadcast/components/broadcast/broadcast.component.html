@@ -234,7 +234,7 @@
                            *ngFor="let img of getCardProductImages(i)"
                            [class.selected]="card.selectedImageId === img.id"
                            (click)="selectCardImage(i, img)">
-                        <img [src]="img.url" [alt]="'Product image'" />
+                        <img [src]="resolveImageUrl(img.url)" [alt]="'Product image'" />
                         <i class="pi pi-check-circle selected-badge" *ngIf="card.selectedImageId === img.id"></i>
                       </div>
                     </div>

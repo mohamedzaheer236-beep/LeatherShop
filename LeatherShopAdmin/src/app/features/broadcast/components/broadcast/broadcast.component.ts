@@ -15,6 +15,7 @@ import { NotificationService } from '../../../../shared/services/notification.se
 import { TemplateLoaderService } from '../../../../shared/services/template-loader.service';
 import { ProductService } from '../../../products/services/product.service';
 import { Product, ProductImageItem } from '../../../products/models/product.model';
+import { environment } from '../../../../../environments/environment';
 
 import { CardModule } from 'primeng/card';
 import { DropdownModule } from 'primeng/dropdown';
@@ -311,12 +312,18 @@ export class BroadcastComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Resolve relative image URLs to full backend URLs */
+  resolveImageUrl(url: string): string {
+    if (!url) return '';
+    return url.startsWith('http') ? url : environment.apiUrl.replace('/api', '') + url;
+  }
+
   /** Select a specific product image for a carousel card */
   selectCardImage(index: number, img: ProductImageItem): void {
     const card = this.carouselCards[index];
     card.selectedImageId = img.id;
     card.imageUrl = img.url;
-    card.imagePreview = img.url;
+    card.imagePreview = this.resolveImageUrl(img.url);
     // Build payload with image tracking: view_{productId}_pi{imageId}
     if (card.selectedProductId) {
       card.buttonPayload = img.id > 0
