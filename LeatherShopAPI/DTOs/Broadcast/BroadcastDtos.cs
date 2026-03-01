@@ -12,7 +12,10 @@ public class BroadcastRequestDto
 
     public List<string>? Parameters { get; set; }
 
-    [Url(ErrorMessage = "Image URL must be a valid URL.")]
+    /// <summary>
+    /// Header image — accepts either a full URL (https://...) or a server-relative path (/uploads/abc.jpg).
+    /// Relative paths are resolved to full public URLs at send time by BroadcastBackgroundService.
+    /// </summary>
     public string? ImageUrl { get; set; }
 
     public List<string>? PhoneNumbers { get; set; }
