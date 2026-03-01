@@ -56,6 +56,8 @@ export class LoginComponent {
         this.loading = false;
         if (res.success) {
           this.router.navigate(['/dashboard']);
+        } else {
+          this.errorMessage = res.message || 'Login failed. Please try again.';
         }
       },
       error: (err) => {

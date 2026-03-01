@@ -27,6 +27,7 @@ public class WhatsAppWebhookController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
     private readonly ILogger<WhatsAppWebhookController> _logger;
+    private readonly IWebHostEnvironment _env;
 
     public WhatsAppWebhookController(
         IChatBotService chatBot,
@@ -34,7 +35,8 @@ public class WhatsAppWebhookController : ControllerBase
         IHubContext<NotificationHub> hubContext,
         AppDbContext db,
         IConfiguration config,
-        ILogger<WhatsAppWebhookController> logger)
+        ILogger<WhatsAppWebhookController> logger,
+        IWebHostEnvironment env)
     {
         _chatBot = chatBot;
         _chatService = chatService;
@@ -42,6 +44,7 @@ public class WhatsAppWebhookController : ControllerBase
         _db = db;
         _config = config;
         _logger = logger;
+        _env = env;
     }
 
     [HttpGet("webhook")]
@@ -105,7 +108,12 @@ public class WhatsAppWebhookController : ControllerBase
         }
         else
         {
-            _logger.LogWarning("WhatsApp:AppSecret not configured — webhook signature verification SKIPPED. Set WhatsApp:AppSecret for production security.");
+            if (!_env.IsDevelopment())
+            {
+                _logger.LogError("WhatsApp:AppSecret not configured — rejecting webhook in non-Development environment");
+                return StatusCode(500);
+            }
+            _logger.LogWarning("WhatsApp:AppSecret not configured — webhook signature verification SKIPPED (Development only).");
         }
 
         // Deserialize the payload

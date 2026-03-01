@@ -11,6 +11,16 @@ namespace LeatherShopAPI.Services;
 
 public class OrderService : IOrderService
 {
+    /// <summary>Valid order status transitions — defined once, reused per call.</summary>
+    private static readonly Dictionary<OrderStatus, OrderStatus[]> ValidStatusTransitions = new()
+    {
+        [OrderStatus.Pending] = new[] { OrderStatus.Confirmed, OrderStatus.Cancelled },
+        [OrderStatus.Confirmed] = new[] { OrderStatus.Shipped, OrderStatus.Cancelled },
+        [OrderStatus.Shipped] = new[] { OrderStatus.Delivered, OrderStatus.Cancelled },
+        [OrderStatus.Delivered] = Array.Empty<OrderStatus>(),
+        [OrderStatus.Cancelled] = Array.Empty<OrderStatus>()
+    };
+
     private readonly AppDbContext _db;
     private readonly IWhatsAppService _whatsApp;
     private readonly IHubContext<NotificationHub> _hubContext;
@@ -75,16 +85,8 @@ public class OrderService : IOrderService
 
         // Validate status transitions — prevent invalid state changes
         var previousStatus = order.Status;
-        var validTransitions = new Dictionary<OrderStatus, OrderStatus[]>
-        {
-            [OrderStatus.Pending] = new[] { OrderStatus.Confirmed, OrderStatus.Cancelled },
-            [OrderStatus.Confirmed] = new[] { OrderStatus.Shipped, OrderStatus.Cancelled },
-            [OrderStatus.Shipped] = new[] { OrderStatus.Delivered, OrderStatus.Cancelled },
-            [OrderStatus.Delivered] = Array.Empty<OrderStatus>(),
-            [OrderStatus.Cancelled] = Array.Empty<OrderStatus>()
-        };
 
-        if (!validTransitions.TryGetValue(previousStatus, out var allowed) || !allowed.Contains(status))
+        if (!ValidStatusTransitions.TryGetValue(previousStatus, out var allowed) || !allowed.Contains(status))
         {
             _logger.LogWarning("Invalid order status transition: {From} -> {To} for order {OrderId}", previousStatus, status, id);
             return UpdateStatusResult.InvalidTransition;

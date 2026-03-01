@@ -241,7 +241,7 @@ public class WhatsAppService : IWhatsAppService
         }
 
         var url = $"https://graph.facebook.com/{ApiVersion}/{wabaId}/message_templates?status=APPROVED&limit=100";
-        var response = await _httpClient.GetAsync(url);
+        using var response = await _httpClient.GetAsync(url);
         var body = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode)
@@ -273,12 +273,12 @@ public class WhatsAppService : IWhatsAppService
     private async Task SendRequest(object payload)
     {
         var json = JsonSerializer.Serialize(payload, _jsonOptions);
-        _logger.LogInformation("WhatsApp API Request: {Json}", json);
+        _logger.LogDebug("WhatsApp API Request: {Json}", json);
 
         for (int attempt = 0; attempt <= RateLimitMaxRetries; attempt++)
         {
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var response = await _httpClient.PostAsync(BaseUrl, content);
+            using var response = await _httpClient.PostAsync(BaseUrl, content);
             var responseBody = await response.Content.ReadAsStringAsync();
 
             if (response.IsSuccessStatusCode)

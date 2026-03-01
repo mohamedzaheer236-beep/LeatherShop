@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { BroadcastService } from '../../features/broadcast/services/broadcast.service';
 import { WhatsAppTemplate } from '../../features/broadcast/models/broadcast.model';
 
@@ -23,6 +24,7 @@ export class TemplateLoaderService {
   };
 
   private loaded = false;
+  private loadSub?: Subscription;
 
   constructor(private broadcastService: BroadcastService) {}
 
@@ -35,8 +37,11 @@ export class TemplateLoaderService {
     // Prevent duplicate concurrent HTTP requests
     if (this.state.loadingTemplates && !forceReload) return;
 
+    // Cancel any in-flight request on forceReload to prevent stale data race
+    this.loadSub?.unsubscribe();
+
     this.state.loadingTemplates = true;
-    this.broadcastService.getApprovedTemplates().subscribe({
+    this.loadSub = this.broadcastService.getApprovedTemplates().subscribe({
       next: (data) => {
         this.state.templates = data;
         this.state.templateOptions = data.map(t => ({

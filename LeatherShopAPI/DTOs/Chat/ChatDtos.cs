@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace LeatherShopAPI.DTOs.Chat;
 
 /// <summary>One conversation row in the chat list (per customer).</summary>
@@ -28,6 +30,8 @@ public class ChatMessageDto
 /// <summary>Admin sends a manual message.</summary>
 public class SendMessageDto
 {
+    [Required(ErrorMessage = "Message is required.")]
+    [MinLength(1, ErrorMessage = "Message cannot be empty.")]
     public string Message { get; set; } = string.Empty;
 }
 
