@@ -72,8 +72,26 @@ export class SignalRService implements OnDestroy {
       this.hubConnection = null; // allow start() to create a new connection
     });
 
-    this.hubConnection.start()
-      .catch(() => { /* connection error handled by reconnect policy */ });
+    this.startWithRetry();
+  }
+
+  /**
+   * Attempts initial SignalR connection with retry.
+   * withAutomaticReconnect only handles drops AFTER a successful connection.
+   * This handles the case where the hub is unreachable at login time.
+   */
+  private startWithRetry(attempt = 0): void {
+    const maxRetries = 5;
+    const delays = [0, 2000, 5000, 10000, 30000];
+
+    this.hubConnection?.start()
+      .catch(() => {
+        if (attempt < maxRetries && this.hubConnection) {
+          const delay = delays[Math.min(attempt, delays.length - 1)];
+          setTimeout(() => this.startWithRetry(attempt + 1), delay);
+        }
+        // After max retries, give up silently — user can refresh the page
+      });
   }
 
   /** Stop the connection (call on logout). Returns a Promise so callers can await completion. */

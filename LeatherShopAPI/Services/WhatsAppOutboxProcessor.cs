@@ -185,7 +185,6 @@ public sealed class WhatsAppOutboxProcessor : BackgroundService
                 message.NextRetryAt = DateTime.UtcNow.AddSeconds(delaySec);
                 await db.SaveChangesAsync();
 
-                var level = ex is WhatsAppApiException ? LogLevel.Warning : LogLevel.Warning;
                 _logger.LogWarning(ex,
                     "Outbox: message {Id} failed (attempt {Attempt}/{Max}), next retry in {Delay}s — {Context}",
                     message.Id, message.RetryCount, message.MaxRetries, delaySec, message.Context);

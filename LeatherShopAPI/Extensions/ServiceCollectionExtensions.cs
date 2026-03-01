@@ -20,7 +20,7 @@ public static class ServiceCollectionExtensions
         if (!string.IsNullOrEmpty(databaseUrl))
         {
             var uri = new Uri(databaseUrl);
-            var userInfo = uri.UserInfo.Split(':');
+            var userInfo = uri.UserInfo.Split(':', 2); // Limit to 2 parts — passwords may contain ':'
             connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
         }
 

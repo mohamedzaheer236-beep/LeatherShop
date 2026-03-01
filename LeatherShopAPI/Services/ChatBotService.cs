@@ -228,7 +228,12 @@ public class ChatBotService : IChatBotService
             // ---- SELECTED A CATEGORY ----
             if (input.StartsWith("cat_"))
             {
-                var category = input.Replace("cat_", "").Replace("_", " ");
+                var category = input["cat_".Length..].Replace("_", " ");
+                if (string.IsNullOrWhiteSpace(category))
+                {
+                    await BotSendText(phone, "Invalid category. Type *menu* to browse our options.");
+                    return;
+                }
                 await SendProductsInCategory(phone, category);
                 return;
             }

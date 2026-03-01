@@ -40,8 +40,11 @@ public class ExceptionHandlingMiddleware
             ArgumentException => (HttpStatusCode.BadRequest, exception.Message),
             InvalidOperationException => (HttpStatusCode.Conflict, exception.Message),
             UnauthorizedAccessException => (HttpStatusCode.Unauthorized, "Unauthorized access."),
-            _ => (HttpStatusCode.InternalServerError, "An unexpected error occurred.")
+            _ => (HttpStatusCode.InternalServerError, "An unexpected error occurred. Please try again later.")
         };
+
+        // For non-domain exceptions (500), never leak internal details to the client.
+        // Domain exceptions (KeyNotFound, Argument, InvalidOp) are thrown by our code with safe messages.
 
         _logger.LogError(exception, "Unhandled exception: {Message}", exception.Message);
 

@@ -123,10 +123,10 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+    await db.Database.MigrateAsync();
 
     // Seed default admin if no admin users exist
-    if (!db.AdminUsers.Any())
+    if (!await db.AdminUsers.AnyAsync())
     {
         var adminPassword = app.Configuration["Admin:SeedPassword"];
         if (string.IsNullOrWhiteSpace(adminPassword))
@@ -134,13 +134,13 @@ using (var scope = app.Services.CreateScope())
                 "Admin:SeedPassword is not configured but no admin users exist in the database. " +
                 "Set it in appsettings.Local.json or via Admin__SeedPassword environment variable.");
 
-        db.AdminUsers.Add(new LeatherShopAPI.Models.AdminUser
+        await db.AdminUsers.AddAsync(new LeatherShopAPI.Models.AdminUser
         {
             Username = "Admin",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword),
             CreatedAt = DateTime.UtcNow
         });
-        db.SaveChanges();
+        await db.SaveChangesAsync();
         Console.WriteLine("\u2705 Default admin user seeded.");
     }
 }

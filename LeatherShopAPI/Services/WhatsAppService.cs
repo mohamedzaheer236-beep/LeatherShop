@@ -277,7 +277,7 @@ public class WhatsAppService : IWhatsAppService
 
         for (int attempt = 0; attempt <= RateLimitMaxRetries; attempt++)
         {
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
             using var response = await _httpClient.PostAsync(BaseUrl, content);
             var responseBody = await response.Content.ReadAsStringAsync();
 
