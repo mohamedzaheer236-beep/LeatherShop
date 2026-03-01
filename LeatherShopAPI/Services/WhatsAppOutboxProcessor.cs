@@ -84,29 +84,51 @@ public sealed class WhatsAppOutboxProcessor : BackgroundService
     /// </summary>
     private async Task ProcessPendingMessagesAsync(CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var whatsApp = scope.ServiceProvider.GetRequiredService<IWhatsAppService>();
+        // ── 1. Query phase: fetch IDs of due messages ──
+        List<int> dueMessageIds;
+        using (var queryScope = _scopeFactory.CreateScope())
+        {
+            var queryDb = queryScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var now = DateTime.UtcNow;
 
-        var now = DateTime.UtcNow;
+            dueMessageIds = await queryDb.WhatsAppOutboxMessages
+                .Where(m => m.Status == OutboxMessageStatus.Pending
+                            && (m.NextRetryAt == null || m.NextRetryAt <= now))
+                .OrderBy(m => m.CreatedAt) // FIFO — oldest first
+                .Take(BatchSize)
+                .Select(m => m.Id)
+                .ToListAsync(ct);
+        }
 
-        // Fetch messages that are: Pending AND (never tried OR due for retry)
-        var dueMessages = await db.WhatsAppOutboxMessages
-            .Where(m => m.Status == OutboxMessageStatus.Pending
-                        && (m.NextRetryAt == null || m.NextRetryAt <= now))
-            .OrderBy(m => m.CreatedAt) // FIFO — oldest first
-            .Take(BatchSize)
-            .ToListAsync(ct);
-
-        if (dueMessages.Count == 0)
+        if (dueMessageIds.Count == 0)
             return;
 
-        _logger.LogInformation("WhatsAppOutboxProcessor found {Count} due message(s)", dueMessages.Count);
+        _logger.LogInformation("WhatsAppOutboxProcessor found {Count} due message(s)", dueMessageIds.Count);
 
-        foreach (var message in dueMessages)
+        // ── 2. Process phase: each message gets its own scope (isolated DbContext) ──
+        // This ensures a failed SaveChangesAsync for one message doesn't leak dirty
+        // entity state into the next message's DbContext.
+        foreach (var messageId in dueMessageIds)
         {
             if (ct.IsCancellationRequested) break;
-            await ProcessSingleMessageAsync(db, whatsApp, message);
+            try
+            {
+                using var messageScope = _scopeFactory.CreateScope();
+                var db = messageScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var whatsApp = messageScope.ServiceProvider.GetRequiredService<IWhatsAppService>();
+
+                var message = await db.WhatsAppOutboxMessages.FindAsync([messageId], ct);
+                if (message == null || message.Status != OutboxMessageStatus.Pending)
+                    continue; // Already processed by another instance or manually resolved
+
+                await ProcessSingleMessageAsync(db, whatsApp, message);
+            }
+            catch (Exception ex)
+            {
+                // Catch any unexpected error (e.g. SaveChangesAsync failure inside ProcessSingleMessageAsync)
+                // so remaining messages in this batch are still processed.
+                _logger.LogError(ex, "Outbox: unhandled error processing message {Id}, skipping to next", messageId);
+            }
         }
     }
 

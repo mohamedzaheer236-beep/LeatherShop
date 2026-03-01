@@ -34,7 +34,7 @@ public sealed class BroadcastChannel
 ///   - Channel<int> carries just the BroadcastId as an immediate trigger
 ///   - On startup, polls DB for incomplete broadcasts (Pending/Processing) and resumes them
 ///   - Processed phones tracked in DB so restarts resume precisely (no duplicates)
-///   - Uses SemaphoreSlim for controlled concurrency (10 parallel sends)
+///   - Uses .Chunk(BatchSize) + Task.WhenAll for controlled concurrency (10 parallel sends)
 ///   - Progress saved every 50 messages to DB
 ///
 /// Why this survives Railway restarts:
@@ -224,10 +224,33 @@ public sealed class BroadcastBackgroundService : BackgroundService
 
             // Throttle: pause between batches to avoid Meta per-second rate limit
             if (!ct.IsCancellationRequested)
-                await Task.Delay(BatchDelayMs, ct).ConfigureAwait(false);
+            {
+                try
+                {
+                    await Task.Delay(BatchDelayMs, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Shutdown requested during delay — save progress and exit gracefully
+                    await SaveProgressAsync(broadcastId, Volatile.Read(ref sent), Volatile.Read(ref failed), processedPhones);
+                    _logger.LogWarning("Broadcast {BroadcastId} interrupted by shutdown during delay. Progress saved.", broadcastId);
+                    return;
+                }
+            }
         }
 
-        // ── 4. Final save: mark completed ──
+        // ── 4. Final save ──
+        // If we broke out of the loop due to cancellation, save progress (not completed)
+        if (ct.IsCancellationRequested)
+        {
+            await SaveProgressAsync(broadcastId, sent, failed, processedPhones);
+            _logger.LogWarning(
+                "Broadcast {BroadcastId} interrupted by shutdown after batch loop. Progress saved. Will resume on restart.",
+                broadcastId);
+            return;
+        }
+
+        // Normal completion — mark done
         await MarkCompletedAsync(broadcastId, sent, failed, processedPhones);
 
         _logger.LogInformation(

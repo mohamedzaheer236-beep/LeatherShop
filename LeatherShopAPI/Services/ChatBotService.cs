@@ -888,6 +888,17 @@ public class ChatBotService : IChatBotService
             }
         }
 
+        // Pre-flight: verify we can generate a payment link BEFORE creating the order
+        var baseUrl = GetPublicBaseUrl();
+        if (string.IsNullOrEmpty(baseUrl))
+        {
+            _logger.LogError("Cannot generate payment link — App:BaseUrl is not configured and RAILWAY_PUBLIC_DOMAIN is not set");
+            await BotSendText(to, "❌ Sorry, we couldn't generate a payment link right now. Please contact us directly to complete your order.");
+            customer.PendingAction = null;
+            await _db.SaveChangesAsync();
+            return;
+        }
+
         // Create order
         decimal total = cartItems.Sum(ci => ci.Product.Price * ci.Quantity);
         var order = new Order
@@ -917,16 +928,6 @@ public class ChatBotService : IChatBotService
         // Clear cart
         _db.CartItems.RemoveRange(cartItems);
 
-        // Generate payment link
-        var baseUrl = GetPublicBaseUrl();
-        if (string.IsNullOrEmpty(baseUrl))
-        {
-            _logger.LogError("Cannot generate payment link — App:BaseUrl is not configured and RAILWAY_PUBLIC_DOMAIN is not set");
-            await BotSendText(to, "❌ Sorry, we couldn't generate a payment link right now. Please contact us directly to complete your order.");
-            customer.PendingAction = null;
-            await _db.SaveChangesAsync();
-            return;
-        }
         var paymentUrl = $"{baseUrl}/api/payment/pay/{order.Id}";
 
         var orderSummary = $"✅ *Order Placed!*\n\n" +
