@@ -44,8 +44,11 @@ export class TemplateLoaderService {
     this.loadSub = this.broadcastService.getApprovedTemplates().subscribe({
       next: (data) => {
         this.state.templates = data;
-        this.state.templateOptions = data.map(t => ({
-          label: `${t.name} (${t.language}) - ${t.category}`,
+        // Only show MARKETING templates in broadcast dropdown — UTILITY templates
+        // (e.g., order_update) are for transactional messages, not broadcasts
+        const marketingTemplates = data.filter(t => t.category === 'MARKETING');
+        this.state.templateOptions = marketingTemplates.map(t => ({
+          label: `${t.name} (${t.language})`,
           value: t.name
         }));
         this.state.templatesLoaded = true;
