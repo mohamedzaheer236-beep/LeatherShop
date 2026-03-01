@@ -11,11 +11,13 @@ import { Subscription } from 'rxjs';
 import { ChatService } from '../../services/chat.service';
 import { Conversation, ChatMessage } from '../../models/chat.model';
 import { SignalRService } from '../../../../core/services/signalr.service';
+import { FormatMessagePipe } from '../../../../shared/pipes/format-message.pipe';
+import { ConversationTimePipe, MessageTimePipe } from '../../../../shared/pipes/time.pipes';
 
 @Component({
   selector: 'app-chat-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, InputTextModule, ButtonModule, BadgeModule, TooltipModule, ProgressSpinnerModule, DialogModule],
+  imports: [CommonModule, FormsModule, InputTextModule, ButtonModule, BadgeModule, TooltipModule, ProgressSpinnerModule, DialogModule, FormatMessagePipe, ConversationTimePipe, MessageTimePipe],
   templateUrl: './chat-page.component.html',
   styleUrl: './chat-page.component.scss'
 })
@@ -248,30 +250,6 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.deletingConversation = false;
       }
     });
-  }
-
-  formatMessage(content: string): string {
-    // Convert *bold* to <strong>bold</strong> and preserve newlines
-    return content
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/\*([^*]+)\*/g, '<strong>$1</strong>')
-      .replace(/\n/g, '<br>');
-  }
-
-  formatTime(timestamp: string): string {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000);
-    if (diffDays === 0) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return date.toLocaleDateString([], { weekday: 'short' });
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-  }
-
-  formatMessageTime(timestamp: string): string {
-    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
   trackByConversation(_index: number, conv: Conversation): number {

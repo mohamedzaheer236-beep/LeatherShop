@@ -58,42 +58,47 @@ public class PaymentService : IPaymentService
 
     public async Task<PaymentVerifyResultDto?> VerifyPaymentAsync(PaymentVerifyDto dto)
     {
-        if (!int.TryParse(dto.OrderId, out var orderId))
+        // Look up order by OrderNumber (the payment page now sends OrderNumber, not integer ID)
+        Order? order;
+        if (int.TryParse(dto.OrderId, out var orderId))
         {
-            // OrderId field now carries OrderNumber (string), look up by OrderNumber
-            var orderByNumber = await _db.Orders.Include(o => o.Customer)
-                .FirstOrDefaultAsync(o => o.OrderNumber == dto.OrderId);
-            if (orderByNumber == null) return null;
-            orderId = orderByNumber.Id;
-        }
-
-        var order = await _db.Orders.Include(o => o.Customer).FirstOrDefaultAsync(o => o.Id == orderId);
-        if (order == null) return null;
-
-        // Verify Razorpay payment signature
-        var razorpaySecret = _config["Razorpay:KeySecret"] ?? "";
-        if (!string.IsNullOrEmpty(razorpaySecret))
-        {
-            // KeySecret is configured — signature verification is MANDATORY
-            if (string.IsNullOrEmpty(dto.Signature) || string.IsNullOrEmpty(dto.RazorpayOrderId))
-            {
-                _logger.LogWarning("Payment verification rejected: missing signature or RazorpayOrderId for order {OrderId}", orderId);
-                return null;
-            }
-
-            var payload = $"{dto.RazorpayOrderId}|{dto.PaymentId}";
-            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(razorpaySecret));
-            var computedHash = BitConverter.ToString(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)))
-                .Replace("-", "").ToLowerInvariant();
-            if (computedHash != dto.Signature)
-            {
-                _logger.LogWarning("Razorpay signature mismatch for order {OrderId}. Possible tampering.", orderId);
-                return null;
-            }
+            // Legacy path: integer ID
+            order = await _db.Orders.Include(o => o.Customer).FirstOrDefaultAsync(o => o.Id == orderId);
         }
         else
         {
-            _logger.LogWarning("Razorpay:KeySecret not configured — signature verification SKIPPED for order {OrderId}. Set Razorpay:KeySecret in appsettings for production.", orderId);
+            // Current path: OrderNumber string
+            order = await _db.Orders.Include(o => o.Customer).FirstOrDefaultAsync(o => o.OrderNumber == dto.OrderId);
+        }
+
+        if (order == null) return null;
+
+        // Verify Razorpay payment signature — MANDATORY in production
+        var razorpaySecret = _config["Razorpay:KeySecret"];
+        if (string.IsNullOrEmpty(razorpaySecret))
+        {
+            _logger.LogError("Razorpay:KeySecret is not configured — payment verification REJECTED for order {OrderId}. " +
+                "Configure Razorpay:KeySecret to enable payment processing.", order.Id);
+            return null; // REJECT — never mark as paid without signature verification
+        }
+
+        if (string.IsNullOrEmpty(dto.Signature) || string.IsNullOrEmpty(dto.RazorpayOrderId))
+        {
+            _logger.LogWarning("Payment verification rejected: missing signature or RazorpayOrderId for order {OrderId}", order.Id);
+            return null;
+        }
+
+        var payload = $"{dto.RazorpayOrderId}|{dto.PaymentId}";
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(razorpaySecret));
+        var computedHash = BitConverter.ToString(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)))
+            .Replace("-", "").ToLowerInvariant();
+
+        if (!CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(computedHash),
+                Encoding.UTF8.GetBytes(dto.Signature ?? "")))
+        {
+            _logger.LogWarning("Razorpay signature mismatch for order {OrderId}. Possible tampering.", order.Id);
+            return null;
         }
 
         order.PaymentId = dto.PaymentId;
@@ -116,7 +121,7 @@ public class PaymentService : IPaymentService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to send WhatsApp payment notification for order {OrderId}", orderId);
+            _logger.LogWarning(ex, "Failed to send WhatsApp payment notification for order {OrderId}", order.Id);
         }
 
         // Notify shop owner via WhatsApp (best-effort)
@@ -136,7 +141,7 @@ public class PaymentService : IPaymentService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to send owner WhatsApp notification for order {OrderId}", orderId);
+            _logger.LogWarning(ex, "Failed to send owner WhatsApp notification for order {OrderId}", order.Id);
         }
 
         // Push real-time notification to admin dashboard via SignalR
@@ -153,7 +158,7 @@ public class PaymentService : IPaymentService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to push SignalR order notification for order {OrderId}", orderId);
+            _logger.LogWarning(ex, "Failed to push SignalR order notification for order {OrderId}", order.Id);
         }
 
         return new PaymentVerifyResultDto

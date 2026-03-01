@@ -952,7 +952,23 @@ public class ChatBotService : IChatBotService
         _db.WhatsAppOutboxMessages.Add(outboxMessage);
 
         // Single atomic commit: order + stock reduction + cart clear + outbox message
-        await _db.SaveChangesAsync();
+        // If another concurrent request modified the same product (stock conflict),
+        // DbUpdateConcurrencyException is thrown — see retry logic below.
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            _logger.LogWarning("Stock concurrency conflict while placing order for customer {CustomerId}. Another order was competing for the same products.", customer.Id);
+            // Detach conflicting entities and inform the customer to retry
+            foreach (var entry in _db.ChangeTracker.Entries())
+            {
+                entry.State = EntityState.Detached;
+            }
+            await BotSendText(to, "⚠️ Sorry, another order was placed at the same time for the same product. Please try placing your order again — your cart is still intact.");
+            return;
+        }
 
         // Try to send immediately (fast path — avoids waiting for the 10s poll cycle).
         // If this succeeds, mark the outbox row as Sent right away.

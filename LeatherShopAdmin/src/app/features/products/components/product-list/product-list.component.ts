@@ -9,7 +9,7 @@ import { LoadingSpinnerComponent } from '../../../../shared/components/loading-s
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
-import { DropdownModule } from 'primeng/dropdown';
+import { Dropdown, DropdownModule } from 'primeng/dropdown';
 import { TagModule } from 'primeng/tag';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService } from 'primeng/api';
@@ -32,8 +32,8 @@ export class ProductListComponent implements OnInit {
   errorMessage: string | null = null;
   filterForm!: FormGroup;
 
-  @ViewChild('catDropdown') catDropdown: any;
-  @ViewChild('brandDropdown') brandDropdown: any;
+  @ViewChild('catDropdown') catDropdown!: Dropdown;
+  @ViewChild('brandDropdown') brandDropdown!: Dropdown;
 
   constructor(
     private fb: FormBuilder,
@@ -62,7 +62,7 @@ export class ProductListComponent implements OnInit {
   }
 
   /** Clear the filter text inside a dropdown's search input */
-  clearDropdownFilter(dropdown: any): void {
+  clearDropdownFilter(dropdown: Dropdown): void {
     if (dropdown?.filterValue) {
       dropdown.filterValue = '';
       dropdown.filterBy = 'label';
@@ -71,7 +71,7 @@ export class ProductListComponent implements OnInit {
   }
 
   /** Set id/name on PrimeNG's internal filter input (fixes Chrome DevTools warning) */
-  onDropdownShow(dropdown: any, filterId: string): void {
+  onDropdownShow(dropdown: Dropdown, filterId: string): void {
     const filterInput = dropdown?.filterViewChild?.nativeElement;
     if (filterInput) {
       this.renderer.setAttribute(filterInput, 'id', filterId);

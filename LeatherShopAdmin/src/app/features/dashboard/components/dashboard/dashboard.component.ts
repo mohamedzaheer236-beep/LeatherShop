@@ -25,6 +25,16 @@ export class DashboardComponent implements OnInit {
   constructor(private dashboardService: DashboardService) {}
 
   ngOnInit(): void {
+    this.loadDashboard();
+  }
+
+  retry(): void {
+    this.loading = true;
+    this.errorMessage = null;
+    this.loadDashboard();
+  }
+
+  private loadDashboard(): void {
     this.dashboardService.getDashboard().subscribe({
       next: (data) => {
         this.dashboard = data;
@@ -35,12 +45,6 @@ export class DashboardComponent implements OnInit {
         this.loading = false;
       }
     });
-  }
-
-  retry(): void {
-    this.loading = true;
-    this.errorMessage = null;
-    this.ngOnInit();
   }
 
   getSeverity(status: string): TagSeverity {

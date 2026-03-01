@@ -32,6 +32,8 @@ export class TemplateLoaderService {
 
   loadTemplates(forceReload = false): void {
     if (this.loaded && !forceReload) return;
+    // Prevent duplicate concurrent HTTP requests
+    if (this.state.loadingTemplates && !forceReload) return;
 
     this.state.loadingTemplates = true;
     this.broadcastService.getApprovedTemplates().subscribe({

@@ -3,6 +3,7 @@ using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Chat;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
+using static LeatherShopAPI.Extensions.SqlHelper;
 
 namespace LeatherShopAPI.Services;
 
@@ -23,11 +24,12 @@ public class ChatService : IChatService
 
     public async Task<List<ConversationDto>> GetConversationsAsync(string? search)
     {
-        var query = _db.Customers.AsQueryable();
+        var query = _db.Customers.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            query = query.Where(c => EF.Functions.ILike(c.Name, $"%{search}%") || c.PhoneNumber.Contains(search));
+            var escaped = EscapeLikePattern(search);
+            query = query.Where(c => EF.Functions.ILike(c.Name, $"%{escaped}%") || c.PhoneNumber.Contains(search));
         }
 
         // Single query: project all conversation data in the DB — eliminates N+1 per-customer queries

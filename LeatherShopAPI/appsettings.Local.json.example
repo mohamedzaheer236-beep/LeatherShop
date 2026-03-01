@@ -11,7 +11,8 @@
     "PhoneNumberId": "YOUR_WHATSAPP_PHONE_NUMBER_ID",
     "BusinessAccountId": "YOUR_WHATSAPP_BUSINESS_ACCOUNT_ID",
     "AccessToken": "YOUR_WHATSAPP_ACCESS_TOKEN",
-    "VerifyToken": "YOUR_WEBHOOK_VERIFY_TOKEN"
+    "VerifyToken": "YOUR_WEBHOOK_VERIFY_TOKEN",
+    "AppSecret": "YOUR_WHATSAPP_APP_SECRET_FROM_META_DASHBOARD"
   },
   "Razorpay": {
     "KeyId": "rzp_test_xxxxx",

@@ -1679,3 +1679,29 @@ Resolved all Railway startup warnings and remaining NuGet vulnerability. **Build
 | PrimeNG Internal API Access | Already guarded with null checks. `filterViewChild`, `filterValue` are borderline public API in PrimeNG v17. |
 | Server-side Pagination (Products) | Small dataset (leather shop). Touches 8+ files per feature (service, interface, controller, frontend service, component, template, model, routes). |
 | Server-side Pagination (Customers) | Same reasoning as products. Client-side pagination adequate for current scale. |
+
+---
+
+### Phase 18 — Final Deep Audit Fixes (F115–F131)
+
+A comprehensive line-by-line audit of every backend and frontend file. All CRITICAL, HIGH, and MEDIUM proper-approach issues resolved.
+
+| ID | Category | Summary | Files Changed |
+|----|----------|---------|---------------|
+| F115 | **CRITICAL — Security** | WhatsApp webhook HMAC-SHA256 signature verification | `WhatsAppWebhookController.cs`, `appsettings.json`, `appsettings.Local.json.example` |
+| F116 | **CRITICAL — Security** | Payment verification now REJECTS when `Razorpay:KeySecret` not configured (was silently marking as paid) | `PaymentService.cs` |
+| F117 | **CRITICAL — Data Integrity** | Stock optimistic concurrency via PostgreSQL `xmin` + `[Timestamp]` — prevents overselling on concurrent orders | `Product.cs`, `AppDbContext.cs`, `ChatBotService.cs` |
+| F118 | **HIGH — Performance** | Payment double-fetch eliminated — single query lookup by OrderNumber or ID | `PaymentService.cs` |
+| F119 | **HIGH — Performance** | `AsNoTracking()` on all read-only queries across 5 services | `OrderService.cs`, `ProductService.cs`, `CustomerService.cs`, `ChatService.cs` |
+| F120 | **HIGH — Anti-pattern** | Dashboard `retry()` no longer calls `ngOnInit()` directly — extracted `loadDashboard()` | `dashboard.component.ts` |
+| F121 | **HIGH — Security** | Webhook verify token null guard — rejects if `WhatsApp:VerifyToken` not configured | `WhatsAppWebhookController.cs` |
+| F122 | **HIGH — Performance** | Pure pipes replace template method calls (3 pipes: `FormatMessagePipe`, `TimeAgoPipe/ConversationTimePipe/MessageTimePipe`) | `format-message.pipe.ts` (new), `time.pipes.ts` (new), `chat-page.component.*`, `navbar.component.*` |
+| F123 | **HIGH — Feature Gap** | New customer first message now pushes to SignalR (both `ReceiveMessage` to chat group and `NewChatMessage` to admins) | `WhatsAppWebhookController.cs` |
+| F124 | **HIGH — Race Condition** | Error interceptor module-level mutable flag replaced with `Router.url` check — eliminates 2s timeout race | `error.interceptor.ts` |
+| F125 | **HIGH — Race Condition** | `TemplateLoaderService` guard against duplicate concurrent HTTP requests | `template-loader.service.ts` |
+| F126 | **HIGH — Type Safety** | `BulkImportResult` interface + proper return type for `bulkImportCustomers()` | `customer.model.ts`, `customer.service.ts`, `customers.component.ts` |
+| F127 | **MEDIUM — SQL Injection** | ILike wildcard escaping — `%` and `_` in search input no longer act as SQL wildcards | `SqlHelper.cs` (new), `CustomerService.cs`, `ProductService.cs`, `ChatService.cs` |
+| F128 | **MEDIUM — Validation** | ChatController `page`/`pageSize` clamped (page≥1, 1≤pageSize≤100) | `ChatController.cs` |
+| F129 | **MEDIUM — Validation** | Bulk import size limit: max 1000 customers per import | `CustomerService.cs` |
+| F130 | **MEDIUM — Type Safety** | Removed all `any` types: `Dropdown` for ViewChild/params, `PaginatorState` for page events, `Event` + `HTMLInputElement` for file input | `product-list.component.ts`, `product-form.component.ts`, `orders.component.ts` |
+| F131 | **MEDIUM — Warning** | Removed deprecated `UseXminAsConcurrencyToken()` — `[Timestamp]` attribute is sufficient for Npgsql | `AppDbContext.cs` |

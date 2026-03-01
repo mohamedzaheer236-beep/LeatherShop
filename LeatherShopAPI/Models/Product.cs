@@ -33,6 +33,14 @@ public class Product
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// PostgreSQL xmin system column — used as an optimistic concurrency token.
+    /// EF Core checks this on SaveChanges to prevent lost updates (e.g., stock overselling).
+    /// Mapped via UseXminAsConcurrencyToken() in AppDbContext.OnModelCreating.
+    /// </summary>
+    [Timestamp]
+    public uint RowVersion { get; set; }
+
     // Navigation — additional product images
     public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
 }

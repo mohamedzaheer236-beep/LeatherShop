@@ -10,7 +10,7 @@ import {
   ValidationErrors
 } from '@angular/forms';
 import { CustomerService } from '../../services/customer.service';
-import { Customer, CreateCustomer, UpdateCustomer } from '../../models/customer.model';
+import { Customer, CreateCustomer, UpdateCustomer, BulkImportResult } from '../../models/customer.model';
 import { BroadcastService } from '../../../broadcast/services/broadcast.service';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { TemplateLoaderService } from '../../../../shared/services/template-loader.service';
@@ -358,7 +358,7 @@ export class CustomersComponent implements OnInit {
 
     this.importing = true;
     this.customerService.bulkImportCustomers(validCustomers).subscribe({
-      next: (res: any) => {
+      next: (res) => {
         this.notification.success(`Imported ${res.imported} customers (${res.skippedDuplicates} duplicates skipped)`);
         this.importing = false;
         this.showImportDialog = false;
@@ -416,7 +416,7 @@ export class CustomersComponent implements OnInit {
       parameters: params, imageUrl: broadcastImageUrl || undefined,
       phoneNumbers: phoneNumbers
     }).subscribe({
-      next: (res: any) => {
+      next: (res) => {
         this.sendingBroadcast = false;
         this.showBroadcastDialog = false;
         this.notification.success(`Broadcast sent to ${res.totalRecipients} selected customers!`);

@@ -4,6 +4,7 @@ using LeatherShopAPI.DTOs.Customer;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Extensions;
 using LeatherShopAPI.Services.Interfaces;
+using static LeatherShopAPI.Extensions.SqlHelper;
 
 namespace LeatherShopAPI.Services;
 
@@ -22,13 +23,16 @@ public class CustomerService : ICustomerService
 
     public async Task<List<CustomerListDto>> GetAllAsync(bool? subscribedOnly, string? search)
     {
-        var query = _db.Customers.AsQueryable();
+        var query = _db.Customers.AsNoTracking().AsQueryable();
 
         if (subscribedOnly == true)
             query = query.Where(c => c.IsSubscribed);
 
         if (!string.IsNullOrEmpty(search))
-            query = query.Where(c => c.PhoneNumber.Contains(search) || EF.Functions.ILike(c.Name, $"%{search}%"));
+        {
+            var escaped = EscapeLikePattern(search);
+            query = query.Where(c => c.PhoneNumber.Contains(search) || EF.Functions.ILike(c.Name, $"%{escaped}%"));
+        }
 
         return await query.OrderByDescending(c => c.CreatedAt)
             .Select(c => new CustomerListDto
@@ -98,6 +102,9 @@ public class CustomerService : ICustomerService
     {
         if (dto.Customers == null || !dto.Customers.Any())
             throw new ArgumentException("No customers provided");
+
+        if (dto.Customers.Count > 1000)
+            throw new ArgumentException("Maximum 1000 customers per import. Please split into smaller batches.");
 
         // Load all existing phone numbers into a HashSet to avoid N+1 queries
         var existingPhones = (await _db.Customers.Select(c => c.PhoneNumber).ToListAsync())

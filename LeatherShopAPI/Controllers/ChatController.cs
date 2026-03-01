@@ -30,6 +30,9 @@ public class ChatController : ControllerBase
     [HttpGet("{customerId:int}/messages")]
     public async Task<IActionResult> GetMessages(int customerId, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 50;
+
         var messages = await _chatService.GetMessagesAsync(customerId, page, pageSize);
         return Ok(ApiResponse<PaginatedResult<ChatMessageDto>>.Ok(messages));
     }

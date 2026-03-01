@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { Customer, CreateCustomer, UpdateCustomer } from '../models/customer.model';
+import { Customer, CreateCustomer, UpdateCustomer, BulkImportResult } from '../models/customer.model';
 import { ApiResponse } from '../../../core/models/api-response.model';
 import { environment } from '../../../../environments/environment';
 
@@ -32,8 +32,8 @@ export class CustomerService {
     return this.http.delete<ApiResponse<void>>(`${this.baseUrl}/${id}`);
   }
 
-  bulkImportCustomers(customers: CreateCustomer[]): Observable<Customer[]> {
-    return this.http.post<ApiResponse<Customer[]>>(`${this.baseUrl}/import`, { customers }).pipe(map(res => res.data));
+  bulkImportCustomers(customers: CreateCustomer[]): Observable<BulkImportResult> {
+    return this.http.post<ApiResponse<BulkImportResult>>(`${this.baseUrl}/import`, { customers }).pipe(map(res => res.data));
   }
 
   toggleSubscription(id: number, isSubscribed: boolean): Observable<void> {

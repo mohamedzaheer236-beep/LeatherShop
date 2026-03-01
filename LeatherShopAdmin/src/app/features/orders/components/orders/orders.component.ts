@@ -1,5 +1,6 @@
 ﻿import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { PaginatorState } from 'primeng/paginator';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { OrderService } from '../../services/order.service';
 import { Order } from '../../models/order.model';
@@ -72,9 +73,9 @@ export class OrdersComponent implements OnInit {
     this.loadOrders();
   }
 
-  onPageChange(event: any): void {
-    this.currentPage = event.page + 1; // PrimeNG paginator is 0-based, our API is 1-based
-    this.pageSize = event.rows;
+  onPageChange(event: PaginatorState): void {
+    this.currentPage = (event.page ?? 0) + 1; // PrimeNG paginator is 0-based, our API is 1-based
+    this.pageSize = event.rows ?? this.pageSize;
     this.expandedOrderId = null; // Collapse any expanded order
     this.loadOrders();
   }

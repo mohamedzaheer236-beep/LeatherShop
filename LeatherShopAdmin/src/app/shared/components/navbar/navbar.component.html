@@ -28,7 +28,7 @@
             <div class="notification-content">
               <div class="notification-title">New Order #{{ n.orderNumber }}</div>
               <div class="notification-detail">{{ n.customerName }} — ₹{{ n.amount }}</div>
-              <div class="notification-time">{{ getTimeAgo(n.timestamp) }}</div>
+              <div class="notification-time">{{ n.timestamp | timeAgo }}</div>
             </div>
           </div>
         </div>

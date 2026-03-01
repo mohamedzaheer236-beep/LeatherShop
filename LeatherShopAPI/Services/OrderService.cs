@@ -28,8 +28,9 @@ public class OrderService : IOrderService
     public async Task<PaginatedResult<OrderDto>> GetAllAsync(string? status, int page = 1, int pageSize = 25)
     {
         var query = _db.Orders
+            .AsNoTracking()
             .Include(o => o.Customer)
-            .Include(o => o.OrderItems).ThenInclude(oi => oi.Product).ThenInclude(p => p.Images)
+            .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(status) && Enum.TryParse<OrderStatus>(status, true, out var orderStatus))

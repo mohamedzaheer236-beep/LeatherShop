@@ -20,3 +20,9 @@ export interface UpdateCustomer {
   address?: string;
   isSubscribed?: boolean;
 }
+
+export interface BulkImportResult {
+  message: string;
+  imported: number;
+  skippedDuplicates: number;
+}

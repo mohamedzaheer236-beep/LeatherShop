@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
@@ -47,6 +50,13 @@ public class WhatsAppWebhookController : ControllerBase
     {
         var verifyToken = _config["WhatsApp:VerifyToken"];
 
+        // Guard: reject if verify token is not configured (prevents null == null match)
+        if (string.IsNullOrEmpty(verifyToken))
+        {
+            _logger.LogError("WhatsApp:VerifyToken is not configured — cannot verify webhook");
+            return StatusCode(500);
+        }
+
         if (mode == "subscribe" && token == verifyToken)
         {
             _logger.LogInformation("Webhook verified successfully");
@@ -58,11 +68,59 @@ public class WhatsAppWebhookController : ControllerBase
     }
 
     [HttpPost("webhook")]
-    public async Task<IActionResult> ReceiveMessage([FromBody] WhatsAppWebhookPayload payload)
+    public async Task<IActionResult> ReceiveMessage()
     {
+        // --- Webhook Signature Verification ---
+        // Meta sends X-Hub-Signature-256 = "sha256=<HMAC>" on every webhook POST.
+        // We MUST verify this to prevent forged payloads from creating fake customers/orders.
+        var appSecret = _config["WhatsApp:AppSecret"];
+        if (!string.IsNullOrEmpty(appSecret))
+        {
+            Request.EnableBuffering();
+            var rawBody = await new StreamReader(Request.Body).ReadToEndAsync();
+            Request.Body.Position = 0; // rewind for deserialization below
+
+            var signatureHeader = Request.Headers["X-Hub-Signature-256"].FirstOrDefault();
+            if (string.IsNullOrEmpty(signatureHeader) || !signatureHeader.StartsWith("sha256="))
+            {
+                _logger.LogWarning("Webhook rejected: missing or malformed X-Hub-Signature-256 header");
+                return Unauthorized();
+            }
+
+            var expectedSignature = signatureHeader["sha256=".Length..];
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(appSecret));
+            var computedHash = BitConverter.ToString(hmac.ComputeHash(Encoding.UTF8.GetBytes(rawBody)))
+                .Replace("-", "").ToLowerInvariant();
+
+            if (!CryptographicOperations.FixedTimeEquals(
+                    Encoding.UTF8.GetBytes(computedHash),
+                    Encoding.UTF8.GetBytes(expectedSignature)))
+            {
+                _logger.LogWarning("Webhook rejected: X-Hub-Signature-256 mismatch — possible forged payload");
+                return Unauthorized();
+            }
+        }
+        else
+        {
+            _logger.LogWarning("WhatsApp:AppSecret not configured — webhook signature verification SKIPPED. Set WhatsApp:AppSecret for production security.");
+        }
+
+        // Deserialize the payload
+        WhatsAppWebhookPayload? payload;
         try
         {
-            if (payload.Entry == null) return Ok();
+            payload = await JsonSerializer.DeserializeAsync<WhatsAppWebhookPayload>(Request.Body,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Webhook rejected: invalid JSON payload");
+            return BadRequest();
+        }
+
+        try
+        {
+            if (payload?.Entry == null) return Ok();
 
             foreach (var entry in payload.Entry)
             {
@@ -149,15 +207,38 @@ public class WhatsAppWebhookController : ControllerBase
 
                             await _chatBot.ProcessMessage(from, contactName, message.Type, textBody, interactiveId, interactiveTitle);
 
-                            // Save first message for brand-new customers (customer created inside ProcessMessage)
+                            // Handle brand-new customers: ProcessMessage creates them internally.
+                            // We must save their first message AND push via SignalR so admins see it in real-time.
                             if (customer == null)
                             {
                                 var newCustomer = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone);
                                 if (newCustomer != null)
                                 {
-                                    await _chatService.SaveMessageAsync(
+                                    var savedFirstMsg = await _chatService.SaveMessageAsync(
                                         newCustomer.Id, MessageDirection.Incoming, incomingContent,
                                         string.IsNullOrEmpty(contactName) ? phone : contactName, false, message.Type);
+
+                                    // Push the first message to any admin who may have opened this chat
+                                    await _hubContext.Clients.Group($"chat_{newCustomer.Id}").SendAsync("ReceiveMessage", new ChatMessageDto
+                                    {
+                                        Id = savedFirstMsg.Id,
+                                        CustomerId = newCustomer.Id,
+                                        Direction = "Incoming",
+                                        MessageType = savedFirstMsg.MessageType,
+                                        Content = savedFirstMsg.Content,
+                                        SenderName = savedFirstMsg.SenderName,
+                                        IsFromBot = false,
+                                        Timestamp = savedFirstMsg.Timestamp
+                                    });
+
+                                    // Notify all admins about new conversation
+                                    await _hubContext.Clients.Group("admins").SendAsync("NewChatMessage", new
+                                    {
+                                        customerId = newCustomer.Id,
+                                        customerName = string.IsNullOrEmpty(newCustomer.Name) ? phone : newCustomer.Name,
+                                        content = incomingContent.Length > 80 ? incomingContent[..80] + "…" : incomingContent,
+                                        timestamp = DateTime.UtcNow
+                                    });
                                 }
                             }
                         }

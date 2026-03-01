@@ -1,5 +1,6 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { Router, NavigationEnd } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { NotificationService } from '../../shared/services/notification.service';
 import { AuthService } from '../services/auth.service';
@@ -8,25 +9,23 @@ import { SignalRService } from '../services/signalr.service';
 /**
  * HTTP error interceptor — catches all API errors and shows toast notifications.
  * On 401, clears auth state and redirects to login.
- * Registered in app.config.ts via withInterceptors([]).
+ * Uses Router navigation state (not a module-level flag) to prevent concurrent logout races.
  */
-let isLoggingOut = false;
-
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const notification = inject(NotificationService);
   const auth = inject(AuthService);
   const signalR = inject(SignalRService);
+  const router = inject(Router);
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
-      // On 401, redirect to login (skip if already on login page, prevent concurrent logouts)
+      // On 401, redirect to login (skip if already on login page or navigation already in progress)
       if (error.status === 401 && !req.url.includes('/auth/login')) {
-        if (!isLoggingOut) {
-          isLoggingOut = true;
+        // Check if we're already navigating to login (prevents concurrent logout glitches)
+        const currentUrl = router.url;
+        if (currentUrl !== '/login') {
           signalR.stop(); // fire-and-forget — close hub before clearing tokens
           auth.logout();
-          // Reset flag after a short delay to allow future logouts if user logs in again
-          setTimeout(() => (isLoggingOut = false), 2000);
         }
         return throwError(() => error);
       }

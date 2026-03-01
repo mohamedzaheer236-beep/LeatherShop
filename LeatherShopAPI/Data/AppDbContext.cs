@@ -25,5 +25,9 @@ public class AppDbContext : DbContext
 
         // Apply all IEntityTypeConfiguration classes from the Configurations folder
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
+        // Note: Product.RowVersion uses [Timestamp] which Npgsql automatically maps
+        // to PostgreSQL's xmin system column as an optimistic concurrency token.
+        // This prevents stock overselling when concurrent orders race on the same product.
     }
 }

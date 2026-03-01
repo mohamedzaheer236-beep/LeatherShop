@@ -4,6 +4,7 @@ using LeatherShopAPI.DTOs.Product;
 using LeatherShopAPI.Extensions;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
+using static LeatherShopAPI.Extensions.SqlHelper;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Processing;
@@ -23,7 +24,7 @@ public class ProductService : IProductService
 
     public async Task<List<ProductDto>> GetAllAsync(string? category, string? brand, string? search)
     {
-        var query = _db.Products.Include(p => p.Images).AsQueryable();
+        var query = _db.Products.AsNoTracking().Include(p => p.Images).AsQueryable();
 
         if (!string.IsNullOrEmpty(category))
             query = query.Where(p => EF.Functions.ILike(p.Category, category));
@@ -32,7 +33,10 @@ public class ProductService : IProductService
             query = query.Where(p => EF.Functions.ILike(p.Brand, brand));
 
         if (!string.IsNullOrEmpty(search))
-            query = query.Where(p => EF.Functions.ILike(p.Name, $"%{search}%") || EF.Functions.ILike(p.Description, $"%{search}%"));
+        {
+            var escaped = EscapeLikePattern(search);
+            query = query.Where(p => EF.Functions.ILike(p.Name, $"%{escaped}%") || EF.Functions.ILike(p.Description, $"%{escaped}%"));
+        }
 
         var products = await query.OrderByDescending(p => p.CreatedAt).ToListAsync();
         return products.Select(p => p.ToDto()).ToList();
@@ -40,7 +44,7 @@ public class ProductService : IProductService
 
     public async Task<ProductDto?> GetByIdAsync(int id)
     {
-        var p = await _db.Products.Include(p => p.Images).FirstOrDefaultAsync(p => p.Id == id);
+        var p = await _db.Products.AsNoTracking().Include(p => p.Images).FirstOrDefaultAsync(p => p.Id == id);
         if (p == null) return null;
 
         return p.ToDto();

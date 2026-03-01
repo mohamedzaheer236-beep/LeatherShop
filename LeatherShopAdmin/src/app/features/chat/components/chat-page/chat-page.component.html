@@ -29,7 +29,7 @@
         <div class="conv-info">
           <div class="conv-name-row">
             <span class="conv-name">{{ conv.customerName }}</span>
-            <span class="conv-time">{{ formatTime(conv.lastMessageAt) }}</span>
+            <span class="conv-time">{{ conv.lastMessageAt | conversationTime }}</span>
           </div>
           <div class="conv-preview-row">
             <span class="conv-preview">{{ conv.lastMessage }}</span>
@@ -96,8 +96,8 @@
                 {{ msg.isFromBot ? '🤖 Bot' : '👤 Admin' }}
               </span>
             </div>
-            <div class="message-text" [innerHTML]="formatMessage(msg.content)"></div>
-            <div class="message-time">{{ formatMessageTime(msg.timestamp) }}</div>
+            <div class="message-text" [innerHTML]="msg.content | formatMessage"></div>
+            <div class="message-time">{{ msg.timestamp | messageTime }}</div>
           </div>
         </div>
       </div>

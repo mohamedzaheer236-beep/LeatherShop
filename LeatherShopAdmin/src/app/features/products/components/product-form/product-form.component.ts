@@ -142,8 +142,9 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
   }
 
   /** Handle image file selection — supports multiple files */
-  onImageSelect(event: any): void {
-    const fileList: FileList | null = event.target?.files || event.files;
+  onImageSelect(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const fileList: FileList | null = input?.files ?? null;
     if (!fileList || fileList.length === 0) return;
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -166,7 +167,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
 
     if (filesToProcess.length === 0) {
       // Reset the file input
-      if (event.target) event.target.value = '';
+      if (event.target) (event.target as HTMLInputElement).value = '';
       return;
     }
 
@@ -209,7 +210,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
       });
 
     // Reset the file input so the same file(s) can be re-selected
-    if (event.target) event.target.value = '';
+    if (event.target) (event.target as HTMLInputElement).value = '';
   }
 
   /**
