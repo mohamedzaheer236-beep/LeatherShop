@@ -25,7 +25,8 @@ public static class ServiceCollectionExtensions
         }
 
         services.AddDbContext<AppDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, npgsqlOpts =>
+                npgsqlOpts.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 
         return services;
     }

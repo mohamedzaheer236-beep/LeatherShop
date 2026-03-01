@@ -368,6 +368,7 @@ public class ChatBotService : IChatBotService
             .Where(p => p.IsActive && p.StockQuantity > 0)
             .Select(p => p.Category)
             .Distinct()
+            .OrderBy(c => c)
             .ToListAsync();
 
         if (!categories.Any())
@@ -399,6 +400,7 @@ public class ChatBotService : IChatBotService
     {
         var products = await _db.Products
             .Where(p => p.IsActive && p.StockQuantity > 0 && p.Category.ToLower() == category)
+            .OrderBy(p => p.Name)
             .Take(10) // WhatsApp list max 10 rows per section
             .ToListAsync();
 

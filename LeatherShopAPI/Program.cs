@@ -4,6 +4,7 @@ using LeatherShopAPI.Extensions;
 using LeatherShopAPI.Hubs;
 using LeatherShopAPI.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using QuestPDF.Infrastructure;
@@ -15,6 +16,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Load optional local secrets file (gitignored — never committed to source control)
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
+// --- DataProtection: use ephemeral keys in containers (we use JWT, not cookies) ---
+// Prevents the "keys may be lost when container is destroyed" startup warning.
+// This is safe because we don't use cookie auth, antiforgery tokens, or session state.
+builder.Services.AddDataProtection()
+    .SetApplicationName("LeatherShopAPI")
+    .UseEphemeralDataProtectionProvider();
 
 // --- All service registrations in Extensions/ServiceCollectionExtensions.cs ---
 builder.Services.AddDatabase(builder.Configuration);
