@@ -39,4 +39,5 @@ export interface WhatsAppTemplate {
   cardCount: number;
   hasImageHeader: boolean;
   bodyParamCount: number;
+  cardBodyMaxLength: number;
 }

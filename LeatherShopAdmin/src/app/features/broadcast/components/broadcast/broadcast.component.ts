@@ -76,6 +76,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   // Template metadata for field visibility
   selectedTemplateHasImageHeader = false;
   selectedTemplateBodyParamCount = 0;
+  cardBodyMaxLength = 120; // dynamic: calculated from template's card body static text
 
   // Product list for carousel card "View Details" button
   products: Product[] = [];
@@ -149,6 +150,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
     // Set template metadata for field visibility
     this.selectedTemplateHasImageHeader = tpl?.hasImageHeader ?? false;
     this.selectedTemplateBodyParamCount = tpl?.bodyParamCount ?? 0;
+    this.cardBodyMaxLength = tpl?.cardBodyMaxLength && tpl.cardBodyMaxLength > 0 ? tpl.cardBodyMaxLength : 120;
 
     // Clear image when switching to a template without header
     if (!this.selectedTemplateHasImageHeader) {

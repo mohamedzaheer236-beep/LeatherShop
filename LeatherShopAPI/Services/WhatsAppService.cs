@@ -261,6 +261,7 @@ public class WhatsAppService : IWhatsAppService
                 var cardCount = 0;
                 var hasImageHeader = false;
                 var bodyParamCount = 0;
+                var cardBodyStaticLength = 0; // length of card body text minus placeholders
 
                 if (item.TryGetProperty("components", out var components))
                 {
@@ -274,7 +275,29 @@ public class WhatsAppService : IWhatsAppService
                         {
                             isCarousel = true;
                             if (comp.TryGetProperty("cards", out var cards))
+                            {
                                 cardCount = cards.GetArrayLength();
+                                // Parse the first card's BODY text to measure static length
+                                if (cardCount > 0)
+                                {
+                                    var firstCard = cards[0];
+                                    if (firstCard.TryGetProperty("components", out var cardComps))
+                                    {
+                                        foreach (var cc in cardComps.EnumerateArray())
+                                        {
+                                            var ccType = cc.TryGetProperty("type", out var cct) ? cct.GetString() ?? "" : "";
+                                            if (ccType.Equals("BODY", StringComparison.OrdinalIgnoreCase) && cc.TryGetProperty("text", out var cbText))
+                                            {
+                                                var raw = cbText.GetString() ?? "";
+                                                // Remove placeholders like {{1}} to get static text length
+                                                var stripped = System.Text.RegularExpressions.Regex.Replace(raw, @"\{\{\d+\}\}", "");
+                                                cardBodyStaticLength = stripped.Length;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                         else if (compTypeStr.Equals("HEADER", StringComparison.OrdinalIgnoreCase))
                         {
@@ -305,7 +328,10 @@ public class WhatsAppService : IWhatsAppService
                     IsCarousel = isCarousel,
                     CardCount = cardCount,
                     HasImageHeader = hasImageHeader,
-                    BodyParamCount = bodyParamCount
+                    BodyParamCount = bodyParamCount,
+                    CardBodyMaxLength = isCarousel && cardBodyStaticLength > 0
+                        ? Math.Max(160 - cardBodyStaticLength, 20) // at least 20 chars for the param
+                        : (isCarousel ? 120 : 0) // fallback if parsing failed
                 });
             }
         }
@@ -380,6 +406,8 @@ public class WhatsAppTemplate
     public bool HasImageHeader { get; set; }
     /// <summary>Number of body parameters expected (e.g., 2 means {{1}} and {{2}}).</summary>
     public int BodyParamCount { get; set; }
+    /// <summary>Max characters allowed for a carousel card body parameter (160 - static text length). 0 for non-carousel.</summary>
+    public int CardBodyMaxLength { get; set; }
 }
 
 public class CarouselCard
