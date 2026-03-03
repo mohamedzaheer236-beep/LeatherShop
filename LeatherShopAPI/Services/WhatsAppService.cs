@@ -25,7 +25,7 @@ public class WhatsAppService : IWhatsAppService
         ?? throw new InvalidOperationException("WhatsApp:PhoneNumberId not configured. Set it in appsettings or environment variables.");
     private string AccessToken => _config["WhatsApp:AccessToken"]
         ?? throw new InvalidOperationException("WhatsApp:AccessToken not configured. Set it in appsettings or environment variables.");
-    private string ApiVersion => _config["WhatsApp:ApiVersion"] ?? "v18.0";
+    private string ApiVersion => _config["WhatsApp:ApiVersion"] ?? "v21.0";
 
     private string BaseUrl => $"https://graph.facebook.com/{ApiVersion}/{PhoneNumberId}/messages";
 
