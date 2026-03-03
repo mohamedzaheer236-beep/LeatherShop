@@ -964,6 +964,7 @@ POST /api/payment/verify  (with transactionId + orderId)
 | GET | `/api/broadcast/history` | Broadcast history (paginated). Query params: `?page=1&pageSize=10` |
 | GET | `/api/broadcast/{id}/status` | Poll broadcast delivery status |
 | GET | `/api/broadcast/templates` | List approved WhatsApp templates from Meta (detects carousel) |
+| GET | `/api/broadcast/stats` | Get total sent message count across all broadcasts |
 | POST | `/api/broadcast/upload-image` | Upload image file for broadcast header/carousel cards |
 
 ### Chat (2-Way Admin ↔ Customer)
@@ -2128,6 +2129,7 @@ Client only has a Paytm business account — no Razorpay. Complete removal of Ra
 
 **Security model:**
 - **Server-to-server verification** — payment status confirmed by calling Paytm's API directly, not by trusting client-side data
+- **Amount verification** — `TxnAmount` from Paytm response compared against `order.TotalAmount` — rejects payments with mismatched amounts (protects against client-side amount tampering)
 - **Checksum verification** — Paytm's response checksum validated using AES-128-CBC with constant-time comparison
 - **Fail-closed** — if Paytm credentials are missing, all payments are rejected (no fallback to unverified)
 - **XSS prevention** — all user data HTML-encoded before injection into payment page
@@ -2211,3 +2213,49 @@ Frontend:
 
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors.
 **README updated:** API endpoints, pagination audit sections, M1 fix, and Phase 24 changelog added.
+
+### Phase 25 — Code Quality Audit & Fixes (March 4, 2026)
+
+Deep audit of every backend and frontend file. Fixed all actionable issues found:
+
+**Security (Critical):**
+| # | Fix | File(s) |
+|---|-----|--------|
+| 1 | **Payment amount verification** — `TxnAmount` from Paytm Transaction Status response now compared against `order.TotalAmount`. Rejects payments where the paid amount doesn't match (protects against client-side amount tampering). | `PaymentService.cs` |
+| 2 | **Upload limit mismatch** — Controller allowed 10 files but service threw at >4. Aligned `MaxFiles` to 4 in both. | `ProductsController.cs` |
+
+**Code Quality (Deduplication):**
+| # | Fix | File(s) |
+|---|-----|--------|
+| 3 | **Extracted `OrderExpiryHelper`** — Order cancellation + stock restoration + cart restoration logic was duplicated between `PaymentService.ExpireOrderAndRestoreCartAsync` and `ExpiredOrderCleanupService.CleanupExpiredOrdersAsync`. Extracted into `Helpers/OrderExpiryHelper.CancelAndRestoreCartAsync()` (static, takes `AppDbContext` + `Order`). Both callers now use the shared helper. | `OrderExpiryHelper.cs` (NEW), `PaymentService.cs`, `ExpiredOrderCleanupService.cs` |
+| 4 | **Removed duplicate `getSubscriberCount`** — `BroadcastService` had its own copy of `getSubscriberCount()` calling the same endpoint as `CustomerService`. Removed from `BroadcastService`; `BroadcastComponent` now injects `CustomerService` for subscriber count. | `broadcast.service.ts`, `broadcast.component.ts` |
+
+**Type Safety & Dead Code:**
+| # | Fix | File(s) |
+|---|-----|--------|
+| 5 | **`GetTemplates` return type** — Changed from `ApiResponse<object>` to `ApiResponse<List<WhatsAppTemplate>>` for type safety and Swagger documentation. | `BroadcastController.cs` |
+| 6 | **Removed unused `IConfiguration`** — `InvoicePdfService` injected `_config` but never used it. Removed from constructor and fields. | `InvoicePdfService.cs` |
+| 7 | **Removed unused `customerUrl`** — `BroadcastService` (frontend) had a `customerUrl` field that's no longer used after removing `getSubscriberCount`. Cleaned up. | `broadcast.service.ts` |
+
+**Data Integrity:**
+| # | Fix | File(s) |
+|---|-----|--------|
+| 8 | **`totalSent` sidebar stat** — Previously summed `sentCount` from the current page only (10 items). With server-side pagination, this showed wildly inaccurate numbers. Added `GET /api/broadcast/stats` endpoint that does `SumAsync(b => b.SentCount)` across all records. Frontend calls this once on init. | `IBroadcastService.cs`, `BroadcastService.cs`, `BroadcastController.cs`, `broadcast.service.ts`, `broadcast.component.ts` |
+
+**Fragile Pattern Elimination:**
+| # | Fix | File(s) |
+|---|-----|--------|
+| 9 | **Added `baseUrl` to environment config** — All 4 occurrences of `environment.apiUrl.replace('/api', '')` replaced with `environment.baseUrl`. Both `environment.ts` and `environment.prod.ts` now have a dedicated `baseUrl` field. Eliminates assumption that `apiUrl` always contains `/api`. | `environment.ts`, `environment.prod.ts`, `broadcast.component.ts`, `customers.component.ts`, `product-form.component.ts` |
+
+**Known issues documented but NOT fixed (architectural — would require major refactoring):**
+- `ChatBotService` is a 1150-line god class (cart, checkout, menu, address in one file)
+- `AuthController` and `WhatsAppWebhookController` bypass service layer with direct `AppDbContext` injection
+- Broadcast form logic duplicated between `BroadcastComponent` and `CustomersComponent` (~400 lines)
+- `CustomersComponent` has 7+ responsibilities in 631 lines (SRP violation)
+- JWT stored in `localStorage` (XSS-accessible) — HttpOnly cookies would be more secure
+- No token refresh mechanism
+- Payment page is 140+ lines of inline HTML/CSS/JS in a C# controller
+- WhatsApp helper models (`ListSection`, `ListRow`, `ButtonOption`, etc.) defined inside `WhatsAppService.cs` instead of dedicated model files
+
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors.
+**Commit:** `f55f8e8` — pushed to GitHub, deployed to Railway + Vercel.
