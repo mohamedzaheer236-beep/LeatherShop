@@ -67,3 +67,15 @@ public class OutboxFailedEvent
     public string LastError { get; set; } = string.Empty;
     public DateTime FailedAt { get; set; }
 }
+
+/// <summary>Response for toggle-bot endpoint.</summary>
+public class ToggleBotResponseDto
+{
+    public bool IsBotPaused { get; set; }
+}
+
+/// <summary>Response for failed-messages/count endpoint.</summary>
+public class FailedMessageCountDto
+{
+    public int Count { get; set; }
+}

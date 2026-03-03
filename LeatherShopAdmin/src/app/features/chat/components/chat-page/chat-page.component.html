@@ -7,172 +7,196 @@
         <span class="p-input-icon-left" style="width:100%">
           <i class="pi pi-search"></i>
           <input pInputText type="text" placeholder="Search customers..."
-                 [(ngModel)]="searchTerm" (input)="onSearch()" style="width:100%" />
-        </span>
-      </div>
-    </div>
-    <!-- Failed Messages Alert Banner -->
-    <div *ngIf="failedCount > 0" class="failed-banner" (click)="openFailedMessages()" role="button" tabindex="0" (keydown.enter)="openFailedMessages()">
-      <i class="pi pi-exclamation-triangle"></i>
-      <span>{{ failedCount }} failed message{{ failedCount > 1 ? 's' : '' }}</span>
-      <i class="pi pi-chevron-right"></i>
-    </div>
-    <div class="conversation-list">
-      <div *ngIf="loadingConversations" class="loading-state">
-        <p-progressSpinner [style]="{width: '30px', height: '30px'}" strokeWidth="3"></p-progressSpinner>
-      </div>
-      <div *ngIf="!loadingConversations && conversations.length === 0" class="empty-state">
-        <i class="pi pi-inbox"></i>
-        <span>No conversations yet</span>
-      </div>
-      <div *ngFor="let conv of conversations; trackBy: trackByConversation"
-           class="conversation-item"
-           [class.active]="selectedCustomerId === conv.customerId"
-           (click)="selectConversation(conv)">
-        <div class="conv-avatar">
-          <i class="pi pi-user"></i>
-        </div>
-        <div class="conv-info">
-          <div class="conv-name-row">
-            <span class="conv-name">{{ conv.customerName }}</span>
-            <span class="conv-time">{{ conv.lastMessageAt | conversationTime }}</span>
-          </div>
-          <div class="conv-preview-row">
-            <span class="conv-preview">{{ conv.lastMessage }}</span>
-            <span *ngIf="conv.unreadCount > 0" class="conv-unread">{{ conv.unreadCount }}</span>
-          </div>
-          <div *ngIf="conv.isBotPaused" class="conv-bot-paused">
-            <i class="pi pi-pause-circle"></i> Bot paused
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- RIGHT: Chat Messages -->
-  <div class="chat-main">
-    <div *ngIf="!selectedCustomerId" class="no-chat-selected">
-      <i class="pi pi-comments"></i>
-      <h3>Select a conversation</h3>
-      <p>Choose a customer from the left to view and reply to their messages</p>
-    </div>
-
-    <ng-container *ngIf="selectedCustomerId">
-      <!-- Chat Header -->
-      <div class="chat-header">
-        <div class="chat-header-info">
-          <div class="chat-header-avatar"><i class="pi pi-user"></i></div>
-          <div>
-            <div class="chat-header-name">{{ selectedConversation?.customerName }}</div>
-            <div class="chat-header-phone">{{ selectedConversation?.phoneNumber }}</div>
-          </div>
-        </div>
-        <div class="chat-header-actions">
-          <button pButton icon="pi pi-trash"
-                  class="p-button-danger p-button-sm p-button-text"
-                  pTooltip="Delete Chat"
-                  tooltipPosition="bottom"
-                  (click)="confirmDeleteConversation()">
-          </button>
-          <button pButton
-                  [icon]="selectedConversation?.isBotPaused ? 'pi pi-play' : 'pi pi-pause'"
-                  [class]="selectedConversation?.isBotPaused ? 'p-button-success p-button-sm' : 'p-button-warning p-button-sm'"
-                  [pTooltip]="selectedConversation?.isBotPaused ? 'Resume Bot' : 'Pause Bot'"
-                  tooltipPosition="bottom"
-                  (click)="toggleBot()">
-          </button>
-          <span class="bot-status" [class.paused]="selectedConversation?.isBotPaused">
-            {{ selectedConversation?.isBotPaused ? '🤖 Bot Paused' : '🤖 Bot Active' }}
+            [(ngModel)]="searchTerm" (input)="onSearch()" style="width:100%" />
           </span>
         </div>
       </div>
-
-      <!-- Messages Area -->
-      <div class="chat-messages" #messagesContainer>
-        <div *ngIf="loadingMessages" class="loading-state">
-          <p-progressSpinner [style]="{width: '30px', height: '30px'}" strokeWidth="3"></p-progressSpinner>
+      <!-- Failed Messages Alert Banner -->
+      @if (failedCount > 0) {
+        <div class="failed-banner" (click)="openFailedMessages()" role="button" tabindex="0" (keydown.enter)="openFailedMessages()">
+          <i class="pi pi-exclamation-triangle"></i>
+          <span>{{ failedCount }} failed message{{ failedCount > 1 ? 's' : '' }}</span>
+          <i class="pi pi-chevron-right"></i>
         </div>
-        <div *ngIf="hasMoreMessages && !loadingMessages" class="load-more">
-          <button pButton label="Load older messages" class="p-button-text p-button-sm" (click)="loadMoreMessages()"></button>
-        </div>
-        <div *ngFor="let msg of messages; trackBy: trackByMessage" class="message-wrapper" [class.outgoing]="msg.direction === 'Outgoing'" [class.incoming]="msg.direction === 'Incoming'">
-          <div class="message-bubble">
-            <div class="message-sender" *ngIf="msg.direction === 'Outgoing'">
-              <span [class.bot-label]="msg.isFromBot" [class.admin-label]="!msg.isFromBot">
-                {{ msg.isFromBot ? '🤖 Bot' : '👤 Admin' }}
-              </span>
+      }
+      <div class="conversation-list">
+        @if (loadingConversations) {
+          <div class="loading-state">
+            <p-progressSpinner [style]="{width: '30px', height: '30px'}" strokeWidth="3"></p-progressSpinner>
+          </div>
+        }
+        @if (!loadingConversations && conversations.length === 0) {
+          <div class="empty-state">
+            <i class="pi pi-inbox"></i>
+            <span>No conversations yet</span>
+          </div>
+        }
+        @for (conv of conversations; track trackByConversation($index, conv)) {
+          <div
+            class="conversation-item"
+            [class.active]="selectedCustomerId === conv.customerId"
+            (click)="selectConversation(conv)">
+            <div class="conv-avatar">
+              <i class="pi pi-user"></i>
             </div>
-            <div class="message-text" [innerHTML]="msg.content | formatMessage"></div>
-            <div class="message-time">{{ msg.timestamp | messageTime }}</div>
+            <div class="conv-info">
+              <div class="conv-name-row">
+                <span class="conv-name">{{ conv.customerName }}</span>
+                <span class="conv-time">{{ conv.lastMessageAt | conversationTime }}</span>
+              </div>
+              <div class="conv-preview-row">
+                <span class="conv-preview">{{ conv.lastMessage }}</span>
+                @if (conv.unreadCount > 0) {
+                  <span class="conv-unread">{{ conv.unreadCount }}</span>
+                }
+              </div>
+              @if (conv.isBotPaused) {
+                <div class="conv-bot-paused">
+                  <i class="pi pi-pause-circle"></i> Bot paused
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- RIGHT: Chat Messages -->
+    <div class="chat-main">
+      @if (!selectedCustomerId) {
+        <div class="no-chat-selected">
+          <i class="pi pi-comments"></i>
+          <h3>Select a conversation</h3>
+          <p>Choose a customer from the left to view and reply to their messages</p>
+        </div>
+      }
+
+      @if (selectedCustomerId) {
+        <!-- Chat Header -->
+        <div class="chat-header">
+          <div class="chat-header-info">
+            <div class="chat-header-avatar"><i class="pi pi-user"></i></div>
+            <div>
+              <div class="chat-header-name">{{ selectedConversation?.customerName }}</div>
+              <div class="chat-header-phone">{{ selectedConversation?.phoneNumber }}</div>
+            </div>
+          </div>
+          <div class="chat-header-actions">
+            <button pButton icon="pi pi-trash"
+              class="p-button-danger p-button-sm p-button-text"
+              pTooltip="Delete Chat"
+              tooltipPosition="bottom"
+              (click)="confirmDeleteConversation()">
+            </button>
+            <button pButton
+              [icon]="selectedConversation?.isBotPaused ? 'pi pi-play' : 'pi pi-pause'"
+              [class]="selectedConversation?.isBotPaused ? 'p-button-success p-button-sm' : 'p-button-warning p-button-sm'"
+              [pTooltip]="selectedConversation?.isBotPaused ? 'Resume Bot' : 'Pause Bot'"
+              tooltipPosition="bottom"
+              (click)="toggleBot()">
+            </button>
+            <span class="bot-status" [class.paused]="selectedConversation?.isBotPaused">
+              {{ selectedConversation?.isBotPaused ? '🤖 Bot Paused' : '🤖 Bot Active' }}
+            </span>
           </div>
         </div>
-      </div>
-
-      <!-- Message Input -->
-      <div class="chat-input">
-        <input pInputText type="text" placeholder="Type a message..."
-               aria-label="Type a message"
-               [(ngModel)]="messageText"
-               (keyup.enter)="sendMessage()"
-               [disabled]="sending"
-               class="message-input" />
-        <button pButton icon="pi pi-send"
-                class="p-button-rounded send-btn"
-                aria-label="Send message"
-                [disabled]="!messageText.trim() || sending"
-                [loading]="sending"
-                (click)="sendMessage()"></button>
-      </div>
-    </ng-container>
-  </div>
-</div>
-
-<!-- Delete Conversation Confirmation -->
-<p-dialog header="Delete Conversation" [(visible)]="showDeleteConversation" [modal]="true" [style]="{'width': '400px'}">
-  <div style="text-align:center; padding:8px 0;">
-    <i class="pi pi-exclamation-triangle" style="font-size:2rem; color:#e74c3c;"></i>
-    <p>Are you sure you want to delete all chat messages with <strong>{{ selectedConversation?.customerName }}</strong>?</p>
-    <p style="color:#888; font-size:13px;">This action cannot be undone.</p>
-  </div>
-  <ng-template pTemplate="footer">
-    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showDeleteConversation = false" icon="pi pi-times"></p-button>
-    <p-button label="Delete" severity="danger" (onClick)="deleteConversation()" [disabled]="deletingConversation" [loading]="deletingConversation" icon="pi pi-trash"></p-button>
-  </ng-template>
-</p-dialog>
-
-<!-- Failed Outbox Messages Dialog -->
-<p-dialog header="Failed Messages" [(visible)]="showFailedMessages" [modal]="true" [style]="{'width': '560px', 'max-height': '80vh'}">
-  <div class="failed-messages-content">
-    <p class="failed-messages-info">
-      These WhatsApp messages could not be delivered after 5 attempts. You can retry or manually contact the customer.
-    </p>
-    <div *ngIf="failedMessages.length === 0" class="failed-empty">
-      <i class="pi pi-check-circle"></i>
-      <span>No failed messages</span>
-    </div>
-    <div *ngFor="let msg of failedMessages; trackBy: trackByFailedMessage" class="failed-message-card">
-      <div class="failed-msg-header">
-        <div class="failed-msg-customer">
-          <i class="pi pi-user"></i>
-          <strong>{{ msg.customerName }}</strong>
-          <span class="failed-msg-phone">({{ msg.to }})</span>
+        <!-- Messages Area -->
+        <div class="chat-messages" #messagesContainer>
+          @if (loadingMessages) {
+            <div class="loading-state">
+              <p-progressSpinner [style]="{width: '30px', height: '30px'}" strokeWidth="3"></p-progressSpinner>
+            </div>
+          }
+          @if (hasMoreMessages && !loadingMessages) {
+            <div class="load-more">
+              <button pButton label="Load older messages" class="p-button-text p-button-sm" (click)="loadMoreMessages()"></button>
+            </div>
+          }
+          @for (msg of messages; track trackByMessage($index, msg)) {
+            <div class="message-wrapper" [class.outgoing]="msg.direction === 'Outgoing'" [class.incoming]="msg.direction === 'Incoming'">
+              <div class="message-bubble">
+                @if (msg.direction === 'Outgoing') {
+                  <div class="message-sender">
+                    <span [class.bot-label]="msg.isFromBot" [class.admin-label]="!msg.isFromBot">
+                      {{ msg.isFromBot ? '🤖 Bot' : '👤 Admin' }}
+                    </span>
+                  </div>
+                }
+                <div class="message-text" [innerHTML]="msg.content | formatMessage"></div>
+                <div class="message-time">{{ msg.timestamp | messageTime }}</div>
+              </div>
+            </div>
+          }
         </div>
-        <p-tag severity="danger" value="Failed"></p-tag>
+        <!-- Message Input -->
+        <div class="chat-input">
+          <input pInputText type="text" placeholder="Type a message..."
+            aria-label="Type a message"
+            [(ngModel)]="messageText"
+            (keyup.enter)="sendMessage()"
+            [disabled]="sending"
+            class="message-input" />
+            <button pButton icon="pi pi-send"
+              class="p-button-rounded send-btn"
+              aria-label="Send message"
+              [disabled]="!messageText.trim() || sending"
+              [loading]="sending"
+            (click)="sendMessage()"></button>
+          </div>
+        }
       </div>
-      <div class="failed-msg-context">{{ msg.context }}</div>
-      <div class="failed-msg-preview">{{ msg.contentPreview }}</div>
-      <div class="failed-msg-error">
-        <i class="pi pi-exclamation-circle"></i>
-        {{ msg.lastError }}
+    </div>
+
+    <!-- Delete Conversation Confirmation -->
+    <p-dialog header="Delete Conversation" [(visible)]="showDeleteConversation" [modal]="true" [style]="{'width': '400px'}">
+      <div style="text-align:center; padding:8px 0;">
+        <i class="pi pi-exclamation-triangle" style="font-size:2rem; color:#e74c3c;"></i>
+        <p>Are you sure you want to delete all chat messages with <strong>{{ selectedConversation?.customerName }}</strong>?</p>
+        <p style="color:#888; font-size:13px;">This action cannot be undone.</p>
       </div>
-      <div class="failed-msg-footer">
-        <span class="failed-msg-time">{{ msg.createdAt | messageTime }} · {{ msg.retryCount }} attempts</span>
-        <button pButton label="Retry" icon="pi pi-refresh"
+      <ng-template pTemplate="footer">
+        <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showDeleteConversation = false" icon="pi pi-times"></p-button>
+        <p-button label="Delete" severity="danger" (onClick)="deleteConversation()" [disabled]="deletingConversation" [loading]="deletingConversation" icon="pi pi-trash"></p-button>
+      </ng-template>
+    </p-dialog>
+
+    <!-- Failed Outbox Messages Dialog -->
+    <p-dialog header="Failed Messages" [(visible)]="showFailedMessages" [modal]="true" [style]="{'width': '560px', 'max-height': '80vh'}">
+      <div class="failed-messages-content">
+        <p class="failed-messages-info">
+          These WhatsApp messages could not be delivered after 5 attempts. You can retry or manually contact the customer.
+        </p>
+        @if (failedMessages.length === 0) {
+          <div class="failed-empty">
+            <i class="pi pi-check-circle"></i>
+            <span>No failed messages</span>
+          </div>
+        }
+        @for (msg of failedMessages; track trackByFailedMessage($index, msg)) {
+          <div class="failed-message-card">
+            <div class="failed-msg-header">
+              <div class="failed-msg-customer">
+                <i class="pi pi-user"></i>
+                <strong>{{ msg.customerName }}</strong>
+                <span class="failed-msg-phone">({{ msg.to }})</span>
+              </div>
+              <p-tag severity="danger" value="Failed"></p-tag>
+            </div>
+            <div class="failed-msg-context">{{ msg.context }}</div>
+            <div class="failed-msg-preview">{{ msg.contentPreview }}</div>
+            <div class="failed-msg-error">
+              <i class="pi pi-exclamation-circle"></i>
+              {{ msg.lastError }}
+            </div>
+            <div class="failed-msg-footer">
+              <span class="failed-msg-time">{{ msg.createdAt | messageTime }} · {{ msg.retryCount }} attempts</span>
+              <button pButton label="Retry" icon="pi pi-refresh"
                 class="p-button-sm p-button-outlined"
                 [loading]="retryingId === msg.id"
                 [disabled]="retryingId !== null"
-                (click)="retryMessage(msg)"></button>
+              (click)="retryMessage(msg)"></button>
+            </div>
+          </div>
+        }
       </div>
-    </div>
-  </div>
-</p-dialog>
+    </p-dialog>

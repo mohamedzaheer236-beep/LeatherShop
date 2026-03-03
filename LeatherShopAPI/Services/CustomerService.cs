@@ -21,7 +21,7 @@ public class CustomerService : ICustomerService
         _logger = logger;
     }
 
-    public async Task<PaginatedResult<CustomerListDto>> GetAllAsync(bool? subscribedOnly, string? search, int page = 1, int pageSize = 25)
+    public async Task<PaginatedResult<CustomerListDto>> GetAllAsync(bool? subscribedOnly, string? search, int page = 1, int pageSize = 25, CancellationToken ct = default)
     {
         var query = _db.Customers.AsNoTracking().AsQueryable();
 
@@ -34,7 +34,7 @@ public class CustomerService : ICustomerService
             query = query.Where(c => EF.Functions.ILike(c.PhoneNumber, $"%{escaped}%") || EF.Functions.ILike(c.Name, $"%{escaped}%"));
         }
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(ct);
 
         var items = await query.OrderByDescending(c => c.CreatedAt)
             .Skip((page - 1) * pageSize)
@@ -48,7 +48,7 @@ public class CustomerService : ICustomerService
                 IsSubscribed = c.IsSubscribed,
                 CreatedAt = c.CreatedAt,
                 OrderCount = c.Orders.Count
-            }).ToListAsync();
+            }).ToListAsync(ct);
 
         return new PaginatedResult<CustomerListDto>
         {
@@ -59,22 +59,22 @@ public class CustomerService : ICustomerService
         };
     }
 
-    public async Task<CustomerCountDto> GetCountAsync()
+    public async Task<CustomerCountDto> GetCountAsync(CancellationToken ct = default)
     {
         return new CustomerCountDto
         {
-            SubscriberCount = await _db.Customers.CountAsync(c => c.IsSubscribed),
-            TotalCount = await _db.Customers.CountAsync()
+            SubscriberCount = await _db.Customers.CountAsync(c => c.IsSubscribed, ct),
+            TotalCount = await _db.Customers.CountAsync(ct)
         };
     }
 
-    public async Task<CustomerCreatedDto> CreateAsync(CreateCustomerDto dto)
+    public async Task<CustomerCreatedDto> CreateAsync(CreateCustomerDto dto, CancellationToken ct = default)
     {
         var phone = PhoneNumberHelper.Normalize(dto.PhoneNumber);
         if (string.IsNullOrEmpty(phone) || phone.Length < 5)
             throw new ArgumentException("Invalid phone number.");
 
-        var existing = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone);
+        var existing = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone, ct);
         if (existing != null)
             throw new InvalidOperationException($"Customer with phone {phone} already exists.");
 
@@ -86,7 +86,7 @@ public class CustomerService : ICustomerService
             IsSubscribed = true
         };
         _db.Customers.Add(customer);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
 
         // Send welcome message via WhatsApp
         try
@@ -110,7 +110,7 @@ public class CustomerService : ICustomerService
         };
     }
 
-    public async Task<BulkImportResultDto> BulkImportAsync(BulkImportDto dto)
+    public async Task<BulkImportResultDto> BulkImportAsync(BulkImportDto dto, CancellationToken ct = default)
     {
         if (dto.Customers == null || !dto.Customers.Any())
             throw new ArgumentException("No customers provided");
@@ -119,7 +119,7 @@ public class CustomerService : ICustomerService
             throw new ArgumentException("Maximum 1000 customers per import. Please split into smaller batches.");
 
         // Load all existing phone numbers into a HashSet to avoid N+1 queries
-        var existingPhones = (await _db.Customers.Select(c => c.PhoneNumber).ToListAsync())
+        var existingPhones = (await _db.Customers.Select(c => c.PhoneNumber).ToListAsync(ct))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         int added = 0, skipped = 0;
@@ -142,7 +142,7 @@ public class CustomerService : ICustomerService
             added++;
         }
 
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
 
         return new BulkImportResultDto
         {
@@ -152,9 +152,9 @@ public class CustomerService : ICustomerService
         };
     }
 
-    public async Task<CustomerListDto?> UpdateAsync(int id, UpdateCustomerDto dto)
+    public async Task<CustomerListDto?> UpdateAsync(int id, UpdateCustomerDto dto, CancellationToken ct = default)
     {
-        var customer = await _db.Customers.Include(c => c.Orders).FirstOrDefaultAsync(c => c.Id == id);
+        var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == id, ct);
         if (customer == null) return null;
 
         if (dto.Name != null) customer.Name = dto.Name.Trim();
@@ -162,7 +162,7 @@ public class CustomerService : ICustomerService
         if (dto.IsSubscribed.HasValue) customer.IsSubscribed = dto.IsSubscribed.Value;
         customer.UpdatedAt = DateTime.UtcNow;
 
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
 
         // No WhatsApp message is sent on edit — this is intentional
         return new CustomerListDto
@@ -173,40 +173,39 @@ public class CustomerService : ICustomerService
             Address = customer.Address,
             IsSubscribed = customer.IsSubscribed,
             CreatedAt = customer.CreatedAt,
-            OrderCount = customer.Orders.Count
+            OrderCount = await _db.Orders.CountAsync(o => o.CustomerId == id, ct)
         };
     }
 
-    public async Task<DeleteCustomerResponse> DeleteAsync(int id)
+    public async Task<DeleteCustomerResponse> DeleteAsync(int id, CancellationToken ct = default)
     {
-        var customer = await _db.Customers
-            .Include(c => c.Orders)
-            .FirstOrDefaultAsync(c => c.Id == id);
+        var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == id, ct);
         if (customer == null)
             return new DeleteCustomerResponse { Result = DeleteCustomerResult.NotFound };
 
         // Prevent deletion when orders exist — order history is needed for accounting/compliance
-        if (customer.Orders.Any())
+        var orderCount = await _db.Orders.CountAsync(o => o.CustomerId == id, ct);
+        if (orderCount > 0)
             return new DeleteCustomerResponse
             {
                 Result = DeleteCustomerResult.HasOrders,
-                OrderCount = customer.Orders.Count
+                OrderCount = orderCount
             };
 
         // CartItems and ChatMessages still cascade-delete (transient data)
         _db.Customers.Remove(customer);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
         return new DeleteCustomerResponse { Result = DeleteCustomerResult.Deleted };
     }
 
-    public async Task<bool> ToggleSubscriptionAsync(int id, bool isSubscribed)
+    public async Task<bool> ToggleSubscriptionAsync(int id, bool isSubscribed, CancellationToken ct = default)
     {
-        var customer = await _db.Customers.FindAsync(id);
+        var customer = await _db.Customers.FindAsync(new object[] { id }, ct);
         if (customer == null) return false;
 
         customer.IsSubscribed = isSubscribed;
         customer.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
         return true;
     }
 }

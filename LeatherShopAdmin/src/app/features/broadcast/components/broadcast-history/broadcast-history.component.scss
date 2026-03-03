@@ -1,0 +1,22 @@
+.history-section {
+  margin-top: 0;
+
+  .section-header {
+    margin-bottom: 16px;
+
+    h3 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      i {
+        font-size: 18px;
+        color: #6366f1;
+      }
+    }
+  }
+}

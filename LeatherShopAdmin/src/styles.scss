@@ -194,6 +194,22 @@ body .navbar-menubar .p-menubar-button {
   color: var(--ls-brand-gold);
 }
 
+/* Active route highlighting */
+body .navbar-menubar .p-menuitem-link.p-menuitem-link-active,
+body .navbar-menubar .p-menuitem-link.router-link-active {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-radius: 6px;
+
+  .p-menuitem-text {
+    color: var(--ls-brand-gold, #c8a951) !important;
+    font-weight: 600;
+  }
+
+  .p-menuitem-icon {
+    color: var(--ls-brand-gold, #c8a951) !important;
+  }
+}
+
 body .navbar-menubar .p-menubar-end {
   margin-left: auto;
 }

@@ -1,100 +1,122 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
-using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Auth;
 using LeatherShopAPI.Models;
+using LeatherShopAPI.Services.Interfaces;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 
 namespace LeatherShopAPI.Controllers;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
 [EnableRateLimiting("auth")]
 public class AuthController : ControllerBase
 {
-    private const int TokenExpiryHours = 24;
-    private readonly IConfiguration _config;
-    private readonly AppDbContext _db;
+    private const string RefreshTokenCookieName = "ls_refresh_token";
+    private readonly IAuthService _authService;
+    private readonly IWebHostEnvironment _env;
 
-    public AuthController(IConfiguration config, AppDbContext db)
+    public AuthController(IAuthService authService, IWebHostEnvironment env)
     {
-        _config = config;
-        _db = db;
+        _authService = authService;
+        _env = env;
     }
 
     /// <summary>
-    /// Admin login — validates credentials and returns a JWT token.
+    /// Admin login — validates credentials, returns access token in body and sets refresh token as HttpOnly cookie.
     /// </summary>
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
-        // Case-sensitive exact match on username
-        var admin = await _db.AdminUsers
-            .FirstOrDefaultAsync(a => a.Username == request.Username);
+        var result = await _authService.LoginAsync(request, ct);
 
-        if (admin == null || !BCrypt.Net.BCrypt.Verify(request.Password, admin.PasswordHash))
-        {
+        if (result == null)
             return Unauthorized(ApiResponse<object>.Fail("Invalid username or password."));
-        }
 
-        // Update last login timestamp
-        admin.LastLoginAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
-
-        // Generate JWT
-        var token = GenerateJwtToken(admin.Username);
-        var expiresAt = DateTime.UtcNow.AddHours(TokenExpiryHours);
+        SetRefreshTokenCookie(result.RefreshToken, result.RefreshTokenExpiresAt);
 
         return Ok(ApiResponse<LoginResponse>.Ok(
             new LoginResponse
             {
-                Token = token,
-                Username = admin.Username,
-                ExpiresAt = expiresAt
+                Token = result.AccessToken,
+                Username = result.Username,
+                ExpiresAt = result.AccessTokenExpiresAt
             },
             "Login successful."));
     }
 
     /// <summary>
-    /// Verify if the current token is still valid.
+    /// Refresh access token using the HttpOnly refresh token cookie.
+    /// Performs token rotation — old refresh token is revoked, new one is issued.
+    /// </summary>
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh(CancellationToken ct)
+    {
+        var refreshToken = Request.Cookies[RefreshTokenCookieName];
+        if (string.IsNullOrEmpty(refreshToken))
+            return Unauthorized(ApiResponse<object>.Fail("No refresh token."));
+
+        var result = await _authService.RefreshAsync(refreshToken, ct);
+        if (result == null)
+        {
+            // Clear invalid cookie
+            Response.Cookies.Delete(RefreshTokenCookieName);
+            return Unauthorized(ApiResponse<object>.Fail("Invalid or expired refresh token."));
+        }
+
+        SetRefreshTokenCookie(result.RefreshToken, result.RefreshTokenExpiresAt);
+
+        return Ok(ApiResponse<LoginResponse>.Ok(
+            new LoginResponse
+            {
+                Token = result.AccessToken,
+                Username = result.Username,
+                ExpiresAt = result.AccessTokenExpiresAt
+            },
+            "Token refreshed."));
+    }
+
+    /// <summary>
+    /// Logout — revokes the refresh token and clears the cookie.
+    /// </summary>
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout(CancellationToken ct)
+    {
+        var refreshToken = Request.Cookies[RefreshTokenCookieName];
+        if (!string.IsNullOrEmpty(refreshToken))
+        {
+            await _authService.RevokeAsync(refreshToken, ct);
+        }
+
+        Response.Cookies.Delete(RefreshTokenCookieName);
+        return Ok(ApiResponse.Ok("Logged out."));
+    }
+
+    /// <summary>
+    /// Verify if the current access token is still valid.
     /// </summary>
     [HttpGet("verify")]
     [Authorize]
     public IActionResult Verify()
     {
         var username = User.FindFirst(ClaimTypes.Name)?.Value;
-        return Ok(ApiResponse<object>.Ok(
-            new { Username = username },
+        return Ok(ApiResponse<VerifyResponse>.Ok(
+            new VerifyResponse { Username = username ?? string.Empty },
             "Token is valid."));
     }
 
-    private string GenerateJwtToken(string username)
+    private void SetRefreshTokenCookie(string token, DateTime expiresAt)
     {
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_config["Jwt:Key"] ?? throw new InvalidOperationException("JWT key not configured")));
-
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        var claims = new[]
+        Response.Cookies.Append(RefreshTokenCookieName, token, new CookieOptions
         {
-            new Claim(ClaimTypes.Name, username),
-            new Claim(ClaimTypes.Role, "Admin"),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-        };
-
-        var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Audience"],
-            claims: claims,
-            expires: DateTime.UtcNow.AddHours(TokenExpiryHours),
-            signingCredentials: credentials
-        );
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
+            HttpOnly = true,
+            Secure = true,                          // HTTPS only
+            SameSite = SameSiteMode.None,           // Cross-origin (Vercel → Railway)
+            Expires = expiresAt,
+            Path = "/api"                           // Only sent with API requests
+        });
     }
 }

@@ -1,10 +1,12 @@
+export type OrderStatus = 'Pending' | 'Confirmed' | 'Shipped' | 'Delivered' | 'Cancelled';
+
 export interface Order {
   id: number;
   orderNumber: string;
   customerName: string;
   customerPhone: string;
   totalAmount: number;
-  status: string;
+  status: OrderStatus;
   isPaid: boolean;
   createdAt: string;
   items: OrderItem[];

@@ -1,0 +1,173 @@
+<p-dialog [header]="'Broadcast to ' + phoneNumbers.length + ' Selected'"
+  [(visible)]="visible"
+  (visibleChange)="visibleChange.emit($event)"
+  (onShow)="onShow()"
+  [modal]="true"
+  [style]="{'width': '600px', 'max-height': '85vh'}"
+  [contentStyle]="{'overflow-y': 'auto'}">
+  <form [formGroup]="broadcastForm">
+    <div class="dialog-form">
+      <div class="form-field">
+        <label for="bcTemplate">Template Name *</label>
+        @if (templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length > 0) {
+          <p-dropdown
+            id="bcTemplate"
+            [options]="templateLoader.getState().templateOptions" formControlName="template"
+            (onChange)="onTemplateSelect()"
+            placeholder="Select an approved template" [style]="{'width': '100%'}"
+            [filter]="true" filterPlaceholder="Search templates..." appendTo="body">
+          </p-dropdown>
+        }
+        @if (!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0) {
+          <input
+            type="text" pInputText formControlName="template" placeholder="e.g. new_product_launch" class="w-full" />
+        }
+        @if (isFieldInvalid('template') && broadcastForm.get('template')?.errors?.['required']) {
+          <small class="p-error">
+            Template name is required.
+          </small>
+        }
+        @if (isFieldInvalid('template') && broadcastForm.get('template')?.errors?.['invalidTemplate']) {
+          <small class="p-error">
+            <i class="pi pi-times-circle"></i> This template is not approved.
+          </small>
+        }
+        @if (isCarousel) {
+          <small class="carousel-badge">
+            <i class="pi pi-images"></i> Carousel template — {{ carouselCards.length }} cards
+          </small>
+        }
+      </div>
+
+      <!-- Standard Template Fields -->
+      @if (!isCarousel) {
+        @if (bodyParamCount > 0) {
+          <div class="form-field">
+            <label for="bcParams">Parameters (comma separated)</label>
+            <input type="text" pInputText id="bcParams" formControlName="params" placeholder="param1, param2" class="w-full" />
+            <small class="hint"><i class="pi pi-info-circle"></i> This template requires {{ bodyParamCount }} parameter(s)</small>
+          </div>
+        }
+        @if (hasImageHeader) {
+          <div class="form-field">
+            <label>Header Image (optional)</label>
+            @if (!headerImagePreview) {
+              <div class="image-upload-zone">
+                <label class="upload-dropzone" for="bcHeaderImageInput">
+                  <i class="pi pi-cloud-upload"></i>
+                  <span>Click to choose image</span>
+                  <small>JPG, PNG — auto-compressed</small>
+                </label>
+                <input type="file" id="bcHeaderImageInput" accept="image/*" (change)="onHeaderImageSelect($event)" hidden />
+              </div>
+            }
+            @if (headerImagePreview) {
+              <div class="image-preview-wrap">
+                <img [src]="headerImagePreview" alt="Header preview" class="image-preview" />
+                @if (headerImageUploading) {
+                  <div class="image-preview-overlay">
+                    <i class="pi pi-spin pi-spinner"></i> Uploading...
+                  </div>
+                }
+                @if (!headerImageUploading) {
+                  <button type="button" class="remove-image-btn" (click)="removeHeaderImage()">
+                    <i class="pi pi-times"></i>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+      }
+
+      <!-- Carousel Card Fields -->
+      @if (isCarousel) {
+        <div class="carousel-cards-section">
+          @for (card of carouselCards; track card; let i = $index) {
+            <div class="carousel-card-item">
+              <div class="carousel-card-header">
+                <span class="card-number">Card {{ i + 1 }} of {{ carouselCards.length }}</span>
+              </div>
+              <div class="form-field">
+                <label [for]="'bcCardProduct_' + i">Link to Product *</label>
+                <p-dropdown [inputId]="'bcCardProduct_' + i"
+                  [options]="productOptions"
+                  [(ngModel)]="card.selectedProductId" [ngModelOptions]="{standalone: true}"
+                  (onChange)="onCardProductSelect(i)"
+                  placeholder="Select a product" [style]="{'width': '100%'}"
+                  [showClear]="true" [filter]="true" filterPlaceholder="Search products..."
+                  appendTo="body">
+                </p-dropdown>
+                @if (!card.selectedProductId) {
+                  <small class="hint">
+                    <i class="pi pi-info-circle"></i> Select product for "View Details"
+                  </small>
+                }
+              </div>
+              @if (card.selectedProductId && getCardProductImages(i).length > 0) {
+                <div class="form-field">
+                  <label>Select Image for Card *</label>
+                  <div class="product-image-picker">
+                    @for (img of getCardProductImages(i); track img) {
+                      <div class="picker-thumb"
+                        [class.selected]="card.selectedImageId === img.id"
+                        (click)="selectCardImage(i, img)">
+                        <img [src]="resolveImageUrl(img.url)" alt="Product image" />
+                        @if (card.selectedImageId === img.id) {
+                          <i class="pi pi-check-circle selected-badge"></i>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+              @if (!card.selectedProductId || getCardProductImages(i).length === 0) {
+                <div class="form-field">
+                  <label>Card Image *</label>
+                  @if (!card.imagePreview) {
+                    <div class="image-upload-zone">
+                      <label class="upload-dropzone" [for]="'bcCardImage_' + i">
+                        <i class="pi pi-cloud-upload"></i>
+                        <span>{{ card.selectedProductId ? 'No product images — upload' : 'Select product or upload' }}</span>
+                        <small>JPG, PNG — auto-compressed</small>
+                      </label>
+                      <input type="file" [id]="'bcCardImage_' + i" accept="image/*" (change)="onCardImageSelect($event, i)" hidden />
+                    </div>
+                  }
+                  @if (card.imagePreview && (!card.selectedProductId || getCardProductImages(i).length === 0)) {
+                    <div class="image-preview-wrap">
+                      <img [src]="card.imagePreview" alt="Card preview" class="image-preview" />
+                      @if (card.uploading) {
+                        <div class="image-preview-overlay"><i class="pi pi-spin pi-spinner"></i> Uploading...</div>
+                      }
+                      @if (!card.uploading) {
+                        <button type="button" class="remove-image-btn" (click)="removeCardImage(i)">
+                          <i class="pi pi-times"></i>
+                        </button>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+              <div class="form-field">
+                <label [for]="'bcCardBody_' + i">Body Parameter</label>
+                <input pInputText [id]="'bcCardBody_' + i"
+                  [(ngModel)]="card.bodyParam" [ngModelOptions]="{standalone: true}"
+                  placeholder="e.g. Premium Leather Wallet"
+                  [maxlength]="cardBodyMaxLength" class="w-full" />
+                  <small class="hint">{{ card.bodyParam.length }}/{{ cardBodyMaxLength }} characters</small>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </form>
+    <ng-template pTemplate="footer">
+      <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="close()" icon="pi pi-times"></p-button>
+      <p-button [label]="'Send to ' + phoneNumbers.length + ' Customers'" (onClick)="send()"
+        [disabled]="sending || broadcastForm.invalid || anyUploading || (isCarousel && !carouselCardsValid)"
+        [loading]="sending" icon="pi pi-send">
+      </p-button>
+    </ng-template>
+  </p-dialog>

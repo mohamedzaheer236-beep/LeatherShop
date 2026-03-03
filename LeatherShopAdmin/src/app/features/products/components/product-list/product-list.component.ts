@@ -1,5 +1,5 @@
-﻿import { Component, OnInit, Renderer2, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
+﻿import { Component, OnInit, Renderer2, ViewChild, inject } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { PaginatorState } from 'primeng/paginator';
@@ -21,12 +21,32 @@ import { PaginatorModule } from 'primeng/paginator';
 @Component({
   selector: 'app-product-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, LoadingSpinnerComponent, TableModule, ButtonModule, InputTextModule, DropdownModule, TagModule, ConfirmDialogModule, ToolbarModule, TooltipModule, PaginatorModule],
+  imports: [
+    DecimalPipe,
+    RouterLink,
+    ReactiveFormsModule,
+    LoadingSpinnerComponent,
+    TableModule,
+    ButtonModule,
+    InputTextModule,
+    DropdownModule,
+    TagModule,
+    ConfirmDialogModule,
+    ToolbarModule,
+    TooltipModule,
+    PaginatorModule,
+  ],
   templateUrl: './product-list.component.html',
   styleUrl: './product-list.component.scss',
-  providers: [ConfirmationService]
+  providers: [ConfirmationService],
 })
 export class ProductListComponent implements OnInit {
+  private fb = inject(FormBuilder);
+  private productService = inject(ProductService);
+  private notification = inject(NotificationService);
+  private confirmationService = inject(ConfirmationService);
+  private renderer = inject(Renderer2);
+
   products: Product[] = [];
   categoryOptions: { label: string; value: string }[] = [];
   brandOptions: { label: string; value: string }[] = [];
@@ -42,29 +62,29 @@ export class ProductListComponent implements OnInit {
   @ViewChild('catDropdown') catDropdown!: Dropdown;
   @ViewChild('brandDropdown') brandDropdown!: Dropdown;
 
-  constructor(
-    private fb: FormBuilder,
-    private productService: ProductService,
-    private notification: NotificationService,
-    private confirmationService: ConfirmationService,
-    private renderer: Renderer2
-  ) {}
-
   ngOnInit(): void {
     this.filterForm = this.fb.group({
       searchText: [''],
       filterCategory: [null],
-      filterBrand: [null]
+      filterBrand: [null],
     });
 
     this.loadProducts();
     this.productService.getCategories().subscribe({
-      next: (data) => { this.categoryOptions = data.map(c => ({ label: c, value: c })); },
-      error: () => { /* Toast shown by error interceptor */ }
+      next: data => {
+        this.categoryOptions = data.map(c => ({ label: c, value: c }));
+      },
+      error: () => {
+        /* Toast shown by error interceptor */
+      },
     });
     this.productService.getBrands().subscribe({
-      next: (data) => { this.brandOptions = data.map(b => ({ label: b, value: b })); },
-      error: () => { /* Toast shown by error interceptor */ }
+      next: data => {
+        this.brandOptions = data.map(b => ({ label: b, value: b }));
+      },
+      error: () => {
+        /* Toast shown by error interceptor */
+      },
     });
   }
 
@@ -103,17 +123,19 @@ export class ProductListComponent implements OnInit {
     this.loading = true;
     this.errorMessage = null;
     const { searchText, filterCategory, filterBrand } = this.filterForm.value;
-    this.productService.getProducts(filterCategory || '', filterBrand || '', searchText || '', this.currentPage, this.pageSize).subscribe({
-      next: (result) => {
-        this.products = result.items;
-        this.totalRecords = result.totalCount;
-        this.loading = false;
-      },
-      error: () => {
-        this.errorMessage = 'Failed to load products. Please try again.';
-        this.loading = false;
-      }
-    });
+    this.productService
+      .getProducts(filterCategory || '', filterBrand || '', searchText || '', this.currentPage, this.pageSize)
+      .subscribe({
+        next: result => {
+          this.products = result.items;
+          this.totalRecords = result.totalCount;
+          this.loading = false;
+        },
+        error: () => {
+          this.errorMessage = 'Failed to load products. Please try again.';
+          this.loading = false;
+        },
+      });
   }
 
   onPageChange(event: PaginatorState): void {
@@ -130,7 +152,7 @@ export class ProductListComponent implements OnInit {
       },
       error: () => {
         // Toast shown by error interceptor
-      }
+      },
     });
   }
 
@@ -148,9 +170,9 @@ export class ProductListComponent implements OnInit {
           },
           error: () => {
             // Toast shown by error interceptor
-          }
+          },
         });
-      }
+      },
     });
   }
 }

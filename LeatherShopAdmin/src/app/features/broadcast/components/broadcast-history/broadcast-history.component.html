@@ -1,0 +1,37 @@
+@if (totalRecords > 0) {
+  <div class="history-section">
+    <div class="section-header">
+      <h3><i class="pi pi-history"></i> Broadcast History</h3>
+    </div>
+    <p-table [value]="history"
+      styleClass="p-datatable-striped" [tableStyle]="{'min-width': '50rem'}" [rowHover]="true">
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Template</th>
+          <th>Recipients</th>
+          <th>Sent</th>
+          <th>Failed</th>
+          <th>Date</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-b>
+        <tr>
+          <td><strong style="font-family: monospace; font-size: 13px;">{{ b.messageTemplate }}</strong></td>
+          <td>{{ b.totalRecipients }}</td>
+          <td><p-tag [value]="b.sentCount.toString()" severity="success"></p-tag></td>
+          <td><p-tag [value]="b.failedCount.toString()" [severity]="b.failedCount > 0 ? 'danger' : 'info'"></p-tag></td>
+          <td>{{ b.sentAt | date:'dd MMM yyyy HH:mm' }}</td>
+        </tr>
+      </ng-template>
+    </p-table>
+    <p-paginator
+      [first]="(currentPage - 1) * pageSize"
+      [rows]="pageSize"
+      [totalRecords]="totalRecords"
+      [rowsPerPageOptions]="[10, 25, 50]"
+      (onPageChange)="onPageChange($event)"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} broadcasts">
+    </p-paginator>
+  </div>
+}

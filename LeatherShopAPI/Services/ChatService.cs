@@ -23,7 +23,7 @@ public class ChatService : IChatService
         _logger = logger;
     }
 
-    public async Task<List<ConversationDto>> GetConversationsAsync(string? search)
+    public async Task<List<ConversationDto>> GetConversationsAsync(string? search, CancellationToken ct = default)
     {
         var query = _db.Customers.AsNoTracking().AsQueryable();
 
@@ -64,7 +64,7 @@ public class ChatService : IChatService
                         ))
             })
             .OrderByDescending(x => x.LastMessageAt)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         return conversations.Select(c => new ConversationDto
         {
@@ -80,12 +80,13 @@ public class ChatService : IChatService
         }).ToList();
     }
 
-    public async Task<PaginatedResult<ChatMessageDto>> GetMessagesAsync(int customerId, int page = 1, int pageSize = 50)
+    public async Task<PaginatedResult<ChatMessageDto>> GetMessagesAsync(int customerId, int page = 1, int pageSize = 50, CancellationToken ct = default)
     {
         var query = _db.ChatMessages
+            .AsNoTracking()
             .Where(m => m.CustomerId == customerId);
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(ct);
 
         var messages = await query
             .OrderByDescending(m => m.Timestamp)
@@ -102,7 +103,7 @@ public class ChatService : IChatService
                 IsFromBot = m.IsFromBot,
                 Timestamp = m.Timestamp
             })
-            .ToListAsync();
+            .ToListAsync(ct);
 
         // Return in chronological order (oldest first) for display
         messages.Reverse();
@@ -116,20 +117,20 @@ public class ChatService : IChatService
         };
     }
 
-    public async Task<ChatMessageDto> SendMessageAsync(int customerId, string text)
+    public async Task<ChatMessageDto> SendMessageAsync(int customerId, string text, CancellationToken ct = default)
     {
-        var customer = await _db.Customers.FindAsync(customerId)
+        var customer = await _db.Customers.FindAsync(new object[] { customerId }, ct)
             ?? throw new KeyNotFoundException($"Customer {customerId} not found");
 
         // Send via WhatsApp
-        await _whatsApp.SendTextMessage(customer.PhoneNumber, text);
+        await _whatsApp.SendTextMessage(customer.PhoneNumber, text, ct);
 
         // Pause bot for 30 minutes
         customer.IsBotPaused = true;
         customer.BotPausedUntil = DateTime.UtcNow.AddMinutes(BotPauseMinutes);
 
         // Save to chat history
-        var msg = await SaveMessageAsync(customerId, MessageDirection.Outgoing, text, "Admin", false);
+        var msg = await SaveMessageAsync(customerId, MessageDirection.Outgoing, text, "Admin", false, "text", ct);
 
         return new ChatMessageDto
         {
@@ -144,9 +145,9 @@ public class ChatService : IChatService
         };
     }
 
-    public async Task<bool?> ToggleBotAsync(int customerId)
+    public async Task<bool?> ToggleBotAsync(int customerId, CancellationToken ct = default)
     {
-        var customer = await _db.Customers.FindAsync(customerId);
+        var customer = await _db.Customers.FindAsync(new object[] { customerId }, ct);
         if (customer == null) return null;
 
         if (IsBotEffectivelyPaused(customer))
@@ -162,7 +163,7 @@ public class ChatService : IChatService
             customer.BotPausedUntil = null; // null = indefinite pause
         }
 
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
         _logger.LogInformation("Bot {State} for customer {CustomerId}",
             customer.IsBotPaused ? "paused" : "resumed", customerId);
 
@@ -170,7 +171,7 @@ public class ChatService : IChatService
     }
 
     public async Task<ChatMessage> SaveMessageAsync(int customerId, MessageDirection direction, string content,
-        string senderName, bool isFromBot, string messageType = "text")
+        string senderName, bool isFromBot, string messageType = "text", CancellationToken ct = default)
     {
         var message = new ChatMessage
         {
@@ -184,23 +185,23 @@ public class ChatService : IChatService
         };
 
         _db.ChatMessages.Add(message);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
 
         return message;
     }
 
-    public async Task<bool> IsBotPausedAsync(int customerId)
+    public async Task<bool> IsBotPausedAsync(int customerId, CancellationToken ct = default)
     {
         var customer = await _db.Customers.FindAsync(customerId);
         if (customer == null) return false;
-        return await CheckAndAutoResumeBotAsync(customer);
+        return await CheckAndAutoResumeBotAsync(customer, ct);
     }
 
-    public async Task<bool> DeleteConversationAsync(int customerId)
+    public async Task<bool> DeleteConversationAsync(int customerId, CancellationToken ct = default)
     {
         var deletedCount = await _db.ChatMessages
             .Where(m => m.CustomerId == customerId)
-            .ExecuteDeleteAsync();
+            .ExecuteDeleteAsync(ct);
 
         if (deletedCount == 0) return false;
 
@@ -224,7 +225,7 @@ public class ChatService : IChatService
     /// Checks if the bot is paused. If BotPausedUntil has expired, auto-resumes
     /// and persists the change to the database.
     /// </summary>
-    private async Task<bool> CheckAndAutoResumeBotAsync(Customer customer)
+    private async Task<bool> CheckAndAutoResumeBotAsync(Customer customer, CancellationToken ct = default)
     {
         if (!customer.IsBotPaused) return false;
 
@@ -233,7 +234,7 @@ public class ChatService : IChatService
         {
             customer.IsBotPaused = false;
             customer.BotPausedUntil = null;
-            await _db.SaveChangesAsync();
+            await _db.SaveChangesAsync(ct);
             _logger.LogInformation("Bot auto-resumed for customer {CustomerId} (pause expired)", customer.Id);
             return false;
         }
@@ -241,7 +242,7 @@ public class ChatService : IChatService
         return true;
     }
 
-    public async Task<List<FailedOutboxMessageDto>> GetFailedOutboxMessagesAsync()
+    public async Task<List<FailedOutboxMessageDto>> GetFailedOutboxMessagesAsync(CancellationToken ct = default)
     {
         var failedMessages = await _db.WhatsAppOutboxMessages
             .Where(m => m.Status == OutboxMessageStatus.Failed)
@@ -261,7 +262,7 @@ public class ChatService : IChatService
                     .FirstOrDefault()
             })
             .AsNoTracking()
-            .ToListAsync();
+            .ToListAsync(ct);
 
         return failedMessages.Select(m => new FailedOutboxMessageDto
         {
@@ -278,9 +279,9 @@ public class ChatService : IChatService
         }).ToList();
     }
 
-    public async Task<bool> RetryOutboxMessageAsync(int outboxMessageId)
+    public async Task<bool> RetryOutboxMessageAsync(int outboxMessageId, CancellationToken ct = default)
     {
-        var message = await _db.WhatsAppOutboxMessages.FindAsync(outboxMessageId);
+        var message = await _db.WhatsAppOutboxMessages.FindAsync(new object[] { outboxMessageId }, ct);
         if (message == null || message.Status != OutboxMessageStatus.Failed)
             return false;
 
@@ -290,14 +291,14 @@ public class ChatService : IChatService
         message.NextRetryAt = null;
         message.LastError = null;
 
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
         _logger.LogInformation("Outbox message {Id} manually retried by admin — reset to Pending", outboxMessageId);
         return true;
     }
 
-    public async Task<int> GetFailedOutboxCountAsync()
+    public async Task<int> GetFailedOutboxCountAsync(CancellationToken ct = default)
     {
         return await _db.WhatsAppOutboxMessages
-            .CountAsync(m => m.Status == OutboxMessageStatus.Failed);
+            .CountAsync(m => m.Status == OutboxMessageStatus.Failed, ct);
     }
 }

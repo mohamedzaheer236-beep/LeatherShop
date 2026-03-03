@@ -10,7 +10,7 @@ export interface Conversation {
 
 export interface ChatMessage {
   id: number;
-  direction: string; // 'Incoming' | 'Outgoing'
+  direction: 'Incoming' | 'Outgoing';
   messageType: string;
   content: string;
   senderName: string;

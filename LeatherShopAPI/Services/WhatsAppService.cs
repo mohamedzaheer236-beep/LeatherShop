@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using LeatherShopAPI.Models;
+using LeatherShopAPI.Models.WhatsApp;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Services;
@@ -46,7 +47,7 @@ public class WhatsAppService : IWhatsAppService
     }
 
     /// <summary>Send a simple text message</summary>
-    public async Task SendTextMessage(string to, string message)
+    public async Task SendTextMessage(string to, string message, CancellationToken ct = default)
     {
         var payload = new
         {
@@ -55,11 +56,11 @@ public class WhatsAppService : IWhatsAppService
             type = "text",
             text = new { body = message }
         };
-        await SendRequest(payload);
+        await SendRequest(payload, ct);
     }
 
     /// <summary>Send an image message with optional caption</summary>
-    public async Task SendImageMessage(string to, string imageUrl, string? caption = null)
+    public async Task SendImageMessage(string to, string imageUrl, string? caption = null, CancellationToken ct = default)
     {
         var payload = new
         {
@@ -72,7 +73,7 @@ public class WhatsAppService : IWhatsAppService
                 caption
             }
         };
-        await SendRequest(payload);
+        await SendRequest(payload, ct);
     }
 
     /// <summary>
@@ -80,7 +81,7 @@ public class WhatsAppService : IWhatsAppService
     /// Customer taps a button → sees a scrollable list of items to pick from.
     /// Perfect for: "Browse Categories", "View Products in Wallets", etc.
     /// </summary>
-    public async Task SendListMessage(string to, string headerText, string bodyText, string buttonText, List<ListSection> sections)
+    public async Task SendListMessage(string to, string headerText, string bodyText, string buttonText, List<ListSection> sections, CancellationToken ct = default)
     {
         var payload = new
         {
@@ -108,14 +109,14 @@ public class WhatsAppService : IWhatsAppService
                 }
             }
         };
-        await SendRequest(payload);
+        await SendRequest(payload, ct);
     }
 
     /// <summary>
     /// Send interactive BUTTON message (up to 3 quick reply buttons).
     /// Perfect for: "Add to Cart / View Cart / Main Menu"
     /// </summary>
-    public async Task SendButtonMessage(string to, string bodyText, List<ButtonOption> buttons)
+    public async Task SendButtonMessage(string to, string bodyText, List<ButtonOption> buttons, CancellationToken ct = default)
     {
         var payload = new
         {
@@ -136,14 +137,14 @@ public class WhatsAppService : IWhatsAppService
                 }
             }
         };
-        await SendRequest(payload);
+        await SendRequest(payload, ct);
     }
 
     /// <summary>
     /// Send a template message (required for broadcast / first message to customer).
     /// Template must be pre-approved in Meta Business Manager.
     /// </summary>
-    public async Task SendTemplateMessage(string to, string templateName, string languageCode = "en", List<string>? parameters = null, string? imageUrl = null)
+    public async Task SendTemplateMessage(string to, string templateName, string languageCode = "en", List<string>? parameters = null, string? imageUrl = null, CancellationToken ct = default)
     {
         var components = new List<object>();
 
@@ -182,7 +183,7 @@ public class WhatsAppService : IWhatsAppService
                 components = components.Any() ? components : null
             }
         };
-        await SendRequest(payload);
+        await SendRequest(payload, ct);
     }
 
     /// <summary>
@@ -191,7 +192,7 @@ public class WhatsAppService : IWhatsAppService
     /// Template must be pre-approved in Meta Business Manager.
     /// The number of cards MUST match the template definition (e.g., product_gallery has 2 cards).
     /// </summary>
-    public async Task SendCarouselTemplateMessage(string to, string templateName, List<CarouselCard> cards, string languageCode = "en")
+    public async Task SendCarouselTemplateMessage(string to, string templateName, List<CarouselCard> cards, string languageCode = "en", CancellationToken ct = default)
     {
         // Build card components — each card has header (image), body (text param), and button (quick_reply payload)
         var carouselCards = cards.Select((card, idx) => new Dictionary<string, object>
@@ -224,14 +225,14 @@ public class WhatsAppService : IWhatsAppService
                 }
             }
         };
-        await SendRequest(payload);
+        await SendRequest(payload, ct);
     }
 
     /// <summary>
     /// Fetch approved message templates from Meta Business API.
     /// Uses the WABA ID to query templates with status=APPROVED.
     /// </summary>
-    public async Task<List<WhatsAppTemplate>> GetApprovedTemplates()
+    public async Task<List<WhatsAppTemplate>> GetApprovedTemplates(CancellationToken ct = default)
     {
         var wabaId = _config["WhatsApp:BusinessAccountId"];
         if (string.IsNullOrEmpty(wabaId))
@@ -241,8 +242,8 @@ public class WhatsAppService : IWhatsAppService
         }
 
         var url = $"https://graph.facebook.com/{ApiVersion}/{wabaId}/message_templates?status=APPROVED&limit=100";
-        using var response = await _httpClient.GetAsync(url);
-        var body = await response.Content.ReadAsStringAsync();
+        using var response = await _httpClient.GetAsync(url, ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -339,7 +340,7 @@ public class WhatsAppService : IWhatsAppService
         return templates;
     }
 
-    private async Task SendRequest(object payload)
+    private async Task SendRequest(object payload, CancellationToken ct = default)
     {
         var json = JsonSerializer.Serialize(payload, _jsonOptions);
         _logger.LogDebug("WhatsApp API Request: {Json}", json);
@@ -347,8 +348,8 @@ public class WhatsAppService : IWhatsAppService
         for (int attempt = 0; attempt <= RateLimitMaxRetries; attempt++)
         {
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
-            using var response = await _httpClient.PostAsync(BaseUrl, content);
-            var responseBody = await response.Content.ReadAsStringAsync();
+            using var response = await _httpClient.PostAsync(BaseUrl, content, ct);
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
 
             if (response.IsSuccessStatusCode)
             {
@@ -362,7 +363,7 @@ public class WhatsAppService : IWhatsAppService
                 var delay = RateLimitRetryDelaysMs[attempt];
                 _logger.LogWarning("WhatsApp rate limit hit (attempt {Attempt}/{Max}), retrying after {Delay}ms",
                     attempt + 1, RateLimitMaxRetries + 1, delay);
-                await Task.Delay(delay);
+                await Task.Delay(delay, ct);
                 continue;
             }
 
@@ -370,49 +371,4 @@ public class WhatsAppService : IWhatsAppService
             throw new WhatsAppApiException($"WhatsApp API Error: {response.StatusCode} - {responseBody}");
         }
     }
-}
-
-// Helper models for building interactive messages
-public class ListSection
-{
-    public string Title { get; set; } = string.Empty;
-    public List<ListRow> Rows { get; set; } = new();
-}
-
-public class ListRow
-{
-    public string Id { get; set; } = string.Empty;
-    public string Title { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-}
-
-public class ButtonOption
-{
-    public string Id { get; set; } = string.Empty;
-    public string Title { get; set; } = string.Empty;
-}
-
-public class WhatsAppTemplate
-{
-    public string Name { get; set; } = string.Empty;
-    public string Language { get; set; } = string.Empty;
-    public string Status { get; set; } = string.Empty;
-    public string Category { get; set; } = string.Empty;
-    /// <summary>True if the template contains a CAROUSEL component.</summary>
-    public bool IsCarousel { get; set; }
-    /// <summary>Number of cards defined in the carousel (0 for non-carousel templates).</summary>
-    public int CardCount { get; set; }
-    /// <summary>True if the template has a HEADER component with IMAGE format.</summary>
-    public bool HasImageHeader { get; set; }
-    /// <summary>Number of body parameters expected (e.g., 2 means {{1}} and {{2}}).</summary>
-    public int BodyParamCount { get; set; }
-    /// <summary>Max characters allowed for a carousel card body parameter (160 - static text length). 0 for non-carousel.</summary>
-    public int CardBodyMaxLength { get; set; }
-}
-
-public class CarouselCard
-{
-    public string ImageUrl { get; set; } = string.Empty;
-    public string BodyParam { get; set; } = string.Empty;
-    public string ButtonPayload { get; set; } = string.Empty;
 }

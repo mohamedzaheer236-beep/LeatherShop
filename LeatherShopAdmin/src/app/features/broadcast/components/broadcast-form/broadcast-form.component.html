@@ -1,0 +1,281 @@
+<p-card styleClass="broadcast-card">
+  <div class="card-section-header">
+    <i class="pi pi-send"></i>
+    <div>
+      <h3>Send Template Message</h3>
+      <p>Broadcast a WhatsApp template to all subscribed customers</p>
+    </div>
+  </div>
+
+  <!-- Status Banner -->
+  @if (resultMessage || sending) {
+    <div class="status-banner"
+      [class.status-sending]="sending" [class.status-success]="!sending && resultType === 'success'" [class.status-error]="!sending && resultType === 'error'">
+      <div class="status-icon">
+        @if (sending) {
+          <i class="pi pi-spin pi-spinner"></i>
+        }
+        @if (!sending && resultType === 'success') {
+          <i class="pi pi-check-circle"></i>
+        }
+        @if (!sending && resultType === 'error') {
+          <i class="pi pi-times-circle"></i>
+        }
+      </div>
+      <div class="status-content">
+        @if (sending) {
+          <span class="status-title">Sending Broadcast</span>
+        }
+        @if (!sending && resultType === 'success') {
+          <span class="status-title">Broadcast Complete</span>
+        }
+        @if (!sending && resultType === 'error') {
+          <span class="status-title">Broadcast Failed</span>
+        }
+        <span class="status-detail">{{ resultMessage }}</span>
+      </div>
+      @if (!sending) {
+        <button class="status-close" (click)="resultMessage = ''">
+          <i class="pi pi-times"></i>
+        </button>
+      }
+    </div>
+  }
+
+  <form [formGroup]="broadcastForm" (ngSubmit)="sendBroadcast()">
+    <div class="form-grid">
+      <div class="form-field">
+        <span class="field-label" id="templateName-label">Template Name <span [class]="isFieldInvalid('templateName') ? 'req-star error' : 'req-star'">*</span></span>
+
+        <!-- Dropdown when templates are available -->
+        @if (templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length > 0) {
+          <p-dropdown
+            inputId="templateName"
+            ariaLabelledBy="templateName-label"
+            [options]="templateLoader.getState().templateOptions"
+            formControlName="templateName"
+            (onChange)="onTemplateSelect()"
+            (onHide)="onDropdownHide()"
+            placeholder="Select a template"
+            [style]="{'width': '100%'}"
+            [showClear]="true"
+            [filter]="true"
+            filterPlaceholder="Search templates..."
+            appendTo="body">
+          </p-dropdown>
+        }
+
+        <!-- Fallback text input when templates are not loaded -->
+        @if (!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0) {
+          <label
+          for="templateNameInput" class="sr-only">Template Name</label>
+        }
+        @if (!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0) {
+          <input
+            pInputText id="templateNameInput"
+            formControlName="templateName"
+            placeholder="e.g. new_product_launch"
+            class="w-full" aria-labelledby="templateName-label" />
+        }
+
+        @if (templateLoader.getState().loadingTemplates) {
+          <small class="hint">
+            <i class="pi pi-spin pi-spinner"></i> Loading templates from Meta...
+          </small>
+        }
+        @if (templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length === 0 && !templateLoader.getState().loadingTemplates) {
+          <small class="hint warn">
+            <i class="pi pi-exclamation-triangle"></i> Could not fetch templates. Type the template name manually.
+          </small>
+        }
+        @if (isFieldInvalid('templateName') && f['templateName'].errors?.['required']) {
+          <small class="p-error">
+            <i class="pi pi-exclamation-circle"></i> Template name is required.
+          </small>
+        }
+        @if (isFieldInvalid('templateName') && f['templateName'].errors?.['invalidTemplate']) {
+          <small class="p-error">
+            <i class="pi pi-times-circle"></i> Invalid template. Select from the list or type an approved name.
+          </small>
+        }
+
+        <!-- Carousel badge -->
+        @if (selectedTemplateIsCarousel) {
+          <small class="hint carousel-badge">
+            <i class="pi pi-images"></i> Carousel template — {{ carouselCards.length }} cards
+          </small>
+        }
+      </div>
+
+      <!-- ═══ Standard Template Fields (hidden when carousel) ═══ -->
+      @if (!selectedTemplateIsCarousel) {
+        @if (selectedTemplateBodyParamCount > 0) {
+          <div class="form-field">
+            <label for="parameters">Template Parameters (comma separated)</label>
+            <input pInputText id="parameters"
+              formControlName="parameters"
+              placeholder="e.g. Classic Wallet, 899, 50% OFF"
+              class="w-full" />
+              <small class="hint">
+                <i class="pi pi-info-circle"></i> This template requires {{ selectedTemplateBodyParamCount }} parameter(s)
+              </small>
+            </div>
+          }
+          @if (selectedTemplateHasImageHeader) {
+            <div class="form-field">
+              <label>Header Image (optional)</label>
+              @if (!headerImagePreview) {
+                <div class="image-upload-zone">
+                  <label class="upload-dropzone" for="headerImageInput">
+                    <i class="pi pi-cloud-upload"></i>
+                    <span>Click to choose image</span>
+                    <small>JPG, PNG — auto-compressed</small>
+                  </label>
+                  <input type="file" id="headerImageInput" accept="image/*"
+                    (change)="onHeaderImageSelect($event)" hidden />
+                  </div>
+                }
+                @if (headerImagePreview) {
+                  <div class="image-preview-wrap">
+                    <img [src]="headerImagePreview" alt="Header preview" class="image-preview" />
+                    @if (headerImageUploading) {
+                      <div class="image-preview-overlay">
+                        <i class="pi pi-spin pi-spinner"></i> Uploading...
+                      </div>
+                    }
+                    @if (!headerImageUploading) {
+                      <button type="button" class="remove-image-btn" (click)="removeHeaderImage()">
+                        <i class="pi pi-times"></i>
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          }
+
+          <!-- ═══ Carousel Card Fields (shown when carousel) ═══ -->
+          @if (selectedTemplateIsCarousel) {
+            <div class="carousel-cards-section">
+              @for (card of carouselCards; track card; let i = $index) {
+                <div class="carousel-card-item">
+                  <div class="carousel-card-header">
+                    <span class="card-number">Card {{ i + 1 }} of {{ carouselCards.length }}</span>
+                  </div>
+                  <!-- 1. Product Selector -->
+                  <div class="form-field">
+                    <label [for]="'cardProduct_' + i">Link to Product <span class="req-star">*</span></label>
+                    <p-dropdown [inputId]="'cardProduct_' + i"
+                      [options]="productOptions"
+                      [(ngModel)]="card.selectedProductId"
+                      [ngModelOptions]="{standalone: true}"
+                      (onChange)="onCardProductSelect(i)"
+                      placeholder="Select a product"
+                      [style]="{'width': '100%'}"
+                      [showClear]="true"
+                      [filter]="true"
+                      filterPlaceholder="Search products..."
+                      appendTo="body">
+                    </p-dropdown>
+                    @if (!card.selectedProductId) {
+                      <small class="hint">
+                        <i class="pi pi-info-circle"></i> Select product to show when customer taps "View Details"
+                      </small>
+                    }
+                  </div>
+                  <!-- 2. Product Image Picker -->
+                  @if (card.selectedProductId && getCardProductImages(i).length > 0) {
+                    <div class="form-field">
+                      <label>Select Image for Card <span class="req-star">*</span></label>
+                      <div class="product-image-picker">
+                        @for (img of getCardProductImages(i); track img) {
+                          <div class="picker-thumb"
+                            [class.selected]="card.selectedImageId === img.id"
+                            (click)="selectCardImage(i, img)">
+                            <img [src]="resolveImageUrl(img.url)" [alt]="'Product image'" />
+                            @if (card.selectedImageId === img.id) {
+                              <i class="pi pi-check-circle selected-badge"></i>
+                            }
+                          </div>
+                        }
+                      </div>
+                      @if (card.selectedImageId !== null) {
+                        <small class="hint">
+                          <i class="pi pi-check"></i> This image will appear in the carousel card and on the invoice
+                        </small>
+                      }
+                    </div>
+                  }
+                  <!-- 2b. File Upload fallback -->
+                  @if (!card.selectedProductId || getCardProductImages(i).length === 0) {
+                    <div class="form-field">
+                      <label>Card Image <span class="req-star">*</span></label>
+                      @if (!card.imagePreview) {
+                        <div class="image-upload-zone">
+                          <label class="upload-dropzone" [for]="'cardImage_' + i">
+                            <i class="pi pi-cloud-upload"></i>
+                            <span>{{ card.selectedProductId ? 'No product images — upload one' : 'Select a product first, or upload' }}</span>
+                            <small>JPG, PNG — auto-compressed</small>
+                          </label>
+                          <input type="file" [id]="'cardImage_' + i" accept="image/*"
+                            (change)="onCardImageSelect($event, i)" hidden />
+                          </div>
+                        }
+                        @if (card.imagePreview && (!card.selectedProductId || getCardProductImages(i).length === 0)) {
+                          <div class="image-preview-wrap">
+                            <img [src]="card.imagePreview" alt="Card {{ i + 1 }} preview" class="image-preview" />
+                            @if (card.uploading) {
+                              <div class="image-preview-overlay">
+                                <i class="pi pi-spin pi-spinner"></i> Uploading...
+                              </div>
+                            }
+                            @if (!card.uploading) {
+                              <button type="button" class="remove-image-btn" (click)="removeCardImage(i)">
+                                <i class="pi pi-times"></i>
+                              </button>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                    <!-- 3. Card Body Param -->
+                    <div class="form-field">
+                      <label [for]="'cardBody_' + i">Body Parameter</label>
+                      <input pInputText [id]="'cardBody_' + i"
+                        [(ngModel)]="card.bodyParam" [ngModelOptions]="{standalone: true}"
+                        placeholder="e.g. Premium Leather Wallet"
+                        [maxlength]="cardBodyMaxLength"
+                        class="w-full" />
+                        <small class="hint">{{ card.bodyParam.length }}/{{ cardBodyMaxLength }} characters</small>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
+            <div class="send-action">
+              @if (broadcastForm.invalid) {
+                <small class="form-warning">
+                  <i class="pi pi-exclamation-triangle"></i> Please select a valid template to enable sending.
+                </small>
+              }
+              @if (selectedTemplateIsCarousel && !carouselCardsValid && !broadcastForm.invalid) {
+                <small class="form-warning">
+                  <i class="pi pi-exclamation-triangle"></i> Please upload images for all carousel cards.
+                </small>
+              }
+              <p-button type="submit"
+                label="Send to All Subscribers"
+                icon="pi pi-send"
+                [loading]="sending"
+                [disabled]="sending || broadcastForm.invalid || anyUploading || (selectedTemplateIsCarousel && !carouselCardsValid)"
+                styleClass="w-full">
+              </p-button>
+              <small class="send-hint">
+                <i class="pi pi-info-circle"></i>
+                Tip: To send to specific customers, go to <strong>Customers</strong> page, select them, and use "Send Broadcast to Selected".
+              </small>
+            </div>
+          </form>
+        </p-card>

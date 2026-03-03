@@ -1,6 +1,13 @@
-﻿import { Component, HostListener, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+﻿import { Component, HostListener, OnInit, inject } from '@angular/core';
+
+import {
+  ReactiveFormsModule,
+  FormBuilder,
+  FormGroup,
+  Validators,
+  AbstractControl,
+  ValidationErrors,
+} from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Observable, of, timer } from 'rxjs';
 import { switchMap, map, catchError } from 'rxjs/operators';
@@ -21,12 +28,30 @@ import { environment } from '../../../../../environments/environment';
 @Component({
   selector: 'app-product-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, CardModule, InputTextModule, InputNumberModule, InputTextareaModule, DropdownModule, ButtonModule, ConfirmDialogModule, ToolbarModule],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    CardModule,
+    InputTextModule,
+    InputNumberModule,
+    InputTextareaModule,
+    DropdownModule,
+    ButtonModule,
+    ConfirmDialogModule,
+    ToolbarModule,
+  ],
   templateUrl: './product-form.component.html',
   styleUrl: './product-form.component.scss',
-  providers: [ConfirmationService]
+  providers: [ConfirmationService],
 })
 export class ProductFormComponent implements OnInit, HasUnsavedChanges {
+  private fb = inject(FormBuilder);
+  private productService = inject(ProductService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private notification = inject(NotificationService);
+  private confirmationService = inject(ConfirmationService);
+
   productForm!: FormGroup;
   isEdit = false;
   productId = 0;
@@ -44,15 +69,6 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
 
   categoryOptions: { label: string; value: string }[] = [];
 
-  constructor(
-    private fb: FormBuilder,
-    private productService: ProductService,
-    private route: ActivatedRoute,
-    private router: Router,
-    private notification: NotificationService,
-    private confirmationService: ConfirmationService
-  ) {}
-
   ngOnInit(): void {
     this.initForm();
 
@@ -65,52 +81,52 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
       this.isEdit = true;
       this.productId = +id;
       this.productService.getProduct(this.productId).subscribe({
-        next: (data) => {
-        this.productForm.patchValue({
-          name: data.name, description: data.description, brand: data.brand,
-          category: data.category, price: data.price,
-          stockQuantity: data.stockQuantity, imageUrl: data.imageUrl
-        });
+        next: data => {
+          this.productForm.patchValue({
+            name: data.name,
+            description: data.description,
+            brand: data.brand,
+            category: data.category,
+            price: data.price,
+            stockQuantity: data.stockQuantity,
+            imageUrl: data.imageUrl,
+          });
 
-        // Load existing images into the multi-image array
-        this.images = [];
-        if (data.imageUrls && data.imageUrls.length > 0) {
-          for (const url of data.imageUrls) {
-            const preview = url.startsWith('http')
-              ? url
-              : environment.baseUrl + url;
-            this.images.push({ preview, path: url });
+          // Load existing images into the multi-image array
+          this.images = [];
+          if (data.imageUrls && data.imageUrls.length > 0) {
+            for (const url of data.imageUrls) {
+              const preview = url.startsWith('http') ? url : environment.baseUrl + url;
+              this.images.push({ preview, path: url });
+            }
+          } else if (data.imageUrl) {
+            // Fallback: single imageUrl only (no imageUrls from server)
+            const preview = data.imageUrl.startsWith('http') ? data.imageUrl : environment.baseUrl + data.imageUrl;
+            this.images.push({ preview, path: data.imageUrl });
           }
-        } else if (data.imageUrl) {
-          // Fallback: single imageUrl only (no imageUrls from server)
-          const preview = data.imageUrl.startsWith('http')
-            ? data.imageUrl
-            : environment.baseUrl + data.imageUrl;
-          this.images.push({ preview, path: data.imageUrl });
-        }
-        // Sync loaded images back to form controls so imageUrls is not stale
-        this.syncFormImages();
-        // In edit mode, allow stock of 0 (out of stock)
-        this.productForm.get('stockQuantity')!.setValidators([Validators.required, Validators.min(0)]);
-        this.productForm.get('stockQuantity')!.updateValueAndValidity();
-        // Update snapshot once product data is loaded — this is the real baseline
-        this.originalSnapshot = JSON.stringify(this.productForm.value);
+          // Sync loaded images back to form controls so imageUrls is not stale
+          this.syncFormImages();
+          // In edit mode, allow stock of 0 (out of stock)
+          this.productForm.get('stockQuantity')!.setValidators([Validators.required, Validators.min(0)]);
+          this.productForm.get('stockQuantity')!.updateValueAndValidity();
+          // Update snapshot once product data is loaded — this is the real baseline
+          this.originalSnapshot = JSON.stringify(this.productForm.value);
         },
         error: () => {
           // Toast shown by error interceptor — just navigate back
           this.router.navigate(['/products']);
-        }
+        },
       });
     }
 
     // Load categories dynamically from API
     this.productService.getCategories().subscribe({
-      next: (data) => {
+      next: data => {
         this.categoryOptions = data.map(c => ({ label: c, value: c }));
       },
       error: () => {
         // Toast shown by error interceptor
-      }
+      },
     });
   }
 
@@ -123,7 +139,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
       stockQuantity: [null, [Validators.required, Validators.min(1)]],
       imageUrl: [''],
       imageUrls: [[] as string[]],
-      description: ['']
+      description: [''],
     });
   }
 
@@ -133,11 +149,9 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
       return of(null);
     }
     return timer(300).pipe(
-      switchMap(() =>
-        this.productService.checkName(control.value, this.isEdit ? this.productId : undefined)
-      ),
-      map(exists => exists ? { nameExists: true } : null),
-      catchError(() => of(null))
+      switchMap(() => this.productService.checkName(control.value, this.isEdit ? this.productId : undefined)),
+      map(exists => (exists ? { nameExists: true } : null)),
+      catchError(() => of(null)),
     );
   }
 
@@ -152,12 +166,11 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     const filesToProcess: File[] = [];
     this.imageErrors = [];
 
-    for (let i = 0; i < fileList.length; i++) {
+    for (const file of Array.from(fileList)) {
       if (this.images.length + filesToProcess.length >= this.maxImages) {
         this.imageErrors.push(`Maximum ${this.maxImages} images allowed.`);
         break;
       }
-      const file = fileList[i];
       if (!allowedTypes.includes(file.type)) {
         this.imageErrors.push(`"${file.name}" — unsupported format. Only ${allowedLabel} are allowed.`);
         continue;
@@ -177,31 +190,30 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     Promise.all(filesToProcess.map(f => this.compressImage(f)))
       .then(compressedFiles => {
         // Generate local previews
-        const previewPromises = compressedFiles.map(file =>
-          new Promise<string>(resolve => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(file);
-          })
+        const previewPromises = compressedFiles.map(
+          file =>
+            new Promise<string>(resolve => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.readAsDataURL(file);
+            }),
         );
 
         // Upload compressed files to server
         this.productService.uploadImages(compressedFiles).subscribe({
-          next: (paths) => {
+          next: paths => {
             Promise.all(previewPromises).then(previews => {
               for (let i = 0; i < paths.length; i++) {
                 this.images.push({ preview: previews[i], path: paths[i] });
               }
               this.syncFormImages();
               this.uploading = false;
-              this.notification.success(
-                paths.length === 1 ? 'Image uploaded!' : `${paths.length} images uploaded!`
-              );
+              this.notification.success(paths.length === 1 ? 'Image uploaded!' : `${paths.length} images uploaded!`);
             });
           },
           error: () => {
             this.uploading = false;
-          }
+          },
         });
       })
       .catch(() => {
@@ -246,8 +258,11 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
         // Try decreasing quality until we're under 300KB
         const tryCompress = (quality: number) => {
           canvas.toBlob(
-            (blob) => {
-              if (!blob) { reject(new Error('Compression failed')); return; }
+            blob => {
+              if (!blob) {
+                reject(new Error('Compression failed'));
+                return;
+              }
               // If still too big and quality can go lower, try again
               if (blob.size > targetBytes && quality > 0.3) {
                 tryCompress(quality - 0.1);
@@ -257,7 +272,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
               resolve(new File([blob], compressedName, { type: 'image/jpeg' }));
             },
             'image/jpeg',
-            quality
+            quality,
           );
         };
 
@@ -284,7 +299,9 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     this.productForm.patchValue({ imageUrl: primary, imageUrls: additional });
   }
 
-  get f() { return this.productForm.controls; }
+  get f() {
+    return this.productForm.controls;
+  }
 
   /** True when the form has been modified from its initial state */
   get isDirty(): boolean {
@@ -318,7 +335,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
         reject: () => {
           observer.next(false);
           observer.complete();
-        }
+        },
       });
     });
   }
@@ -341,12 +358,14 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     if (this.productForm.invalid) {
       // Show specific toast for the first invalid field
       if (this.f['name'].errors?.['required']) this.notification.error('Product name is required');
-      else if (this.f['name'].errors?.['nameExists']) this.notification.error('A product with this name already exists');
+      else if (this.f['name'].errors?.['nameExists'])
+        this.notification.error('A product with this name already exists');
       else if (this.f['brand'].errors) this.notification.error('Brand is required');
       else if (this.f['category'].errors) this.notification.error('Category is required');
       else if (this.f['price'].errors) this.notification.error('Price must be at least ₹1');
       else if (this.f['stockQuantity'].errors?.['required']) this.notification.error('Stock quantity is required');
-      else if (this.f['stockQuantity'].errors?.['min']) this.notification.error('Stock quantity must be at least 1 when creating a product');
+      else if (this.f['stockQuantity'].errors?.['min'])
+        this.notification.error('Stock quantity must be at least 1 when creating a product');
       return;
     }
 
@@ -367,7 +386,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
           this.notification.success('Product updated successfully!');
           this.router.navigate(['/products']);
         },
-        error: () => this.saving = false
+        error: () => (this.saving = false),
       });
     } else {
       this.productService.createProduct(formValue).subscribe({
@@ -377,7 +396,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
           this.notification.success('Product created successfully!');
           this.router.navigate(['/products']);
         },
-        error: () => this.saving = false
+        error: () => (this.saving = false),
       });
     }
   }

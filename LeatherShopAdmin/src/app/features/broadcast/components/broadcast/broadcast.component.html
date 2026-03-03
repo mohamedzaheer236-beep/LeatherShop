@@ -11,300 +11,103 @@
   <!-- Mode Toggle -->
   <div class="mode-toggle mb-4">
     <p-button [label]="'Quick Message'" [icon]="'pi pi-pencil'"
-              [outlined]="broadcastMode !== 'custom'"
-              (onClick)="broadcastMode = 'custom'" styleClass="mr-2">
+      [outlined]="broadcastMode !== 'custom'"
+      (onClick)="broadcastMode = 'custom'" styleClass="mr-2">
     </p-button>
     <p-button [label]="'Template Message'" [icon]="'pi pi-file'"
-              [outlined]="broadcastMode !== 'template'"
-              (onClick)="broadcastMode = 'template'">
+      [outlined]="broadcastMode !== 'template'"
+      (onClick)="broadcastMode = 'template'">
     </p-button>
   </div>
 
   <div class="broadcast-layout">
     <!-- Quick Custom Message Card -->
-    <div class="broadcast-form-section" *ngIf="broadcastMode === 'custom'">
-      <p-card styleClass="broadcast-card">
-        <div class="card-section-header">
-          <i class="pi pi-pencil"></i>
-          <div>
-            <h3>Quick Message</h3>
-            <p>Type your message and broadcast to all subscribers</p>
+    @if (broadcastMode === 'custom') {
+      <div class="broadcast-form-section">
+        <p-card styleClass="broadcast-card">
+          <div class="card-section-header">
+            <i class="pi pi-pencil"></i>
+            <div>
+              <h3>Quick Message</h3>
+              <p>Type your message and broadcast to all subscribers</p>
+            </div>
           </div>
-        </div>
-
-        <!-- Status Banner -->
-        <div class="status-banner" *ngIf="resultMessage || sending" 
-             [ngClass]="{'status-sending': sending, 'status-success': !sending && resultType === 'success', 'status-error': !sending && resultType === 'error'}">
-          <div class="status-icon">
-            <i *ngIf="sending" class="pi pi-spin pi-spinner"></i>
-            <i *ngIf="!sending && resultType === 'success'" class="pi pi-check-circle"></i>
-            <i *ngIf="!sending && resultType === 'error'" class="pi pi-times-circle"></i>
-          </div>
-          <div class="status-content">
-            <span class="status-title" *ngIf="sending">Sending Broadcast</span>
-            <span class="status-title" *ngIf="!sending && resultType === 'success'">Broadcast Complete</span>
-            <span class="status-title" *ngIf="!sending && resultType === 'error'">Broadcast Failed</span>
-            <span class="status-detail">{{ resultMessage }}</span>
-          </div>
-          <button class="status-close" *ngIf="!sending" (click)="resultMessage = ''">
-            <i class="pi pi-times"></i>
-          </button>
-        </div>
-
-        <div class="form-grid">
-          <div class="form-field">
-            <label for="customMessage">Your Message <span class="req-star">*</span></label>
-            <textarea pInputTextarea id="customMessage"
-                      [(ngModel)]="customMessage"
-                      [rows]="5"
-                      placeholder="e.g. Hi! Today's offer: 20% OFF on all leather wallets. Hurry up, valid till evening only!"
-                      class="w-full"
-                      [autoResize]="true"
-                      maxlength="900">
-            </textarea>
-            <small class="hint">{{ customMessage.length }}/900 characters</small>
-          </div>
-        </div>
-
-        <div class="send-action">
-          <small class="form-warning" *ngIf="!customMessage.trim()">
-            <i class="pi pi-exclamation-triangle"></i> Please type a message to enable sending.
-          </small>
-          <p-button (onClick)="sendCustomMessage()"
-                    label="Send to All Subscribers"
-                    icon="pi pi-send"
-                    [loading]="sending"
-                    [disabled]="sending || !customMessage.trim()"
-                    styleClass="w-full">
-          </p-button>
-          <small class="send-hint">
-            <i class="pi pi-info-circle"></i>
-            Message format: "Hello from Leather Shop! We have an exciting update for you. <strong>[Your message]</strong>. Visit us today..."
-          </small>
-        </div>
-      </p-card>
-    </div>
-
-    <!-- Template Message Card -->
-    <div class="broadcast-form-section" *ngIf="broadcastMode === 'template'">
-      <p-card styleClass="broadcast-card">
-        <div class="card-section-header">
-          <i class="pi pi-send"></i>
-          <div>
-            <h3>Send Template Message</h3>
-            <p>Broadcast a WhatsApp template to all subscribed customers</p>
-          </div>
-        </div>
-
-        <!-- Status Banner -->
-        <div class="status-banner" *ngIf="resultMessage || sending" 
-             [ngClass]="{'status-sending': sending, 'status-success': !sending && resultType === 'success', 'status-error': !sending && resultType === 'error'}">
-          <div class="status-icon">
-            <i *ngIf="sending" class="pi pi-spin pi-spinner"></i>
-            <i *ngIf="!sending && resultType === 'success'" class="pi pi-check-circle"></i>
-            <i *ngIf="!sending && resultType === 'error'" class="pi pi-times-circle"></i>
-          </div>
-          <div class="status-content">
-            <span class="status-title" *ngIf="sending">Sending Broadcast</span>
-            <span class="status-title" *ngIf="!sending && resultType === 'success'">Broadcast Complete</span>
-            <span class="status-title" *ngIf="!sending && resultType === 'error'">Broadcast Failed</span>
-            <span class="status-detail">{{ resultMessage }}</span>
-          </div>
-          <button class="status-close" *ngIf="!sending" (click)="resultMessage = ''">
-            <i class="pi pi-times"></i>
-          </button>
-        </div>
-
-        <form [formGroup]="broadcastForm" (ngSubmit)="sendBroadcast()">
+          <!-- Status Banner -->
+          @if (resultMessage || sending) {
+            <div class="status-banner"
+              [class.status-sending]="sending" [class.status-success]="!sending && resultType === 'success'" [class.status-error]="!sending && resultType === 'error'">
+              <div class="status-icon">
+                @if (sending) {
+                  <i class="pi pi-spin pi-spinner"></i>
+                }
+                @if (!sending && resultType === 'success') {
+                  <i class="pi pi-check-circle"></i>
+                }
+                @if (!sending && resultType === 'error') {
+                  <i class="pi pi-times-circle"></i>
+                }
+              </div>
+              <div class="status-content">
+                @if (sending) {
+                  <span class="status-title">Sending Broadcast</span>
+                }
+                @if (!sending && resultType === 'success') {
+                  <span class="status-title">Broadcast Complete</span>
+                }
+                @if (!sending && resultType === 'error') {
+                  <span class="status-title">Broadcast Failed</span>
+                }
+                <span class="status-detail">{{ resultMessage }}</span>
+              </div>
+              @if (!sending) {
+                <button class="status-close" (click)="resultMessage = ''">
+                  <i class="pi pi-times"></i>
+                </button>
+              }
+            </div>
+          }
           <div class="form-grid">
             <div class="form-field">
-              <span class="field-label" id="templateName-label">Template Name <span [class]="isFieldInvalid('templateName') ? 'req-star error' : 'req-star'">*</span></span>
-
-              <!-- Dropdown when templates are available -->
-              <p-dropdown *ngIf="templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length > 0"
-                          inputId="templateName"
-                          ariaLabelledBy="templateName-label"
-                          [options]="templateLoader.getState().templateOptions"
-                          formControlName="templateName"
-                          (onChange)="onTemplateSelect()"
-                          (onHide)="onDropdownHide()"
-                          placeholder="Select a template"
-                          [style]="{'width': '100%'}"
-                          [showClear]="true"
-                          [filter]="true"
-                          filterPlaceholder="Search templates..."
-                          appendTo="body">
-              </p-dropdown>
-
-              <!-- Fallback text input when templates are not loaded -->
-              <label *ngIf="!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0"
-                     for="templateNameInput" class="sr-only">Template Name</label>
-              <input *ngIf="!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0"
-                     pInputText id="templateNameInput"
-                     formControlName="templateName"
-                     placeholder="e.g. new_product_launch"
-                     class="w-full" aria-labelledby="templateName-label" />
-
-              <small *ngIf="templateLoader.getState().loadingTemplates" class="hint">
-                <i class="pi pi-spin pi-spinner"></i> Loading templates from Meta...
-              </small>
-              <small *ngIf="templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length === 0 && !templateLoader.getState().loadingTemplates" class="hint warn">
-                <i class="pi pi-exclamation-triangle"></i> Could not fetch templates. Type the template name manually.
-              </small>
-              <small *ngIf="isFieldInvalid('templateName') && f['templateName'].errors?.['required']" class="p-error">
-                <i class="pi pi-exclamation-circle"></i> Template name is required.
-              </small>
-              <small *ngIf="isFieldInvalid('templateName') && f['templateName'].errors?.['invalidTemplate']" class="p-error">
-                <i class="pi pi-times-circle"></i> Invalid template. Select from the list or type an approved name.
-              </small>
-
-              <!-- Carousel badge -->
-              <small *ngIf="selectedTemplateIsCarousel" class="hint carousel-badge">
-                <i class="pi pi-images"></i> Carousel template — {{ carouselCards.length }} cards
-              </small>
+              <label for="customMessage">Your Message <span class="req-star">*</span></label>
+              <textarea pInputTextarea id="customMessage"
+                [(ngModel)]="customMessage"
+                [rows]="5"
+                placeholder="e.g. Hi! Today's offer: 20% OFF on all leather wallets. Hurry up, valid till evening only!"
+                class="w-full"
+                [autoResize]="true"
+                maxlength="900">
+              </textarea>
+              <small class="hint">{{ customMessage.length }}/900 characters</small>
             </div>
-
-            <!-- ═══ Standard Template Fields (hidden when carousel) ═══ -->
-            <ng-container *ngIf="!selectedTemplateIsCarousel">
-              <div class="form-field" *ngIf="selectedTemplateBodyParamCount > 0">
-                <label for="parameters">Template Parameters (comma separated)</label>
-                <input pInputText id="parameters"
-                       formControlName="parameters"
-                       placeholder="e.g. Classic Wallet, 899, 50% OFF"
-                       class="w-full" />
-                <small class="hint">
-                  <i class="pi pi-info-circle"></i> This template requires {{ selectedTemplateBodyParamCount }} parameter(s)
-                </small>
-              </div>
-
-              <div class="form-field" *ngIf="selectedTemplateHasImageHeader">
-                <label>Header Image (optional)</label>
-                <div class="image-upload-zone" *ngIf="!headerImagePreview">
-                  <label class="upload-dropzone" for="headerImageInput">
-                    <i class="pi pi-cloud-upload"></i>
-                    <span>Click to choose image</span>
-                    <small>JPG, PNG — auto-compressed</small>
-                  </label>
-                  <input type="file" id="headerImageInput" accept="image/*"
-                         (change)="onHeaderImageSelect($event)" hidden />
-                </div>
-                <div class="image-preview-wrap" *ngIf="headerImagePreview">
-                  <img [src]="headerImagePreview" alt="Header preview" class="image-preview" />
-                  <div class="image-preview-overlay" *ngIf="headerImageUploading">
-                    <i class="pi pi-spin pi-spinner"></i> Uploading...
-                  </div>
-                  <button type="button" class="remove-image-btn" (click)="removeHeaderImage()" *ngIf="!headerImageUploading">
-                    <i class="pi pi-times"></i>
-                  </button>
-                </div>
-              </div>
-            </ng-container>
-
-            <!-- ═══ Carousel Card Fields (shown when carousel) ═══ -->
-            <ng-container *ngIf="selectedTemplateIsCarousel">
-              <div class="carousel-cards-section">
-                <div class="carousel-card-item" *ngFor="let card of carouselCards; let i = index">
-                  <div class="carousel-card-header">
-                    <span class="card-number">Card {{ i + 1 }} of {{ carouselCards.length }}</span>
-                  </div>
-
-                  <!-- 1. Product Selector (first — drives image + payload) -->
-                  <div class="form-field">
-                    <label [for]="'cardProduct_' + i">Link to Product <span class="req-star">*</span></label>
-                    <p-dropdown [inputId]="'cardProduct_' + i"
-                                [options]="productOptions"
-                                [(ngModel)]="card.selectedProductId"
-                                [ngModelOptions]="{standalone: true}"
-                                (onChange)="onCardProductSelect(i)"
-                                placeholder="Select a product"
-                                [style]="{'width': '100%'}"
-                                [showClear]="true"
-                                [filter]="true"
-                                filterPlaceholder="Search products..."
-                                appendTo="body">
-                    </p-dropdown>
-                    <small class="hint" *ngIf="!card.selectedProductId">
-                      <i class="pi pi-info-circle"></i> Select product to show when customer taps "View Details"
-                    </small>
-                  </div>
-
-                  <!-- 2. Product Image Picker (shown after product selected) -->
-                  <div class="form-field" *ngIf="card.selectedProductId && getCardProductImages(i).length > 0">
-                    <label>Select Image for Card <span class="req-star">*</span></label>
-                    <div class="product-image-picker">
-                      <div class="picker-thumb"
-                           *ngFor="let img of getCardProductImages(i)"
-                           [class.selected]="card.selectedImageId === img.id"
-                           (click)="selectCardImage(i, img)">
-                        <img [src]="resolveImageUrl(img.url)" [alt]="'Product image'" />
-                        <i class="pi pi-check-circle selected-badge" *ngIf="card.selectedImageId === img.id"></i>
-                      </div>
-                    </div>
-                    <small class="hint" *ngIf="card.selectedImageId !== null">
-                      <i class="pi pi-check"></i> This image will appear in the carousel card and on the invoice
-                    </small>
-                  </div>
-
-                  <!-- 2b. File Upload fallback (only when product has no images) -->
-                  <div class="form-field" *ngIf="!card.selectedProductId || getCardProductImages(i).length === 0">
-                    <label>Card Image <span class="req-star">*</span></label>
-                    <div class="image-upload-zone" *ngIf="!card.imagePreview">
-                      <label class="upload-dropzone" [for]="'cardImage_' + i">
-                        <i class="pi pi-cloud-upload"></i>
-                        <span>{{ card.selectedProductId ? 'No product images — upload one' : 'Select a product first, or upload' }}</span>
-                        <small>JPG, PNG — auto-compressed</small>
-                      </label>
-                      <input type="file" [id]="'cardImage_' + i" accept="image/*"
-                             (change)="onCardImageSelect($event, i)" hidden />
-                    </div>
-                    <div class="image-preview-wrap" *ngIf="card.imagePreview && (!card.selectedProductId || getCardProductImages(i).length === 0)">
-                      <img [src]="card.imagePreview" alt="Card {{ i + 1 }} preview" class="image-preview" />
-                      <div class="image-preview-overlay" *ngIf="card.uploading">
-                        <i class="pi pi-spin pi-spinner"></i> Uploading...
-                      </div>
-                      <button type="button" class="remove-image-btn" (click)="removeCardImage(i)" *ngIf="!card.uploading">
-                        <i class="pi pi-times"></i>
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- 3. Card Body Param -->
-                  <div class="form-field">
-                    <label [for]="'cardBody_' + i">Body Parameter</label>
-                    <input pInputText [id]="'cardBody_' + i"
-                           [(ngModel)]="card.bodyParam" [ngModelOptions]="{standalone: true}"
-                           placeholder="e.g. Premium Leather Wallet"
-                           [maxlength]="cardBodyMaxLength"
-                           class="w-full" />
-                    <small class="hint">{{ card.bodyParam.length }}/{{ cardBodyMaxLength }} characters</small>
-                  </div>
-                </div>
-              </div>
-            </ng-container>
           </div>
-
           <div class="send-action">
-            <small class="form-warning" *ngIf="broadcastForm.invalid">
-              <i class="pi pi-exclamation-triangle"></i> Please select a valid template to enable sending.
-            </small>
-            <small class="form-warning" *ngIf="selectedTemplateIsCarousel && !carouselCardsValid && !broadcastForm.invalid">
-              <i class="pi pi-exclamation-triangle"></i> Please upload images for all carousel cards.
-            </small>
-            <p-button type="submit"
-                      label="Send to All Subscribers"
-                      icon="pi pi-send"
-                      [loading]="sending"
-                      [disabled]="sending || broadcastForm.invalid || anyUploading || (selectedTemplateIsCarousel && !carouselCardsValid)"
-                      styleClass="w-full">
+            @if (!customMessage.trim()) {
+              <small class="form-warning">
+                <i class="pi pi-exclamation-triangle"></i> Please type a message to enable sending.
+              </small>
+            }
+            <p-button (onClick)="sendCustomMessage()"
+              label="Send to All Subscribers"
+              icon="pi pi-send"
+              [loading]="sending"
+              [disabled]="sending || !customMessage.trim()"
+              styleClass="w-full">
             </p-button>
             <small class="send-hint">
               <i class="pi pi-info-circle"></i>
-              Tip: To send to specific customers, go to <strong>Customers</strong> page, select them, and use "Send Broadcast to Selected".
+              Message format: "Hello from Leather Shop! We have an exciting update for you. <strong>[Your message]</strong>. Visit us today..."
             </small>
           </div>
-        </form>
-      </p-card>
-    </div>
+        </p-card>
+      </div>
+    }
+
+    <!-- Template Message Form (extracted component) -->
+    @if (broadcastMode === 'template') {
+      <div class="broadcast-form-section">
+        <app-broadcast-form (sent)="onBroadcastSent()"></app-broadcast-form>
+      </div>
+    }
 
     <!-- Quick Stats Sidebar -->
     <div class="broadcast-sidebar">
@@ -324,7 +127,7 @@
             <i class="pi pi-history" style="color: #6366f1;"></i>
           </div>
           <div>
-            <span class="stat-number">{{ history.length }}</span>
+            <span class="stat-number">{{ historyTotalRecords }}</span>
             <span class="stat-label">Total Broadcasts</span>
           </div>
         </div>
@@ -342,41 +145,12 @@
     </div>
   </div>
 
-  <!-- Broadcast History -->
-  <div class="history-section" *ngIf="historyTotalRecords > 0">
-    <div class="section-header">
-      <h3><i class="pi pi-history"></i> Broadcast History</h3>
-    </div>
-    <p-table [value]="history"
-             styleClass="p-datatable-striped" [tableStyle]="{'min-width': '50rem'}" [rowHover]="true">
-      <ng-template pTemplate="header">
-        <tr>
-          <th>Template</th>
-          <th>Recipients</th>
-          <th>Sent</th>
-          <th>Failed</th>
-          <th>Date</th>
-        </tr>
-      </ng-template>
-      <ng-template pTemplate="body" let-b>
-        <tr>
-          <td><strong style="font-family: monospace; font-size: 13px;">{{ b.messageTemplate }}</strong></td>
-          <td>{{ b.totalRecipients }}</td>
-          <td><p-tag [value]="b.sentCount.toString()" severity="success"></p-tag></td>
-          <td><p-tag [value]="b.failedCount.toString()" [severity]="b.failedCount > 0 ? 'danger' : 'info'"></p-tag></td>
-          <td>{{ b.sentAt | date:'dd MMM yyyy HH:mm' }}</td>
-        </tr>
-      </ng-template>
-    </p-table>
-
-    <p-paginator *ngIf="historyTotalRecords > 0"
-      [first]="(historyCurrentPage - 1) * historyPageSize"
-      [rows]="historyPageSize"
-      [totalRecords]="historyTotalRecords"
-      [rowsPerPageOptions]="[10, 25, 50]"
-      (onPageChange)="onHistoryPageChange($event)"
-      [showCurrentPageReport]="true"
-      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} broadcasts">
-    </p-paginator>
-  </div>
+  <!-- Broadcast History (extracted component) -->
+  <app-broadcast-history
+    [history]="history"
+    [totalRecords]="historyTotalRecords"
+    [currentPage]="historyCurrentPage"
+    [pageSize]="historyPageSize"
+    (pageChange)="onHistoryPageChange($event)">
+  </app-broadcast-history>
 </div>

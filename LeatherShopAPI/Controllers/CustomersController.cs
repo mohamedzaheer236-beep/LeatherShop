@@ -2,13 +2,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using LeatherShopAPI.DTOs.Customer;
 using LeatherShopAPI.Models;
+using Asp.Versioning;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Controllers;
 
+[ApiVersion("1.0")]
 [Authorize]
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public class CustomersController : ControllerBase
 {
     private readonly ICustomerService _customerService;
@@ -23,29 +25,30 @@ public class CustomersController : ControllerBase
         [FromQuery] bool? subscribedOnly,
         [FromQuery] string? search,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 25)
+        [FromQuery] int pageSize = 25,
+        CancellationToken ct = default)
     {
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 25;
         if (pageSize > 100) pageSize = 100;
 
-        var result = await _customerService.GetAllAsync(subscribedOnly, search, page, pageSize);
+        var result = await _customerService.GetAllAsync(subscribedOnly, search, page, pageSize, ct);
         return Ok(ApiResponse<PaginatedResult<CustomerListDto>>.Ok(result));
     }
 
     [HttpGet("count")]
-    public async Task<IActionResult> GetSubscriberCount()
+    public async Task<IActionResult> GetSubscriberCount(CancellationToken ct)
     {
-        var counts = await _customerService.GetCountAsync();
+        var counts = await _customerService.GetCountAsync(ct);
         return Ok(ApiResponse<CustomerCountDto>.Ok(counts));
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateCustomerDto dto)
+    public async Task<IActionResult> Create([FromBody] CreateCustomerDto dto, CancellationToken ct)
     {
         try
         {
-            var result = await _customerService.CreateAsync(dto);
+            var result = await _customerService.CreateAsync(dto, ct);
             return Ok(ApiResponse<CustomerCreatedDto>.Ok(result, "Customer created successfully."));
         }
         catch (InvalidOperationException ex)
@@ -55,11 +58,11 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPost("import")]
-    public async Task<IActionResult> BulkImport([FromBody] BulkImportDto dto)
+    public async Task<IActionResult> BulkImport([FromBody] BulkImportDto dto, CancellationToken ct)
     {
         try
         {
-            var result = await _customerService.BulkImportAsync(dto);
+            var result = await _customerService.BulkImportAsync(dto, ct);
             return Ok(ApiResponse<BulkImportResultDto>.Ok(result, "Import completed."));
         }
         catch (ArgumentException ex)
@@ -69,18 +72,18 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] UpdateCustomerDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateCustomerDto dto, CancellationToken ct)
     {
-        var result = await _customerService.UpdateAsync(id, dto);
+        var result = await _customerService.UpdateAsync(id, dto, ct);
         if (result == null)
             return NotFound(ApiResponse.Fail("Customer not found."));
         return Ok(ApiResponse<CustomerListDto>.Ok(result, "Customer updated successfully."));
     }
 
     [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
-        var result = await _customerService.DeleteAsync(id);
+        var result = await _customerService.DeleteAsync(id, ct);
         return result.Result switch
         {
             DeleteCustomerResult.NotFound => NotFound(ApiResponse.Fail("Customer not found.")),
@@ -92,9 +95,9 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPut("{id:int}/subscribe")]
-    public async Task<IActionResult> ToggleSubscription(int id, [FromBody] bool isSubscribed)
+    public async Task<IActionResult> ToggleSubscription(int id, [FromBody] bool isSubscribed, CancellationToken ct)
     {
-        var success = await _customerService.ToggleSubscriptionAsync(id, isSubscribed);
+        var success = await _customerService.ToggleSubscriptionAsync(id, isSubscribed, ct);
         if (!success)
             return NotFound(ApiResponse.Fail("Customer not found."));
         return Ok(ApiResponse.Ok("Subscription updated successfully."));

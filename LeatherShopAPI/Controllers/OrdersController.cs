@@ -2,20 +2,21 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using LeatherShopAPI.DTOs.Order;
 using LeatherShopAPI.Models;
-using LeatherShopAPI.Services;
+using Asp.Versioning;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Controllers;
 
+[ApiVersion("1.0")]
 [Authorize]
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public class OrdersController : ControllerBase
 {
     private readonly IOrderService _orderService;
-    private readonly InvoicePdfService _pdfService;
+    private readonly IInvoicePdfService _pdfService;
 
-    public OrdersController(IOrderService orderService, InvoicePdfService pdfService)
+    public OrdersController(IOrderService orderService, IInvoicePdfService pdfService)
     {
         _orderService = orderService;
         _pdfService = pdfService;
@@ -25,24 +26,26 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> GetAll(
         [FromQuery] string? status,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 25)
+        [FromQuery] int pageSize = 25,
+        CancellationToken ct = default)
     {
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 25;
         if (pageSize > 100) pageSize = 100;
 
-        var result = await _orderService.GetAllAsync(status, page, pageSize);
+        var result = await _orderService.GetAllAsync(status, page, pageSize, ct);
         return Ok(ApiResponse<PaginatedResult<OrderDto>>.Ok(result));
     }
 
     [HttpPut("{id}/status")]
-    public async Task<IActionResult> UpdateStatus(int id, [FromBody] string newStatus)
+    public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateOrderStatusDto dto, CancellationToken ct)
     {
+        var newStatus = dto.Status;
         // Validate status string at controller level — return 400 for garbage input
         if (!Enum.TryParse<OrderStatus>(newStatus, true, out _))
             return BadRequest(ApiResponse.Fail($"Invalid status '{newStatus}'. Valid values: {string.Join(", ", Enum.GetNames<OrderStatus>())}."));
 
-        var result = await _orderService.UpdateStatusAsync(id, newStatus);
+        var result = await _orderService.UpdateStatusAsync(id, newStatus, ct);
         return result switch
         {
             UpdateStatusResult.NotFound => NotFound(ApiResponse.Fail("Order not found.")),
@@ -54,9 +57,9 @@ public class OrdersController : ControllerBase
     }
 
     [HttpGet("{id}/invoice")]
-    public async Task<IActionResult> DownloadInvoice(int id)
+    public async Task<IActionResult> DownloadInvoice(int id, CancellationToken ct)
     {
-        var order = await _orderService.GetByIdWithDetailsAsync(id);
+        var order = await _orderService.GetByIdWithDetailsAsync(id, ct);
         if (order is null)
             return NotFound(ApiResponse.Fail("Order not found."));
 

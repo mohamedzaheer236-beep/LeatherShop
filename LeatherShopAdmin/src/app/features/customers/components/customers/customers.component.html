@@ -5,8 +5,12 @@
       <div class="form-field">
         <label for="addPhone">Phone Number *</label>
         <input type="text" pInputText id="addPhone" formControlName="phoneNumber" placeholder="e.g. 919876543210" class="w-full" />
-        <small class="p-error" *ngIf="isAddFieldInvalid('phoneNumber') && addCustomerForm.get('phoneNumber')?.errors?.['required']">Phone number is required.</small>
-        <small class="p-error" *ngIf="isAddFieldInvalid('phoneNumber') && addCustomerForm.get('phoneNumber')?.errors?.['pattern']">Enter a valid phone number (10-15 digits).</small>
+        @if (isAddFieldInvalid('phoneNumber') && addCustomerForm.get('phoneNumber')?.errors?.['required']) {
+          <small class="p-error">Phone number is required.</small>
+        }
+        @if (isAddFieldInvalid('phoneNumber') && addCustomerForm.get('phoneNumber')?.errors?.['pattern']) {
+          <small class="p-error">Enter a valid phone number (10-15 digits).</small>
+        }
       </div>
       <div class="form-field">
         <label for="addName">Name</label>
@@ -15,8 +19,12 @@
       <div class="form-field">
         <label for="addAddress">Address *</label>
         <textarea pInputTextarea id="addAddress" formControlName="address" rows="3" placeholder="Full shipping address" class="w-full"></textarea>
-        <small class="p-error" *ngIf="isAddFieldInvalid('address') && addCustomerForm.get('address')?.errors?.['required']">Address is required.</small>
-        <small class="p-error" *ngIf="isAddFieldInvalid('address') && addCustomerForm.get('address')?.errors?.['minlength']">Address must be at least 10 characters.</small>
+        @if (isAddFieldInvalid('address') && addCustomerForm.get('address')?.errors?.['required']) {
+          <small class="p-error">Address is required.</small>
+        }
+        @if (isAddFieldInvalid('address') && addCustomerForm.get('address')?.errors?.['minlength']) {
+          <small class="p-error">Address must be at least 10 characters.</small>
+        }
       </div>
     </div>
   </form>
@@ -37,8 +45,12 @@
       <div class="form-field">
         <label for="editAddress">Address *</label>
         <textarea pInputTextarea id="editAddress" formControlName="address" rows="3" placeholder="Full shipping address" class="w-full"></textarea>
-        <small class="p-error" *ngIf="isEditFieldInvalid('address') && editCustomerForm.get('address')?.errors?.['required']">Address is required.</small>
-        <small class="p-error" *ngIf="isEditFieldInvalid('address') && editCustomerForm.get('address')?.errors?.['minlength']">Address must be at least 10 characters.</small>
+        @if (isEditFieldInvalid('address') && editCustomerForm.get('address')?.errors?.['required']) {
+          <small class="p-error">Address is required.</small>
+        }
+        @if (isEditFieldInvalid('address') && editCustomerForm.get('address')?.errors?.['minlength']) {
+          <small class="p-error">Address must be at least 10 characters.</small>
+        }
       </div>
       <div class="form-field">
         <label>Subscription</label>
@@ -73,7 +85,7 @@
   <p style="color:#888; font-size:13px; margin-bottom:12px;">Paste one customer per line. Format: <code>phone,name</code> (name is optional)</p>
   <form [formGroup]="importForm">
     <textarea pInputTextarea formControlName="importText" rows="8" class="w-full" style="font-family:monospace;"
-              placeholder="919876543210,John&#10;919876543211,Jane&#10;919876543212"></textarea>
+    placeholder="919876543210,John&#10;919876543211,Jane&#10;919876543212"></textarea>
   </form>
   <ng-template pTemplate="footer">
     <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showImportDialog = false" icon="pi pi-times"></p-button>
@@ -82,137 +94,11 @@
 </p-dialog>
 
 <!-- Broadcast to Selected Dialog -->
-<p-dialog header="Broadcast to {{selectedCount}} Selected" [(visible)]="showBroadcastDialog" [modal]="true" [style]="{'width': '600px', 'max-height': '85vh'}" [contentStyle]="{'overflow-y': 'auto'}">
-  <form [formGroup]="broadcastForm">
-    <div class="dialog-form">
-      <div class="form-field">
-        <label for="bcTemplate">Template Name *</label>
-        <p-dropdown *ngIf="templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length > 0"
-                    id="bcTemplate"
-                    [options]="templateLoader.getState().templateOptions" formControlName="broadcastTemplate"
-                    (onChange)="onBroadcastTemplateSelect()" (onFilter)="onBroadcastTemplateFilter($event)"
-                    placeholder="Select an approved template" [style]="{'width': '100%'}"
-                    [filter]="true" filterPlaceholder="Search templates..." appendTo="body"></p-dropdown>
-        <input *ngIf="!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0"
-               type="text" pInputText formControlName="broadcastTemplate" placeholder="e.g. new_product_launch" class="w-full" />
-        <small class="p-error" *ngIf="isBroadcastFieldInvalid('broadcastTemplate') && broadcastForm.get('broadcastTemplate')?.errors?.['required']">Template name is required.</small>
-        <small class="p-error" *ngIf="isBroadcastFieldInvalid('broadcastTemplate') && broadcastForm.get('broadcastTemplate')?.errors?.['invalidTemplate']">
-          <i class="pi pi-times-circle"></i> This template is not approved.
-        </small>
-        <small class="carousel-badge" *ngIf="bcIsCarousel">
-          <i class="pi pi-images"></i> Carousel template — {{ bcCarouselCards.length }} cards
-        </small>
-      </div>
-
-      <!-- ═══ Standard Template Fields ═══ -->
-      <ng-container *ngIf="!bcIsCarousel">
-        <div class="form-field" *ngIf="bcBodyParamCount > 0">
-          <label for="bcParams">Parameters (comma separated)</label>
-          <input type="text" pInputText id="bcParams" formControlName="broadcastParams" placeholder="param1, param2" class="w-full" />
-          <small class="hint"><i class="pi pi-info-circle"></i> This template requires {{ bcBodyParamCount }} parameter(s)</small>
-        </div>
-        <div class="form-field" *ngIf="bcHasImageHeader">
-          <label>Header Image (optional)</label>
-          <div class="image-upload-zone" *ngIf="!bcHeaderImagePreview">
-            <label class="upload-dropzone" for="bcHeaderImageInput">
-              <i class="pi pi-cloud-upload"></i>
-              <span>Click to choose image</span>
-              <small>JPG, PNG — auto-compressed</small>
-            </label>
-            <input type="file" id="bcHeaderImageInput" accept="image/*" (change)="onBcHeaderImageSelect($event)" hidden />
-          </div>
-          <div class="image-preview-wrap" *ngIf="bcHeaderImagePreview">
-            <img [src]="bcHeaderImagePreview" alt="Header preview" class="image-preview" />
-            <div class="image-preview-overlay" *ngIf="bcHeaderImageUploading">
-              <i class="pi pi-spin pi-spinner"></i> Uploading...
-            </div>
-            <button type="button" class="remove-image-btn" (click)="removeBcHeaderImage()" *ngIf="!bcHeaderImageUploading">
-              <i class="pi pi-times"></i>
-            </button>
-          </div>
-        </div>
-      </ng-container>
-
-      <!-- ═══ Carousel Card Fields ═══ -->
-      <ng-container *ngIf="bcIsCarousel">
-        <div class="carousel-cards-section">
-          <div class="carousel-card-item" *ngFor="let card of bcCarouselCards; let i = index">
-            <div class="carousel-card-header">
-              <span class="card-number">Card {{ i + 1 }} of {{ bcCarouselCards.length }}</span>
-            </div>
-
-            <!-- Product Selector -->
-            <div class="form-field">
-              <label [for]="'bcCardProduct_' + i">Link to Product *</label>
-              <p-dropdown [inputId]="'bcCardProduct_' + i"
-                          [options]="productOptions"
-                          [(ngModel)]="card.selectedProductId" [ngModelOptions]="{standalone: true}"
-                          (onChange)="onBcCardProductSelect(i)"
-                          placeholder="Select a product" [style]="{'width': '100%'}"
-                          [showClear]="true" [filter]="true" filterPlaceholder="Search products..."
-                          appendTo="body">
-              </p-dropdown>
-              <small class="hint" *ngIf="!card.selectedProductId">
-                <i class="pi pi-info-circle"></i> Select product for "View Details"
-              </small>
-            </div>
-
-            <!-- Product Image Picker -->
-            <div class="form-field" *ngIf="card.selectedProductId && getBcCardProductImages(i).length > 0">
-              <label>Select Image for Card *</label>
-              <div class="product-image-picker">
-                <div class="picker-thumb" *ngFor="let img of getBcCardProductImages(i)"
-                     [class.selected]="card.selectedImageId === img.id"
-                     (click)="selectBcCardImage(i, img)">
-                  <img [src]="resolveImageUrl(img.url)" alt="Product image" />
-                  <i class="pi pi-check-circle selected-badge" *ngIf="card.selectedImageId === img.id"></i>
-                </div>
-              </div>
-              <small class="hint" *ngIf="card.selectedImageId !== null">
-                <i class="pi pi-check"></i> This image will appear on the carousel card and invoice
-              </small>
-            </div>
-
-            <!-- File Upload fallback -->
-            <div class="form-field" *ngIf="!card.selectedProductId || getBcCardProductImages(i).length === 0">
-              <label>Card Image *</label>
-              <div class="image-upload-zone" *ngIf="!card.imagePreview">
-                <label class="upload-dropzone" [for]="'bcCardImage_' + i">
-                  <i class="pi pi-cloud-upload"></i>
-                  <span>{{ card.selectedProductId ? 'No product images — upload one' : 'Select a product first, or upload' }}</span>
-                  <small>JPG, PNG — auto-compressed</small>
-                </label>
-                <input type="file" [id]="'bcCardImage_' + i" accept="image/*" (change)="onBcCardImageSelect($event, i)" hidden />
-              </div>
-              <div class="image-preview-wrap" *ngIf="card.imagePreview && (!card.selectedProductId || getBcCardProductImages(i).length === 0)">
-                <img [src]="card.imagePreview" alt="Card preview" class="image-preview" />
-                <div class="image-preview-overlay" *ngIf="card.uploading"><i class="pi pi-spin pi-spinner"></i> Uploading...</div>
-                <button type="button" class="remove-image-btn" (click)="removeBcCardImage(i)" *ngIf="!card.uploading">
-                  <i class="pi pi-times"></i>
-                </button>
-              </div>
-            </div>
-
-            <!-- Body Parameter -->
-            <div class="form-field">
-              <label [for]="'bcCardBody_' + i">Body Parameter</label>
-              <input pInputText [id]="'bcCardBody_' + i"
-                     [(ngModel)]="card.bodyParam" [ngModelOptions]="{standalone: true}"
-                     placeholder="e.g. Premium Leather Wallet"
-                     [maxlength]="bcCardBodyMaxLength" class="w-full" />
-              <small class="hint">{{ card.bodyParam.length }}/{{ bcCardBodyMaxLength }} characters</small>
-            </div>
-          </div>
-        </div>
-      </ng-container>
-    </div>
-  </form>
-  <ng-template pTemplate="footer">
-    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showBroadcastDialog = false" icon="pi pi-times"></p-button>
-    <p-button [label]="'Send to ' + selectedCount + ' Customers'" (onClick)="sendToSelected()"
-              [disabled]="sendingBroadcast || broadcastForm.invalid || bcAnyUploading || (bcIsCarousel && !bcCarouselCardsValid)" [loading]="sendingBroadcast" icon="pi pi-send"></p-button>
-  </ng-template>
-</p-dialog>
+<app-customer-broadcast-dialog
+  [(visible)]="showBroadcastDialog"
+  [phoneNumbers]="selectedPhoneNumbers"
+  (sent)="onBroadcastSent()">
+</app-customer-broadcast-dialog>
 
 <div class="customers-page">
   <p-toolbar styleClass="mb-4">
@@ -236,7 +122,9 @@
       <input type="text" pInputText formControlName="searchTerm" placeholder="Search by phone or name..." (keyup.enter)="onSearch()" aria-label="Search customers" />
     </span>
     <p-button label="Search" icon="pi pi-search" size="small" (onClick)="onSearch()"></p-button>
-    <p-button *ngIf="searchTerm" label="Clear" icon="pi pi-times" severity="secondary" [outlined]="true" size="small" (onClick)="clearSearch()"></p-button>
+    @if (searchTerm) {
+      <p-button label="Clear" icon="pi pi-times" severity="secondary" [outlined]="true" size="small" (onClick)="clearSearch()"></p-button>
+    }
     <label class="toggle-filter">
       <p-checkbox formControlName="subscribedOnly" [binary]="true" (onChange)="onFilterChange()" inputId="subscribedOnly" aria-label="Show only subscribed customers"></p-checkbox>
       <span style="margin-left:8px;"><label for="subscribedOnly">Subscribers only</label></span>
@@ -244,83 +132,93 @@
   </div>
 
   <!-- Selection Action Bar -->
-  <div class="selection-bar" *ngIf="selectedCount > 0">
-    <span style="font-weight:700; color:#3f51b5;">{{ selectedCount }} customer(s) selected</span>
-    <span *ngIf="selectedCount > customers.length" style="font-size:13px; color:#888; margin-left:8px;">(across multiple pages)</span>
-    <p-button label="Send Broadcast to Selected" icon="pi pi-send" size="small" (onClick)="openBroadcastDialog()"></p-button>
-    <p-button label="Clear Selection" icon="pi pi-times" severity="secondary" [outlined]="true" size="small" (onClick)="clearSelection()"></p-button>
-  </div>
+  @if (selectedCount > 0) {
+    <div class="selection-bar">
+      <span style="font-weight:700; color:#3f51b5;">{{ selectedCount }} customer(s) selected</span>
+      @if (selectedCount > customers.length) {
+        <span style="font-size:13px; color:#888; margin-left:8px;">(across multiple pages)</span>
+      }
+      <p-button label="Send Broadcast to Selected" icon="pi pi-send" size="small" (onClick)="openBroadcastDialog()"></p-button>
+      <p-button label="Clear Selection" icon="pi pi-times" severity="secondary" [outlined]="true" size="small" (onClick)="clearSelection()"></p-button>
+    </div>
+  }
 
   <app-loading-spinner [loading]="loading" message="Loading customers..."></app-loading-spinner>
 
   <!-- Customer Table -->
-  <p-table [value]="customers" *ngIf="!loading && customers.length > 0"
-           [tableStyle]="{'min-width': '60rem'}" styleClass="p-datatable-striped" [rowHover]="true">
-    <ng-template pTemplate="header">
-      <tr>
-        <th style="width:50px;">
-          <p-checkbox [binary]="true" [(ngModel)]="allSelected" (onChange)="toggleSelectAll()" aria-label="Select all customers"></p-checkbox>
-        </th>
-        <th>Phone Number</th>
-        <th>Name</th>
-        <th>Address</th>
-        <th>Subscribed</th>
-        <th>Orders</th>
-        <th>Joined</th>
-        <th>Actions</th>
-      </tr>
-    </ng-template>
-    <ng-template pTemplate="body" let-customer>
-      <tr [class.row-selected]="customer.selected">
-        <td>
-          <p-checkbox [binary]="true" [(ngModel)]="customer.selected" (onChange)="onRowSelect(customer)" [attr.aria-label]="'Select customer ' + (customer.name || customer.phoneNumber)"></p-checkbox>
-        </td>
-        <td><strong style="font-family:monospace; font-size:13px;">{{ customer.phoneNumber }}</strong></td>
-        <td>{{ customer.name || '-' }}</td>
-        <td>{{ customer.address || '-' }}</td>
-        <td>
-          <p-tag [value]="customer.isSubscribed ? 'Subscribed' : 'Unsubscribed'"
-                 [severity]="customer.isSubscribed ? 'success' : 'secondary'"
-                 [style]="{'cursor': 'pointer'}"
-                 role="button" tabindex="0"
-                 [attr.aria-label]="(customer.isSubscribed ? 'Unsubscribe' : 'Subscribe') + ' ' + (customer.name || customer.phoneNumber)"
-                 (click)="toggleSubscription(customer)"
-                 (keydown.enter)="toggleSubscription(customer)"
-                 (keydown.space)="$event.preventDefault(); toggleSubscription(customer)"></p-tag>
-        </td>
-        <td>{{ customer.orderCount }}</td>
-        <td>{{ customer.createdAt | date:'dd MMM yyyy' }}</td>
-        <td>
-          <div class="action-buttons">
-            <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="info"
-                      pTooltip="Edit" tooltipPosition="top" (onClick)="openEditDialog(customer)"></p-button>
-            <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
-                      pTooltip="Delete" tooltipPosition="top" (onClick)="confirmDelete(customer)"></p-button>
-            <p-button [label]="customer.isSubscribed ? 'Unsubscribe' : 'Subscribe'"
-                      [severity]="customer.isSubscribed ? 'danger' : 'success'"
-                      [outlined]="true" size="small"
-                      (onClick)="toggleSubscription(customer)"></p-button>
-          </div>
-        </td>
-      </tr>
-    </ng-template>
-    <ng-template pTemplate="emptymessage">
-      <tr><td colspan="8" style="text-align:center; padding:40px; color:#999;">No customers found.</td></tr>
-    </ng-template>
-  </p-table>
+  @if (!loading && customers.length > 0) {
+    <p-table [value]="customers"
+      [tableStyle]="{'min-width': '60rem'}" styleClass="p-datatable-striped" [rowHover]="true">
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width:50px;">
+            <p-checkbox [binary]="true" [(ngModel)]="allSelected" (onChange)="toggleSelectAll()" aria-label="Select all customers"></p-checkbox>
+          </th>
+          <th>Phone Number</th>
+          <th>Name</th>
+          <th>Address</th>
+          <th>Subscribed</th>
+          <th>Orders</th>
+          <th>Joined</th>
+          <th>Actions</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-customer>
+        <tr [class.row-selected]="customer.selected">
+          <td>
+            <p-checkbox [binary]="true" [(ngModel)]="customer.selected" (onChange)="onRowSelect(customer)" [attr.aria-label]="'Select customer ' + (customer.name || customer.phoneNumber)"></p-checkbox>
+          </td>
+          <td><strong style="font-family:monospace; font-size:13px;">{{ customer.phoneNumber }}</strong></td>
+          <td>{{ customer.name || '-' }}</td>
+          <td>{{ customer.address || '-' }}</td>
+          <td>
+            <p-tag [value]="customer.isSubscribed ? 'Subscribed' : 'Unsubscribed'"
+              [severity]="customer.isSubscribed ? 'success' : 'secondary'"
+              [style]="{'cursor': 'pointer'}"
+              role="button" tabindex="0"
+              [attr.aria-label]="(customer.isSubscribed ? 'Unsubscribe' : 'Subscribe') + ' ' + (customer.name || customer.phoneNumber)"
+              (click)="toggleSubscription(customer)"
+              (keydown.enter)="toggleSubscription(customer)"
+            (keydown.space)="$event.preventDefault(); toggleSubscription(customer)"></p-tag>
+          </td>
+          <td>{{ customer.orderCount }}</td>
+          <td>{{ customer.createdAt | date:'dd MMM yyyy' }}</td>
+          <td>
+            <div class="action-buttons">
+              <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="info"
+              pTooltip="Edit" tooltipPosition="top" (onClick)="openEditDialog(customer)"></p-button>
+              <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
+              pTooltip="Delete" tooltipPosition="top" (onClick)="confirmDelete(customer)"></p-button>
+              <p-button [label]="customer.isSubscribed ? 'Unsubscribe' : 'Subscribe'"
+                [severity]="customer.isSubscribed ? 'danger' : 'success'"
+                [outlined]="true" size="small"
+              (onClick)="toggleSubscription(customer)"></p-button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="emptymessage">
+        <tr><td colspan="8" style="text-align:center; padding:40px; color:#999;">No customers found.</td></tr>
+      </ng-template>
+    </p-table>
+  }
 
-  <p-paginator *ngIf="!loading && totalRecords > 0"
-    [first]="(currentPage - 1) * pageSize"
-    [rows]="pageSize"
-    [totalRecords]="totalRecords"
-    [rowsPerPageOptions]="[25, 50, 100]"
-    (onPageChange)="onPageChange($event)"
-    [showCurrentPageReport]="true"
-    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} customers">
-  </p-paginator>
+  @if (!loading && totalRecords > 0) {
+    <p-paginator
+      [first]="(currentPage - 1) * pageSize"
+      [rows]="pageSize"
+      [totalRecords]="totalRecords"
+      [rowsPerPageOptions]="[25, 50, 100]"
+      (onPageChange)="onPageChange($event)"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} customers">
+    </p-paginator>
+  }
 
-  <div *ngIf="!loading && customers.length === 0" class="empty-state">
-    <i class="pi pi-users"></i>
-    <p>No customers found.</p>
-  </div>
+  @if (!loading && customers.length === 0) {
+    <div class="empty-state">
+      <i class="pi pi-users"></i>
+      <p>No customers found.</p>
+    </div>
+  }
 </div>

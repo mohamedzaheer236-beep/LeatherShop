@@ -3,13 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-using LeatherShopAPI.Data;
-using LeatherShopAPI.DTOs.Chat;
 using LeatherShopAPI.DTOs.WhatsApp;
-using LeatherShopAPI.Hubs;
-using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Controllers;
@@ -19,29 +13,18 @@ namespace LeatherShopAPI.Controllers;
 [EnableRateLimiting("fixed")]
 public class WhatsAppWebhookController : ControllerBase
 {
-    private const int MessagePreviewMaxLength = 80;
-
-    private readonly IChatBotService _chatBot;
-    private readonly IChatService _chatService;
-    private readonly IHubContext<NotificationHub> _hubContext;
-    private readonly AppDbContext _db;
+    private readonly IWebhookProcessingService _webhookService;
     private readonly IConfiguration _config;
     private readonly ILogger<WhatsAppWebhookController> _logger;
     private readonly IWebHostEnvironment _env;
 
     public WhatsAppWebhookController(
-        IChatBotService chatBot,
-        IChatService chatService,
-        IHubContext<NotificationHub> hubContext,
-        AppDbContext db,
+        IWebhookProcessingService webhookService,
         IConfiguration config,
         ILogger<WhatsAppWebhookController> logger,
         IWebHostEnvironment env)
     {
-        _chatBot = chatBot;
-        _chatService = chatService;
-        _hubContext = hubContext;
-        _db = db;
+        _webhookService = webhookService;
         _config = config;
         _logger = logger;
         _env = env;
@@ -49,9 +32,9 @@ public class WhatsAppWebhookController : ControllerBase
 
     [HttpGet("webhook")]
     public IActionResult VerifyWebhook(
-        [FromQuery(Name = "hub.mode")] string mode,
-        [FromQuery(Name = "hub.verify_token")] string token,
-        [FromQuery(Name = "hub.challenge")] string challenge)
+        [FromQuery(Name = "hub.mode")] string? mode,
+        [FromQuery(Name = "hub.verify_token")] string? token,
+        [FromQuery(Name = "hub.challenge")] string? challenge)
     {
         var verifyToken = _config["WhatsApp:VerifyToken"];
 
@@ -73,24 +56,60 @@ public class WhatsAppWebhookController : ControllerBase
     }
 
     [HttpPost("webhook")]
-    public async Task<IActionResult> ReceiveMessage()
+    public async Task<IActionResult> ReceiveMessage(CancellationToken ct)
     {
         // --- Webhook Signature Verification ---
-        // Meta sends X-Hub-Signature-256 = "sha256=<HMAC>" on every webhook POST.
-        // We MUST verify this to prevent forged payloads from creating fake customers/orders.
+        if (!await VerifySignatureAsync(ct))
+            return Unauthorized();
+
+        // Deserialize the payload
+        WhatsAppWebhookPayload? payload;
+        try
+        {
+            payload = await JsonSerializer.DeserializeAsync<WhatsAppWebhookPayload>(Request.Body,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }, ct);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Webhook rejected: invalid JSON payload");
+            return BadRequest();
+        }
+
+        if (payload == null) return Ok();
+
+        try
+        {
+            await _webhookService.ProcessWebhookPayloadAsync(payload, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing webhook");
+        }
+
+        return Ok();
+    }
+
+    /// <summary>
+    /// Verifies the X-Hub-Signature-256 HMAC header from Meta.
+    /// Returns true if the signature is valid (or verification is skipped in Development).
+    /// Returns false if the signature is invalid or missing in non-Development environments.
+    /// </summary>
+    private async Task<bool> VerifySignatureAsync(CancellationToken ct)
+    {
         var appSecret = _config["WhatsApp:AppSecret"];
+
         if (!string.IsNullOrEmpty(appSecret))
         {
             Request.EnableBuffering();
             using var reader = new StreamReader(Request.Body, leaveOpen: true);
-            var rawBody = await reader.ReadToEndAsync();
-            Request.Body.Position = 0; // rewind for deserialization below
+            var rawBody = await reader.ReadToEndAsync(ct);
+            Request.Body.Position = 0; // rewind for deserialization
 
             var signatureHeader = Request.Headers["X-Hub-Signature-256"].FirstOrDefault();
             if (string.IsNullOrEmpty(signatureHeader) || !signatureHeader.StartsWith("sha256="))
             {
                 _logger.LogWarning("Webhook rejected: missing or malformed X-Hub-Signature-256 header");
-                return Unauthorized();
+                return false;
             }
 
             var expectedSignature = signatureHeader["sha256=".Length..].ToLowerInvariant();
@@ -103,170 +122,19 @@ public class WhatsAppWebhookController : ControllerBase
                     Encoding.UTF8.GetBytes(expectedSignature)))
             {
                 _logger.LogWarning("Webhook rejected: X-Hub-Signature-256 mismatch — possible forged payload");
-                return Unauthorized();
+                return false;
             }
+
+            return true;
         }
-        else
+
+        if (!_env.IsDevelopment())
         {
-            if (!_env.IsDevelopment())
-            {
-                _logger.LogError("WhatsApp:AppSecret not configured — rejecting webhook in non-Development environment");
-                return StatusCode(500);
-            }
-            _logger.LogWarning("WhatsApp:AppSecret not configured — webhook signature verification SKIPPED (Development only).");
+            _logger.LogError("WhatsApp:AppSecret not configured — rejecting webhook in non-Development environment");
+            return false;
         }
 
-        // Deserialize the payload
-        WhatsAppWebhookPayload? payload;
-        try
-        {
-            payload = await JsonSerializer.DeserializeAsync<WhatsAppWebhookPayload>(Request.Body,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogWarning(ex, "Webhook rejected: invalid JSON payload");
-            return BadRequest();
-        }
-
-        try
-        {
-            if (payload?.Entry == null) return Ok();
-
-            foreach (var entry in payload.Entry)
-            {
-                if (entry.Changes == null) continue;
-
-                foreach (var change in entry.Changes)
-                {
-                    var messages = change.Value.Messages;
-                    var contacts = change.Value.Contacts;
-
-                    if (messages == null || !messages.Any()) continue;
-
-                    foreach (var message in messages)
-                    {
-                        try
-                        {
-                            var from = message.From;
-                            var contactName = contacts?.FirstOrDefault()?.Profile?.Name ?? "";
-
-                            string? textBody = null;
-                            string? interactiveId = null;
-                            string? interactiveTitle = null;
-
-                            switch (message.Type)
-                            {
-                                case "text":
-                                    textBody = message.Text?.Body;
-                                    break;
-                                case "interactive":
-                                    var reply = message.Interactive?.ListReply ?? message.Interactive?.ButtonReply;
-                                    interactiveId = reply?.Id;
-                                    interactiveTitle = reply?.Title;
-                                    break;
-                                case "button":
-                                    // Template quick_reply buttons come as type "button" with payload
-                                    interactiveId = message.Button?.Payload;
-                                    interactiveTitle = message.Button?.Text;
-                                    break;
-                                default:
-                                    textBody = "menu";
-                                    break;
-                            }
-
-                            // --- Save incoming message to chat history ---
-                            var phone = LeatherShopAPI.Extensions.PhoneNumberHelper.Normalize(from);
-                            var customer = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone);
-                            var incomingContent = textBody ?? interactiveTitle ?? interactiveId ?? "[media]";
-
-                            if (customer != null)
-                            {
-                                var savedMsg = await _chatService.SaveMessageAsync(
-                                    customer.Id, MessageDirection.Incoming, incomingContent,
-                                    string.IsNullOrEmpty(contactName) ? phone : contactName, false, message.Type);
-
-                                // Push to any admin viewing this chat via SignalR
-                                await _hubContext.Clients.Group($"chat_{customer.Id}").SendAsync("ReceiveMessage", new ChatMessageDto
-                                {
-                                    Id = savedMsg.Id,
-                                    CustomerId = customer.Id,
-                                    Direction = "Incoming",
-                                    MessageType = savedMsg.MessageType,
-                                    Content = savedMsg.Content,
-                                    SenderName = savedMsg.SenderName,
-                                    IsFromBot = false,
-                                    Timestamp = savedMsg.Timestamp
-                                });
-
-                                // Notify all admins about new message (for conversation list refresh)
-                                await _hubContext.Clients.Group("admins").SendAsync("NewChatMessage", new
-                                {
-                                    customerId = customer.Id,
-                                    customerName = string.IsNullOrEmpty(customer.Name) ? phone : customer.Name,
-                                    content = incomingContent.Length > MessagePreviewMaxLength ? incomingContent[..MessagePreviewMaxLength] + "…" : incomingContent,
-                                    timestamp = DateTime.UtcNow
-                                });
-
-                                // --- Check bot pause: if paused, skip bot response ---
-                                if (await _chatService.IsBotPausedAsync(customer.Id))
-                                {
-                                    _logger.LogInformation("Bot paused for customer {CustomerId}, skipping bot response", customer.Id);
-                                    continue;
-                                }
-                            }
-
-                            await _chatBot.ProcessMessage(from, contactName, message.Type, textBody, interactiveId, interactiveTitle);
-
-                            // Handle brand-new customers: ProcessMessage creates them internally.
-                            // We must save their first message AND push via SignalR so admins see it in real-time.
-                            if (customer == null)
-                            {
-                                var newCustomer = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone);
-                                if (newCustomer != null)
-                                {
-                                    var savedFirstMsg = await _chatService.SaveMessageAsync(
-                                        newCustomer.Id, MessageDirection.Incoming, incomingContent,
-                                        string.IsNullOrEmpty(contactName) ? phone : contactName, false, message.Type);
-
-                                    // Push the first message to any admin who may have opened this chat
-                                    await _hubContext.Clients.Group($"chat_{newCustomer.Id}").SendAsync("ReceiveMessage", new ChatMessageDto
-                                    {
-                                        Id = savedFirstMsg.Id,
-                                        CustomerId = newCustomer.Id,
-                                        Direction = "Incoming",
-                                        MessageType = savedFirstMsg.MessageType,
-                                        Content = savedFirstMsg.Content,
-                                        SenderName = savedFirstMsg.SenderName,
-                                        IsFromBot = false,
-                                        Timestamp = savedFirstMsg.Timestamp
-                                    });
-
-                                    // Notify all admins about new conversation
-                                    await _hubContext.Clients.Group("admins").SendAsync("NewChatMessage", new
-                                    {
-                                        customerId = newCustomer.Id,
-                                        customerName = string.IsNullOrEmpty(newCustomer.Name) ? phone : newCustomer.Name,
-                                    content = incomingContent.Length > MessagePreviewMaxLength ? incomingContent[..MessagePreviewMaxLength] + "…" : incomingContent,
-                                        timestamp = DateTime.UtcNow
-                                    });
-                                }
-                            }
-                        }
-                        catch (Exception msgEx)
-                        {
-                            _logger.LogError(msgEx, "Error processing message from {From}", message.From);
-                            // Continue processing remaining messages in the batch
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error processing webhook");
-        }
-
-        return Ok();
+        _logger.LogWarning("WhatsApp:AppSecret not configured — webhook signature verification SKIPPED (Development only).");
+        return true;
     }
 }

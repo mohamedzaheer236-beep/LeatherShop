@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { BroadcastRequest, BroadcastResult, BroadcastHistory, WhatsAppTemplate } from '../models/broadcast.model';
@@ -7,26 +7,28 @@ import { ApiResponse } from '../../../core/models/api-response.model';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class BroadcastService {
-  private baseUrl = `${environment.apiUrl}/broadcast`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private baseUrl = `${environment.apiUrl}/broadcast`;
 
   sendBroadcast(request: BroadcastRequest): Observable<BroadcastResult> {
     return this.http.post<ApiResponse<BroadcastResult>>(`${this.baseUrl}/send`, request).pipe(map(res => res.data));
   }
 
   getBroadcastStatus(broadcastId: number): Observable<BroadcastHistory> {
-    return this.http.get<ApiResponse<BroadcastHistory>>(`${this.baseUrl}/${broadcastId}/status`).pipe(map(res => res.data));
+    return this.http
+      .get<ApiResponse<BroadcastHistory>>(`${this.baseUrl}/${broadcastId}/status`)
+      .pipe(map(res => res.data));
   }
 
-  getBroadcastHistory(page: number = 1, pageSize: number = 10): Observable<PaginatedResult<BroadcastHistory>> {
-    const params = new HttpParams()
-      .set('page', page.toString())
-      .set('pageSize', pageSize.toString());
-    return this.http.get<ApiResponse<PaginatedResult<BroadcastHistory>>>(`${this.baseUrl}/history`, { params }).pipe(map(res => res.data));
+  getBroadcastHistory(page = 1, pageSize = 10): Observable<PaginatedResult<BroadcastHistory>> {
+    const params = new HttpParams().set('page', page.toString()).set('pageSize', pageSize.toString());
+    return this.http
+      .get<ApiResponse<PaginatedResult<BroadcastHistory>>>(`${this.baseUrl}/history`, { params })
+      .pipe(map(res => res.data));
   }
 
   getApprovedTemplates(): Observable<WhatsAppTemplate[]> {

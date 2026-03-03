@@ -1,4 +1,4 @@
-import { Injectable, OnDestroy } from '@angular/core';
+import { Injectable, OnDestroy, inject } from '@angular/core';
 import { Subject } from 'rxjs';
 import * as signalR from '@microsoft/signalr';
 import { environment } from '../../../environments/environment';
@@ -40,6 +40,8 @@ export interface OutboxFailedEvent {
 
 @Injectable({ providedIn: 'root' })
 export class SignalRService implements OnDestroy {
+  private auth = inject(AuthService);
+
   private hubConnection: signalR.HubConnection | null = null;
 
   // Observables for components to subscribe to
@@ -47,8 +49,6 @@ export class SignalRService implements OnDestroy {
   readonly chatMessage$ = new Subject<ChatMessageEvent>();
   readonly newChatMessage$ = new Subject<NewChatMessageEvent>();
   readonly outboxFailed$ = new Subject<OutboxFailedEvent>();
-
-  constructor(private auth: AuthService) {}
 
   /** Start the SignalR connection (call after login). */
   start(): void {
@@ -84,14 +84,13 @@ export class SignalRService implements OnDestroy {
     const maxRetries = 5;
     const delays = [0, 2000, 5000, 10000, 30000];
 
-    this.hubConnection?.start()
-      .catch(() => {
-        if (attempt < maxRetries && this.hubConnection) {
-          const delay = delays[Math.min(attempt, delays.length - 1)];
-          setTimeout(() => this.startWithRetry(attempt + 1), delay);
-        }
-        // After max retries, give up silently — user can refresh the page
-      });
+    this.hubConnection?.start().catch(() => {
+      if (attempt < maxRetries && this.hubConnection) {
+        const delay = delays[Math.min(attempt, delays.length - 1)];
+        setTimeout(() => this.startWithRetry(attempt + 1), delay);
+      }
+      // After max retries, give up silently — user can refresh the page
+    });
   }
 
   /** Stop the connection (call on logout). Returns a Promise so callers can await completion. */
@@ -106,14 +105,16 @@ export class SignalRService implements OnDestroy {
 
   /** Join a customer's chat group to receive real-time messages. */
   joinCustomerChat(customerId: number): void {
-    this.hubConnection?.invoke('JoinCustomerChat', customerId)
-      .catch(() => { /* silently handle — hub may not be connected */ });
+    this.hubConnection?.invoke('JoinCustomerChat', customerId).catch(() => {
+      /* silently handle — hub may not be connected */
+    });
   }
 
   /** Leave a customer's chat group. */
   leaveCustomerChat(customerId: number): void {
-    this.hubConnection?.invoke('LeaveCustomerChat', customerId)
-      .catch(() => { /* silently handle — hub may not be connected */ });
+    this.hubConnection?.invoke('LeaveCustomerChat', customerId).catch(() => {
+      /* silently handle — hub may not be connected */
+    });
   }
 
   ngOnDestroy(): void {

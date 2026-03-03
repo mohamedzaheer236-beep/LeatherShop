@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { BroadcastService } from '../../features/broadcast/services/broadcast.service';
 import { WhatsAppTemplate } from '../../features/broadcast/models/broadcast.model';
@@ -16,17 +16,17 @@ export interface TemplateLoaderState {
  */
 @Injectable({ providedIn: 'root' })
 export class TemplateLoaderService {
+  private broadcastService = inject(BroadcastService);
+
   private state: TemplateLoaderState = {
     templates: [],
     templateOptions: [],
     loadingTemplates: false,
-    templatesLoaded: false
+    templatesLoaded: false,
   };
 
   private loaded = false;
   private loadSub?: Subscription;
-
-  constructor(private broadcastService: BroadcastService) {}
 
   getState(): TemplateLoaderState {
     return this.state;
@@ -42,14 +42,14 @@ export class TemplateLoaderService {
 
     this.state.loadingTemplates = true;
     this.loadSub = this.broadcastService.getApprovedTemplates().subscribe({
-      next: (data) => {
+      next: data => {
         this.state.templates = data;
         // Only show MARKETING templates in broadcast dropdown — UTILITY templates
         // (e.g., order_update) are for transactional messages, not broadcasts
         const marketingTemplates = data.filter(t => t.category === 'MARKETING');
         this.state.templateOptions = marketingTemplates.map(t => ({
           label: `${t.name} (${t.language})`,
-          value: t.name
+          value: t.name,
         }));
         this.state.templatesLoaded = true;
         this.state.loadingTemplates = false;
@@ -59,7 +59,7 @@ export class TemplateLoaderService {
         this.state.templatesLoaded = true;
         this.state.loadingTemplates = false;
         // Don't set this.loaded = true — allow next navigation to retry on transient failures
-      }
+      },
     });
   }
 

@@ -16,27 +16,33 @@ public class PaymentController : ControllerBase
 {
     private readonly IPaymentService _paymentService;
     private readonly IConfiguration _config;
+    private readonly IWebHostEnvironment _env;
 
-    public PaymentController(IPaymentService paymentService, IConfiguration config)
+    // Cache templates in memory after first load
+    private static string? _paymentPageTemplate;
+    private static string? _messagePageTemplate;
+
+    public PaymentController(IPaymentService paymentService, IConfiguration config, IWebHostEnvironment env)
     {
         _paymentService = paymentService;
         _config = config;
+        _env = env;
     }
 
     [HttpGet("pay/{orderNumber}")]
-    public async Task<IActionResult> PaymentPage(string orderNumber)
+    public async Task<IActionResult> PaymentPage(string orderNumber, CancellationToken ct)
     {
-        var (result, data) = await _paymentService.GetPaymentPageDataAsync(orderNumber);
+        var (result, data) = await _paymentService.GetPaymentPageDataAsync(orderNumber, ct);
 
         if (result == PaymentPageResult.NotFound)
-            return Content(BuildMessagePage("Order Not Found",
+            return Content(await BuildMessagePageAsync("Order Not Found",
                 "This order was not found or has already been paid.",
-                "&#128269;", "#666"), "text/html");
+                "&#128269;", "#666", ct), "text/html");
 
         if (result == PaymentPageResult.Expired)
-            return Content(BuildMessagePage("Payment Link Expired",
+            return Content(await BuildMessagePageAsync("Payment Link Expired",
                 "This payment link has expired. Your items have been restored to your cart.\n\nSay <strong>checkout</strong> on WhatsApp to get a new payment link.",
-                "&#9200;", "#e65100"), "text/html");
+                "&#9200;", "#e65100", ct), "text/html");
 
         var safeOrderNumber = WebUtility.HtmlEncode(data!.OrderNumber);
         var safeMerchantId = WebUtility.HtmlEncode(data.PaytmMerchantId);
@@ -57,218 +63,56 @@ public class PaymentController : ControllerBase
             </div>"
         ));
 
-        // Pass expiry as ISO string for JS countdown (or empty if no expiry)
         var expiresIso = data.ExpiresAtUtc?.ToString("o") ?? "";
 
-        var html = $@"
-<!DOCTYPE html>
-<html lang='en'>
-<head>
-    <meta charset='UTF-8'>
-    <title>Pay - {safeOrderNumber}</title>
-    <meta name='viewport' content='width=device-width, initial-scale=1'>
-    <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }}
-        .container {{ width: 100%; max-width: 420px; }}
-        .card {{ background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.3); }}
-        .header {{ background: linear-gradient(135deg, #2e7d32, #1b5e20); padding: 24px; color: #fff; text-align: center; }}
-        .header h1 {{ font-size: 20px; font-weight: 600; margin-bottom: 4px; }}
-        .header .order-num {{ font-size: 13px; opacity: .85; font-family: monospace; letter-spacing: .5px; }}
-        .timer {{ background: rgba(255,255,255,.15); border-radius: 8px; padding: 8px 12px; margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }}
-        .timer-dot {{ width: 8px; height: 8px; border-radius: 50%; background: #76ff03; animation: pulse 1s infinite; }}
-        @keyframes pulse {{ 0%,100% {{ opacity: 1; }} 50% {{ opacity: .4; }} }}
-        .body {{ padding: 20px; }}
-        .item {{ display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }}
-        .item:last-child {{ border-bottom: none; }}
-        .item-info {{ display: flex; flex-direction: column; gap: 2px; }}
-        .item-name {{ font-size: 14px; font-weight: 500; color: #333; }}
-        .item-qty {{ font-size: 12px; color: #888; }}
-        .item-price {{ font-size: 14px; font-weight: 600; color: #333; white-space: nowrap; }}
-        .divider {{ height: 1px; background: #e0e0e0; margin: 16px 0; }}
-        .total-row {{ display: flex; justify-content: space-between; align-items: center; }}
-        .total-label {{ font-size: 16px; color: #666; }}
-        .total-amount {{ font-size: 28px; font-weight: 700; color: #2e7d32; }}
-        .btn {{ display: block; width: 100%; padding: 16px; background: linear-gradient(135deg, #2e7d32, #1b5e20); color: #fff; border: none; border-radius: 0 0 16px 16px; font-size: 17px; font-weight: 600; cursor: pointer; transition: opacity .2s; letter-spacing: .3px; }}
-        .btn:hover {{ opacity: .92; }}
-        .btn:active {{ opacity: .85; }}
-        .btn:disabled {{ background: #ccc; cursor: not-allowed; }}
-        .secure {{ text-align: center; margin-top: 16px; font-size: 12px; color: rgba(255,255,255,.5); display: flex; align-items: center; justify-content: center; gap: 4px; }}
-        .expired-overlay {{ position: fixed; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; z-index: 100; }}
-        .expired-box {{ background: #fff; border-radius: 16px; padding: 32px; text-align: center; max-width: 360px; margin: 16px; }}
-        .expired-box h2 {{ color: #e65100; margin: 12px 0 8px; }}
-        .expired-box p {{ color: #666; font-size: 14px; line-height: 1.5; }}
-    </style>
-</head>
-<body>
-    <div class='container'>
-        <div class='card'>
-            <div class='header'>
-                <h1>Leather Shop</h1>
-                <div class='order-num'>{safeOrderNumber}</div>
-                <div class='timer' id='timer'>
-                    <span class='timer-dot'></span>
-                    <span id='countdown'>Loading...</span>
-                </div>
-            </div>
-            <div class='body'>
-                {itemsHtml}
-                <div class='divider'></div>
-                <div class='total-row'>
-                    <span class='total-label'>Total</span>
-                    <span class='total-amount'>&#x20B9;{data.TotalAmount:F2}</span>
-                </div>
-            </div>
-            <button class='btn' id='payBtn' onclick='pay()'>Pay &#x20B9;{data.TotalAmount:F2}</button>
-        </div>
-        <div class='secure'>&#128274; Secured by Paytm</div>
-    </div>
-
-    <div class='expired-overlay' id='expiredOverlay' style='display:none'>
-        <div class='expired-box'>
-            <div style='font-size:48px'>&#9200;</div>
-            <h2>Link Expired</h2>
-            <p>This payment link has expired. Your items have been restored to your cart.<br><br>Say <strong>checkout</strong> on WhatsApp to get a new link.</p>
-        </div>
-    </div>
-
-    <script type='application/javascript' crossorigin='anonymous' src='https://{paytmHost}/merchantpgpui/checkoutjs/merchants/{safeMerchantId}.js'></script>
-    <script>
-        var expiresAt = '{expiresIso}';
-        var expired = false;
-        var paytmMid = '{safeMerchantId}';
-        var paytmTxnToken = '{safeTxnToken}';
-        var orderNumber = '{safeOrderNumber}';
-        var orderAmount = '{data.TotalAmount:F2}';
-
-        function startCountdown() {{
-            if (!expiresAt) return;
-            var endTime = new Date(expiresAt).getTime();
-
-            function update() {{
-                var now = Date.now();
-                var diff = endTime - now;
-                if (diff <= 0) {{
-                    expired = true;
-                    document.getElementById('countdown').textContent = 'Expired';
-                    document.getElementById('payBtn').disabled = true;
-                    document.getElementById('expiredOverlay').style.display = 'flex';
-                    document.querySelector('.timer-dot').style.background = '#ff1744';
-                    document.querySelector('.timer-dot').style.animation = 'none';
-                    return;
-                }}
-                var min = Math.floor(diff / 60000);
-                var sec = Math.floor((diff % 60000) / 1000);
-                document.getElementById('countdown').textContent = min + ':' + (sec < 10 ? '0' : '') + sec + ' remaining';
-                requestAnimationFrame(update);
-            }}
-            update();
-        }}
-        startCountdown();
-
-        function pay() {{
-            if (expired) {{
-                document.getElementById('expiredOverlay').style.display = 'flex';
-                return;
-            }}
-            if (!paytmMid || !paytmTxnToken) {{
-                alert('Payment gateway is not configured. Please contact the shop owner.');
-                return;
-            }}
-
-            var config = {{
-                'root': '',
-                'flow': 'DEFAULT',
-                'data': {{
-                    'orderId': orderNumber,
-                    'token': paytmTxnToken,
-                    'tokenType': 'TXN_TOKEN',
-                    'amount': orderAmount
-                }},
-                'handler': {{
-                    'notifyMerchant': function(eventName, data) {{
-                        console.log('Paytm event:', eventName, data);
-                    }},
-                    'transactionStatus': function(paymentStatus) {{
-                        console.log('Paytm payment status:', paymentStatus);
-                        if (paymentStatus.STATUS === 'TXN_SUCCESS') {{
-                            document.getElementById('payBtn').disabled = true;
-                            document.getElementById('payBtn').textContent = 'Verifying...';
-                            fetch('/api/payment/verify', {{
-                                method: 'POST',
-                                headers: {{ 'Content-Type': 'application/json' }},
-                                body: JSON.stringify({{
-                                    transactionId: paymentStatus.TXNID || '',
-                                    orderId: orderNumber
-                                }})
-                            }}).then(function(r) {{
-                                if (!r.ok) throw new Error('Verification failed');
-                                return r.json();
-                            }}).then(function(d) {{
-                                document.body.innerHTML = '<div style=""min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;background:linear-gradient(135deg,#1a1a2e,#16213e)""><div style=""background:#fff;border-radius:16px;padding:40px;text-align:center;max-width:400px""><div style=""font-size:64px"">&#9989;</div><h2 style=""color:#2e7d32;margin:16px 0 8px"">Payment Successful!</h2><p style=""color:#666;font-size:14px;line-height:1.6"">Thank you for your order.<br>Check WhatsApp for your confirmation.</p></div></div>';
-                            }}).catch(function() {{
-                                document.body.innerHTML = '<div style=""min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;background:linear-gradient(135deg,#1a1a2e,#16213e)""><div style=""background:#fff;border-radius:16px;padding:40px;text-align:center;max-width:400px""><div style=""font-size:64px"">&#9888;&#65039;</div><h2 style=""color:#e65100;margin:16px 0 8px"">Payment Status Unknown</h2><p style=""color:#666;font-size:14px;line-height:1.6"">We could not confirm your payment. If money was deducted, please contact us &#8212; your payment is safe.</p></div></div>';
-                            }});
-                        }} else {{
-                            alert('Payment was not completed. Status: ' + (paymentStatus.STATUS || 'Unknown') + '. Please try again.');
-                        }}
-                    }}
-                }}
-            }};
-
-            if (window.Paytm && window.Paytm.CheckoutJs) {{
-                window.Paytm.CheckoutJs.init(config).then(function onSuccess() {{
-                    window.Paytm.CheckoutJs.invoke();
-                }}).catch(function onError(error) {{
-                    console.error('Paytm Checkout init error:', error);
-                    alert('Could not initialize payment. Please try again.');
-                }});
-            }} else {{
-                alert('Payment gateway is loading. Please try again in a moment.');
-            }}
-        }}
-    </script>
-</body>
-</html>";
+        var template = await LoadPaymentPageTemplate(ct);
+        var html = template
+            .Replace("{{ORDER_NUMBER}}", safeOrderNumber)
+            .Replace("{{MERCHANT_ID}}", safeMerchantId)
+            .Replace("{{TXN_TOKEN}}", safeTxnToken)
+            .Replace("{{PAYTM_HOST}}", paytmHost)
+            .Replace("{{ORDER_ITEMS}}", itemsHtml)
+            .Replace("{{TOTAL_AMOUNT}}", $"{data.TotalAmount:F2}")
+            .Replace("{{EXPIRES_ISO}}", expiresIso);
 
         return Content(html, "text/html");
     }
 
     [HttpPost("verify")]
-    public async Task<IActionResult> VerifyPayment([FromBody] PaymentVerifyDto dto)
+    public async Task<IActionResult> VerifyPayment([FromBody] PaymentVerifyDto dto, CancellationToken ct)
     {
-        var result = await _paymentService.VerifyPaymentAsync(dto);
+        var result = await _paymentService.VerifyPaymentAsync(dto, ct);
         if (result == null)
             return BadRequest(ApiResponse.Fail("Invalid order or payment."));
         return Ok(ApiResponse<PaymentVerifyResultDto>.Ok(result, "Payment verified successfully."));
     }
 
-    /// <summary>Generates a full-page HTML message (used for expired/not-found states).</summary>
-    private static string BuildMessagePage(string title, string message, string emoji, string color)
+    /// <summary>Loads the payment page HTML template from wwwroot/templates, with in-memory caching.</summary>
+    private async Task<string> LoadPaymentPageTemplate(CancellationToken ct)
     {
-        return $@"
-<!DOCTYPE html>
-<html lang='en'>
-<head>
-    <meta charset='UTF-8'>
-    <title>{WebUtility.HtmlEncode(title)}</title>
-    <meta name='viewport' content='width=device-width, initial-scale=1'>
-    <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }}
-        .card {{ background: #fff; border-radius: 16px; padding: 40px 32px; text-align: center; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }}
-        .emoji {{ font-size: 56px; margin-bottom: 16px; }}
-        h2 {{ color: {color}; margin-bottom: 12px; font-size: 22px; }}
-        p {{ color: #666; font-size: 14px; line-height: 1.6; }}
-    </style>
-</head>
-<body>
-    <div class='card'>
-        <div class='emoji'>{emoji}</div>
-        <h2>{WebUtility.HtmlEncode(title)}</h2>
-        <p>{message}</p>
-    </div>
-</body>
-</html>";
+        if (_paymentPageTemplate != null) return _paymentPageTemplate;
+        var path = Path.Combine(_env.WebRootPath, "templates", "payment-page.html");
+        _paymentPageTemplate = await System.IO.File.ReadAllTextAsync(path, ct);
+        return _paymentPageTemplate;
+    }
+
+    /// <summary>Loads the message page HTML template from wwwroot/templates, with in-memory caching.</summary>
+    private async Task<string> LoadMessagePageTemplate(CancellationToken ct)
+    {
+        if (_messagePageTemplate != null) return _messagePageTemplate;
+        var path = Path.Combine(_env.WebRootPath, "templates", "payment-message.html");
+        _messagePageTemplate = await System.IO.File.ReadAllTextAsync(path, ct);
+        return _messagePageTemplate;
+    }
+
+    /// <summary>Generates a full-page HTML message (used for expired/not-found states) using the template file.</summary>
+    private async Task<string> BuildMessagePageAsync(string title, string message, string emoji, string color, CancellationToken ct)
+    {
+        var template = await LoadMessagePageTemplate(ct);
+        return template
+            .Replace("{{TITLE}}", WebUtility.HtmlEncode(title))
+            .Replace("{{MESSAGE}}", message)
+            .Replace("{{EMOJI}}", emoji)
+            .Replace("{{COLOR}}", color);
     }
 }

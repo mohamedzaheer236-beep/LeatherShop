@@ -6,82 +6,90 @@
     <ng-template pTemplate="right">
       <span [formGroup]="filterForm">
         <p-dropdown [options]="statusDropdownOptions" formControlName="filterStatus" (onChange)="onFilterChange()"
-                    [style]="{'min-width': '180px'}" ariaLabel="Filter orders by status"></p-dropdown>
+        [style]="{'min-width': '180px'}" ariaLabel="Filter orders by status"></p-dropdown>
       </span>
     </ng-template>
   </p-toolbar>
 
   <app-loading-spinner [loading]="loading" message="Loading orders..."></app-loading-spinner>
 
-  <div class="orders-list" *ngIf="!loading">
-    <p-card *ngFor="let order of orders; trackBy: trackByOrderId" styleClass="order-card mb-3">
-      <div class="order-header" (click)="toggleExpand(order.id)"
-           role="button" tabindex="0" [attr.aria-expanded]="expandedOrderId === order.id"
-           [attr.aria-label]="'Toggle details for order ' + order.orderNumber"
-           (keydown.enter)="toggleExpand(order.id)" (keydown.space)="$event.preventDefault(); toggleExpand(order.id)">
-        <div class="order-info">
-          <span class="order-number">{{ order.orderNumber }}</span>
-          <span class="order-customer">{{ order.customerName || order.customerPhone }}</span>
-        </div>
-        <div class="order-meta">
-          <button class="invoice-btn" (click)="downloadInvoice($event, order)" title="Download Invoice" [disabled]="order.downloading">
-            <i class="pi" [ngClass]="order.downloading ? 'pi-spin pi-spinner' : 'pi-file-pdf'"></i>
-          </button>
-          <strong class="order-amount">&#8377;{{ order.totalAmount | number:'1.0-0' }}</strong>
-          <p-tag [value]="order.status" [severity]="getSeverity(order.status)"></p-tag>
-          <p-tag [value]="order.isPaid ? 'Paid' : 'Unpaid'" [severity]="order.isPaid ? 'success' : 'danger'"></p-tag>
-          <span class="order-date">{{ order.createdAt | date:'dd MMM yyyy' }}</span>
-          <i class="pi" [ngClass]="expandedOrderId === order.id ? 'pi-chevron-up' : 'pi-chevron-down'"></i>
-        </div>
-      </div>
-
-      <div class="order-details" *ngIf="expandedOrderId === order.id">
-        <p-table [value]="order.items" styleClass="p-datatable-sm" [tableStyle]="{'min-width': '30rem'}">
-          <ng-template pTemplate="header">
-            <tr>
-              <th>Product</th>
-              <th>Qty</th>
-              <th>Price</th>
-              <th>Subtotal</th>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="body" let-item>
-            <tr>
-              <td>{{ item.productName }}</td>
-              <td>{{ item.quantity }}</td>
-              <td>&#8377;{{ item.unitPrice | number:'1.0-0' }}</td>
-              <td>&#8377;{{ item.unitPrice * item.quantity | number:'1.0-0' }}</td>
-            </tr>
-          </ng-template>
-        </p-table>
-
-        <div class="status-actions">
-          <label>Update Status:</label>
-          <div class="status-buttons">
-            <p-button *ngFor="let s of statusOptions"
+  @if (!loading) {
+    <div class="orders-list">
+      @for (order of orders; track trackByOrderId($index, order)) {
+        <p-card styleClass="order-card mb-3">
+          <div class="order-header" (click)="toggleExpand(order.id)"
+            role="button" tabindex="0" [attr.aria-expanded]="expandedOrderId === order.id"
+            [attr.aria-label]="'Toggle details for order ' + order.orderNumber"
+            (keydown.enter)="toggleExpand(order.id)" (keydown.space)="$event.preventDefault(); toggleExpand(order.id)">
+            <div class="order-info">
+              <span class="order-number">{{ order.orderNumber }}</span>
+              <span class="order-customer">{{ order.customerName || order.customerPhone }}</span>
+            </div>
+            <div class="order-meta">
+              <button class="invoice-btn" (click)="downloadInvoice($event, order)" title="Download Invoice" [disabled]="order.downloading">
+                <i class="pi" [class.pi-spin]="order.downloading" [class.pi-spinner]="order.downloading" [class.pi-file-pdf]="!order.downloading"></i>
+              </button>
+              <strong class="order-amount">&#8377;{{ order.totalAmount | number:'1.0-0' }}</strong>
+              <p-tag [value]="order.status" [severity]="getSeverity(order.status)"></p-tag>
+              <p-tag [value]="order.isPaid ? 'Paid' : 'Unpaid'" [severity]="order.isPaid ? 'success' : 'danger'"></p-tag>
+              <span class="order-date">{{ order.createdAt | date:'dd MMM yyyy' }}</span>
+              <i class="pi" [class.pi-chevron-up]="expandedOrderId === order.id" [class.pi-chevron-down]="expandedOrderId !== order.id"></i>
+            </div>
+          </div>
+          @if (expandedOrderId === order.id) {
+            <div class="order-details">
+              <p-table [value]="order.items" styleClass="p-datatable-sm" [tableStyle]="{'min-width': '30rem'}">
+                <ng-template pTemplate="header">
+                  <tr>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Subtotal</th>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-item>
+                  <tr>
+                    <td>{{ item.productName }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>&#8377;{{ item.unitPrice | number:'1.0-0' }}</td>
+                    <td>&#8377;{{ item.unitPrice * item.quantity | number:'1.0-0' }}</td>
+                  </tr>
+                </ng-template>
+              </p-table>
+              <div class="status-actions">
+                <label>Update Status:</label>
+                <div class="status-buttons">
+                  @for (s of statusOptions; track s) {
+                    <p-button
                       [label]="s" size="small"
                       [severity]="order.status === s ? 'primary' : 'secondary'"
                       [outlined]="order.status !== s"
                       [disabled]="order.status === s"
-                      (onClick)="updateStatus(order, s)"></p-button>
-          </div>
+                    (onClick)="updateStatus(order, s)"></p-button>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </p-card>
+      }
+      @if (orders.length === 0) {
+        <div class="empty-state">
+          <i class="pi pi-shopping-cart"></i>
+          <p>No orders found.</p>
         </div>
-      </div>
-    </p-card>
-
-    <div *ngIf="orders.length === 0" class="empty-state">
-      <i class="pi pi-shopping-cart"></i>
-      <p>No orders found.</p>
+      }
+      @if (totalRecords > 0) {
+        <p-paginator
+          [first]="(currentPage - 1) * pageSize"
+          [rows]="pageSize"
+          [totalRecords]="totalRecords"
+          [rowsPerPageOptions]="[25, 50, 100]"
+          (onPageChange)="onPageChange($event)"
+          [showCurrentPageReport]="true"
+          currentPageReportTemplate="Showing {first} to {last} of {totalRecords} orders">
+        </p-paginator>
+      }
     </div>
-
-    <p-paginator *ngIf="totalRecords > 0"
-      [first]="(currentPage - 1) * pageSize"
-      [rows]="pageSize"
-      [totalRecords]="totalRecords"
-      [rowsPerPageOptions]="[25, 50, 100]"
-      (onPageChange)="onPageChange($event)"
-      [showCurrentPageReport]="true"
-      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} orders">
-    </p-paginator>
-  </div>
+  }
 </div>

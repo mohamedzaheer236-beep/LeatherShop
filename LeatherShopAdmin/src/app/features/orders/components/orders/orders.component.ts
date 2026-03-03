@@ -1,9 +1,9 @@
-﻿import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+﻿import { Component, OnInit, inject } from '@angular/core';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { PaginatorState } from 'primeng/paginator';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { OrderService } from '../../services/order.service';
-import { Order } from '../../models/order.model';
+import { Order, OrderStatus } from '../../models/order.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { getStatusSeverity, TagSeverity } from '../../../../shared/utils/severity.utils';
@@ -18,11 +18,27 @@ import { PaginatorModule } from 'primeng/paginator';
 @Component({
   selector: 'app-orders',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, LoadingSpinnerComponent, TableModule, TagModule, ButtonModule, DropdownModule, CardModule, ToolbarModule, PaginatorModule],
+  imports: [
+    DatePipe,
+    DecimalPipe,
+    ReactiveFormsModule,
+    LoadingSpinnerComponent,
+    TableModule,
+    TagModule,
+    ButtonModule,
+    DropdownModule,
+    CardModule,
+    ToolbarModule,
+    PaginatorModule,
+  ],
   templateUrl: './orders.component.html',
-  styleUrl: './orders.component.scss'
+  styleUrl: './orders.component.scss',
 })
 export class OrdersComponent implements OnInit {
+  private fb = inject(FormBuilder);
+  private orderService = inject(OrderService);
+  private notification = inject(NotificationService);
+
   orders: Order[] = [];
   loading = true;
   filterForm!: FormGroup;
@@ -32,9 +48,9 @@ export class OrdersComponent implements OnInit {
     { label: 'Confirmed', value: 'Confirmed' },
     { label: 'Shipped', value: 'Shipped' },
     { label: 'Delivered', value: 'Delivered' },
-    { label: 'Cancelled', value: 'Cancelled' }
+    { label: 'Cancelled', value: 'Cancelled' },
   ];
-  statusOptions = ['Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'];
+  statusOptions: OrderStatus[] = ['Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'];
   expandedOrderId: number | null = null;
 
   // Pagination
@@ -42,15 +58,9 @@ export class OrdersComponent implements OnInit {
   currentPage = 1;
   pageSize = 25;
 
-  constructor(
-    private fb: FormBuilder,
-    private orderService: OrderService,
-    private notification: NotificationService
-  ) {}
-
   ngOnInit(): void {
     this.filterForm = this.fb.group({
-      filterStatus: ['']
+      filterStatus: [''],
     });
     this.loadOrders();
   }
@@ -59,12 +69,12 @@ export class OrdersComponent implements OnInit {
     this.loading = true;
     const filterStatus = this.filterForm.get('filterStatus')?.value || '';
     this.orderService.getOrders(filterStatus, this.currentPage, this.pageSize).subscribe({
-      next: (result) => {
+      next: result => {
         this.orders = result.items;
         this.totalRecords = result.totalCount;
         this.loading = false;
       },
-      error: () => this.loading = false
+      error: () => (this.loading = false),
     });
   }
 
@@ -84,7 +94,7 @@ export class OrdersComponent implements OnInit {
     this.expandedOrderId = this.expandedOrderId === orderId ? null : orderId;
   }
 
-  updateStatus(order: Order, newStatus: string): void {
+  updateStatus(order: Order, newStatus: OrderStatus): void {
     const previousStatus = order.status;
     this.orderService.updateOrderStatus(order.id, newStatus).subscribe({
       next: () => {
@@ -94,7 +104,7 @@ export class OrdersComponent implements OnInit {
       error: () => {
         order.status = previousStatus;
         // Toast shown by error interceptor
-      }
+      },
     });
   }
 
@@ -110,7 +120,7 @@ export class OrdersComponent implements OnInit {
     event.stopPropagation(); // Don't toggle expand
     order.downloading = true;
     this.orderService.downloadInvoice(order.id).subscribe({
-      next: (blob) => {
+      next: blob => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -122,7 +132,7 @@ export class OrdersComponent implements OnInit {
       error: () => {
         order.downloading = false;
         this.notification.error('Failed to download invoice.');
-      }
+      },
     });
   }
 }

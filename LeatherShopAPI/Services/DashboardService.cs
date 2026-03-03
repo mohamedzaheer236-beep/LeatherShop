@@ -19,26 +19,26 @@ public class DashboardService : IDashboardService
         _db = db;
     }
 
-    public async Task<DashboardDto> GetDashboardAsync()
+    public async Task<DashboardDto> GetDashboardAsync(CancellationToken ct = default)
     {
         // Sequential awaits — DbContext is NOT thread-safe so Task.WhenAll is not safe here.
-        // These are simple COUNT/SUM queries that execute in <1ms each on PostgreSQL with indexes.
+        // First query materializes recent orders with includes; remaining queries are simple COUNT/SUM that execute in <1ms each.
         var recentOrders = await _db.Orders
             .AsNoTracking()
             .Include(o => o.Customer)
             .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
             .OrderByDescending(o => o.CreatedAt)
             .Take(RecentOrdersCount)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         return new DashboardDto
         {
-            TotalProducts = await _db.Products.CountAsync(p => p.IsActive),
-            TotalCustomers = await _db.Customers.CountAsync(),
-            TotalOrders = await _db.Orders.CountAsync(),
-            TotalRevenue = await _db.Orders.Where(o => o.IsPaid).SumAsync(o => o.TotalAmount),
-            PendingOrders = await _db.Orders.CountAsync(o => o.Status == OrderStatus.Pending),
-            LowStockProducts = await _db.Products.CountAsync(p => p.IsActive && p.StockQuantity <= LowStockThreshold),
+            TotalProducts = await _db.Products.CountAsync(p => p.IsActive, ct),
+            TotalCustomers = await _db.Customers.CountAsync(ct),
+            TotalOrders = await _db.Orders.CountAsync(ct),
+            TotalRevenue = await _db.Orders.Where(o => o.IsPaid).SumAsync(o => o.TotalAmount, ct),
+            PendingOrders = await _db.Orders.CountAsync(o => o.Status == OrderStatus.Pending, ct),
+            LowStockProducts = await _db.Products.CountAsync(p => p.IsActive && p.StockQuantity <= LowStockThreshold, ct),
             RecentOrders = recentOrders.Select(o => o.ToDto()).ToList()
         };
     }

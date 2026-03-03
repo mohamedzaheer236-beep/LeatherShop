@@ -30,6 +30,7 @@ builder.Services.AddDataProtection()
 builder.Services.AddDatabase(builder.Configuration);
 builder.Services.AddApplicationServices();
 builder.Services.AddCorsPolicies();
+builder.Services.AddApiVersioningConfig();
 builder.Services.AddSignalR();
 
 // --- JWT Authentication ---

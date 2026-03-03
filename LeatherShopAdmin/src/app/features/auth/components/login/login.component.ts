@@ -1,5 +1,4 @@
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, inject } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -9,21 +8,21 @@ import { InputTextModule } from 'primeng/inputtext';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ButtonModule, InputTextModule],
+  imports: [ReactiveFormsModule, ButtonModule, InputTextModule],
   templateUrl: './login.component.html',
-  styleUrl: './login.component.scss'
+  styleUrl: './login.component.scss',
 })
 export class LoginComponent {
+  private fb = inject(FormBuilder);
+  private auth = inject(AuthService);
+  private router = inject(Router);
+
   loginForm: FormGroup;
   loading = false;
   errorMessage = '';
   showPassword = false;
 
-  constructor(
-    private fb: FormBuilder,
-    private auth: AuthService,
-    private router: Router
-  ) {
+  constructor() {
     // Redirect if already logged in (skip if arriving from logout)
     const nav = this.router.getCurrentNavigation();
     const fromLogout = nav?.extras?.state?.['fromLogout'] ?? false;
@@ -33,11 +32,13 @@ export class LoginComponent {
 
     this.loginForm = this.fb.group({
       username: ['', [Validators.required]],
-      password: ['', [Validators.required]]
+      password: ['', [Validators.required]],
     });
   }
 
-  get f() { return this.loginForm.controls; }
+  get f() {
+    return this.loginForm.controls;
+  }
 
   togglePassword(): void {
     this.showPassword = !this.showPassword;
@@ -52,7 +53,7 @@ export class LoginComponent {
 
     const { username, password } = this.loginForm.value;
     this.auth.login(username, password).subscribe({
-      next: (res) => {
+      next: res => {
         this.loading = false;
         if (res.success) {
           this.router.navigate(['/dashboard']);
@@ -60,10 +61,10 @@ export class LoginComponent {
           this.errorMessage = res.message || 'Login failed. Please try again.';
         }
       },
-      error: (err) => {
+      error: err => {
         this.loading = false;
         this.errorMessage = err.error?.message || 'Login failed. Please try again.';
-      }
+      },
     });
   }
 }

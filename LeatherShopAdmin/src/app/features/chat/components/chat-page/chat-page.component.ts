@@ -1,5 +1,5 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, inject } from '@angular/core';
+
 import { FormsModule } from '@angular/forms';
 import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
@@ -18,11 +18,26 @@ import { ConversationTimePipe, MessageTimePipe } from '../../../../shared/pipes/
 @Component({
   selector: 'app-chat-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, InputTextModule, ButtonModule, BadgeModule, TooltipModule, ProgressSpinnerModule, DialogModule, TagModule, FormatMessagePipe, ConversationTimePipe, MessageTimePipe],
+  imports: [
+    FormsModule,
+    InputTextModule,
+    ButtonModule,
+    BadgeModule,
+    TooltipModule,
+    ProgressSpinnerModule,
+    DialogModule,
+    TagModule,
+    FormatMessagePipe,
+    ConversationTimePipe,
+    MessageTimePipe,
+  ],
   templateUrl: './chat-page.component.html',
-  styleUrl: './chat-page.component.scss'
+  styleUrl: './chat-page.component.scss',
 })
 export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
+  private chatService = inject(ChatService);
+  private signalR = inject(SignalRService);
+
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
 
   conversations: Conversation[] = [];
@@ -51,11 +66,6 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
   private searchTimeout: number | null = null;
   private conversationRefreshTimeout: number | null = null;
 
-  constructor(
-    private chatService: ChatService,
-    private signalR: SignalRService
-  ) {}
-
   ngOnInit(): void {
     this.loadConversations();
     this.loadFailedMessageCount();
@@ -71,24 +81,24 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
           if (!exists) {
             this.messages.push({
               id: msg.id,
-              direction: msg.direction,
+              direction: msg.direction as ChatMessage['direction'],
               messageType: msg.messageType,
               content: msg.content,
               senderName: msg.senderName,
               isFromBot: msg.isFromBot,
-              timestamp: msg.timestamp
+              timestamp: msg.timestamp,
             });
             this.shouldScrollToBottom = true;
           }
         }
-      })
+      }),
     );
 
     // Listen for new chat messages to refresh conversation list (debounced — F79 fix)
     this.subs.push(
       this.signalR.newChatMessage$.subscribe(() => {
         this.debouncedLoadConversations();
-      })
+      }),
     );
 
     // Listen for outbox message failures — update badge count in real time
@@ -99,7 +109,7 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
         if (this.showFailedMessages) {
           this.loadFailedMessages();
         }
-      })
+      }),
     );
   }
 
@@ -141,11 +151,12 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.conversations = convs;
         // Update the selected conversation if still selected
         if (this.selectedCustomerId) {
-          this.selectedConversation = convs.find(c => c.customerId === this.selectedCustomerId) || this.selectedConversation;
+          this.selectedConversation =
+            convs.find(c => c.customerId === this.selectedCustomerId) || this.selectedConversation;
         }
         this.loadingConversations = false;
       },
-      error: () => this.loadingConversations = false
+      error: () => (this.loadingConversations = false),
     });
   }
 
@@ -199,7 +210,7 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.hasMoreMessages = this.currentPage < result.totalPages;
         this.loadingMessages = false;
       },
-      error: () => this.loadingMessages = false
+      error: () => (this.loadingMessages = false),
     });
   }
 
@@ -216,7 +227,7 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.sending = true;
 
     this.chatService.sendMessage(this.selectedCustomerId, text).subscribe({
-      next: (msg) => {
+      next: msg => {
         // Add the sent message to the UI
         this.messages.push(msg);
         this.shouldScrollToBottom = true;
@@ -230,19 +241,21 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
       error: () => {
         this.messageText = text; // Restore on error
         this.sending = false;
-      }
+      },
     });
   }
 
   toggleBot(): void {
     if (!this.selectedCustomerId) return;
     this.chatService.toggleBot(this.selectedCustomerId).subscribe({
-      next: (result) => {
+      next: result => {
         if (this.selectedConversation) {
           this.selectedConversation.isBotPaused = result.isBotPaused;
         }
       },
-      error: () => { /* Toast shown by error interceptor */ }
+      error: () => {
+        /* Toast shown by error interceptor */
+      },
     });
   }
 
@@ -265,7 +278,7 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
       },
       error: () => {
         this.deletingConversation = false;
-      }
+      },
     });
   }
 
@@ -285,8 +298,10 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   loadFailedMessageCount(): void {
     this.chatService.getFailedMessageCount().subscribe({
-      next: count => this.failedCount = count,
-      error: () => { /* Silent — badge is optional */ }
+      next: count => (this.failedCount = count),
+      error: () => {
+        /* Silent — badge is optional */
+      },
     });
   }
 
@@ -297,8 +312,10 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   loadFailedMessages(): void {
     this.chatService.getFailedMessages().subscribe({
-      next: msgs => this.failedMessages = msgs,
-      error: () => { /* Toast shown by error interceptor */ }
+      next: msgs => (this.failedMessages = msgs),
+      error: () => {
+        /* Toast shown by error interceptor */
+      },
     });
   }
 
@@ -314,7 +331,7 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.showFailedMessages = false;
         }
       },
-      error: () => this.retryingId = null
+      error: () => (this.retryingId = null),
     });
   }
 

@@ -9,35 +9,43 @@
     <div class="navbar-end">
       <!-- Notification Bell -->
       <div class="notification-wrapper"
-           role="button"
-           tabindex="0"
-           aria-label="Notifications"
-           [attr.aria-expanded]="op.overlayVisible || false"
-           (click)="op.toggle($event)"
-           (keydown.enter)="op.toggle($event)"
-           (keydown.space)="$event.preventDefault(); op.toggle($event)">
+        role="button"
+        tabindex="0"
+        aria-label="Notifications"
+        [attr.aria-expanded]="op.overlayVisible || false"
+        (click)="op.toggle($event)"
+        (keydown.enter)="op.toggle($event)"
+        (keydown.space)="$event.preventDefault(); op.toggle($event)">
         <i class="pi pi-bell notification-bell" [class.has-notifications]="notifications.length > 0"></i>
-        <span *ngIf="notifications.length > 0" class="notification-badge">{{ notifications.length }}</span>
+        @if (notifications.length > 0) {
+          <span class="notification-badge">{{ notifications.length }}</span>
+        }
       </div>
 
       <p-overlayPanel #op [style]="{'width': '340px'}">
         <div class="notification-panel">
           <div class="notification-header">
             <span>Order Notifications</span>
-            <button *ngIf="notifications.length > 0" class="clear-btn" (click)="clearNotifications(); op.hide()">Clear all</button>
+            @if (notifications.length > 0) {
+              <button class="clear-btn" (click)="clearNotifications(); op.hide()">Clear all</button>
+            }
           </div>
-          <div *ngIf="notifications.length === 0" class="notification-empty">
-            <i class="pi pi-check-circle"></i>
-            <span>No new notifications</span>
-          </div>
-          <div *ngFor="let n of notifications" class="notification-item" (click)="onNotificationClick(n); op.hide()">
-            <div class="notification-icon"><i class="pi pi-shopping-cart"></i></div>
-            <div class="notification-content">
-              <div class="notification-title">New Order #{{ n.orderNumber }}</div>
-              <div class="notification-detail">{{ n.customerName }} — ₹{{ n.amount }}</div>
-              <div class="notification-time">{{ n.timestamp | timeAgo }}</div>
+          @if (notifications.length === 0) {
+            <div class="notification-empty">
+              <i class="pi pi-check-circle"></i>
+              <span>No new notifications</span>
             </div>
-          </div>
+          }
+          @for (n of notifications; track n) {
+            <div class="notification-item" (click)="onNotificationClick(n); op.hide()">
+              <div class="notification-icon"><i class="pi pi-shopping-cart"></i></div>
+              <div class="notification-content">
+                <div class="notification-title">New Order #{{ n.orderNumber }}</div>
+                <div class="notification-detail">{{ n.customerName }} — ₹{{ n.amount }}</div>
+                <div class="notification-time">{{ n.timestamp | timeAgo }}</div>
+              </div>
+            </div>
+          }
         </div>
       </p-overlayPanel>
 
@@ -47,9 +55,9 @@
       </div>
       <div class="navbar-divider"></div>
       <button pButton icon="pi pi-power-off"
-              class="p-button-rounded p-button-sm navbar-logout-btn"
-              pTooltip="Logout" tooltipPosition="bottom"
-              (click)="logout()"></button>
+        class="p-button-rounded p-button-sm navbar-logout-btn"
+        pTooltip="Logout" tooltipPosition="bottom"
+      (click)="logout()"></button>
     </div>
   </ng-template>
 </p-menubar>

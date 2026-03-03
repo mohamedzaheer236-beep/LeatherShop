@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace LeatherShopAPI.DTOs.Order;
 
 public class OrderDto
@@ -23,4 +25,10 @@ public class OrderItemDto
     public decimal UnitPrice { get; set; }
     /// <summary>Resolved image URL: selected image from carousel, or primary product image as fallback.</summary>
     public string? SelectedImageUrl { get; set; }
+}
+
+public class UpdateOrderStatusDto
+{
+    [Required]
+    public string Status { get; set; } = string.Empty;
 }

@@ -2,6 +2,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using LeatherShopAPI.Models;
+using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Services;
 
@@ -9,7 +10,7 @@ namespace LeatherShopAPI.Services;
 /// Generates a professional PDF invoice for an order.
 /// Uses QuestPDF (Community License) for layout and rendering.
 /// </summary>
-public class InvoicePdfService
+public class InvoicePdfService : IInvoicePdfService
 {
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<InvoicePdfService> _logger;

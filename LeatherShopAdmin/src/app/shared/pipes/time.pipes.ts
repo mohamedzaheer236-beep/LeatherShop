@@ -1,10 +1,10 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
 /**
- * Pure pipe that formats a timestamp into a relative/short time label.
- * Used in conversation list sidebar. Replaces method calls in templates.
+ * Impure pipe that formats a timestamp into a relative/short time label.
+ * Used in notification list sidebar. Impure so it auto-refreshes as time passes.
  */
-@Pipe({ name: 'timeAgo', standalone: true, pure: true })
+@Pipe({ name: 'timeAgo', standalone: true, pure: false })
 export class TimeAgoPipe implements PipeTransform {
   transform(timestamp: string | null | undefined): string {
     if (!timestamp) return '';

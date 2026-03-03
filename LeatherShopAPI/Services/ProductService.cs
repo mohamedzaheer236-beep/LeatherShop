@@ -22,7 +22,7 @@ public class ProductService : IProductService
         _env = env;
     }
 
-    public async Task<PaginatedResult<ProductDto>> GetAllAsync(string? category, string? brand, string? search, int page = 1, int pageSize = 25)
+    public async Task<PaginatedResult<ProductDto>> GetAllAsync(string? category, string? brand, string? search, int page = 1, int pageSize = 25, CancellationToken ct = default)
     {
         var query = _db.Products.AsNoTracking().Include(p => p.Images).AsQueryable();
 
@@ -38,12 +38,12 @@ public class ProductService : IProductService
             query = query.Where(p => EF.Functions.ILike(p.Name, $"%{escaped}%") || EF.Functions.ILike(p.Description, $"%{escaped}%"));
         }
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(ct);
 
         var products = await query.OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         return new PaginatedResult<ProductDto>
         {
@@ -54,15 +54,15 @@ public class ProductService : IProductService
         };
     }
 
-    public async Task<ProductDto?> GetByIdAsync(int id)
+    public async Task<ProductDto?> GetByIdAsync(int id, CancellationToken ct = default)
     {
-        var p = await _db.Products.AsNoTracking().Include(p => p.Images).FirstOrDefaultAsync(p => p.Id == id);
+        var p = await _db.Products.AsNoTracking().Include(p => p.Images).FirstOrDefaultAsync(p => p.Id == id, ct);
         if (p == null) return null;
 
         return p.ToDto();
     }
 
-    public async Task<ProductDto> CreateAsync(CreateProductDto dto)
+    public async Task<ProductDto> CreateAsync(CreateProductDto dto, CancellationToken ct = default)
     {
         var product = new Product
         {
@@ -89,14 +89,14 @@ public class ProductService : IProductService
         }
 
         _db.Products.Add(product);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
 
         return product.ToDto();
     }
 
-    public async Task<bool> UpdateAsync(int id, UpdateProductDto dto)
+    public async Task<bool> UpdateAsync(int id, UpdateProductDto dto, CancellationToken ct = default)
     {
-        var product = await _db.Products.Include(p => p.Images).FirstOrDefaultAsync(p => p.Id == id);
+        var product = await _db.Products.Include(p => p.Images).FirstOrDefaultAsync(p => p.Id == id, ct);
         if (product == null) return false;
 
         if (dto.Name != null) product.Name = dto.Name;
@@ -132,53 +132,53 @@ public class ProductService : IProductService
         }
 
         product.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
         return true;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
     {
-        var product = await _db.Products.FindAsync(id);
+        var product = await _db.Products.FindAsync(new object[] { id }, ct);
         if (product == null) return false;
 
         // Check if product has been ordered — can't delete products with order history
-        var hasOrders = await _db.OrderItems.AnyAsync(oi => oi.ProductId == id);
+        var hasOrders = await _db.OrderItems.AnyAsync(oi => oi.ProductId == id, ct);
         if (hasOrders)
             throw new InvalidOperationException("Cannot delete a product that has been ordered. Deactivate it instead.");
 
         _db.Products.Remove(product);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
         return true;
     }
 
-    public async Task<List<string>> GetCategoriesAsync()
+    public async Task<List<string>> GetCategoriesAsync(CancellationToken ct = default)
     {
         return await _db.Products
             .Where(p => p.IsActive)
             .Select(p => p.Category)
             .Distinct()
-            .ToListAsync();
+            .ToListAsync(ct);
     }
 
-    public async Task<List<string>> GetBrandsAsync()
+    public async Task<List<string>> GetBrandsAsync(CancellationToken ct = default)
     {
         return await _db.Products
             .Where(p => p.IsActive)
             .Select(p => p.Brand)
             .Distinct()
-            .ToListAsync();
+            .ToListAsync(ct);
     }
 
-    public async Task<bool> NameExistsAsync(string name, int? excludeId = null)
+    public async Task<bool> NameExistsAsync(string name, int? excludeId = null, CancellationToken ct = default)
     {
         var escaped = EscapeLikePattern(name);
         var query = _db.Products.Where(p => EF.Functions.ILike(p.Name, escaped));
         if (excludeId.HasValue)
             query = query.Where(p => p.Id != excludeId.Value);
-        return await query.AnyAsync();
+        return await query.AnyAsync(ct);
     }
 
-    public async Task<string> UploadImageAsync(IFormFile file)
+    public async Task<string> UploadImageAsync(IFormFile file, CancellationToken ct = default)
     {
         var uploadsDir = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads");
         Directory.CreateDirectory(uploadsDir);
@@ -240,7 +240,7 @@ public class ProductService : IProductService
         return $"/uploads/{fileName}";
     }
 
-    public async Task<List<string>> UploadImagesAsync(IList<IFormFile> files)
+    public async Task<List<string>> UploadImagesAsync(IList<IFormFile> files, CancellationToken ct = default)
     {
         if (files.Count > 4)
             throw new ArgumentException("Maximum 4 images allowed per product.");
@@ -248,7 +248,7 @@ public class ProductService : IProductService
         var paths = new List<string>();
         foreach (var file in files)
         {
-            var path = await UploadImageAsync(file);
+            var path = await UploadImageAsync(file, ct);
             paths.Add(path);
         }
         return paths;

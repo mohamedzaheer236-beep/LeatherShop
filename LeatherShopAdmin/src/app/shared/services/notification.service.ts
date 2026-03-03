@@ -1,11 +1,11 @@
-﻿import { Injectable } from '@angular/core';
+﻿import { Injectable, inject } from '@angular/core';
 import { MessageService } from 'primeng/api';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class NotificationService {
-  constructor(private messageService: MessageService) {}
+  private messageService = inject(MessageService);
 
   success(message: string): void {
     this.messageService.add({ severity: 'success', summary: 'Success', detail: message });

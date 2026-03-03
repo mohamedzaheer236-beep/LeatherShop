@@ -1,5 +1,5 @@
-﻿import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+﻿import { Component, OnInit, inject } from '@angular/core';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { DashboardService } from '../../services/dashboard.service';
 import { Dashboard } from '../../models/dashboard.model';
@@ -13,16 +13,25 @@ import { ButtonModule } from 'primeng/button';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, LoadingSpinnerComponent, CardModule, TableModule, TagModule, ButtonModule],
+  imports: [
+    DatePipe,
+    DecimalPipe,
+    RouterLink,
+    LoadingSpinnerComponent,
+    CardModule,
+    TableModule,
+    TagModule,
+    ButtonModule,
+  ],
   templateUrl: './dashboard.component.html',
-  styleUrl: './dashboard.component.scss'
+  styleUrl: './dashboard.component.scss',
 })
 export class DashboardComponent implements OnInit {
+  private dashboardService = inject(DashboardService);
+
   dashboard: Dashboard | null = null;
   loading = true;
   errorMessage: string | null = null;
-
-  constructor(private dashboardService: DashboardService) {}
 
   ngOnInit(): void {
     this.loadDashboard();
@@ -36,14 +45,14 @@ export class DashboardComponent implements OnInit {
 
   private loadDashboard(): void {
     this.dashboardService.getDashboard().subscribe({
-      next: (data) => {
+      next: data => {
         this.dashboard = data;
         this.loading = false;
       },
       error: () => {
         this.errorMessage = 'Failed to load dashboard data. Please try again.';
         this.loading = false;
-      }
+      },
     });
   }
 

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { Customer, CreateCustomer, UpdateCustomer, BulkImportResult } from '../models/customer.model';
@@ -7,17 +7,20 @@ import { ApiResponse } from '../../../core/models/api-response.model';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class CustomerService {
+  private http = inject(HttpClient);
+
   private baseUrl = `${environment.apiUrl}/customers`;
 
-  constructor(private http: HttpClient) {}
-
-  getCustomers(subscribedOnly?: boolean, search?: string, page: number = 1, pageSize: number = 25): Observable<PaginatedResult<Customer>> {
-    let params = new HttpParams()
-      .set('page', page.toString())
-      .set('pageSize', pageSize.toString());
+  getCustomers(
+    subscribedOnly?: boolean,
+    search?: string,
+    page = 1,
+    pageSize = 25,
+  ): Observable<PaginatedResult<Customer>> {
+    let params = new HttpParams().set('page', page.toString()).set('pageSize', pageSize.toString());
     if (subscribedOnly) params = params.set('subscribedOnly', 'true');
     if (search) params = params.set('search', search);
     return this.http.get<ApiResponse<PaginatedResult<Customer>>>(this.baseUrl, { params }).pipe(map(res => res.data));
@@ -36,16 +39,20 @@ export class CustomerService {
   }
 
   bulkImportCustomers(customers: CreateCustomer[]): Observable<BulkImportResult> {
-    return this.http.post<ApiResponse<BulkImportResult>>(`${this.baseUrl}/import`, { customers }).pipe(map(res => res.data));
+    return this.http
+      .post<ApiResponse<BulkImportResult>>(`${this.baseUrl}/import`, { customers })
+      .pipe(map(res => res.data));
   }
 
   toggleSubscription(id: number, isSubscribed: boolean): Observable<void> {
     return this.http.put<void>(`${this.baseUrl}/${id}/subscribe`, JSON.stringify(isSubscribed), {
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 
   getSubscriberCount(): Observable<{ subscriberCount: number; totalCount: number }> {
-    return this.http.get<ApiResponse<{ subscriberCount: number; totalCount: number }>>(`${this.baseUrl}/count`).pipe(map(res => res.data));
+    return this.http
+      .get<ApiResponse<{ subscriberCount: number; totalCount: number }>>(`${this.baseUrl}/count`)
+      .pipe(map(res => res.data));
   }
 }

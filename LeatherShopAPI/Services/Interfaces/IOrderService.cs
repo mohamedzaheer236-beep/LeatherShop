@@ -1,3 +1,4 @@
+using System.Threading;
 using LeatherShopAPI.DTOs.Order;
 using LeatherShopAPI.Models;
 
@@ -15,7 +16,7 @@ public enum UpdateStatusResult
 
 public interface IOrderService
 {
-    Task<PaginatedResult<OrderDto>> GetAllAsync(string? status, int page = 1, int pageSize = 25);
-    Task<Order?> GetByIdWithDetailsAsync(int id);
-    Task<UpdateStatusResult> UpdateStatusAsync(int id, string newStatus);
+    Task<PaginatedResult<OrderDto>> GetAllAsync(string? status, int page = 1, int pageSize = 25, CancellationToken ct = default);
+    Task<Order?> GetByIdWithDetailsAsync(int id, CancellationToken ct = default);
+    Task<UpdateStatusResult> UpdateStatusAsync(int id, string newStatus, CancellationToken ct = default);
 }

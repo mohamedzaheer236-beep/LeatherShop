@@ -35,7 +35,7 @@ public class OrderService : IOrderService
         _logger = logger;
     }
 
-    public async Task<PaginatedResult<OrderDto>> GetAllAsync(string? status, int page = 1, int pageSize = 25)
+    public async Task<PaginatedResult<OrderDto>> GetAllAsync(string? status, int page = 1, int pageSize = 25, CancellationToken ct = default)
     {
         var query = _db.Orders
             .AsNoTracking()
@@ -46,13 +46,13 @@ public class OrderService : IOrderService
         if (!string.IsNullOrEmpty(status) && Enum.TryParse<OrderStatus>(status, true, out var orderStatus))
             query = query.Where(o => o.Status == orderStatus);
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(ct);
 
         var orders = await query
             .OrderByDescending(o => o.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         return new PaginatedResult<OrderDto>
         {
@@ -63,21 +63,21 @@ public class OrderService : IOrderService
         };
     }
 
-    public async Task<Order?> GetByIdWithDetailsAsync(int id)
+    public async Task<Order?> GetByIdWithDetailsAsync(int id, CancellationToken ct = default)
     {
         return await _db.Orders
             .AsNoTracking()
             .Include(o => o.Customer)
             .Include(o => o.OrderItems).ThenInclude(oi => oi.Product).ThenInclude(p => p.Images)
-            .FirstOrDefaultAsync(o => o.Id == id);
+            .FirstOrDefaultAsync(o => o.Id == id, ct);
     }
 
-    public async Task<UpdateStatusResult> UpdateStatusAsync(int id, string newStatus)
+    public async Task<UpdateStatusResult> UpdateStatusAsync(int id, string newStatus, CancellationToken ct = default)
     {
         var order = await _db.Orders
             .Include(o => o.Customer)
             .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
-            .FirstOrDefaultAsync(o => o.Id == id);
+            .FirstOrDefaultAsync(o => o.Id == id, ct);
         if (order == null) return UpdateStatusResult.NotFound;
 
         if (!Enum.TryParse<OrderStatus>(newStatus, true, out var status))
@@ -106,7 +106,7 @@ public class OrderService : IOrderService
 
         try
         {
-            await _db.SaveChangesAsync();
+            await _db.SaveChangesAsync(ct);
         }
         catch (DbUpdateConcurrencyException ex)
         {

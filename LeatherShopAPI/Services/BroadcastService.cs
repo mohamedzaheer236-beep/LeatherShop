@@ -4,6 +4,7 @@ using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Broadcast;
 using LeatherShopAPI.Extensions;
 using LeatherShopAPI.Models;
+using LeatherShopAPI.Models.WhatsApp;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Services;
@@ -21,7 +22,7 @@ public class BroadcastService : IBroadcastService
         _channel = channel;
     }
 
-    public async Task<BroadcastResultDto> SendBroadcastAsync(BroadcastRequestDto dto)
+    public async Task<BroadcastResultDto> SendBroadcastAsync(BroadcastRequestDto dto, CancellationToken ct = default)
     {
         List<string> recipients;
 
@@ -38,7 +39,7 @@ public class BroadcastService : IBroadcastService
             recipients = await _db.Customers
                 .Where(c => c.IsSubscribed)
                 .Select(c => c.PhoneNumber)
-                .ToListAsync();
+                .ToListAsync(ct);
         }
 
         if (!recipients.Any())
@@ -74,7 +75,7 @@ public class BroadcastService : IBroadcastService
                 : null
         };
         _db.BroadcastMessages.Add(broadcast);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
 
         // Enqueue just the broadcast ID — background service reads all data from DB.
         // If app restarts before processing, ResumeIncompleteBroadcastsAsync picks it up.
@@ -90,7 +91,7 @@ public class BroadcastService : IBroadcastService
         };
     }
 
-    public async Task<BroadcastHistoryDto?> GetBroadcastStatusAsync(int broadcastId)
+    public async Task<BroadcastHistoryDto?> GetBroadcastStatusAsync(int broadcastId, CancellationToken ct = default)
     {
         return await _db.BroadcastMessages
             .Where(b => b.Id == broadcastId)
@@ -106,14 +107,14 @@ public class BroadcastService : IBroadcastService
                 Status = b.Status.ToString(),
                 IsCarousel = b.IsCarousel
             })
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<PaginatedResult<BroadcastHistoryDto>> GetHistoryAsync(int page = 1, int pageSize = 10)
+    public async Task<PaginatedResult<BroadcastHistoryDto>> GetHistoryAsync(int page = 1, int pageSize = 10, CancellationToken ct = default)
     {
         var query = _db.BroadcastMessages.AsQueryable();
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(ct);
 
         var items = await query
             .OrderByDescending(b => b.SentAt)
@@ -131,7 +132,7 @@ public class BroadcastService : IBroadcastService
                 Status = b.Status.ToString(),
                 IsCarousel = b.IsCarousel
             })
-            .ToListAsync();
+            .ToListAsync(ct);
 
         return new PaginatedResult<BroadcastHistoryDto>
         {
@@ -142,13 +143,13 @@ public class BroadcastService : IBroadcastService
         };
     }
 
-    public async Task<List<WhatsAppTemplate>> GetTemplatesAsync()
+    public async Task<List<WhatsAppTemplate>> GetTemplatesAsync(CancellationToken ct = default)
     {
-        return await _whatsApp.GetApprovedTemplates();
+        return await _whatsApp.GetApprovedTemplates(ct);
     }
 
-    public async Task<int> GetTotalSentCountAsync()
+    public async Task<int> GetTotalSentCountAsync(CancellationToken ct = default)
     {
-        return await _db.BroadcastMessages.SumAsync(b => b.SentCount);
+        return await _db.BroadcastMessages.SumAsync(b => b.SentCount, ct);
     }
 }

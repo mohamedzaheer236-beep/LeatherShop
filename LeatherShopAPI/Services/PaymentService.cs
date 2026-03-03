@@ -34,19 +34,19 @@ public class PaymentService : IPaymentService
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<(PaymentPageResult Result, PaymentPageDto? Data)> GetPaymentPageDataAsync(string orderNumber)
+    public async Task<(PaymentPageResult Result, PaymentPageDto? Data)> GetPaymentPageDataAsync(string orderNumber, CancellationToken ct = default)
     {
         var order = await _db.Orders
             .Include(o => o.Customer)
             .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
-            .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
+            .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
 
         if (order == null || order.IsPaid) return (PaymentPageResult.NotFound, null);
 
         // Check if payment link has expired
         if (order.PaymentExpiresAt.HasValue && DateTime.UtcNow > order.PaymentExpiresAt.Value)
         {
-            await ExpireOrderAndRestoreCartAsync(order);
+            await ExpireOrderAndRestoreCartAsync(order, ct);
             return (PaymentPageResult.Expired, null);
         }
 
@@ -59,7 +59,7 @@ public class PaymentService : IPaymentService
 
         // Call Paytm Initiate Transaction API to get a txnToken
         var txnToken = await InitiatePaytmTransactionAsync(
-            merchantId, merchantKey, order.OrderNumber, order.TotalAmount, order.Customer.PhoneNumber);
+            merchantId, merchantKey, order.OrderNumber, order.TotalAmount, order.Customer.PhoneNumber, ct);
 
         return (PaymentPageResult.Ok, new PaymentPageDto
         {
@@ -86,7 +86,7 @@ public class PaymentService : IPaymentService
     /// This token is required by Paytm's checkout.js on the client side.
     /// </summary>
     private async Task<string> InitiatePaytmTransactionAsync(
-        string merchantId, string merchantKey, string orderId, decimal amount, string customerPhone)
+        string merchantId, string merchantKey, string orderId, decimal amount, string customerPhone, CancellationToken ct = default)
     {
         var paytmEnv = _config["Paytm:Environment"] ?? "production";
         var baseUrl = paytmEnv.Equals("staging", StringComparison.OrdinalIgnoreCase)
@@ -117,8 +117,8 @@ public class PaymentService : IPaymentService
 
         var httpClient = _httpClientFactory.CreateClient("Paytm");
         var content = new StringContent(JsonSerializer.Serialize(requestPayload), Encoding.UTF8, "application/json");
-        var response = await httpClient.PostAsync(url, content);
-        var responseJson = await response.Content.ReadAsStringAsync();
+        var response = await httpClient.PostAsync(url, content, ct);
+        var responseJson = await response.Content.ReadAsStringAsync(ct);
 
         _logger.LogDebug("Paytm Initiate Transaction response for {OrderId}: {Response}", orderId, responseJson);
 
@@ -138,23 +138,23 @@ public class PaymentService : IPaymentService
     /// Cancels an expired order, restores product stock, and re-creates cart items
     /// so the customer can checkout again without re-adding products.
     /// </summary>
-    internal async Task ExpireOrderAndRestoreCartAsync(Order order)
+    internal async Task ExpireOrderAndRestoreCartAsync(Order order, CancellationToken ct = default)
     {
         await OrderExpiryHelper.CancelAndRestoreCartAsync(_db, order, _logger);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
     }
 
-    public async Task<PaymentVerifyResultDto?> VerifyPaymentAsync(PaymentVerifyDto dto)
+    public async Task<PaymentVerifyResultDto?> VerifyPaymentAsync(PaymentVerifyDto dto, CancellationToken ct = default)
     {
         // Look up order by OrderNumber (the payment page sends OrderNumber as OrderId)
         Order? order;
         if (int.TryParse(dto.OrderId, out var orderId))
         {
-            order = await _db.Orders.Include(o => o.Customer).FirstOrDefaultAsync(o => o.Id == orderId);
+            order = await _db.Orders.Include(o => o.Customer).FirstOrDefaultAsync(o => o.Id == orderId, ct);
         }
         else
         {
-            order = await _db.Orders.Include(o => o.Customer).FirstOrDefaultAsync(o => o.OrderNumber == dto.OrderId);
+            order = await _db.Orders.Include(o => o.Customer).FirstOrDefaultAsync(o => o.OrderNumber == dto.OrderId, ct);
         }
 
         if (order == null) return null;
@@ -169,7 +169,7 @@ public class PaymentService : IPaymentService
             return null; // REJECT — never mark as paid without server-side verification
         }
 
-        var txnStatus = await GetPaytmTransactionStatusAsync(merchantId, merchantKey, order.OrderNumber);
+        var txnStatus = await GetPaytmTransactionStatusAsync(merchantId, merchantKey, order.OrderNumber, ct);
         if (txnStatus == null)
         {
             _logger.LogWarning("Could not verify Paytm transaction status for order {OrderId}", order.Id);
@@ -197,9 +197,10 @@ public class PaymentService : IPaymentService
         }
         else
         {
-            _logger.LogWarning(
-                "Could not parse TxnAmount '{TxnAmount}' for order {OrderId}. Proceeding with caution.",
+            _logger.LogError(
+                "Could not parse TxnAmount '{TxnAmount}' for order {OrderId}. Rejecting payment — amount validation is mandatory.",
                 txnStatus.TxnAmount, order.Id);
+            return null;
         }
 
         // Paytm payment is verified via server-to-server API — proceed to confirm.
@@ -215,7 +216,7 @@ public class PaymentService : IPaymentService
             var orderItems = await _db.OrderItems
                 .Include(oi => oi.Product)
                 .Where(oi => oi.OrderId == order.Id)
-                .ToListAsync();
+                .ToListAsync(ct);
 
             foreach (var item in orderItems)
             {
@@ -225,7 +226,7 @@ public class PaymentService : IPaymentService
             // Remove cart items that were restored (best-effort: remove matching product+image combos)
             var restoredCartItems = await _db.CartItems
                 .Where(ci => ci.CustomerId == order.CustomerId)
-                .ToListAsync();
+                .ToListAsync(ct);
 
             foreach (var orderItem in orderItems)
             {
@@ -246,7 +247,7 @@ public class PaymentService : IPaymentService
         order.IsPaid = true;
         order.Status = OrderStatus.Confirmed;
         order.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(ct);
 
         // Notify customer via WhatsApp (best-effort — don't fail the payment)
         try
@@ -314,7 +315,7 @@ public class PaymentService : IPaymentService
     /// This is the authoritative check — we never trust client-side data alone.
     /// </summary>
     private async Task<PaytmTxnStatusResult?> GetPaytmTransactionStatusAsync(
-        string merchantId, string merchantKey, string orderId)
+        string merchantId, string merchantKey, string orderId, CancellationToken ct = default)
     {
         try
         {
@@ -336,8 +337,8 @@ public class PaymentService : IPaymentService
             var url = $"{baseUrl}/v3/order/status";
             var httpClient = _httpClientFactory.CreateClient("Paytm");
             var content = new StringContent(JsonSerializer.Serialize(requestPayload), Encoding.UTF8, "application/json");
-            var response = await httpClient.PostAsync(url, content);
-            var responseJson = await response.Content.ReadAsStringAsync();
+            var response = await httpClient.PostAsync(url, content, ct);
+            var responseJson = await response.Content.ReadAsStringAsync(ct);
 
             _logger.LogDebug("Paytm Transaction Status response for {OrderId}: {Response}", orderId, responseJson);
 

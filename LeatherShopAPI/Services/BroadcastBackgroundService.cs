@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Broadcast;
 using LeatherShopAPI.Models;
+using LeatherShopAPI.Models.WhatsApp;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Services;

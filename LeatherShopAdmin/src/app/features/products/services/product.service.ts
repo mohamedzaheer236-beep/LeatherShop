@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { Product, CreateProduct } from '../models/product.model';
@@ -7,17 +7,21 @@ import { ApiResponse } from '../../../core/models/api-response.model';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ProductService {
+  private http = inject(HttpClient);
+
   private baseUrl = `${environment.apiUrl}/products`;
 
-  constructor(private http: HttpClient) {}
-
-  getProducts(category?: string, brand?: string, search?: string, page: number = 1, pageSize: number = 25): Observable<PaginatedResult<Product>> {
-    let params = new HttpParams()
-      .set('page', page.toString())
-      .set('pageSize', pageSize.toString());
+  getProducts(
+    category?: string,
+    brand?: string,
+    search?: string,
+    page = 1,
+    pageSize = 25,
+  ): Observable<PaginatedResult<Product>> {
+    let params = new HttpParams().set('page', page.toString()).set('pageSize', pageSize.toString());
     if (category) params = params.set('category', category);
     if (brand) params = params.set('brand', brand);
     if (search) params = params.set('search', search);

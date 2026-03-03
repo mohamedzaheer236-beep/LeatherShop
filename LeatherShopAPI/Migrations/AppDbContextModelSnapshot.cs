@@ -432,7 +432,7 @@ namespace LeatherShopAPI.Migrations
                             Id = 1,
                             Brand = "Royal Leather",
                             Category = "Wallet",
-                            CreatedAt = new DateTime(2026, 3, 3, 6, 0, 25, 913, DateTimeKind.Utc).AddTicks(2795),
+                            CreatedAt = new DateTime(2026, 3, 3, 21, 16, 28, 259, DateTimeKind.Utc).AddTicks(2061),
                             Description = "Premium genuine leather wallet with multiple card slots",
                             ImageUrl = "/images/wallet1.jpg",
                             IsActive = true,
@@ -440,14 +440,14 @@ namespace LeatherShopAPI.Migrations
                             Price = 899m,
                             RowVersion = 0u,
                             StockQuantity = 50,
-                            UpdatedAt = new DateTime(2026, 3, 3, 6, 0, 25, 913, DateTimeKind.Utc).AddTicks(2797)
+                            UpdatedAt = new DateTime(2026, 3, 3, 21, 16, 28, 259, DateTimeKind.Utc).AddTicks(2064)
                         },
                         new
                         {
                             Id = 2,
                             Brand = "Royal Leather",
                             Category = "Belt",
-                            CreatedAt = new DateTime(2026, 3, 3, 6, 0, 25, 913, DateTimeKind.Utc).AddTicks(2804),
+                            CreatedAt = new DateTime(2026, 3, 3, 21, 16, 28, 259, DateTimeKind.Utc).AddTicks(2071),
                             Description = "Formal leather belt with silver buckle",
                             ImageUrl = "/images/belt1.jpg",
                             IsActive = true,
@@ -455,14 +455,14 @@ namespace LeatherShopAPI.Migrations
                             Price = 1299m,
                             RowVersion = 0u,
                             StockQuantity = 30,
-                            UpdatedAt = new DateTime(2026, 3, 3, 6, 0, 25, 913, DateTimeKind.Utc).AddTicks(2804)
+                            UpdatedAt = new DateTime(2026, 3, 3, 21, 16, 28, 259, DateTimeKind.Utc).AddTicks(2071)
                         },
                         new
                         {
                             Id = 3,
                             Brand = "Heritage Craft",
                             Category = "Bag",
-                            CreatedAt = new DateTime(2026, 3, 3, 6, 0, 25, 913, DateTimeKind.Utc).AddTicks(2806),
+                            CreatedAt = new DateTime(2026, 3, 3, 21, 16, 28, 259, DateTimeKind.Utc).AddTicks(2073),
                             Description = "Handcrafted messenger bag for daily use",
                             ImageUrl = "/images/bag1.jpg",
                             IsActive = true,
@@ -470,14 +470,14 @@ namespace LeatherShopAPI.Migrations
                             Price = 3499m,
                             RowVersion = 0u,
                             StockQuantity = 20,
-                            UpdatedAt = new DateTime(2026, 3, 3, 6, 0, 25, 913, DateTimeKind.Utc).AddTicks(2806)
+                            UpdatedAt = new DateTime(2026, 3, 3, 21, 16, 28, 259, DateTimeKind.Utc).AddTicks(2073)
                         },
                         new
                         {
                             Id = 4,
                             Brand = "StepCraft",
                             Category = "Shoes",
-                            CreatedAt = new DateTime(2026, 3, 3, 6, 0, 25, 913, DateTimeKind.Utc).AddTicks(2807),
+                            CreatedAt = new DateTime(2026, 3, 3, 21, 16, 28, 259, DateTimeKind.Utc).AddTicks(2074),
                             Description = "Premium leather formal shoes",
                             ImageUrl = "/images/shoes1.jpg",
                             IsActive = true,
@@ -485,14 +485,14 @@ namespace LeatherShopAPI.Migrations
                             Price = 4999m,
                             RowVersion = 0u,
                             StockQuantity = 15,
-                            UpdatedAt = new DateTime(2026, 3, 3, 6, 0, 25, 913, DateTimeKind.Utc).AddTicks(2807)
+                            UpdatedAt = new DateTime(2026, 3, 3, 21, 16, 28, 259, DateTimeKind.Utc).AddTicks(2075)
                         },
                         new
                         {
                             Id = 5,
                             Brand = "Royal Leather",
                             Category = "Accessories",
-                            CreatedAt = new DateTime(2026, 3, 3, 6, 0, 25, 913, DateTimeKind.Utc).AddTicks(2809),
+                            CreatedAt = new DateTime(2026, 3, 3, 21, 16, 28, 259, DateTimeKind.Utc).AddTicks(2076),
                             Description = "Stylish leather keychain with metal ring",
                             ImageUrl = "/images/keychain1.jpg",
                             IsActive = true,
@@ -500,14 +500,14 @@ namespace LeatherShopAPI.Migrations
                             Price = 299m,
                             RowVersion = 0u,
                             StockQuantity = 100,
-                            UpdatedAt = new DateTime(2026, 3, 3, 6, 0, 25, 913, DateTimeKind.Utc).AddTicks(2809)
+                            UpdatedAt = new DateTime(2026, 3, 3, 21, 16, 28, 259, DateTimeKind.Utc).AddTicks(2076)
                         },
                         new
                         {
                             Id = 6,
                             Brand = "Heritage Craft",
                             Category = "Bag",
-                            CreatedAt = new DateTime(2026, 3, 3, 6, 0, 25, 913, DateTimeKind.Utc).AddTicks(2810),
+                            CreatedAt = new DateTime(2026, 3, 3, 21, 16, 28, 259, DateTimeKind.Utc).AddTicks(2077),
                             Description = "Slim leather sleeve for 15-inch laptops",
                             ImageUrl = "/images/sleeve1.jpg",
                             IsActive = true,
@@ -515,7 +515,7 @@ namespace LeatherShopAPI.Migrations
                             Price = 2499m,
                             RowVersion = 0u,
                             StockQuantity = 25,
-                            UpdatedAt = new DateTime(2026, 3, 3, 6, 0, 25, 913, DateTimeKind.Utc).AddTicks(2811)
+                            UpdatedAt = new DateTime(2026, 3, 3, 21, 16, 28, 259, DateTimeKind.Utc).AddTicks(2078)
                         });
                 });
 
@@ -543,6 +543,38 @@ namespace LeatherShopAPI.Migrations
                     b.HasIndex("ProductId");
 
                     b.ToTable("ProductImages");
+                });
+
+            modelBuilder.Entity("LeatherShopAPI.Models.RefreshToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AdminUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminUserId");
+
+                    b.ToTable("RefreshTokens");
                 });
 
             modelBuilder.Entity("LeatherShopAPI.Models.WhatsAppOutboxMessage", b =>
@@ -669,6 +701,17 @@ namespace LeatherShopAPI.Migrations
                         .IsRequired();
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("LeatherShopAPI.Models.RefreshToken", b =>
+                {
+                    b.HasOne("LeatherShopAPI.Models.AdminUser", "AdminUser")
+                        .WithMany()
+                        .HasForeignKey("AdminUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AdminUser");
                 });
 
             modelBuilder.Entity("LeatherShopAPI.Models.Customer", b =>

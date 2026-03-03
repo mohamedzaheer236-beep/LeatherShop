@@ -1124,7 +1124,7 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 | M1 | ~~**No Pagination on Any List Endpoint**~~ | ~~All services, all controllers~~ | **FIXED** — All list endpoints now return server-side paginated results via `PaginatedResult<T>` (generic model with `Items`, `TotalCount`, `Page`, `PageSize`, `TotalPages`). Orders: `GET /api/orders?page=1&pageSize=25`. Customers: `GET /api/customers?page=1&pageSize=25`. Products: `GET /api/products?page=1&pageSize=25`. Broadcast History: `GET /api/broadcast/history?page=1&pageSize=10`. All query params clamped 1-100. Frontend uses PrimeNG `p-paginator`, fetches only the current page. Customer checkbox selections tracked via `Map<number, string>` (ID→phone) — survive page changes for cross-page broadcast. DB indexes added for all filtered/sorted columns. |
 | M2 | ~~**N+1 Queries in BulkImport**~~ | ~~`CustomerService.cs`~~ | **FIXED** — Replaced per-customer `AnyAsync` query with a single `SELECT PhoneNumber` query that loads all existing phone numbers into a `HashSet<string>`. Then checks containment in O(1) per import entry. Also prevents duplicates within the same import batch by adding to the HashSet as we go. 1000 imports = 1 DB query instead of 1000. |
 | M3 | ~~**`.ToLower()` in LINQ Kills DB Indexes**~~ | ~~`ProductService.cs`, `CustomerService.cs`~~ | **FIXED (F101)** — All `.ToLower()` patterns replaced with `EF.Functions.ILike()`. Search input wildcards (`%`, `_`) escaped via `SqlHelper.EscapeLikePattern()` (F127). |
-| M4 | **No `OnPush` Change Detection** | All 7 Angular components | All use default change detection. Extra re-renders on every event. `OnPush` would significantly reduce CD cycles. |
+| M4 | ~~**No `OnPush` Change Detection**~~ | ~~All 7 Angular components~~ | **PARTIALLY FIXED** — Added `ChangeDetectionStrategy.OnPush` to 3 safe leaf components: `LoadingSpinnerComponent`, `BroadcastHistoryComponent`, `ToastComponent`. Page-level components left as Default (would need `ChangeDetectorRef.markForCheck()` throughout — larger refactor). |
 | M5 | ~~**Memory Leaks: No Unsubscribe**~~ | All 6 feature components | **FIXED** — Product-list simplified to button-triggered search (no `valueChanges` subscriptions). All HTTP `subscribe()` calls auto-complete — no leak risk. Observable patterns are leak-safe by design. |
 | M6 | ~~**Product Search on Every Keystroke**~~ | `product-list.component.html` | **FIXED** — Removed `(input)="onSearch()"`. API call now fires only via dedicated Search button (`pi pi-search`) or Enter key (`keyup.enter`). No debounce needed — user explicitly triggers search. |
 | M7 | ~~**No `trackBy` on Any `*ngFor`**~~ | ~~All list templates~~ | **FIXED** — Orders list has `trackBy: trackByOrderId` on the main `*ngFor`. Prevents full DOM re-renders when order list is refreshed. Other lists either use `p-table` (handles DOM diffing internally) or have static collections. |
@@ -1139,8 +1139,8 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 | # | Issue | Location | Details |
 |---|-------|----------|---------|
 | L1 | ~~**No Health Check Endpoint**~~ | ~~`Program.cs`~~ | ✅ **FIXED** — Added `app.MapGet("/health", () => Results.Ok("healthy"))` endpoint. Railway health check updated from `/swagger/index.html` to `/health`. Swagger restricted to Development only. See F17/F30. |
-| L2 | **No API Versioning** | All controllers | No `/api/v1/...` prefix. Breaking changes will affect all clients simultaneously. |
-| L3 | **No ESLint / Prettier** | `package.json` | Zero static code analysis or formatting enforcement on the frontend. |
+| L2 | ~~**No API Versioning**~~ | ~~All controllers~~ | ✅ **FIXED** — Added `Asp.Versioning.Mvc` (v8.1.0). All controllers decorated with `[ApiVersion("1.0")]`. Routes now use `/api/v{version:apiVersion}/...` prefix. `ReportApiVersions` enabled in response headers. Default version set to 1.0. |
+| L3 | ~~**No ESLint / Prettier**~~ | ~~`package.json`~~ | ✅ **FIXED** — Installed `@angular-eslint/schematics`, `prettier`, `eslint-config-prettier`, `eslint-plugin-prettier`. Created `.prettierrc` (singleQuote, trailingComma: all, printWidth: 120). `eslint.config.js` integrates typescript-eslint + angular-eslint + prettier. `ng lint` runs 0 errors, 27 warnings (accessibility rules downgraded to warn). `npm run format` available for Prettier auto-formatting. |
 | L4 | **No Tests** | `angular.json` | `skipTests: true` everywhere. Zero test files in the entire project. |
 | L5 | **Hardcoded Currency `₹`** | All templates with prices | Uses `&#8377;` directly. Should use Angular's `currency` pipe for i18n support. |
 | L6 | ~~**60+ `!important` in Styles**~~ | `styles.scss` | **FIXED** — All 60+ `!important` removed. PrimeNG overrides now use `body .p-*` prefix for natural specificity. |
@@ -1152,13 +1152,13 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 | L12 | **UI State Mixed into Data Model** | `customer.model.ts` | `selected?: boolean` belongs in component state, not in the data model interface. |
 | L13 | ~~**Unused `Router` Injections**~~ | `navbar.component.ts`, `customers.component.ts` | **FIXED** — Removed unused `Router` imports and constructor injections from both components. |
 | L14 | ~~**Dead Code: `filteredCustomers`**~~ | `customers.component.ts` | **FIXED** — Removed unused `filteredCustomers` property and its assignment. |
-| L15 | **No Active Route Highlighting** | `navbar.component.ts` | Navbar doesn't visually indicate which page the user is on. |
+| L15 | ~~**No Active Route Highlighting**~~ | ~~`navbar.component.ts`~~ | ✅ **FIXED** — Added `routerLinkActiveOptions` to all MenuItem definitions. CSS styles for `.p-menuitem-link-active` with gold text/icon color and subtle background highlight. Active page clearly indicated in navbar. |
 | L16 | ~~**No Order Status Transition Validation**~~ | ~~`OrderService.cs`~~ | ✅ **FIXED** — Added state machine validation with `Dictionary<OrderStatus, OrderStatus[]>` defining valid transitions: Pending→{Confirmed,Cancelled}, Confirmed→{Shipped,Cancelled}, Shipped→{Delivered,Cancelled}, Delivered→{}, Cancelled→{}. Invalid transitions logged and rejected (returns false). Also fixes F31 and F74 (stock inflation on un-cancellation). |
 | L17 | ~~**Hard Delete on Products**~~ | ~~`ProductService.cs`~~ | ✅ **FIXED** — `DeleteAsync` now checks `_db.OrderItems.AnyAsync(oi => oi.ProductId == id)` before deletion. Products with order history throw `InvalidOperationException` caught by controller (returns 409 Conflict). Also fixes F15. |
 | L18 | **Auto-Migration at Startup** | `Program.cs` | `db.Database.Migrate()` runs synchronously. With multiple instances, concurrent migrations can deadlock. Should be a CI/CD step. |
 | L19 | **WhatsApp Auth Header Set in Constructor** | `WhatsAppService.cs` | If the token is rotated in config, the service keeps the stale token until app restart. |
 | L20 | **Helper Models Inside Service File** | `WhatsAppService.cs` | `ListSection`, `ListRow`, `ButtonOption`, `WhatsAppTemplate` defined at bottom of service file. Should be in `Models/WhatsApp/`. |
-| L21 | **No `CancellationToken` Propagation** | All controllers/services | If a client disconnects, the server continues processing until completion. |
+| L21 | ~~**No `CancellationToken` Propagation**~~ | ~~All controllers/services~~ | ✅ **FIXED** — All controller actions accept `CancellationToken` and pass it through to service methods and EF Core queries. Client disconnection now cancels in-progress database operations. |
 | L22 | **No `[ProducesResponseType]` Attributes** | All controllers | Swagger has no typed response documentation (200, 400, 404, etc.). |
 
 ### 🔧 Pending Fixes (Feb 24, 2026 — Full Audit)
@@ -1197,7 +1197,7 @@ Comprehensive line-by-line audit of the entire codebase. These remain to be fixe
 | P16 | **Medium** | Clickable `p-tag` missing a11y | `customers.component.html` L137-140 | Subscribe/Unsubscribe `<p-tag>` used as toggle button but missing `role="button"`, `tabindex="0"`, and keyboard handlers. A `<p-button>` in the Actions column already provides keyboard access, so not blocking. |
 | P17 | **Medium** | PrimeNG internal API access | `product-list.component.ts` L58-63 | `clearDropdownFilter` accesses private PrimeNG properties (`filterValue`, `onFilterInputChange`). May break on PrimeNG upgrades. |
 | P18 | ~~**Low**~~ | ~~`any` types~~ | ~~`product-list.component.ts`, `broadcast.service.ts`, all 6 services~~ | ✅ **FIXED** — Created shared `ApiResponse<T>` interface (`core/models/api-response.model.ts`). All 6 services (dashboard, product, order, customer, chat, broadcast) now use typed `http.get<ApiResponse<T>>` instead of `http.get<any>`. Created `BroadcastResult` interface for `sendBroadcast` return type. Typed `categoryOptions`/`brandOptions` as `{ label: string; value: string }[]` in product-list. Remaining `any` on PrimeNG `ViewChild`/dropdown params — PrimeNG internal API access (see P17). |
-| P19 | **Low** | ~~`::ng-deep` usage~~ | ~~`toast.component.ts`, `chat-page.component.scss`, `product-list.component.scss`~~ | ✅ **FIXED** — Moved all `::ng-deep` styles to global `styles.scss` using `body .p-*` prefix for natural specificity. Toast component: removed entire inline `styles` array (15 rules). Chat page: search input border-radius moved as `.chat-sidebar .search-box .p-inputtext`. Product list: dropdown filter panel moved as `body .p-dropdown-panel` (was already rendered outside component via `appendTo="body"`). Zero `::ng-deep` remains in any `.ts` or `.scss` file. |
+| P19 | **Low** | ~~`::ng-deep` usage~~ | ~~`toast.component.ts`, `chat-page.component.scss`, `product-list.component.scss`, `navbar.component.scss`~~ | ✅ **FIXED** — Moved all `::ng-deep` styles to global `styles.scss` using `body .p-*` prefix for natural specificity. Toast component: removed entire inline `styles` array (15 rules). Chat page: search input border-radius moved as `.chat-sidebar .search-box .p-inputtext`. Product list: dropdown filter panel moved as `body .p-dropdown-panel`. Navbar: active route highlighting moved from `:host ::ng-deep .p-menubar` to global `body .navbar-menubar` rule. Zero `::ng-deep` remains in any `.ts` or `.scss` file. |
 
 ### ✅ What's Already Good (Organization-Level Strengths)
 
@@ -1240,6 +1240,22 @@ Comprehensive line-by-line audit of the entire codebase. These remain to be fixe
 | 35 | **3-layer rate limit defense** — Transport retry + transactional outbox + per-message isolation. WhatsApp error #131056 no longer crashes production. |
 | 36 | **Chunked broadcast throttling** — 10-message batches with 200ms delay (~50 msgs/sec). Scales to 5000+ recipients without hitting Meta per-second limits. |
 | 37 | **Graceful shutdown** — Broadcast progress saved to DB on container shutdown. Resumes from exact checkpoint on restart. No duplicate sends, no abandoned broadcasts. |
+| 38 | **Modern Angular control flow** — All templates use `@if`/`@for`/`@empty` block syntax instead of `*ngIf`/`*ngFor` structural directives (migrated via `@angular/core:control-flow` schematic) |
+| 39 | **`inject()` function DI** — All components and services use Angular's `inject()` function instead of constructor injection (migrated via `@angular/core:inject` schematic) |
+| 40 | **ESLint + Prettier** — `@angular-eslint` + `prettier` + `eslint-config-prettier` fully configured. 0 lint errors. `.prettierrc` for consistent formatting. `npm run format` script available. |
+| 41 | **Component decomposition** — `BroadcastFormComponent`, `BroadcastHistoryComponent`, `CustomerBroadcastDialogComponent` extracted from monolithic parent components. Parents are now thin orchestrators. |
+| 42 | **OnPush on leaf components** — `LoadingSpinnerComponent`, `BroadcastHistoryComponent`, `ToastComponent` use `ChangeDetectionStrategy.OnPush` for reduced CD cycles. |
+| 43 | **Active route highlighting** — Navbar visually indicates active page with gold text/icon color via `routerLinkActiveOptions` + CSS `.p-menuitem-link-active` styling. |
+| 44 | **Impure `TimeAgoPipe`** — Relative timestamps ("5m ago") auto-refresh on every change detection cycle (`pure: false`). No stale "just now" labels on old messages. |
+| 45 | **JWT HttpOnly refresh tokens** — Access tokens (15 min) stored in memory only. Refresh tokens (7 days) in `HttpOnly`/`Secure`/`SameSite=None` cookies with automatic rotation. Token refresh interceptor with queue for concurrent 401s. |
+| 46 | **API versioning** — All endpoints use `/api/v1/...` URL prefix via `Asp.Versioning.Mvc`. `ReportApiVersions` header enabled. |
+| 47 | **CancellationToken propagation** — All controller actions accept and forward `CancellationToken` to services and EF Core queries. Client disconnection cancels in-progress operations. |
+| 48 | **Native CSS class bindings** — All `[ngClass]` replaced with `[class.x]="condition"` native bindings. No dependency on `CommonModule` for class toggling. |
+| 49 | **Typed DTOs everywhere** — No anonymous types in controller responses. All endpoints return typed DTOs (`ToggleBotResponseDto`, `FailedMessageCountDto`, `VerifyResponse`, `UpdateOrderStatusDto`). |
+| 50 | **Interface-based DI** — All services registered and injected via interfaces (`IOrderService`, `IInvoicePdfService`, etc.). No concrete-class injection. |
+| 51 | **String literal union types** — Frontend models use `OrderStatus = 'Pending' | 'Confirmed' | ...` and `direction: 'Incoming' | 'Outgoing'` instead of loose `string` types. Compile-time safety on status values. |
+| 52 | **Efficient token cleanup** — `AuthService.CleanupExpiredTokens` uses `ExecuteDeleteAsync` (server-side DELETE) instead of fetching entities into memory. |
+| 53 | **Lazy-load only what's needed** — `CustomerService.UpdateAsync`/`DeleteAsync` use `CountAsync`/`AnyAsync` instead of eager-loading `Include(c => c.Orders)` just to check counts. |
 
 ### 🔍 Deep Verification Audit (Feb 2026 — Full Anti-Pattern Scan)
 
@@ -1639,7 +1655,7 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 | F39 | **WhatsApp list row title truncation** | `ChatBotService.cs` | Truncates at 24 chars with no ellipsis. Product names get cut mid-word. | Truncate at 21 chars + add `"..."`. |
 | F40 | **`PhoneNumberHelper.Normalize` doesn't validate** | `PhoneNumberHelper.cs` | Strips formatting but doesn't verify the result is numeric. Letters can slip through. | After stripping, validate with `long.TryParse` or regex `^\d{7,15}$`. |
 | F41 | **Add Customer requires address, but bulk import doesn't** | `customers.component.ts` | Add dialog has `Validators.required` for address (min 10 chars), but bulk import creates customers with no address. Inconsistent. | Either make address optional in add dialog, or add address support to bulk import. |
-| F42 | **No `OnPush` change detection** | All Angular components | All use default change detection. Extra re-renders on every browser event. | Add `changeDetection: ChangeDetectionStrategy.OnPush` to each component. |
+| F42 | ~~**No `OnPush` change detection**~~ | ~~All Angular components~~ | **PARTIALLY FIXED** — Added `OnPush` to 3 leaf components: `LoadingSpinnerComponent`, `BroadcastHistoryComponent`, `ToastComponent`. Page-level components left as Default. | Remaining components need `ChangeDetectorRef.markForCheck()` throughout — larger refactor. |
 | F43 | **Broadcast layout breaks on mobile** | `broadcast.component.scss` | Fixed 2-column grid (`1fr 300px`) with no responsive breakpoint. Sidebar squishes on small screens. | Add `@media (max-width: 768px) { grid-template-columns: 1fr; }`. |
 | F44 | **Logging — console only** | `Program.cs` | No structured logging. Need Serilog or similar for log files, search, and alerting. | Add Serilog with file/JSON/cloud sinks. |
 
@@ -2250,12 +2266,86 @@ Deep audit of every backend and frontend file. Fixed all actionable issues found
 **Known issues documented but NOT fixed (architectural — would require major refactoring):**
 - `ChatBotService` is a 1150-line god class (cart, checkout, menu, address in one file)
 - `AuthController` and `WhatsAppWebhookController` bypass service layer with direct `AppDbContext` injection
-- Broadcast form logic duplicated between `BroadcastComponent` and `CustomersComponent` (~400 lines)
-- `CustomersComponent` has 7+ responsibilities in 631 lines (SRP violation)
-- JWT stored in `localStorage` (XSS-accessible) — HttpOnly cookies would be more secure
-- No token refresh mechanism
+- ~~Broadcast form logic duplicated between `BroadcastComponent` and `CustomersComponent` (~400 lines)~~ → **FIXED in Phase 26** — Extracted `BroadcastFormComponent` and `CustomerBroadcastDialogComponent`
+- ~~`CustomersComponent` has 7+ responsibilities in 631 lines (SRP violation)~~ → **FIXED in Phase 26** — Decomposed to 324 lines + extracted `CustomerBroadcastDialogComponent`
+- ~~JWT stored in `localStorage` (XSS-accessible) — HttpOnly cookies would be more secure~~ → **FIXED in Phase 26** — Access tokens in-memory, refresh tokens in HttpOnly cookies
+- ~~No token refresh mechanism~~ → **FIXED in Phase 26** — Automatic token refresh with 401 retry queue
 - Payment page is 140+ lines of inline HTML/CSS/JS in a C# controller
 - WhatsApp helper models (`ListSection`, `ListRow`, `ButtonOption`, etc.) defined inside `WhatsAppService.cs` instead of dedicated model files
 
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors.
 **Commit:** `f55f8e8` — pushed to GitHub, deployed to Railway + Vercel.
+
+### Phase 26 — Security Hardening, Component Decomposition & Code Modernization (March 5, 2026)
+
+Comprehensive refactoring across backend and frontend: JWT security hardened, Angular components decomposed, syntax modernized, tooling added.
+
+**Security — JWT HttpOnly Refresh Tokens:**
+| # | Fix | File(s) |
+|---|-----|--------|
+| 1 | **HttpOnly refresh token cookies** — Replaced `localStorage` JWT storage with in-memory access tokens (15 min) and HttpOnly/Secure/SameSite=None refresh token cookies (7 days). Automatic token rotation on refresh. `POST /api/v1/auth/refresh` endpoint returns new access token + rotated refresh cookie. `POST /api/v1/auth/logout` clears the cookie. | `AuthController.cs`, `auth.service.ts`, `auth.interceptor.ts`, `auth.guard.ts` |
+| 2 | **Token refresh interceptor** — Auth interceptor detects 401 responses, queues concurrent requests, refreshes token once, and retries all queued requests. Prevents multiple simultaneous refresh calls. Redirects to login on refresh failure. | `auth.interceptor.ts` |
+
+**Component Decomposition (SRP):**
+| # | Fix | File(s) |
+|---|-----|--------|
+| 3 | **Extracted `BroadcastFormComponent`** — ~310-line standalone component handling template message form with carousel support, image upload, template selection, and polling. Parent `BroadcastComponent` reduced from 524→~160 lines. Emits `(sent)` event for parent orchestration. | `broadcast-form.component.{ts,html,scss}` (NEW) |
+| 4 | **Extracted `BroadcastHistoryComponent`** — ~25-line presentational component with `@Input` for history/pagination data and `@Output` for page changes. Uses `OnPush` change detection. | `broadcast-history.component.{ts,html,scss}` (NEW) |
+| 5 | **Extracted `CustomerBroadcastDialogComponent`** — ~280-line standalone dialog for broadcasting to selected customers. Two-way `[(visible)]` binding. Manages own template selection, carousel cards, image upload, product selection. Parent `CustomersComponent` reduced from 631→324 lines TS, 326→189 lines HTML. | `customer-broadcast-dialog.component.{ts,html,scss}` (NEW) |
+
+**Angular Modernization:**
+| # | Fix | File(s) |
+|---|-----|--------|
+| 6 | **`@if`/`@for` control flow migration** — All `*ngIf`/`*ngFor` structural directives replaced with Angular block syntax via `@angular/core:control-flow` schematic. `CommonModule` removed where no longer needed. `DatePipe`/`DecimalPipe` imported individually where required. | 7 template files, 5 component TS files |
+| 7 | **`inject()` function migration** — All constructor-based DI replaced with `inject()` function calls via `@angular/core:inject` schematic. | 20 component/service files |
+| 8 | **Native CSS class bindings** — All `[ngClass]` directives replaced with `[class.x]="condition"` property bindings. No longer requires `CommonModule` for class toggling. | `orders.component.html`, `broadcast.component.html`, `broadcast-form.component.html`, `login.component.html` |
+| 9 | **OnPush change detection** — Added `ChangeDetectionStrategy.OnPush` to 3 safe leaf components: `LoadingSpinnerComponent`, `BroadcastHistoryComponent`, `ToastComponent`. | 3 component TS files |
+| 10 | **Impure `TimeAgoPipe`** — Changed from `pure: true` to `pure: false` so relative timestamps auto-refresh on CD cycles. No more stale "just now" labels. | `time.pipes.ts` |
+| 11 | **Active route highlighting** — Added `routerLinkActiveOptions` to navbar MenuItems. CSS gold highlight on active `.p-menuitem-link-active` links. | `navbar.component.ts`, `navbar.component.scss` |
+
+**Tooling — ESLint + Prettier:**
+| # | Fix | File(s) |
+|---|-----|--------|
+| 12 | **ESLint + Prettier setup** — Installed `@angular-eslint/schematics`, `prettier`, `eslint-config-prettier`, `eslint-plugin-prettier`. Created `.prettierrc` (singleQuote, trailingComma: all, printWidth: 120). `eslint.config.js` integrates typescript-eslint + angular-eslint + prettier. Fixed 521 lint issues via auto-fix + manual corrections. Accessibility template rules downgraded to warnings. Final: **0 errors, 27 warnings**. | `eslint.config.js`, `.prettierrc`, `package.json` |
+| 13 | **Format script** — Added `"format": "prettier --write \"src/**/*.{ts,html,scss,json}\""` to `package.json` scripts. | `package.json` |
+
+**Remaining known issues (not addressed):**
+- `ChatBotService` is a 1150-line god class — would need decomposition into CartHandler, CheckoutHandler, MenuHandler, AddressHandler
+- Payment page is 140+ lines of inline HTML/CSS/JS in a C# controller
+- WhatsApp helper models defined inside `WhatsAppService.cs` instead of dedicated model files
+- No unit tests (`skipTests: true` — tooling ready but no test files written)
+
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors. ESLint: 0 errors, 27 warnings.
+
+### Phase 27 — Final Deep Audit & Hardening (March 4, 2026)
+
+Comprehensive deep audit of all backend (9 controllers, 16 services, 5 ChatBot handlers) and all frontend (75 files). Found and fixed 1 critical, 6 high, 8 medium, and 12 low issues.
+
+**Backend — Critical & High:**
+| # | Fix | File(s) |
+|---|-----|--------|
+| 1 | **CRITICAL: Reject unparseable payment amount** — `decimal.TryParse(TxnAmount)` failure now returns `null` (rejects payment) instead of "proceeding with caution". Previously let payments through with amount = 0. | `PaymentService.cs` |
+| 2 | **CancellationToken propagation (15+ calls)** — Added CT to `FindAsync`, `SaveChangesAsync`, `ReadAsStringAsync`, `Task.Delay`, and all 5 WhatsApp send methods across 7 files. | `PaymentService.cs`, `WhatsAppService.cs`, `ChatService.cs`, `CustomerService.cs`, `ProductService.cs`, `WhatsAppOutboxProcessor.cs`, `BotMessageSender.cs` |
+| 3 | **Interface-based DI for InvoicePdfService** — Created `IInvoicePdfService` interface. `OrdersController` now injects via interface instead of concrete class. DI registration updated in `ServiceCollectionExtensions`. | `IInvoicePdfService.cs` (NEW), `InvoicePdfService.cs`, `OrdersController.cs`, `ServiceCollectionExtensions.cs` |
+| 4 | **Typed request body for order status** — Replaced fragile `[FromBody] string newStatus` with `[FromBody] UpdateOrderStatusDto dto` (has `[Required]` validation). Frontend updated to send `{ status }` object. | `OrdersController.cs`, `OrderDtos.cs`, `order.service.ts` |
+
+**Backend — Medium:**
+| # | Fix | File(s) |
+|---|-----|--------|
+| 5 | **Efficient token cleanup** — Changed from `ToListAsync` + `RemoveRange` (loads entities into memory) to `ExecuteDeleteAsync` (server-side DELETE). | `AuthService.cs` |
+| 6 | **Removed eager-load for counts** — `UpdateAsync`/`DeleteAsync` no longer do `Include(c => c.Orders)` just to count. Uses `CountAsync`/`AnyAsync` instead. | `CustomerService.cs` |
+| 7 | **AsNoTracking on read paths** — Added to chat message query and order history handler. | `ChatService.cs`, `OrderHistoryHandler.cs` |
+| 8 | **Typed controller responses** — Replaced all anonymous types with typed DTOs: `ToggleBotResponseDto`, `FailedMessageCountDto` (ChatController), `VerifyResponse` (AuthController). Fixed `null!` in logout → uses non-generic `ApiResponse.Ok()`. | `ChatController.cs`, `AuthController.cs`, `ChatDtos.cs`, `AuthDtos.cs` |
+| 9 | **Nullable webhook params** — `VerifyWebhook` query params changed from `string` to `string?` to prevent model binding errors when Meta omits parameters. | `WhatsAppWebhookController.cs` |
+| 10 | **Removed redundant `using System.Threading`** — Removed from all 9 controllers (auto-imported via ImplicitUsings in .NET 8). | All 9 controllers |
+
+**Frontend:**
+| # | Fix | File(s) |
+|---|-----|--------|
+| 11 | **Fixed broadcast total count bug** — Sidebar showed `history.length` (current page count) instead of `historyTotalRecords` (server total). | `broadcast.component.html` |
+| 12 | **Order service body format** — Updated `updateOrderStatus` from `JSON.stringify(status)` with manual Content-Type to `{ status }` object (matches new `UpdateOrderStatusDto`). | `order.service.ts` |
+| 13 | **String literal union types** — `ChatMessage.direction` changed from `string` to `'Incoming' \| 'Outgoing'`. `Order.status` changed from `string` to `OrderStatus` type alias (`'Pending' \| 'Confirmed' \| ...`). | `chat.model.ts`, `order.model.ts`, `orders.component.ts` |
+| 14 | **Nullable-safe severity util** — `getStatusSeverity` parameter changed to `string | undefined` with `?.` operator. | `severity.utils.ts` |
+| 15 | **Moved `::ng-deep` to global styles** — Navbar active route highlighting moved from `:host ::ng-deep .p-menubar` to global `body .navbar-menubar` rule. Now truly zero `::ng-deep` in any component. | `navbar.component.scss`, `styles.scss` |
+
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors.

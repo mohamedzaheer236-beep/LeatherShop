@@ -1,6 +1,8 @@
 ﻿<a class="skip-to-content" href="#main-content">Skip to content</a>
 <app-toast></app-toast>
-<app-navbar *ngIf="showNavbar"></app-navbar>
+@if (showNavbar) {
+  <app-navbar></app-navbar>
+}
 <main id="main-content" [class]="showNavbar ? 'main-content' : ''">
   <router-outlet></router-outlet>
 </main>

@@ -1,5 +1,5 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+
 import { MenuItem } from 'primeng/api';
 import { MenubarModule } from 'primeng/menubar';
 import { ButtonModule } from 'primeng/button';
@@ -16,32 +16,35 @@ import { TimeAgoPipe } from '../../pipes/time.pipes';
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, MenubarModule, ButtonModule, TooltipModule, BadgeModule, OverlayPanelModule, TimeAgoPipe],
+  imports: [MenubarModule, ButtonModule, TooltipModule, BadgeModule, OverlayPanelModule, TimeAgoPipe],
   templateUrl: './navbar.component.html',
-  styleUrl: './navbar.component.scss'
+  styleUrl: './navbar.component.scss',
 })
 export class NavbarComponent implements OnInit, OnDestroy {
+  private auth = inject(AuthService);
+  private signalR = inject(SignalRService);
+  private notification = inject(NotificationService);
+  private router = inject(Router);
+
   items: MenuItem[] = [];
   username = '';
   notifications: OrderNotification[] = [];
   private subs: Subscription[] = [];
 
-  constructor(
-    private auth: AuthService,
-    private signalR: SignalRService,
-    private notification: NotificationService,
-    private router: Router
-  ) {}
-
   ngOnInit(): void {
     this.username = this.auth.getUsername() || 'Admin';
     this.items = [
-      { label: 'Dashboard', icon: 'pi pi-home', routerLink: '/dashboard' },
-      { label: 'Products', icon: 'pi pi-box', routerLink: '/products' },
-      { label: 'Orders', icon: 'pi pi-shopping-cart', routerLink: '/orders' },
-      { label: 'Customers', icon: 'pi pi-users', routerLink: '/customers' },
-      { label: 'Chat', icon: 'pi pi-comments', routerLink: '/chat' },
-      { label: 'Broadcast', icon: 'pi pi-megaphone', routerLink: '/broadcast' }
+      { label: 'Dashboard', icon: 'pi pi-home', routerLink: '/dashboard', routerLinkActiveOptions: { exact: true } },
+      { label: 'Products', icon: 'pi pi-box', routerLink: '/products', routerLinkActiveOptions: { exact: false } },
+      { label: 'Orders', icon: 'pi pi-shopping-cart', routerLink: '/orders', routerLinkActiveOptions: { exact: true } },
+      { label: 'Customers', icon: 'pi pi-users', routerLink: '/customers', routerLinkActiveOptions: { exact: true } },
+      { label: 'Chat', icon: 'pi pi-comments', routerLink: '/chat', routerLinkActiveOptions: { exact: true } },
+      {
+        label: 'Broadcast',
+        icon: 'pi pi-megaphone',
+        routerLink: '/broadcast',
+        routerLinkActiveOptions: { exact: true },
+      },
     ];
 
     // Start SignalR and listen for order notifications
@@ -54,9 +57,9 @@ export class NavbarComponent implements OnInit, OnDestroy {
       }),
       this.signalR.outboxFailed$.subscribe(event => {
         this.notification.error(
-          `Message delivery failed for ${event.customerName}: ${event.context}. Go to Chat → Failed Messages to retry.`
+          `Message delivery failed for ${event.customerName}: ${event.context}. Go to Chat → Failed Messages to retry.`,
         );
-      })
+      }),
     );
   }
 
@@ -77,6 +80,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.router.navigate(['/login'], { state: { fromLogout: true } }).then(async navigated => {
       if (navigated) {
         await this.signalR.stop();
+        this.auth.serverLogout();
         this.auth.clearSession();
       }
     });

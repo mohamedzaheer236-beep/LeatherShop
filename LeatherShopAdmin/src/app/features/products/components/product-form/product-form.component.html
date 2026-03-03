@@ -7,7 +7,7 @@
     </ng-template>
     <ng-template pTemplate="right">
       <p-button label="Back to Products" icon="pi pi-arrow-left" severity="secondary"
-                [outlined]="true" routerLink="/products"></p-button>
+      [outlined]="true" routerLink="/products"></p-button>
     </ng-template>
   </p-toolbar>
 
@@ -28,17 +28,23 @@
           <div class="form-field">
             <label for="name">Product Name <span [class]="isFieldInvalid('name') ? 'req-star error' : 'req-star'">*</span></label>
             <input id="name" type="text" pInputText formControlName="name"
-                   placeholder="e.g. Classic Leather Wallet" class="w-full" autocomplete="off"
-                   [class.ng-invalid]="isFieldInvalid('name')" [class.ng-dirty]="isFieldInvalid('name')" />
-            <small class="p-error" *ngIf="isFieldInvalid('name') && f['name'].errors?.['required']">
-              <i class="pi pi-exclamation-circle"></i> Product name is required.
-            </small>
-            <small class="p-error" *ngIf="f['name'].errors?.['nameExists']">
-              <i class="pi pi-exclamation-circle"></i> A product with this name already exists.
-            </small>
-            <small class="checking-hint" *ngIf="f['name'].pending">
-              <i class="pi pi-spin pi-spinner"></i> Checking name availability...
-            </small>
+              placeholder="e.g. Classic Leather Wallet" class="w-full" autocomplete="off"
+              [class.ng-invalid]="isFieldInvalid('name')" [class.ng-dirty]="isFieldInvalid('name')" />
+            @if (isFieldInvalid('name') && f['name'].errors?.['required']) {
+              <small class="p-error">
+                <i class="pi pi-exclamation-circle"></i> Product name is required.
+              </small>
+            }
+            @if (f['name'].errors?.['nameExists']) {
+              <small class="p-error">
+                <i class="pi pi-exclamation-circle"></i> A product with this name already exists.
+              </small>
+            }
+            @if (f['name'].pending) {
+              <small class="checking-hint">
+                <i class="pi pi-spin pi-spinner"></i> Checking name availability...
+              </small>
+            }
           </div>
 
           <!-- Brand + Category row -->
@@ -46,21 +52,25 @@
             <div class="form-field">
               <label for="brand">Brand <span [class]="isFieldInvalid('brand') ? 'req-star error' : 'req-star'">*</span></label>
               <input id="brand" type="text" pInputText formControlName="brand"
-                     placeholder="e.g. Royal Leather" class="w-full" autocomplete="off"
-                     [class.ng-invalid]="isFieldInvalid('brand')" [class.ng-dirty]="isFieldInvalid('brand')" />
-              <small class="p-error" *ngIf="isFieldInvalid('brand')">
-                <i class="pi pi-exclamation-circle"></i> Brand is required.
-              </small>
+                placeholder="e.g. Royal Leather" class="w-full" autocomplete="off"
+                [class.ng-invalid]="isFieldInvalid('brand')" [class.ng-dirty]="isFieldInvalid('brand')" />
+              @if (isFieldInvalid('brand')) {
+                <small class="p-error">
+                  <i class="pi pi-exclamation-circle"></i> Brand is required.
+                </small>
+              }
             </div>
             <div class="form-field">
               <span class="field-label" id="category-label">Category <span [class]="isFieldInvalid('category') ? 'req-star error' : 'req-star'">*</span></span>
               <p-dropdown inputId="category" [options]="categoryOptions" formControlName="category"
-                          placeholder="Select Category" [style]="{'width': '100%'}" appendTo="body"
-                          ariaLabelledBy="category-label"
-                          [class.ng-invalid]="isFieldInvalid('category')" [class.ng-dirty]="isFieldInvalid('category')"></p-dropdown>
-              <small class="p-error" *ngIf="isFieldInvalid('category')">
-                <i class="pi pi-exclamation-circle"></i> Category is required.
-              </small>
+                placeholder="Select Category" [style]="{'width': '100%'}" appendTo="body"
+                ariaLabelledBy="category-label"
+              [class.ng-invalid]="isFieldInvalid('category')" [class.ng-dirty]="isFieldInvalid('category')"></p-dropdown>
+              @if (isFieldInvalid('category')) {
+                <small class="p-error">
+                  <i class="pi pi-exclamation-circle"></i> Category is required.
+                </small>
+              }
             </div>
           </div>
 
@@ -69,23 +79,29 @@
             <div class="form-field">
               <label for="price">Price (INR) <span [class]="isFieldInvalid('price') ? 'req-star error' : 'req-star'">*</span></label>
               <p-inputNumber inputId="price" formControlName="price" mode="currency" currency="INR"
-                            locale="en-IN" placeholder="e.g. 899" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"
-                            [class.ng-invalid]="isFieldInvalid('price')" [class.ng-dirty]="isFieldInvalid('price')"></p-inputNumber>
-              <small class="p-error" *ngIf="isFieldInvalid('price')">
-                <i class="pi pi-exclamation-circle"></i> Price must be at least ₹1.
-              </small>
+                locale="en-IN" placeholder="e.g. 899" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"
+              [class.ng-invalid]="isFieldInvalid('price')" [class.ng-dirty]="isFieldInvalid('price')"></p-inputNumber>
+              @if (isFieldInvalid('price')) {
+                <small class="p-error">
+                  <i class="pi pi-exclamation-circle"></i> Price must be at least ₹1.
+                </small>
+              }
             </div>
             <div class="form-field">
               <label for="stock">Stock Quantity <span [class]="isFieldInvalid('stockQuantity') ? 'req-star error' : 'req-star'">*</span></label>
               <p-inputNumber inputId="stock" formControlName="stockQuantity"
-                            [min]="isEdit ? 0 : 1" [showButtons]="true" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"
-                            [class.ng-invalid]="isFieldInvalid('stockQuantity')" [class.ng-dirty]="isFieldInvalid('stockQuantity')"></p-inputNumber>
-              <small class="p-error" *ngIf="isFieldInvalid('stockQuantity') && productForm.get('stockQuantity')?.errors?.['required']">
-                <i class="pi pi-exclamation-circle"></i> Stock quantity is required.
-              </small>
-              <small class="p-error" *ngIf="isFieldInvalid('stockQuantity') && productForm.get('stockQuantity')?.errors?.['min']">
-                <i class="pi pi-exclamation-circle"></i> Stock quantity must be at least {{ isEdit ? 0 : 1 }}.
-              </small>
+                [min]="isEdit ? 0 : 1" [showButtons]="true" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"
+              [class.ng-invalid]="isFieldInvalid('stockQuantity')" [class.ng-dirty]="isFieldInvalid('stockQuantity')"></p-inputNumber>
+              @if (isFieldInvalid('stockQuantity') && productForm.get('stockQuantity')?.errors?.['required']) {
+                <small class="p-error">
+                  <i class="pi pi-exclamation-circle"></i> Stock quantity is required.
+                </small>
+              }
+              @if (isFieldInvalid('stockQuantity') && productForm.get('stockQuantity')?.errors?.['min']) {
+                <small class="p-error">
+                  <i class="pi pi-exclamation-circle"></i> Stock quantity must be at least {{ isEdit ? 0 : 1 }}.
+                </small>
+              }
             </div>
           </div>
 
@@ -94,60 +110,76 @@
             <label>Product Images <span class="upload-count">({{ images.length }}/{{ maxImages }})</span></label>
 
             <!-- Image grid -->
-            <div class="images-grid" *ngIf="images.length > 0">
-              <div class="image-card" *ngFor="let img of images; let i = index">
-                <span class="image-badge" *ngIf="i === 0">Primary</span>
-                <img [src]="img.preview" [alt]="'Product image ' + (i + 1)" class="image-preview" />
-                <button type="button" class="remove-image-btn" (click)="removeImage(i)" title="Remove image">
-                  <i class="pi pi-times"></i>
-                </button>
+            @if (images.length > 0) {
+              <div class="images-grid">
+                @for (img of images; track img; let i = $index) {
+                  <div class="image-card">
+                    @if (i === 0) {
+                      <span class="image-badge">Primary</span>
+                    }
+                    <img [src]="img.preview" [alt]="'Product image ' + (i + 1)" class="image-preview" />
+                    <button type="button" class="remove-image-btn" (click)="removeImage(i)" title="Remove image">
+                      <i class="pi pi-times"></i>
+                    </button>
+                  </div>
+                }
               </div>
-            </div>
+            }
 
             <!-- Validation errors -->
-            <div class="image-errors" *ngIf="imageErrors.length > 0">
-              <div class="image-error-item" *ngFor="let err of imageErrors">
-                <i class="pi pi-exclamation-circle"></i>
-                <span>{{ err }}</span>
+            @if (imageErrors.length > 0) {
+              <div class="image-errors">
+                @for (err of imageErrors; track err) {
+                  <div class="image-error-item">
+                    <i class="pi pi-exclamation-circle"></i>
+                    <span>{{ err }}</span>
+                  </div>
+                }
               </div>
-            </div>
+            }
 
             <!-- Upload dropzone -->
-            <div class="image-upload-area" *ngIf="images.length < maxImages && !uploading">
-              <label for="imageFileInput" class="upload-dropzone">
-                <i class="pi pi-cloud-upload"></i>
-                <span class="upload-text">Click to browse and select images</span>
-                <span class="upload-hint">JPG, PNG, WebP or GIF — any size — up to {{ maxImages - images.length }} more</span>
-                <span class="upload-hint">Images are auto-compressed to ~300KB for fast loading</span>
-              </label>
-              <input id="imageFileInput" type="file" accept=".jpg,.jpeg,.png,.webp,.gif" multiple (change)="onImageSelect($event)" class="hidden-file-input" />
-            </div>
+            @if (images.length < maxImages && !uploading) {
+              <div class="image-upload-area">
+                <label for="imageFileInput" class="upload-dropzone">
+                  <i class="pi pi-cloud-upload"></i>
+                  <span class="upload-text">Click to browse and select images</span>
+                  <span class="upload-hint">JPG, PNG, WebP or GIF — any size — up to {{ maxImages - images.length }} more</span>
+                  <span class="upload-hint">Images are auto-compressed to ~300KB for fast loading</span>
+                </label>
+                <input id="imageFileInput" type="file" accept=".jpg,.jpeg,.png,.webp,.gif" multiple (change)="onImageSelect($event)" class="hidden-file-input" />
+              </div>
+            }
 
             <!-- Upload progress -->
-            <div class="upload-progress" *ngIf="uploading">
-              <i class="pi pi-spin pi-spinner"></i>
-              <span>Compressing &amp; uploading images...</span>
-            </div>
+            @if (uploading) {
+              <div class="upload-progress">
+                <i class="pi pi-spin pi-spinner"></i>
+                <span>Compressing &amp; uploading images...</span>
+              </div>
+            }
           </div>
 
           <!-- Description — full width -->
           <div class="form-field">
             <label for="description">Description</label>
             <textarea id="description" pInputTextarea formControlName="description"
-                      rows="4" placeholder="Describe the product materials, dimensions, and features..."
-                      class="w-full" [autoResize]="true"></textarea>
+              rows="4" placeholder="Describe the product materials, dimensions, and features..."
+            class="w-full" [autoResize]="true"></textarea>
           </div>
 
           <!-- Actions -->
-          <small class="form-warning" *ngIf="productForm.invalid">
-            <i class="pi pi-exclamation-triangle"></i> Please fill in all required fields to enable submission.
-          </small>
+          @if (productForm.invalid) {
+            <small class="form-warning">
+              <i class="pi pi-exclamation-triangle"></i> Please fill in all required fields to enable submission.
+            </small>
+          }
           <div class="form-actions">
             <p-button label="Cancel" severity="secondary" [outlined]="true" routerLink="/products" icon="pi pi-times"></p-button>
             <p-button [label]="saving ? 'Saving...' : (isEdit ? 'Update Product' : 'Create Product')"
-                      type="submit" icon="pi pi-check"
-                      [disabled]="saving || uploading || productForm.invalid || f['name'].pending"
-                      [loading]="saving"></p-button>
+              type="submit" icon="pi pi-check"
+              [disabled]="saving || uploading || productForm.invalid || f['name'].pending"
+            [loading]="saving"></p-button>
           </div>
         </form>
       </p-card>
