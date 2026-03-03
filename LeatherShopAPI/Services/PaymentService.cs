@@ -1,10 +1,13 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Chat;
 using LeatherShopAPI.DTOs.Payment;
+using LeatherShopAPI.Helpers;
 using LeatherShopAPI.Hubs;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
@@ -18,15 +21,17 @@ public class PaymentService : IPaymentService
     private readonly IHubContext<NotificationHub> _hubContext;
     private readonly IConfiguration _config;
     private readonly ILogger<PaymentService> _logger;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public PaymentService(AppDbContext db, IWhatsAppService whatsApp, IHubContext<NotificationHub> hubContext,
-        IConfiguration config, ILogger<PaymentService> logger)
+        IConfiguration config, ILogger<PaymentService> logger, IHttpClientFactory httpClientFactory)
     {
         _db = db;
         _whatsApp = whatsApp;
         _hubContext = hubContext;
         _config = config;
         _logger = logger;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<(PaymentPageResult Result, PaymentPageDto? Data)> GetPaymentPageDataAsync(string orderNumber)
@@ -45,9 +50,16 @@ public class PaymentService : IPaymentService
             return (PaymentPageResult.Expired, null);
         }
 
-        var razorpayKeyId = _config["Razorpay:KeyId"];
-        if (string.IsNullOrWhiteSpace(razorpayKeyId))
-            throw new InvalidOperationException("Razorpay:KeyId not configured. Set it in appsettings or environment variables (Razorpay__KeyId).");
+        var merchantId = _config["Paytm:MerchantId"];
+        var merchantKey = _config["Paytm:MerchantKey"];
+        if (string.IsNullOrWhiteSpace(merchantId) || string.IsNullOrWhiteSpace(merchantKey))
+            throw new InvalidOperationException(
+                "Paytm:MerchantId and Paytm:MerchantKey must be configured. " +
+                "Set them in appsettings or environment variables (Paytm__MerchantId, Paytm__MerchantKey).");
+
+        // Call Paytm Initiate Transaction API to get a txnToken
+        var txnToken = await InitiatePaytmTransactionAsync(
+            merchantId, merchantKey, order.OrderNumber, order.TotalAmount, order.Customer.PhoneNumber);
 
         return (PaymentPageResult.Ok, new PaymentPageDto
         {
@@ -56,7 +68,8 @@ public class PaymentService : IPaymentService
             CustomerPhone = order.Customer.PhoneNumber,
             TotalAmount = order.TotalAmount,
             AmountInPaise = (int)Math.Round(order.TotalAmount * 100, MidpointRounding.AwayFromZero),
-            RazorpayKeyId = razorpayKeyId,
+            PaytmMerchantId = merchantId,
+            PaytmTxnToken = txnToken,
             ExpiresAtUtc = order.PaymentExpiresAt,
             Items = order.OrderItems.Select(oi => new PaymentPageItemDto
             {
@@ -66,6 +79,59 @@ public class PaymentService : IPaymentService
                 Subtotal = oi.UnitPrice * oi.Quantity
             }).ToList()
         });
+    }
+
+    /// <summary>
+    /// Calls Paytm's Initiate Transaction API to get a transaction token (txnToken).
+    /// This token is required by Paytm's checkout.js on the client side.
+    /// </summary>
+    private async Task<string> InitiatePaytmTransactionAsync(
+        string merchantId, string merchantKey, string orderId, decimal amount, string customerPhone)
+    {
+        var paytmEnv = _config["Paytm:Environment"] ?? "production";
+        var baseUrl = paytmEnv.Equals("staging", StringComparison.OrdinalIgnoreCase)
+            ? "https://securegw-stage.paytm.in"
+            : "https://securegw.paytm.in";
+
+        var body = new
+        {
+            requestType = "Payment",
+            mid = merchantId,
+            websiteName = paytmEnv.Equals("staging", StringComparison.OrdinalIgnoreCase) ? "WEBSTAGING" : "DEFAULT",
+            orderId = orderId,
+            txnAmount = new { value = amount.ToString("F2"), currency = "INR" },
+            userInfo = new { custId = customerPhone },
+            callbackUrl = $"{_config["App:BaseUrl"]}/api/payment/verify"
+        };
+
+        var bodyJson = JsonSerializer.Serialize(body);
+        var checksum = PaytmChecksum.GenerateSignature(bodyJson, merchantKey);
+
+        var requestPayload = new
+        {
+            body = body,
+            head = new { signature = checksum }
+        };
+
+        var url = $"{baseUrl}/theia/api/v1/initiateTransaction?mid={merchantId}&orderId={orderId}";
+
+        var httpClient = _httpClientFactory.CreateClient("Paytm");
+        var content = new StringContent(JsonSerializer.Serialize(requestPayload), Encoding.UTF8, "application/json");
+        var response = await httpClient.PostAsync(url, content);
+        var responseJson = await response.Content.ReadAsStringAsync();
+
+        _logger.LogDebug("Paytm Initiate Transaction response for {OrderId}: {Response}", orderId, responseJson);
+
+        var result = JsonSerializer.Deserialize<PaytmInitiateResponse>(responseJson);
+
+        if (result?.Body?.ResultInfo?.ResultCode != "S")
+        {
+            var errorMsg = result?.Body?.ResultInfo?.ResultMsg ?? "Unknown error";
+            _logger.LogError("Paytm Initiate Transaction failed for {OrderId}: {Error}", orderId, errorMsg);
+            throw new InvalidOperationException($"Paytm transaction initiation failed: {errorMsg}");
+        }
+
+        return result.Body.TxnToken ?? throw new InvalidOperationException("Paytm returned success but no txnToken.");
     }
 
     /// <summary>
@@ -120,56 +186,51 @@ public class PaymentService : IPaymentService
 
     public async Task<PaymentVerifyResultDto?> VerifyPaymentAsync(PaymentVerifyDto dto)
     {
-        // Look up order by OrderNumber (the payment page now sends OrderNumber, not integer ID)
+        // Look up order by OrderNumber (the payment page sends OrderNumber as OrderId)
         Order? order;
         if (int.TryParse(dto.OrderId, out var orderId))
         {
-            // Legacy path: integer ID
             order = await _db.Orders.Include(o => o.Customer).FirstOrDefaultAsync(o => o.Id == orderId);
         }
         else
         {
-            // Current path: OrderNumber string
             order = await _db.Orders.Include(o => o.Customer).FirstOrDefaultAsync(o => o.OrderNumber == dto.OrderId);
         }
 
         if (order == null) return null;
 
-        // Verify Razorpay payment signature — MANDATORY in production
-        var razorpaySecret = _config["Razorpay:KeySecret"];
-        if (string.IsNullOrEmpty(razorpaySecret))
+        // Verify payment via Paytm Transaction Status API (server-to-server)
+        var merchantId = _config["Paytm:MerchantId"];
+        var merchantKey = _config["Paytm:MerchantKey"];
+        if (string.IsNullOrEmpty(merchantId) || string.IsNullOrEmpty(merchantKey))
         {
-            _logger.LogError("Razorpay:KeySecret is not configured — payment verification REJECTED for order {OrderId}. " +
-                "Configure Razorpay:KeySecret to enable payment processing.", order.Id);
-            return null; // REJECT — never mark as paid without signature verification
+            _logger.LogError("Paytm:MerchantId or Paytm:MerchantKey is not configured — payment verification REJECTED for order {OrderId}. " +
+                "Configure Paytm credentials to enable payment processing.", order.Id);
+            return null; // REJECT — never mark as paid without server-side verification
         }
 
-        if (string.IsNullOrEmpty(dto.Signature) || string.IsNullOrEmpty(dto.RazorpayOrderId))
+        var txnStatus = await GetPaytmTransactionStatusAsync(merchantId, merchantKey, order.OrderNumber);
+        if (txnStatus == null)
         {
-            _logger.LogWarning("Payment verification rejected: missing signature or RazorpayOrderId for order {OrderId}", order.Id);
+            _logger.LogWarning("Could not verify Paytm transaction status for order {OrderId}", order.Id);
             return null;
         }
 
-        var payload = $"{dto.RazorpayOrderId}|{dto.PaymentId}";
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(razorpaySecret));
-        var computedHash = BitConverter.ToString(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)))
-            .Replace("-", "").ToLowerInvariant();
-
-        if (!CryptographicOperations.FixedTimeEquals(
-                Encoding.UTF8.GetBytes(computedHash),
-                Encoding.UTF8.GetBytes((dto.Signature ?? "").ToLowerInvariant())))
+        if (txnStatus.ResultCode != "01" || !string.Equals(txnStatus.Status, "TXN_SUCCESS", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogWarning("Razorpay signature mismatch for order {OrderId}. Possible tampering.", order.Id);
+            _logger.LogWarning("Paytm payment not successful for order {OrderId}. Status: {Status}, Code: {Code}, Msg: {Msg}",
+                order.Id, txnStatus.Status, txnStatus.ResultCode, txnStatus.ResultMsg);
             return null;
         }
 
-        // Signature is valid — if the order was auto-cancelled due to expiry while the customer
-        // was completing payment in the Razorpay modal, we must honor the payment (money is already charged).
+        // Paytm payment is verified via server-to-server API — proceed to confirm.
+        // If the order was auto-cancelled due to expiry while the customer
+        // was completing payment in the Paytm form, we must honor the payment (money is already charged).
         // Re-confirm the order, re-deduct stock, and clear restored cart items.
         if (order.Status == OrderStatus.Cancelled)
         {
-            _logger.LogWarning("Order {OrderNumber} was auto-cancelled (expired) but received valid payment {PaymentId}. Re-confirming.",
-                order.OrderNumber, dto.PaymentId);
+            _logger.LogWarning("Order {OrderNumber} was auto-cancelled (expired) but received valid Paytm payment {TxnId}. Re-confirming.",
+                order.OrderNumber, txnStatus.TxnId);
 
             // Re-deduct stock (it was restored when the order was cancelled)
             var orderItems = await _db.OrderItems
@@ -202,7 +263,7 @@ public class PaymentService : IPaymentService
             }
         }
 
-        order.PaymentId = dto.PaymentId;
+        order.PaymentId = txnStatus.TxnId ?? dto.TransactionId;
         order.IsPaid = true;
         order.Status = OrderStatus.Confirmed;
         order.UpdatedAt = DateTime.UtcNow;
@@ -216,7 +277,7 @@ public class PaymentService : IPaymentService
                 $"✅ *Payment Received!*\n\n" +
                 $"Order: *{order.OrderNumber}*\n" +
                 $"Amount: *₹{order.TotalAmount}*\n" +
-                $"Payment ID: {dto.PaymentId}\n\n" +
+                $"Transaction ID: {order.PaymentId}\n\n" +
                 $"Your order is confirmed! We'll ship it soon. 🚚"
             );
         }
@@ -236,7 +297,7 @@ public class PaymentService : IPaymentService
                     $"📋 Order: *{order.OrderNumber}*\n" +
                     $"👤 Customer: *{order.Customer.Name}* ({order.Customer.PhoneNumber})\n" +
                     $"💰 Amount: *₹{order.TotalAmount}*\n" +
-                    $"💳 Payment ID: {dto.PaymentId}\n\n" +
+                    $"💳 Transaction ID: {order.PaymentId}\n\n" +
                     $"Check the dashboard for details.");
             }
         }
@@ -267,5 +328,134 @@ public class PaymentService : IPaymentService
             Message = "Payment verified",
             OrderNumber = order.OrderNumber
         };
+    }
+
+    /// <summary>
+    /// Calls Paytm's Transaction Status API to verify a payment server-to-server.
+    /// This is the authoritative check — we never trust client-side data alone.
+    /// </summary>
+    private async Task<PaytmTxnStatusResult?> GetPaytmTransactionStatusAsync(
+        string merchantId, string merchantKey, string orderId)
+    {
+        try
+        {
+            var paytmEnv = _config["Paytm:Environment"] ?? "production";
+            var baseUrl = paytmEnv.Equals("staging", StringComparison.OrdinalIgnoreCase)
+                ? "https://securegw-stage.paytm.in"
+                : "https://securegw.paytm.in";
+
+            var body = new { mid = merchantId, orderId = orderId };
+            var bodyJson = JsonSerializer.Serialize(body);
+            var checksum = PaytmChecksum.GenerateSignature(bodyJson, merchantKey);
+
+            var requestPayload = new
+            {
+                body = body,
+                head = new { signature = checksum }
+            };
+
+            var url = $"{baseUrl}/v3/order/status";
+            var httpClient = _httpClientFactory.CreateClient("Paytm");
+            var content = new StringContent(JsonSerializer.Serialize(requestPayload), Encoding.UTF8, "application/json");
+            var response = await httpClient.PostAsync(url, content);
+            var responseJson = await response.Content.ReadAsStringAsync();
+
+            _logger.LogDebug("Paytm Transaction Status response for {OrderId}: {Response}", orderId, responseJson);
+
+            var result = JsonSerializer.Deserialize<PaytmStatusApiResponse>(responseJson);
+            if (result?.Body == null) return null;
+
+            // Verify the response checksum from Paytm
+            var responseBodyJson = JsonSerializer.Serialize(result.Body);
+            var responseChecksum = result.Head?.Signature;
+            if (!string.IsNullOrEmpty(responseChecksum))
+            {
+                if (!PaytmChecksum.VerifySignature(responseBodyJson, merchantKey, responseChecksum))
+                {
+                    _logger.LogWarning("Paytm Transaction Status response checksum mismatch for order {OrderId}. Possible tampering.", orderId);
+                    return null;
+                }
+            }
+
+            return new PaytmTxnStatusResult
+            {
+                Status = result.Body.ResultInfo?.ResultStatus,
+                ResultCode = result.Body.ResultInfo?.ResultCode,
+                ResultMsg = result.Body.ResultInfo?.ResultMsg,
+                TxnId = result.Body.TxnId
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calling Paytm Transaction Status API for order {OrderId}", orderId);
+            return null;
+        }
+    }
+
+    // ---------- Paytm API Response Models ----------
+
+    private class PaytmInitiateResponse
+    {
+        [JsonPropertyName("body")]
+        public PaytmInitiateBody? Body { get; set; }
+    }
+
+    private class PaytmInitiateBody
+    {
+        [JsonPropertyName("resultInfo")]
+        public PaytmResultInfo? ResultInfo { get; set; }
+
+        [JsonPropertyName("txnToken")]
+        public string? TxnToken { get; set; }
+    }
+
+    private class PaytmResultInfo
+    {
+        [JsonPropertyName("resultStatus")]
+        public string? ResultStatus { get; set; }
+
+        [JsonPropertyName("resultCode")]
+        public string? ResultCode { get; set; }
+
+        [JsonPropertyName("resultMsg")]
+        public string? ResultMsg { get; set; }
+    }
+
+    private class PaytmStatusApiResponse
+    {
+        [JsonPropertyName("head")]
+        public PaytmResponseHead? Head { get; set; }
+
+        [JsonPropertyName("body")]
+        public PaytmStatusBody? Body { get; set; }
+    }
+
+    private class PaytmResponseHead
+    {
+        [JsonPropertyName("signature")]
+        public string? Signature { get; set; }
+    }
+
+    private class PaytmStatusBody
+    {
+        [JsonPropertyName("resultInfo")]
+        public PaytmResultInfo? ResultInfo { get; set; }
+
+        [JsonPropertyName("txnId")]
+        public string? TxnId { get; set; }
+
+        [JsonPropertyName("orderId")]
+        public string? OrderId { get; set; }
+
+        [JsonPropertyName("txnAmount")]
+        public string? TxnAmount { get; set; }
+    }
+
+    private class PaytmTxnStatusResult
+    {
+        public string? Status { get; set; }
+        public string? ResultCode { get; set; }
+        public string? ResultMsg { get; set; }
+        public string? TxnId { get; set; }
     }
 }

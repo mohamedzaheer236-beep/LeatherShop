@@ -4,15 +4,13 @@ namespace LeatherShopAPI.DTOs.Payment;
 
 public class PaymentVerifyDto
 {
-    [Required(ErrorMessage = "Payment ID is required.")]
-    public string PaymentId { get; set; } = string.Empty;
+    /// <summary>Paytm transaction ID (TXNID) returned after payment.</summary>
+    [Required(ErrorMessage = "Transaction ID is required.")]
+    public string TransactionId { get; set; } = string.Empty;
 
+    /// <summary>Order number used as Paytm ORDER_ID.</summary>
     [Required(ErrorMessage = "Order ID is required.")]
     public string OrderId { get; set; } = string.Empty;
-
-    public string RazorpayOrderId { get; set; } = string.Empty;
-
-    public string Signature { get; set; } = string.Empty;
 }
 
 public class PaymentPageDto
@@ -22,8 +20,15 @@ public class PaymentPageDto
     public string CustomerPhone { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
     public int AmountInPaise { get; set; }
-    public string RazorpayKeyId { get; set; } = string.Empty;
+
+    /// <summary>Paytm Merchant ID (MID) — injected into client-side JS for checkout initialization.</summary>
+    public string PaytmMerchantId { get; set; } = string.Empty;
+
+    /// <summary>Paytm transaction token — obtained from Initiate Transaction API, required by checkout.js.</summary>
+    public string PaytmTxnToken { get; set; } = string.Empty;
+
     public List<PaymentPageItemDto> Items { get; set; } = new();
+
     /// <summary>UTC time when this payment link expires. Null = no expiration (legacy).</summary>
     public DateTime? ExpiresAtUtc { get; set; }
 }

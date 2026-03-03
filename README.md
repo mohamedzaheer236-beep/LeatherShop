@@ -2,7 +2,7 @@
 
 A complete WhatsApp Business ordering system for a leather goods seller. Customers browse products, add to cart, and pay — all inside WhatsApp. The shop owner manages everything from an Angular admin panel.
 
-**Tech Stack:** Angular 18 · PrimeNG 17 · .NET 8 Web API · Entity Framework Core · PostgreSQL · WhatsApp Cloud API · Razorpay
+**Tech Stack:** Angular 18 · PrimeNG 17 · .NET 8 Web API · Entity Framework Core · PostgreSQL · WhatsApp Cloud API · Paytm
 
 ---
 
@@ -14,7 +14,7 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 4. [Admin Panel Flow](#admin-panel-flow)
 5. [Project Structure](#project-structure)
 6. [Developer Setup Guide](#developer-setup-guide)
-7. [External Services Setup (WhatsApp, Razorpay)](#external-services-setup)
+7. [External Services Setup (WhatsApp, Paytm)](#external-services-setup)
 8. [API Endpoints Reference](#api-endpoints-reference)
 9. [Database Schema](#database-schema)
 10. [What Is NOT Yet Implemented](#what-is-not-yet-implemented)
@@ -117,7 +117,7 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 └──────────────────────────────────────────────────────┘
                            │
                     ┌──────▼──────┐
-                    │  Razorpay   │
+                    │    Paytm    │
                     │  (Payment)  │
                     └─────────────┘
 ```
@@ -126,7 +126,7 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 
 1. **Customer → WhatsApp → Meta API → Webhook → ChatBotService** — customer sends a message, Meta forwards it to your webhook endpoint, the chatbot processes it and responds
 2. **ChatBotService → WhatsAppService → Meta API → Customer** — bot sends interactive menus, product details, cart summaries back to the customer
-3. **Checkout → PaymentController → Razorpay** — bot sends a payment link, customer pays on a Razorpay-powered HTML page, payment verified and order confirmed
+3. **Checkout → PaymentController → Paytm** — bot sends a payment link, customer pays on a Paytm-powered HTML page, payment verified via Paytm Transaction Status API and order confirmed
 4. **Admin Panel → REST API → Database** — shop owner manages products, views orders, updates statuses
 5. **Order Status Update → WhatsAppService → Customer** — when admin changes order status, customer gets an automatic WhatsApp notification
 6. **New Order → SignalR → Admin Dashboard** — when a customer completes payment, `PaymentService` pushes a `NewOrder` notification via SignalR to the admin's navbar bell icon (real-time, no polling)
@@ -183,7 +183,7 @@ Customer sends "Hi" / "Hello" / "Menu"
          │   Order Created → Stock Reduced → Cart Cleared
          │       │
          │       ▼
-         │   Payment Link sent (Razorpay HTML page)
+         │   Payment Link sent (Paytm HTML page)
          │   ⏳ Link expires in 5 minutes
          │       │
          │       ├── Customer Pays within 5 min
@@ -672,8 +672,9 @@ cd LeatherShop
 | `WhatsApp:BusinessAccountId` | No* | Meta WhatsApp Business Account ID | Meta Developer Console → WhatsApp → API Setup → Business Account ID | WhatsApp features won't work |
 | `WhatsApp:AccessToken` | No* | Meta API access token (permanent System User token for production) | Meta Business Settings → System Users → Generate Token (see [WhatsApp Setup](#whatsapp-business-api-setup)) | WhatsApp features won't work |
 | `WhatsApp:VerifyToken` | No* | Webhook verification string — must match what you enter in Meta Console | Choose any custom string (e.g., `my_verify_token_2026`) | Meta webhook verification fails |
-| `Razorpay:KeyId` | No* | Razorpay API key (test mode: `rzp_test_...`, live: `rzp_live_...`) | [razorpay.com](https://razorpay.com/) → Dashboard → Settings → API Keys | Payment page won't load |
-| `Razorpay:KeySecret` | No* | Razorpay API secret | Same as above — shown once when key is generated | Payment signature verification skipped (insecure) |
+| `Paytm:MerchantId` | No* | Paytm Merchant ID (MID) — unique identifier for your Paytm business account | [business.paytm.com](https://business.paytm.com/) → Dashboard → Developer Settings → API Keys | Payment page won't load |
+| `Paytm:MerchantKey` | No* | Paytm Merchant Key — secret key for checksum generation | Same as above — shown in Developer Settings | Payment verification rejected |
+| `Paytm:Environment` | No | `staging` (test mode) or `production` (live). Defaults to `production` | Choose based on your deployment stage | Defaults to production |
 | `App:OwnerPhone` | No* | Shop owner's WhatsApp number with country code, no `+` (e.g., `YOUR_PHONE_NUMBER`) | Your phone number in international format without `+` | Owner won't receive order notification WhatsApp messages |
 
 > \* These are only needed for WhatsApp chatbot and payment features. The **admin panel, products, orders, customers, and dashboard** all work without them.
@@ -704,9 +705,10 @@ Then edit `LeatherShopAPI/appsettings.Local.json` with your actual credentials:
     "AccessToken": "YOUR_WHATSAPP_ACCESS_TOKEN",
     "VerifyToken": "YOUR_WEBHOOK_VERIFY_TOKEN"
   },
-  "Razorpay": {
-    "KeyId": "rzp_test_xxxxx",
-    "KeySecret": "YOUR_RAZORPAY_SECRET"
+  "Paytm": {
+    "MerchantId": "YOUR_PAYTM_MERCHANT_ID",
+    "MerchantKey": "YOUR_PAYTM_MERCHANT_KEY",
+    "Environment": "staging"
   },
   "App": {
     "OwnerPhone": "YOUR_PHONE_WITH_COUNTRY_CODE_NO_PLUS"
@@ -717,7 +719,7 @@ Then edit `LeatherShopAPI/appsettings.Local.json` with your actual credentials:
 }
 ```
 
-> **Note:** You can start with just `ConnectionStrings`, `Jwt:Key`, and `Admin:SeedPassword` configured. WhatsApp and Razorpay can be set up later. The admin panel and API will work without them — only the chatbot and payments need those keys.
+> **Note:** You can start with just `ConnectionStrings`, `Jwt:Key`, and `Admin:SeedPassword` configured. WhatsApp and Paytm can be set up later. The admin panel and API will work without them — only the chatbot and payments need those keys.
 
 **Alternative: dotnet user-secrets** (advanced)
 ```bash
@@ -820,29 +822,29 @@ Temporary tokens expire every 24 hours. For production, use a **permanent System
 4. Apply for Official Business Account in WhatsApp Manager
 5. Requires a legitimate business with online presence
 
-### Razorpay Payment Setup
+### Paytm Payment Setup
 
-#### 1. Create a Razorpay Account
-1. Go to [razorpay.com](https://razorpay.com/) → **Sign Up**
+#### 1. Create a Paytm Business Account
+1. Go to [business.paytm.com](https://business.paytm.com/) → **Sign Up**
 2. Complete KYC verification (PAN, Aadhaar, bank details for business)
-3. Once approved, you'll land on the Razorpay Dashboard
+3. Once approved, you'll land on the Paytm Business Dashboard
 
-#### 2. Generate API Keys
-1. Razorpay Dashboard → **Account & Settings** (gear icon, left sidebar)
-2. **API Keys** tab → click **Generate Key**
-3. You'll see:
-   - **Key ID** — starts with `rzp_test_` (test mode) or `rzp_live_` (live mode)
-   - **Key Secret** — shown ONCE, copy it immediately
-4. **Test Mode vs Live Mode**: Toggle at the top of the Razorpay dashboard. Use Test Mode keys (`rzp_test_*`) during development — no real money is charged. Switch to Live Mode (`rzp_live_*`) for production.
+#### 2. Get API Keys
+1. Paytm Business Dashboard → **Developer Settings** (or **Account & Settings**)
+2. You'll see:
+   - **Merchant ID (MID)** — unique identifier for your account (e.g., `YourBiz12345678901234`)
+   - **Merchant Key** — secret key for generating checksums (e.g., `abcdef1234567890`)
+3. **Staging vs Production**: Paytm provides separate staging credentials for testing (no real money). Use staging during development, switch to production for live payments.
 
 #### 3. Configure in the Project
 
 **For Local Development** — add to `appsettings.Local.json`:
 ```json
 {
-  "Razorpay": {
-    "KeyId": "rzp_test_XXXXXXXXXXXXXX",
-    "KeySecret": "XXXXXXXXXXXXXXXXXXXXXX"
+  "Paytm": {
+    "MerchantId": "YOUR_PAYTM_MERCHANT_ID",
+    "MerchantKey": "YOUR_PAYTM_MERCHANT_KEY",
+    "Environment": "staging"
   }
 }
 ```
@@ -850,20 +852,19 @@ Temporary tokens expire every 24 hours. For production, use a **permanent System
 **For Railway Production** — set as environment variables:
 | Variable | Value |
 |----------|-------|
-| `Razorpay__KeyId` | `rzp_live_XXXXXXXXXXXXXX` (your live key) |
-| `Razorpay__KeySecret` | `XXXXXXXXXXXXXXXXXXXXXX` (your live secret) |
+| `Paytm__MerchantId` | Your live Merchant ID |
+| `Paytm__MerchantKey` | Your live Merchant Key |
+| `Paytm__Environment` | `production` |
 
-Railway → your service → **Variables** tab → add both variables → **Deploy** to apply.
+Railway → your service → **Variables** tab → add all three variables → **Deploy** to apply.
 
 #### 4. Test the Payment Flow
-1. Use Razorpay **Test Mode** keys
+1. Use Paytm **staging** credentials (set `Paytm:Environment` to `staging`)
 2. Place an order via WhatsApp chatbot → you'll get a payment link
-3. Click the link → Razorpay checkout opens
-4. Use [Razorpay test card numbers](https://razorpay.com/docs/payments/payments/test-card-details/):
-   - **Card:** `4111 1111 1111 1111`
-   - **Expiry:** Any future date
-   - **CVV:** Any 3 digits
-   - **OTP:** `1234` (for 3D Secure)
+3. Click the link → Paytm checkout opens
+4. Use Paytm test credentials:
+   - **UPI:** `success@paytm` (for successful payment)
+   - **Card:** Use any test card from [Paytm Developer Docs](https://developer.paytm.com/docs/testing-integration/)
 5. Payment completes → order marked as Paid → WhatsApp confirmation sent
 
 #### 5. How It Works (Technical)
@@ -873,31 +874,34 @@ Customer clicks payment link
     │
     ▼
 GET /api/payment/pay/{orderNumber}
-    → Server renders HTML page with Razorpay checkout.js
-    → Razorpay Key ID injected into client-side JS
+    → Server calls Paytm "Initiate Transaction" API with checksum
+    → Paytm returns a transaction token (txnToken)
+    → Server renders HTML page with Paytm checkout.js + txnToken
     → 5-minute countdown timer starts
     │
     ▼
 Customer clicks "Pay" button
-    → Razorpay opens payment modal (card/UPI/netbanking)
-    → Customer completes payment on Razorpay's servers
+    → Paytm checkout.js opens payment form (UPI/card/netbanking/wallet)
+    → Customer completes payment on Paytm's servers
     │
     ▼
-Razorpay returns: razorpay_payment_id + razorpay_signature
+Paytm returns: TXNID + STATUS to our JS handler
     │
     ▼
-POST /api/payment/verify
-    → Server computes HMAC-SHA256(razorpay_order_id|payment_id, KeySecret)
-    → Compares with signature using constant-time comparison
-    → If valid: marks order as Paid + Confirmed
+POST /api/payment/verify  (with transactionId + orderId)
+    → Server calls Paytm "Transaction Status" API (server-to-server)
+    → Verifies response checksum using AES-128-CBC algorithm
+    → If STATUS=TXN_SUCCESS: marks order as Paid + Confirmed
     → Sends WhatsApp confirmation to customer + owner
     → Pushes SignalR notification to admin dashboard
 ```
 
 **Security:**
-- Signature verification is **mandatory** — `HMAC-SHA256` with `CryptographicOperations.FixedTimeEquals()` (constant-time, prevents timing attacks)
-- If `Razorpay:KeySecret` is not configured, payment verification is **rejected** (fail-closed)
-- If `Razorpay:KeyId` is empty/missing, the payment page throws a clear `InvalidOperationException` at startup
+- Payment verification uses **server-to-server API call** to Paytm — never trusts client-side data alone
+- Paytm response checksum verified using AES-128-CBC algorithm with `CryptographicOperations.FixedTimeEquals()` (constant-time, prevents timing attacks)
+- If `Paytm:MerchantId` or `Paytm:MerchantKey` is not configured, payment verification is **rejected** (fail-closed)
+- Checksum generation uses Paytm's proprietary algorithm: SHA-256 + random salt + AES-128-CBC encryption (Key=IV=MerchantKey)
+- Custom `PaytmChecksum` helper class (`Helpers/PaytmChecksum.cs`) implements the full algorithm in C#
 
 **Payment Link Expiry (5 minutes):**
 - Each order has a `PaymentExpiresAt` timestamp set to `DateTime.UtcNow.AddMinutes(5)` when created
@@ -905,9 +909,9 @@ POST /api/payment/verify
 - On expiry: order is auto-cancelled, stock quantities restored, cart items restored to the customer's cart
 - Customer can say "checkout" on WhatsApp to get a fresh payment link with a new 5-minute window
 - `ExpiredOrderCleanupService` (background service, polls every 60s) catches orders that expire without the link ever being opened
-- **Edge case handled**: If the customer completes Razorpay payment right at the expiry boundary (money already charged but order auto-cancelled), the verify endpoint detects this, re-confirms the order, re-deducts stock, and clears restored cart items — no money is lost
+- **Edge case handled**: If the customer completes Paytm payment right at the expiry boundary (money already charged but order auto-cancelled), the verify endpoint detects this, re-confirms the order, re-deducts stock, and clears restored cart items — no money is lost
 
-> **Note:** If Razorpay keys are not configured, clicking the Pay button will show an alert: "Payment gateway is not configured. Please contact the shop owner."
+> **Note:** If Paytm credentials are not configured, the payment page will throw an `InvalidOperationException` with a clear message explaining what to configure.
 
 ---
 
@@ -989,7 +993,7 @@ POST /api/payment/verify
 ### Payment
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/payment/pay/{orderId}` | Serve Razorpay payment HTML page |
+| GET | `/api/payment/pay/{orderId}` | Serve Paytm payment HTML page |
 | POST | `/api/payment/verify` | Verify payment and confirm order |
 
 ---
@@ -1070,7 +1074,7 @@ These features are not built yet and would need to be added for production:
 |---------|---------|
 | ~~**Authentication / Authorization**~~ | ✅ **IMPLEMENTED** — JWT Bearer auth with BCrypt password hashing. Admin credentials stored in PostgreSQL `AdminUsers` table. Auto-seeded on first startup. `[Authorize]` on all admin controllers. Angular auth guard + interceptor + animated login page. |
 | ~~**Image Upload**~~ | ✅ **IMPLEMENTED** — Server-side file upload endpoint (`POST /api/products/upload-image`). Images saved to `wwwroot/uploads/` with GUID filenames. Type validation (JPG/PNG/WebP/GIF) and 5 MB size limit on both client and server. Served via `app.UseStaticFiles()`. Frontend: drag-to-browse dropzone with live preview and remove button. |
-| ~~**Razorpay Signature Verification**~~ | ✅ **IMPLEMENTED** — `PaymentService.VerifyPaymentAsync` now computes HMAC-SHA256 from `RazorpayOrderId|PaymentId` using `Razorpay:KeySecret` and compares to client signature. Rejects mismatched signatures. |
+| ~~**Razorpay Signature Verification**~~ | ✅ **IMPLEMENTED (migrated to Paytm)** — `PaymentService.VerifyPaymentAsync` calls Paytm's Transaction Status API server-to-server and verifies the response checksum using AES-128-CBC algorithm via `PaytmChecksum` helper. Rejects unverified payments. |
 | **Logging to File/Service** | Uses default console logging only. Need Serilog or similar for production. |
 | ~~**Rate Limiting**~~ | ✅ **IMPLEMENTED (F104)** — ASP.NET Core rate limiting middleware with global and per-endpoint limits. |
 | ~~**Pagination**~~ | ✅ **IMPLEMENTED** — Orders have server-side pagination with `PaginatedResult<T>` (`GET /api/orders?page=1&pageSize=25`). Frontend uses PrimeNG `p-paginator` (25/50/100 rows). Customer table uses client-side pagination (all records loaded for checkbox selection). DB indexes on `IsSubscribed`, `CreatedAt`, `Status`, `IsPaid`, `IsActive`. |
@@ -1094,7 +1098,7 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 |---|-------|----------|---------|
 | C1 | ~~**No Authentication / Authorization**~~ | ~~All controllers, `Program.cs`~~ | **FIXED** — JWT Bearer authentication implemented. `AuthController` with BCrypt password verification against `AdminUsers` table. `[Authorize]` attribute on all admin controllers (Products, Orders, Customers, Dashboard, Broadcast). Payment and WhatsApp webhook remain public. Angular: `AuthGuard` protects all admin routes, `AuthInterceptor` attaches Bearer token, animated login page, auto-redirect on 401. Admin credentials auto-seeded on first DB migration. |
 | C2 | ~~**Secrets Committed to Source**~~ | ~~`appsettings.json`~~ | **FIXED** — All secrets (DB password, JWT key, WhatsApp access token, admin seed password) moved out of `appsettings.json` into `appsettings.Local.json` (gitignored). Base `appsettings.json` now contains only empty placeholders and non-secret config. `Program.cs` loads `appsettings.Local.json` at startup (optional, never committed). Admin seed password read from `Admin:SeedPassword` config instead of hardcoded. `.csproj` has `UserSecretsId` for developers preferring `dotnet user-secrets`. Production secrets come from Railway environment variables. `appsettings.Local.json.example` template committed for new developers. |
-| C3 | ~~**Razorpay Signature Verification TODO'd Out**~~ | ~~`PaymentService.cs`~~ | **FIXED** — `VerifyPaymentAsync` now computes HMAC-SHA256 signature from `RazorpayOrderId|PaymentId` using the `Razorpay:KeySecret` config value. When `KeySecret` is configured, verification is **mandatory** — missing signature or mismatch rejects the payment. When `KeySecret` is not configured (dev mode), logs a warning and allows the payment. `PaymentVerifyDto` updated with `RazorpayOrderId` field. Payment page JS passes `razorpay_order_id` in the verify request. |
+| C3 | ~~**Payment Signature Verification TODO'd Out**~~ | ~~`PaymentService.cs`~~ | **FIXED (migrated to Paytm)** — `VerifyPaymentAsync` calls Paytm's Transaction Status API server-to-server to verify payment. Response checksum verified using AES-128-CBC algorithm via `PaytmChecksum` helper with constant-time comparison. If `Paytm:MerchantId` or `Paytm:MerchantKey` is not configured, payment verification is **rejected** (fail-closed). `PaymentVerifyDto` accepts `TransactionId` + `OrderId`. Originally implemented with Razorpay HMAC-SHA256, migrated to Paytm in Phase 23. |
 | C4 | ~~**WhatsApp Webhook Signature Not Validated**~~ | ~~`WhatsAppWebhookController.cs`~~ | **FIXED (F115)** — Webhook now reads raw body with `EnableBuffering()`, computes HMAC-SHA256 using `WhatsApp:AppSecret`, and compares to `X-Hub-Signature-256` header with `CryptographicOperations.FixedTimeEquals()`. Rejects forged payloads with 401. Falls through with warning if AppSecret not configured (dev mode). |
 | C5 | ~~**XSS in Payment Page**~~ | ~~`PaymentController.cs`~~ | **FIXED** — All user-controlled values (`OrderNumber`, `CustomerPhone`, `ProductName`) are HTML-encoded with `WebUtility.HtmlEncode()` into safe local variables before interpolation into the payment HTML page. Numeric values (`TotalAmount`, `Quantity`, etc.) are strongly-typed decimals/ints and don't need encoding. |
 | C6 | ~~**DbContext Thread-Safety Bug**~~ | ~~`BroadcastBackgroundService.cs`~~ | **FIXED** — `ProcessBroadcastAsync` no longer shares a single `DbContext` across concurrent tasks. Each concurrent task creates its own `IServiceScope`. `SaveProgressAsync` uses a dedicated scope with `ExecuteUpdateAsync` (stateless SQL `UPDATE`, no entity tracking). Processing uses `.Chunk(10)` + `Task.WhenAll` for controlled concurrency. No `DbContext` instance is ever accessed from multiple threads. |
@@ -1367,8 +1371,9 @@ restartPolicyMaxRetries = 10
 | `WhatsApp__BusinessAccountId` | Meta business account ID |
 | `WhatsApp__AccessToken` | **Permanent** System User token (never expires) |
 | `WhatsApp__VerifyToken` | Webhook verification token |
-| `Razorpay__KeyId` | Razorpay API key — starts with `rzp_test_` (test) or `rzp_live_` (production). **Required for payments to work.** |
-| `Razorpay__KeySecret` | Razorpay API secret — **required** for signature verification. Without this, all payments are rejected. |
+| `Paytm__MerchantId` | Paytm Merchant ID (MID) — unique identifier for your business account. **Required for payments to work.** |
+| `Paytm__MerchantKey` | Paytm Merchant Key — secret key for checksum generation. **Required for payment verification.** |
+| `Paytm__Environment` | `production` (live payments) or `staging` (test mode). Defaults to `production` if not set. |
 | `App__BaseUrl` | `https://leathershop-production.up.railway.app` (used for payment links; WhatsApp images use `RAILWAY_PUBLIC_DOMAIN` as fallback) |
 | `App__OwnerPhone` | Shop owner's WhatsApp number with country code, no `+` (e.g., `YOUR_PHONE_NUMBER`) — receives order notifications via WhatsApp |
 | `Admin__SeedPassword` | Admin user seed password (only used on first startup when `AdminUsers` table is empty) |
@@ -1419,7 +1424,7 @@ Vercel auto-deploys on every push to the `main` branch. Angular SPA routing is h
 
 - [x] WhatsApp webhook URL updated to Railway production API URL
 - [x] Permanent WhatsApp access token configured (System User, never expires)
-- [x] All environment variables set on Railway (DB, WhatsApp, Razorpay, JWT)
+- [x] All environment variables set on Railway (DB, WhatsApp, Paytm, JWT)
 - [x] CORS updated — `FRONTEND_URL` env var for production Angular URL
 - [x] HTTPS working (Railway provides it automatically via Metal Edge)
 - [x] Database migration runs automatically on first startup (`context.Database.Migrate()` in `Program.cs`)
@@ -1428,7 +1433,7 @@ Vercel auto-deploys on every push to the `main` branch. Angular SPA routing is h
 - [x] Frontend deployed to Vercel with auto-deploy from GitHub
 - [x] Railway Volume `leathershop-volume` mounted at `/app/wwwroot/uploads` (persists product images across deploys)
 - [ ] Test WhatsApp message flow end-to-end (after Meta template approval)
-- [ ] Test payment flow with Razorpay production keys
+- [ ] Test payment flow with Paytm production credentials
 - [ ] Monitor logs via Railway dashboard
 
 ### Estimated Cost
@@ -1550,7 +1555,7 @@ To fix: `git config user.email "mohamedzaheer236@gmail.com"`
 | **DB-Based Admin Credentials** | ✅ Moved admin credentials from `appsettings.json` to PostgreSQL `AdminUsers` table. BCrypt password hashing with `BCrypt.Net-Next`. Credentials auto-seeded on first startup via `Program.cs`. Removed `Admin` section from appsettings.json entirely. |
 | **Code Quality Audit Fixes** | ✅ 10 fixes applied from comprehensive codebase audit: (1) Error interceptor skips toast for login 401s (prevents double notification). (2) Auth interceptor removed unused `Router` import, fixed doc comment. (3) Login component removed unused `PasswordModule`. (4) Login HTML changed from "Protected by JWT Authentication" to "Secure Admin Access" (info leakage). (5) App component fixed type narrowing for `NavigationEnd`, removed empty `styleUrl`. (6) Product model `Description` MaxLength aligned to 2000 (matching DTO). (7) Product form categories fetched dynamically from API instead of hardcoded. (8) Product list added error handlers on `toggleActive`, `deleteProduct`, `getCategories`, `getBrands`. (9) Orders component added error handler on `updateStatus` with status revert on failure. (10) AuthController extracted `TokenExpiryHours = 24` constant. |
 | **Broadcast Status Polling** | ✅ Added `GET /api/broadcast/{id}/status` endpoint. Frontend polls every 1s for up to 30s after sending. Shows real-time results: all-failed (red error banner), partial (warning), all-success (green). Custom styled status banners with gradient backgrounds, icons, slideDown animation, and dismissible close button. Dark styled toast notifications positioned 60px from top. |
-| **Performance Audit & Fixes (5000+ Scale)** | ✅ Comprehensive deep audit of frontend (26 issues) and backend (30 issues). Fixes applied: (1) Customer table pagination — 25/50/100 rows per page with page report (client-side, correct for selection use-case). (2) Orders server-side pagination — `PaginatedResult<T>` model, `GET /api/orders?page=1&pageSize=25` (clamped 1–100), PrimeNG `p-paginator` on frontend. (3) `selectedCount` getter replaced with cached `_selectedCount` counter — O(1) instead of O(n) on every change detection. (4) `getTotalSent()` method in template replaced with cached `totalSent` property. (5) `setInterval` memory leak fixed — `ngOnDestroy` clears polling interval. (6) Orders `*ngFor` now has `trackBy: trackByOrderId`. (7) BulkImport N+1 fixed — single query loads all phone numbers into HashSet, then O(1) lookups. (8) Dashboard uses sequential awaits with `AsNoTracking()` — EF Core DbContext is NOT thread-safe so `Task.WhenAll` is incorrect. (9) SemaphoreSlim in BroadcastBackgroundService now properly disposed with `using`. (10) WhatsApp notifications in OrderService and PaymentService wrapped in try/catch — prevents 500 errors on successful DB operations. (11) Razorpay signature verification implemented — HMAC-SHA256 mandatory when `KeySecret` is configured, skipped with warning in dev. (12) XSS in PaymentController fully fixed — `WebUtility.HtmlEncode()` on OrderNumber, CustomerPhone, ProductName. (13) DB indexes added: `IsSubscribed`, `CreatedAt` (customers), `Status`, `CreatedAt`, `IsPaid` (orders), `IsActive` (products). |
+| **Performance Audit & Fixes (5000+ Scale)** | ✅ Comprehensive deep audit of frontend (26 issues) and backend (30 issues). Fixes applied: (1) Customer table pagination — 25/50/100 rows per page with page report (client-side, correct for selection use-case). (2) Orders server-side pagination — `PaginatedResult<T>` model, `GET /api/orders?page=1&pageSize=25` (clamped 1–100), PrimeNG `p-paginator` on frontend. (3) `selectedCount` getter replaced with cached `_selectedCount` counter — O(1) instead of O(n) on every change detection. (4) `getTotalSent()` method in template replaced with cached `totalSent` property. (5) `setInterval` memory leak fixed — `ngOnDestroy` clears polling interval. (6) Orders `*ngFor` now has `trackBy: trackByOrderId`. (7) BulkImport N+1 fixed — single query loads all phone numbers into HashSet, then O(1) lookups. (8) Dashboard uses sequential awaits with `AsNoTracking()` — EF Core DbContext is NOT thread-safe so `Task.WhenAll` is incorrect. (9) SemaphoreSlim in BroadcastBackgroundService now properly disposed with `using`. (10) WhatsApp notifications in OrderService and PaymentService wrapped in try/catch — prevents 500 errors on successful DB operations. (11) Payment signature verification implemented — originally Razorpay HMAC-SHA256, migrated to Paytm server-to-server verification in Phase 23. (12) XSS in PaymentController fully fixed — `WebUtility.HtmlEncode()` on all user-controlled values. (13) DB indexes added: `IsSubscribed`, `CreatedAt` (customers), `Status`, `CreatedAt`, `IsPaid` (orders), `IsActive` (products). |
 | **WhatsApp Business Setup** | ✅ Permanent token with Admin System User "Leathershop" under "Leather Shop" Business Portfolio (ID: 1270862431810807). WABA ID: 2151682048973965, Phone Number ID: 1055485577637232, Phone: +91 79043 03876. 3 custom templates created (`shop_deals`, `order_update`, `store_notification`) — all PENDING Meta approval. Phone number registered via Cloud API `/register` endpoint. |
 | **Railway Deployment** | ✅ Full cloud deployment: (1) `Dockerfile` — multi-stage build (SDK 8.0 → ASP.NET 8.0 runtime). (2) `railway.toml` — build config with `watchPatterns`, health check on `/health`, restart-on-failure policy. (3) `ServiceCollectionExtensions.cs` — `AddDatabase()` auto-parses Railway `DATABASE_URL` URI format to Npgsql connection string with `QuerySplittingBehavior.SplitQuery`, `AddCorsPolicies()` reads `FRONTEND_URL` env var. (4) `Program.cs` — reads `PORT` env var, Swagger in Development only, `/health` endpoint for production. `UseEphemeralDataProtectionProvider()` for containerized JWT-only deployment. (5) `appsettings.Production.json` — placeholder values, actual secrets in Railway env vars. (6) `environment.prod.ts` — API URL set to `https://leathershop-production.up.railway.app/api`. (7) PostgreSQL on Railway with persistent volume. Public URL: `leathershop-production.up.railway.app`. |
 | **Vercel Frontend Deployment** | ✅ Angular admin panel deployed to Vercel: Root directory `LeatherShopAdmin`, framework preset Angular, build command `ng build --configuration production`, output `dist/leather-shop-admin/browser`. Auto-deploys from GitHub `main` branch. |
@@ -1562,7 +1567,7 @@ To fix: `git config user.email "mohamedzaheer236@gmail.com"`
 | **Exception Handling Audit** | ✅ Full audit of all 15 `catch` blocks across the codebase — **zero exception swallowing found**. All catch blocks either: (a) log the exception with `_logger.LogError`/`LogWarning` + re-throw or return error response, (b) are intentional graceful degradation (e.g., WhatsApp notification failure doesn't block order creation, image send failure falls back to text). **Intentional patterns:** (1) `WhatsAppWebhookController` returns `Ok()` even on error — required because Meta retries on non-200 responses. (2) `PaymentService`/`CustomerService` catch WhatsApp notification failures with `LogWarning` — notifications are best-effort, the core operation (payment/customer creation) must succeed. (3) `ChatBotService` image fallback catches with `LogWarning` and falls back to text-only. (4) `BroadcastBackgroundService.SaveProgressAsync` catches with `LogWarning` — progress save is best-effort, final save catches up. **Previously fixed:** `OrderService.cs` had an empty `catch { }` (P4 in audit) — was already fixed with `_logger.LogWarning`. |
 | **2-Way Chat + Order Notifications (SignalR)** | ✅ Full real-time chat and notification system. **Approach:** (A) **SignalR WebSocket hub** (`/hubs/notifications`) for real-time push — no polling needed. JWT-authenticated via query string token. (B) **Order notifications** — when customer completes payment, `PaymentService` pushes `NewOrder` event via SignalR to all connected admin browsers + sends WhatsApp message to shop owner (`OwnerPhone` config). Navbar bell icon shows badge count + overlay panel with notification list. (C) **2-way chat** — all WhatsApp messages (incoming + outgoing) stored in `ChatMessages` table. `WhatsAppWebhookController` saves incoming messages + pushes via SignalR. `ChatBotService.BotSend*` wrapper methods save all bot outgoing messages + push via SignalR. Admin chat page shows conversation sidebar + WhatsApp-style message thread. Admin replies sent via `ChatController.Send` → `ChatService.SendMessageAsync` → WhatsApp API. (D) **Bot pause/resume** — when admin sends a message, chatbot auto-pauses for that customer (30 min default). `Customer.IsBotPaused` + `BotPausedUntil` fields. Webhook checks pause status before routing to chatbot. Admin can manually pause/resume. Bot auto-resumes when `BotPausedUntil` expires. **New files:** Backend: `ChatMessage.cs`, `ChatMessageConfiguration.cs`, `IChatService.cs`, `ChatService.cs`, `NotificationHub.cs`, `ChatController.cs`, `ChatDtos.cs`. Frontend: `signalr.service.ts`, `chat/` feature module (model, service, routes, chat-page component). Modified: `WhatsAppWebhookController` (save + push + bot pause check), `ChatBotService` (BotSend* wrappers), `PaymentService` (owner notification + SignalR push), `Customer.cs` (IsBotPaused, BotPausedUntil), `Program.cs` (AddSignalR, MapHub, JWT SignalR events), `ServiceCollectionExtensions` (IChatService, AllowCredentials), `navbar` (bell + Chat menu + SignalR), `environment*.ts` (hubUrl), `app.routes.ts` (/chat route). **DB migration:** `AddMissingChatColumnsAndTable` — creates `ChatMessages` table + adds `IsBotPaused`/`BotPausedUntil` to `Customers` + composite indexes. |
 | **Chat & Customer Management Enhancements** | ✅ Comprehensive data management features. **Approach:** (A) **Auto-delete old chats** — `ChatCleanupBackgroundService` (hosted service) runs every 24 hours, uses `ExecuteDeleteAsync` to bulk-delete `ChatMessages` older than 30 days. Zero N+1, zero memory overhead (no entity loading). Registered via `AddHostedService`. (B) **Manual chat delete** — `DELETE /api/chat/{customerId}/messages` endpoint + delete button (trash icon) in chat header with confirmation dialog. Removes all messages for a customer conversation. (C) **Customer delete** — `DELETE /api/customers/{id}` endpoint + delete button in customer table with confirmation dialog. Cascade deletes all related data (orders, cart items, chat messages) via FK configuration. (D) **Customer edit** — `PUT /api/customers/{id}` endpoint + edit button (pencil icon) in customer table → dialog with name, address, subscription toggle. **No WhatsApp message is sent on edit** — purely a DB update. (E) **Address mandatory in UI** — Add Customer dialog now requires address (min 10 chars). Edit Customer dialog also requires address. Address field uses `<textarea>` for multi-line input. (F) **Bot asks address at checkout** — `Customer.PendingAction` field tracks bot conversational state (`"awaiting_address"`, `"confirming_address"`). When customer types "checkout" and has no address, bot asks for shipping address before creating the order. When address already exists, bot shows an **order summary with the saved address** and presents **"✅ Confirm" / "✏️ Change Address"** interactive buttons — customer can review and correct their address on every order. Address saved to `Customer.Address` and copied to `Order.ShippingAddress`. If customer taps an interactive button while awaiting address, the prompt is cancelled gracefully. Order summary now includes shipping address. **DB migration:** `AddCustomerPendingAction` — adds `PendingAction` varchar(50) nullable column to `Customers`. **New files:** `ChatCleanupBackgroundService.cs`. **Modified:** `Customer.cs` (PendingAction), `CustomerDtos.cs` (UpdateCustomerDto), `ICustomerService.cs` (UpdateAsync, DeleteAsync), `CustomerService.cs`, `CustomersController.cs` (PUT, DELETE), `IChatService.cs` (DeleteConversationAsync), `ChatService.cs`, `ChatController.cs` (DELETE), `ChatBotService.cs` (address flow + confirmation step), `ServiceCollectionExtensions.cs` (cleanup service). Frontend: `customer.model.ts` (UpdateCustomer), `customer.service.ts` (update, delete), `customers.component.ts/html/scss` (edit dialog, delete dialog, address field, action buttons), `chat.service.ts` (deleteConversation), `chat-page.component.ts/html` (delete conversation dialog + button). |
-| **Full Project Code Quality Audit (Feb 26, 2026)** | ✅ Comprehensive audit of the entire codebase — 19 code quality fixes across 19 files in a single commit. **Backend (10 fixes):** (1) `AuthController.cs` — All responses use `ApiResponse<T>.Ok()` / `ApiResponse.Fail()` factory methods; replaced fully-qualified `[Microsoft.AspNetCore.Authorization.Authorize]` with proper `using` + `[Authorize]`. (2) `ChatController.cs` — All 7 endpoints converted to factory methods; delete endpoint uses non-generic `ApiResponse.Ok()`. (3) `ProductConfiguration.cs` — Fluent API `.HasMaxLength(2000)` aligned with model attribute and DTO (was 1000, causing silent truncation — fixes H5/F48). (4) `Customer.cs` — Added `PendingActions` static class with `AwaitingAddress` / `ConfirmingAddress` constants (replaces magic strings). (5) `ChatBotService.cs` — Uses `Customer.PendingActions.*` constants; added `using System.Text`; payload logging changed from `LogError` to `LogInformation`. (6) `ChatService.cs` — Split `IsBotCurrentlyPaused` into `IsBotEffectivelyPaused` (pure read-only static) + `CheckAndAutoResumeBotAsync` (persists auto-resume to DB — fixes F5). (7) `OrderService.cs` — Injected `ILogger<OrderService>`; replaced empty `catch { }` with `LogWarning` (fixes P4). (8) `PaymentService.cs` — `Razorpay:KeyId` validated with `?? throw new InvalidOperationException(...)` instead of hardcoded test key. (9) `WhatsAppService.cs` — Config values use `?? throw new InvalidOperationException(...)` instead of null-forgiving `!`; API errors throw typed `WhatsAppApiException` instead of base `Exception` (fixes P12/F76). (10) `ProductService.cs` — Injected `IWebHostEnvironment` for `wwwroot` path resolution instead of `Directory.GetCurrentDirectory()`. **New file:** `WhatsAppApiException.cs` — Typed exception with `StatusCode` and `ResponseBody` properties. **Frontend (9 fixes):** (11) `app.component.ts` — Router subscription uses `takeUntilDestroyed(destroyRef)` for automatic cleanup. (12) `signalr.service.ts` — Removed all `console.log` / `console.warn` / `console.error` calls; Subjects completed in `ngOnDestroy`. (13) `chat-page.component.ts` — `searchTimeout` typed as `number \| null`; cleared in `ngOnDestroy` with `window.setTimeout` (fixes F26). (14) `orders.component.ts` — Imports `ButtonSeverity` type from shared utils; correct return type annotations. (15) `product-list.component.ts` — Uses `productService.toggleActive()` instead of `as any` cast on service. (16) `product.service.ts` — Added `toggleActive(id: number, isActive: boolean)` method. (17) `loading-spinner.component.ts` — Removed redundant `\|\| 'Loading...'` template fallback (default already set via `@Input`). (18) `severity.utils.ts` — Separate `TagSeverity` and `ButtonSeverity` type unions with proper PrimeNG values. (19) `orders.component.ts` — `getStatusButtonSeverity()` returns `ButtonSeverity` type. **Verification:** Backend 0 errors, frontend 0 errors. Grep scans confirmed: zero `as any`, zero `console.log`, zero empty `catch {}`, zero `throw new Exception()`, zero manual `new ApiResponse{}`, zero magic strings for PendingAction. |
+| **Full Project Code Quality Audit (Feb 26, 2026)** | ✅ Comprehensive audit of the entire codebase — 19 code quality fixes across 19 files in a single commit. **Backend (10 fixes):** (1) `AuthController.cs` — All responses use `ApiResponse<T>.Ok()` / `ApiResponse.Fail()` factory methods; replaced fully-qualified `[Microsoft.AspNetCore.Authorization.Authorize]` with proper `using` + `[Authorize]`. (2) `ChatController.cs` — All 7 endpoints converted to factory methods; delete endpoint uses non-generic `ApiResponse.Ok()`. (3) `ProductConfiguration.cs` — Fluent API `.HasMaxLength(2000)` aligned with model attribute and DTO (was 1000, causing silent truncation — fixes H5/F48). (4) `Customer.cs` — Added `PendingActions` static class with `AwaitingAddress` / `ConfirmingAddress` constants (replaces magic strings). (5) `ChatBotService.cs` — Uses `Customer.PendingActions.*` constants; added `using System.Text`; payload logging changed from `LogError` to `LogInformation`. (6) `ChatService.cs` — Split `IsBotCurrentlyPaused` into `IsBotEffectivelyPaused` (pure read-only static) + `CheckAndAutoResumeBotAsync` (persists auto-resume to DB — fixes F5). (7) `OrderService.cs` — Injected `ILogger<OrderService>`; replaced empty `catch { }` with `LogWarning` (fixes P4). (8) `PaymentService.cs` — Payment gateway credentials validated with `?? throw new InvalidOperationException(...)` instead of hardcoded test key (originally Razorpay, migrated to Paytm in Phase 23). (9) `WhatsAppService.cs` — Config values use `?? throw new InvalidOperationException(...)` instead of null-forgiving `!`; API errors throw typed `WhatsAppApiException` instead of base `Exception` (fixes P12/F76). (10) `ProductService.cs` — Injected `IWebHostEnvironment` for `wwwroot` path resolution instead of `Directory.GetCurrentDirectory()`. **New file:** `WhatsAppApiException.cs` — Typed exception with `StatusCode` and `ResponseBody` properties. **Frontend (9 fixes):** (11) `app.component.ts` — Router subscription uses `takeUntilDestroyed(destroyRef)` for automatic cleanup. (12) `signalr.service.ts` — Removed all `console.log` / `console.warn` / `console.error` calls; Subjects completed in `ngOnDestroy`. (13) `chat-page.component.ts` — `searchTimeout` typed as `number \| null`; cleared in `ngOnDestroy` with `window.setTimeout` (fixes F26). (14) `orders.component.ts` — Imports `ButtonSeverity` type from shared utils; correct return type annotations. (15) `product-list.component.ts` — Uses `productService.toggleActive()` instead of `as any` cast on service. (16) `product.service.ts` — Added `toggleActive(id: number, isActive: boolean)` method. (17) `loading-spinner.component.ts` — Removed redundant `\|\| 'Loading...'` template fallback (default already set via `@Input`). (18) `severity.utils.ts` — Separate `TagSeverity` and `ButtonSeverity` type unions with proper PrimeNG values. (19) `orders.component.ts` — `getStatusButtonSeverity()` returns `ButtonSeverity` type. **Verification:** Backend 0 errors, frontend 0 errors. Grep scans confirmed: zero `as any`, zero `console.log`, zero empty `catch {}`, zero `throw new Exception()`, zero manual `new ApiResponse{}`, zero magic strings for PendingAction. |
 | **Deep Project Audit & Hardening (Feb 28, 2026)** | ✅ Comprehensive audit + 16 fixes across backend and frontend. **Critical fixes:** (1) `WhatsAppWebhookController.cs` — First message from new customers no longer lost. After `ProcessMessage()` creates the customer, we re-fetch and save the initial message to chat history (fixes F7). (2) `ChatBotService.cs` — All 3 `int.Parse` calls on user-controlled input (`prod_`, `view_`, `addcart_`) replaced with `int.TryParse` + user-friendly fallback messages (fixes P3/F8). (3) `Program.cs` — Swagger restricted to Development only; added `/health` endpoint for production health checks. Railway health check updated from `/swagger/index.html` to `/health` (fixes F17). (4) `OrderService.cs` — Full order status state machine with valid transitions map: Pending→{Confirmed,Cancelled}, Confirmed→{Shipped,Cancelled}, Shipped→{Delivered,Cancelled}, Delivered→{}, Cancelled→{}. Prevents un-cancellation and stock inflation (fixes L16/F31/F74/P10). **High fixes:** (5) `ProductService.cs` — Delete checks for existing `OrderItems` before removal; returns 409 Conflict if product has order history (fixes L17/F15). (6) `ProductService.cs` — 20MB file size guard before `Image.LoadAsync` prevents OOM on massive uploads. (7) `OrderDtos.cs` + `MappingExtensions.cs` — Added `ShippingAddress`, `PaymentId`, `UpdatedAt` to OrderDto and mapping. (8) `ProductDtos.cs` + `MappingExtensions.cs` — Added `CreatedAt` to ProductDto and mapping; fixed "Max 3" → "Max 4" comment. (9) `OrderService.cs` — Removed unused `using LeatherShopAPI.DTOs.Chat`. **Frontend fixes:** (10) `signalr.service.ts` — `accessTokenFactory` now reads fresh token on every reconnect via `() => this.auth.getToken()!` instead of captured closure (fixes F9). (11) `error.interceptor.ts` — Added `isLoggingOut` guard flag to prevent concurrent logout/navigation from multiple 401 responses (fixes F13). (12) `product-form.component.ts` — `URL.revokeObjectURL()` called in both `onload` and `onerror` callbacks to prevent blob memory leaks. (13) `ProductsController.cs` — Delete endpoint now catches `InvalidOperationException` and returns 409 Conflict. **Infrastructure:** (14) `railway.toml` — health check path updated to `/health`. (15) `SixLabors.ImageSharp` upgraded 3.1.7 → 3.1.8. (16) `README.md` — All newly fixed items marked as resolved with details. |
 | **WhatsApp Rate Limit Fix + Transactional Outbox (Feb 28, 2026)** | ✅ Fixed production crash caused by WhatsApp error #131056 (rate limit). **3-layer defense:** (1) **Transport retry** — `WhatsAppService.SendRequest()` retries rate-limit errors twice with 2s/5s delays. (2) **Transactional Outbox** — `PlaceOrder()` writes order + outbox message in the SAME `SaveChangesAsync()` call. `WhatsAppOutboxProcessor` (BackgroundService) polls DB every 10s, sends with exponential backoff (30s→60s→120s→5min→10min), max 5 retries. Survives Railway restarts — pending messages are in PostgreSQL. (3) **Per-message try/catch** in `WhatsAppWebhookController` — one failed message doesn't abort the entire webhook batch (fixes F73). **New files:** `WhatsAppOutboxMessage.cs`, `WhatsAppOutboxMessageConfiguration.cs`, `WhatsAppOutboxProcessor.cs`, `WhatsAppApiException.cs`. **Migration:** `AddWhatsAppOutboxTable`. |
 | **Comprehensive Project Audit (Feb 28, 2026)** | ✅ Full deep audit of entire project (backend + frontend). **33 backend catch blocks audited** — zero exception swallowing found. All follow proper patterns: `LogError`/`LogWarning` with graceful degradation or re-throw. **Frontend audit:** zero missing error handlers on subscribe calls, all loading flags properly reset in error callbacks, one unused import removed (`ChatMessageEvent` in chat-page.component.ts). **Critical fix:** `ChatBotService.PlaceOrder()` — null `GetPublicBaseUrl()` now detected and produces a user-friendly error instead of a broken payment link (fixes F47). **Medium fixes:** (1) `ProductService.UploadImageAsync()` — image quality compression loop now has `saved` flag safety net preventing 404 on edge-case quality mismatch. (2) `BroadcastBackgroundService` — non-atomic dual `Volatile.Read` replaced with single `Interlocked.Increment(ref totalProcessed)` counter for reliable progress checkpoints. (3) `ChatBotService.SendProductDetails()` — null base URL guard with `goto TextFallback` instead of constructing broken image URLs. **Build verified:** 0 errors, 0 warnings (excluding NuGet advisory). |
@@ -1623,7 +1628,7 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 | F29 | ~~**No rate limiting**~~ | ~~All controllers~~ | ✅ **FIXED (F104)** — See M10. |
 | F30 | ~~**No health check endpoint**~~ | ~~`Program.cs`~~ | ✅ **FIXED** — Added `/health` endpoint in `Program.cs`. Swagger restricted to Development only. Railway health check updated to `/health`. See F17 and L1. |
 | F31 | ~~**Order status — no transition validation**~~ | ~~`OrderService.cs`~~ | ✅ **FIXED** — State machine implemented (see L16). Valid transitions enforced: Pending→{Confirmed,Cancelled}, Confirmed→{Shipped,Cancelled}, Shipped→{Delivered,Cancelled}. Delivered and Cancelled are terminal states. |
-| F32 | **No order cancellation refund** | `OrderService.cs` | Cancelling a paid order restores stock but doesn't trigger a Razorpay refund. | Add Razorpay refund API call, or at minimum warn the admin. |
+| F32 | **No order cancellation refund** | `OrderService.cs` | Cancelling a paid order restores stock but doesn't trigger a Paytm refund. | Add Paytm refund API call, or at minimum warn the admin. |
 | F33 | **Navbar notification bell — not keyboard accessible** | `navbar.component.html` | Bell is a `<div>` with `(click)` only. No `role`, `tabindex`, or keyboard handlers. | Add `role="button" tabindex="0" aria-label="Notifications"` + keyboard handlers. |
 | F34 | **Chat conversations — not keyboard accessible** | `chat-page.component.html` | Conversation items are `<div>` with `(click)` only. | Add `tabindex="0" role="button"` + keyboard handlers. |
 | F35 | **Wildcard route goes to login, not 404** | `app.routes.ts` | `{ path: '**', redirectTo: 'login' }` — authenticated users hitting invalid URLs get redirected to login instead of seeing "page not found". | Add a `NotFoundComponent` on the wildcard route. |
@@ -1650,7 +1655,7 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 | F47 | ~~**High**~~ | ~~**Payment URL broken when `App:BaseUrl` not configured**~~ | ~~`ChatBotService.cs` `PlaceOrder()`~~ | ✅ **FIXED** — `PlaceOrder()` now calls `GetPublicBaseUrl()` and checks for null. If base URL is not configured, logs an error and sends a user-friendly message ("Sorry, we couldn't generate a payment link right now. Please contact us directly.") instead of sending a broken relative URL. Customer's `PendingAction` is cleared so they can retry later. | ~~Guard against null base URL~~ ✅ Done |
 | F48 | ~~**High**~~ | ~~**Product Description MaxLength still mismatched in Fluent API**~~ | ~~`ProductConfiguration.cs`~~ | ✅ **FIXED** — See H5. | ~~Duplicate of H5~~ ✅ Done |
 | F49 | ~~**Medium**~~ | ~~**`UpdateStatusAsync` ambiguous return value**~~ | ~~`OrderService.cs`~~ | ✅ **FIXED (F100)** — Returns `UpdateStatusResult` enum (`NotFound`, `InvalidStatus`, `InvalidTransition`, `ConcurrencyConflict`, `Success`). Controller returns proper HTTP codes for each. | ~~Return result enum~~ ✅ Done |", "oldString": "| F49 | **Medium** | **`UpdateStatusAsync` ambiguous return value** | `OrderService.cs` | Returns `false` for both \"order not found\" and \"invalid status string\". Controller can't distinguish between 404 and 400 — always returns same error message. | Return a result enum or throw different exceptions for not-found vs invalid-status. |
-| F50 | **Medium** | **Payment page `RazorpayKeyId` not encoded** | `PaymentController.cs` L82 | `key: '{data.RazorpayKeyId}'` is injected raw into JavaScript. Other values (`OrderNumber`, `CustomerPhone`) are HTML-encoded but the Razorpay key is not. Config value with a single quote (`'`) breaks JS syntax. Low risk since it's server config, but inconsistent. | Apply `JavaScriptEncoder.Default.Encode()` or at minimum `HtmlEncode`. |
+| F50 | ~~**Medium**~~ | ~~**Payment page gateway key not encoded**~~ | ~~`PaymentController.cs`~~ | ✅ **OBSOLETE** — Razorpay-specific issue. Migrated to Paytm in Phase 23. All Paytm values (`MerchantId`, `TxnToken`) are HTML-encoded with `WebUtility.HtmlEncode()`. | ~~N/A — resolved by migration~~ ✅ |
 | F51 | ~~**Medium**~~ | ~~**Payment page IDOR — sequential integer order IDs**~~ | ~~`PaymentController.cs`~~ | ✅ **FIXED (F99)** — Payment page now uses `OrderNumber` (random alphanumeric) instead of sequential `Id`. | ~~Use OrderNumber~~ ✅ Done |
 | F52 | **Medium** | ~~**Webhook `entry.Changes` not null-checked**~~ | ~~`WhatsAppWebhookController.cs`~~ | ✅ **FIXED** — Added `if (entry.Changes == null) continue;` before the inner `foreach` loop. Prevents `NullReferenceException` when WhatsApp sends an entry with null Changes array. Remaining entries in the batch continue processing normally. | ~~Add null-check~~ ✅ Done |
 | F53 | **Medium** | ~~**Customer deletion cascade-deletes all order history**~~ | ~~`AppDbContext` FK config~~ | ✅ **FIXED** — Changed Customer→Orders FK from `DeleteBehavior.Cascade` to `DeleteBehavior.Restrict` in both `CustomerConfiguration.cs` and `OrderConfiguration.cs`. `CustomerService.DeleteAsync()` returns a `DeleteCustomerResponse` with `DeleteCustomerResult` enum (`Deleted` / `NotFound` / `HasOrders`) — no exceptions for flow control. Controller uses pattern matching (`switch` expression) for 200/404/409 responses. Frontend delete dialog properly closes on error. Cart items and chat messages still cascade-delete (transient data). Migration `RestrictCustomerOrderDeletion` created. | ~~Restrict deletion~~ ✅ Done |
@@ -1750,7 +1755,7 @@ Resolved all Railway startup warnings and remaining NuGet vulnerability. **Build
 | F95 | **Defensive Fix** | PaginatedResult divide-by-zero when PageSize is 0 | `PaginatedResult.cs` | `TotalPages` now returns 0 when `PageSize <= 0` instead of throwing `DivideByZeroException`. |
 | F96 | **API Fix** | Wrong CreatedAtAction route in CustomersController.Create | `CustomersController.cs` | Changed from `CreatedAtAction(nameof(GetAll), ...)` → `Ok(...)` since there's no GetById endpoint. Prevents broken Location header. |
 | F97 | **UX Fix** | Misleading "Payment Received!" on verify failure | `PaymentController.cs` | Changed JS catch handler to show "Payment Status Unknown — please don't retry. If money was deducted, contact us." instead of false success. |
-| F98 | **Security Fix** | RazorpayKeyId injected unencoded into JS template | `PaymentController.cs` | Added `WebUtility.HtmlEncode(data.RazorpayKeyId)` to prevent XSS via malicious key configuration. |
+| F98 | **Security Fix** | Payment gateway key injected unencoded into JS template | `PaymentController.cs` | Added `WebUtility.HtmlEncode()` on all gateway credential values to prevent XSS. (Originally Razorpay-specific, now applies to Paytm MerchantId/TxnToken — all encoded in Phase 23 migration.) |
 | F99 | **Security Fix (IDOR)** | Payment page URL used sequential integer IDs | `PaymentController.cs`, `PaymentService.cs`, `IPaymentService.cs`, `ChatBotService.cs` | Route changed from `pay/{orderId:int}` to `pay/{orderNumber}`. Lookup by `OrderNumber` (format `ORD-20260301-A4BC12`) prevents order enumeration. URL in chatbot uses `Uri.EscapeDataString`. |
 | F100 | **API Fix** | Order status update returned ambiguous 404 for invalid status | `OrdersController.cs`, `OrderService.cs`, `IOrderService.cs` | Added `UpdateStatusResult` enum (Success/NotFound/InvalidStatus/InvalidTransition). Controller validates with `Enum.TryParse` first, returns distinct 400 for bad status vs bad transition, 404 only for missing order. |
 | F101 | **Performance Fix** | `.ToLower()` kills PostgreSQL indexes in 5 files | `CustomerService.cs`, `ProductService.cs`, `ChatService.cs`, `ChatBotService.cs` | Replaced all `.ToLower().Contains()` and `.ToLower() ==` patterns with `EF.Functions.ILike()` for case-insensitive PostgreSQL-native search. Allows index usage. |
@@ -1789,7 +1794,7 @@ A comprehensive line-by-line audit of every backend and frontend file. All CRITI
 | ID | Category | Summary | Files Changed |
 |----|----------|---------|---------------|
 | F115 | **CRITICAL — Security** | WhatsApp webhook HMAC-SHA256 signature verification | `WhatsAppWebhookController.cs`, `appsettings.json`, `appsettings.Local.json.example` |
-| F116 | **CRITICAL — Security** | Payment verification now REJECTS when `Razorpay:KeySecret` not configured (was silently marking as paid) | `PaymentService.cs` |
+| F116 | **CRITICAL — Security** | Payment verification now REJECTS when payment gateway credentials not configured (was silently marking as paid). Migrated from Razorpay to Paytm in Phase 23. | `PaymentService.cs` |
 | F117 | **CRITICAL — Data Integrity** | Stock optimistic concurrency via PostgreSQL `xmin` + `[Timestamp]` — prevents overselling on concurrent orders | `Product.cs`, `AppDbContext.cs`, `ChatBotService.cs` |
 | F118 | **HIGH — Performance** | Payment double-fetch eliminated — single query lookup by OrderNumber or ID | `PaymentService.cs` |
 | F119 | **HIGH — Performance** | `AsNoTracking()` on all read-only queries across 5 services | `OrderService.cs`, `ProductService.cs`, `CustomerService.cs`, `ChatService.cs` |
@@ -1846,7 +1851,7 @@ Deep read of every `.cs`, `.ts`, `.html`, and `.scss` file searching for swallow
 | F24 | MEDIUM | Chat height off by 14px (double scrollbar) | CSS-only — no functional impact. |
 | F25 | MEDIUM | Auth guard doesn't preserve return URL | Low impact for internal admin panel. |
 | F36 | MEDIUM | Dashboard never auto-refreshes | Admin can manually refresh. SignalR integration possible. |
-| F45 | HIGH | Payment re-verification (no `IsPaid` guard on verify endpoint) | Requires idempotency key. Low risk — Razorpay sends unique payment IDs. |
+| F45 | HIGH | Payment re-verification (no `IsPaid` guard on verify endpoint) | Requires idempotency key. Low risk — Paytm sends unique transaction IDs. |
 | F46 | HIGH | Welcome text may fail outside 24h window | Extremely unlikely — bot responds instantly to first message. |
 | F54 | LOW | Category-to-ID collision in chatbot (underscores vs spaces) | No current categories have this collision. |
 | F56 | LOW | Abandoned cart items never expire | Future cleanup job. Low volume. |
@@ -1984,15 +1989,15 @@ Full deep-dive code review of all recent broadcast/carousel/image changes across
 
 ### Phase 21 — Payment Link Expiry, Cart Restore & UI Redesign (March 3, 2026)
 
-Payment links sent via WhatsApp never expired — a link from yesterday still worked. The payment page had UTF-8 encoding issues (₹ displayed as `â‚¹`), plain styling, and empty Razorpay keys caused the Pay button to silently do nothing.
+Payment links sent via WhatsApp never expired — a link from yesterday still worked. The payment page had UTF-8 encoding issues (₹ displayed as `â‚¹`), plain styling, and empty payment gateway keys caused the Pay button to silently do nothing.
 
 **Problems fixed:**
 1. **No payment link expiry** — links stayed valid forever, locking stock indefinitely
 2. **Cart lost permanently** — when an order was created, cart items were cleared and never restored on failure/expiry
 3. **UTF-8 encoding bug** — payment page HTML lacked `<meta charset='UTF-8'>`, causing `₹` to render as `â‚¹`
-4. **Empty Razorpay key bypass** — `appsettings.json` has `"KeyId": ""` (empty string), which passed the `?? throw` null check but silently broke Razorpay checkout
+4. **Empty gateway key bypass** — `appsettings.json` has empty credential strings, which passed null checks but silently broke the checkout
 5. **Plain/basic UI** — original payment page was a simple white card with a table, no branding or visual polish
-6. **No feedback on errors** — Razorpay checkout failures were invisible to the customer
+6. **No feedback on errors** — payment checkout failures were invisible to the customer
 
 **Solution (11 files modified, 1 new file):**
 
@@ -2005,12 +2010,12 @@ Payment links sent via WhatsApp never expired — a link from yesterday still wo
 | 5 | **Payment Service** | `GetPaymentPageDataAsync()` detects expired links → calls `ExpireOrderAndRestoreCartAsync()` which: cancels order, restores stock quantities, re-creates cart items (merges with any existing cart items) | `PaymentService.cs` |
 | 6 | **Service Interface** | Changed return type to `(PaymentPageResult Result, PaymentPageDto? Data)` tuple — distinguishes NotFound / Expired / Ok | `IPaymentService.cs` |
 | 7 | **DTO** | Added `ExpiresAtUtc` to `PaymentPageDto` for client-side countdown | `PaymentDtos.cs` |
-| 8 | **Razorpay Key Validation** | Replaced `?? throw` (only catches null) with `string.IsNullOrWhiteSpace()` (catches empty strings too) | `PaymentService.cs` |
+| 8 | **Gateway Key Validation** | Replaced `?? throw` (only catches null) with `string.IsNullOrWhiteSpace()` (catches empty strings too) | `PaymentService.cs` |
 | 9 | **Payment Page UI** | Complete redesign: dark gradient background, card-based layout, green header with order number, live `MM:SS` countdown timer, animated pulse dot, clean item list, proper `₹` via `&#x20B9;` HTML entity, `<meta charset='UTF-8'>`, disabled button + overlay on expiry, "Verifying..." state during payment confirmation, separate polished pages for expired/not-found states | `PaymentController.cs` |
-| 10 | **Razorpay Error Handling** | Added `rzp.on('payment.failed')` handler — customer sees alert on failure. Added JS guard for empty Razorpay key. Added `modal.ondismiss` handler. | `PaymentController.cs` |
+| 10 | **Payment Error Handling** | Added error handlers for payment checkout failures — customer sees alert on failure. Added JS guard for empty gateway credentials. | `PaymentController.cs` |
 | 11 | **Background Cleanup** | New `ExpiredOrderCleanupService` (BackgroundService) polls DB every 60s for unpaid orders past `PaymentExpiresAt` — cancels order, restores stock, restores cart items. Catches orders where the link was never opened. | `ExpiredOrderCleanupService.cs` (new) |
 | 12 | **Service Registration** | Registered `ExpiredOrderCleanupService` in DI | `ServiceCollectionExtensions.cs` |
-| 13 | **Edge Case** | `VerifyPaymentAsync()` handles the race condition: if customer completes Razorpay payment after the order was auto-cancelled by expiry (money already charged), re-confirms the order, re-deducts stock, clears restored cart items | `PaymentService.cs` |
+| 13 | **Edge Case** | `VerifyPaymentAsync()` handles the race condition: if customer completes payment after the order was auto-cancelled by expiry (money already charged), re-confirms the order, re-deducts stock, clears restored cart items | `PaymentService.cs` |
 
 **Payment link lifecycle:**
 ```
@@ -2026,8 +2031,8 @@ PlaceOrder() → PaymentExpiresAt = now + 5 min
     │       → ExpiredOrderCleanupService (60s poll) detects → Same cancel + restore
     │
     └── Edge case: payment completes at expiry boundary
-            → Order was auto-cancelled but Razorpay charged the customer
-            → VerifyPaymentAsync detects cancelled order with valid signature
+            → Order was auto-cancelled but payment gateway charged the customer
+            → VerifyPaymentAsync detects cancelled order with valid payment
             → Re-confirms order, re-deducts stock, clears restored cart
             → No money lost, no stock inconsistency
 ```
@@ -2053,3 +2058,79 @@ If no pending order exists, falls through to the original "cart is empty" messag
 
 **Build verified:** 0 errors, 0 warnings.
 **Commit:** `5d8579f` — pushed to GitHub, deployed to Railway.
+
+### Phase 23 — Razorpay → Paytm Payment Gateway Migration (March 3, 2026)
+
+Client only has a Paytm business account — no Razorpay. Complete removal of Razorpay and rewrite of the entire payment integration for Paytm Business Gateway.
+
+**What changed:**
+
+| Aspect | Before (Razorpay) | After (Paytm) |
+|--------|-------------------|---------------|
+| **Credentials** | Key ID + Key Secret | Merchant ID (MID) + Merchant Key + Environment |
+| **Checkout JS** | Client-only (`checkout.razorpay.com`) — just needs Key ID | Server-side `txnToken` required first via Paytm Initiate Transaction API |
+| **Signature Algorithm** | HMAC-SHA256(`orderId\|paymentId`, secret) | AES-128-CBC checksum (SHA-256 + salt + AES encrypt, Key=IV=MerchantKey) |
+| **Verification** | Client sends `razorpay_signature` → server verifies locally | Server calls Paytm Transaction Status API (server-to-server) — never trusts client data alone |
+| **Test Mode** | `rzp_test_` prefix keys, same URL | Separate staging URL (`securegw-stage.paytm.in`) + staging MID |
+| **Config Section** | `Razorpay: { KeyId, KeySecret }` | `Paytm: { MerchantId, MerchantKey, Environment }` |
+
+**Files created (1 new):**
+
+| # | File | Purpose |
+|----|------|---------|
+| 1 | `Helpers/PaytmChecksum.cs` | Paytm's proprietary AES-128-CBC checksum algorithm in C# — generates signatures for API requests and verifies response checksums. Uses SHA-256 hashing + random salt + AES-128-CBC encryption (Key=IV=first 16 bytes of MerchantKey). Constant-time comparison via `CryptographicOperations.FixedTimeEquals()`. |
+
+**Files modified (7):**
+
+| # | File | Change |
+|----|------|--------|
+| 1 | `PaymentService.cs` | Complete rewrite: (a) `GetPaymentPageDataAsync()` now calls Paytm Initiate Transaction API to get `txnToken` before rendering page; (b) `VerifyPaymentAsync()` calls Paytm Transaction Status API server-to-server instead of local HMAC verification; (c) Added `IHttpClientFactory` dependency for Paytm API calls; (d) All edge cases preserved (expiry boundary payment still re-confirms cancelled orders) |
+| 2 | `PaymentController.cs` | Replaced Razorpay checkout.js with Paytm checkout.js (`securegw.paytm.in/merchantpgpui/checkoutjs/merchants/{MID}.js`). JS handler uses `transactionStatus` callback. Paytm MID + txnToken injected from server. Branding updated to "Secured by Paytm". Emojis use HTML entities for UTF-8 safety. |
+| 3 | `PaymentDtos.cs` | `PaymentVerifyDto`: removed `PaymentId`, `RazorpayOrderId`, `Signature` → added `TransactionId`. `PaymentPageDto`: removed `RazorpayKeyId` → added `PaytmMerchantId`, `PaytmTxnToken`. |
+| 4 | `appsettings.json` | Replaced `Razorpay: { KeyId, KeySecret }` → `Paytm: { MerchantId, MerchantKey, Environment }` |
+| 5 | `appsettings.Local.json.example` | Same config section replacement with Paytm placeholders |
+| 6 | `Order.cs` | Updated comment: `PaymentId` now described as "Paytm transaction ID" |
+| 7 | `ServiceCollectionExtensions.cs` | Registered named `HttpClient("Paytm")` for Paytm API calls |
+
+**Unchanged (gateway-agnostic):**
+- `ExpiredOrderCleanupService.cs` — no gateway-specific code
+- `ChatBotService.cs` — uses generic `/api/payment/pay/{orderNumber}` URLs
+- `IPaymentService.cs` — interface is gateway-agnostic
+- All payment expiry, cart restore, pending order awareness logic
+- Payment page UI design (dark gradient, countdown timer, card layout)
+
+**Paytm Payment Flow:**
+```
+1. Customer clicks payment link
+      │
+      ▼
+2. GET /api/payment/pay/{orderNumber}
+      → Server calls Paytm Initiate Transaction API (with checksum)
+      → Paytm returns txnToken
+      → Server renders HTML with Paytm checkout.js + txnToken + MID
+      │
+      ▼
+3. Customer clicks "Pay" button
+      → Paytm checkout.js opens payment form (UPI/Card/Netbanking/Wallet)
+      → Customer completes payment on Paytm's servers
+      │
+      ▼
+4. Paytm returns STATUS + TXNID to JS handler
+      │
+      ▼
+5. POST /api/payment/verify  { transactionId, orderId }
+      → Server calls Paytm Transaction Status API (server-to-server)
+      → Verifies response checksum (AES-128-CBC)
+      → If TXN_SUCCESS: marks order Paid + Confirmed
+      → Sends WhatsApp notification to customer + owner
+      → Pushes SignalR notification to admin dashboard
+```
+
+**Security model:**
+- **Server-to-server verification** — payment status confirmed by calling Paytm's API directly, not by trusting client-side data
+- **Checksum verification** — Paytm's response checksum validated using AES-128-CBC with constant-time comparison
+- **Fail-closed** — if Paytm credentials are missing, all payments are rejected (no fallback to unverified)
+- **XSS prevention** — all user data HTML-encoded before injection into payment page
+
+**Build verified:** Backend 0 errors, 0 warnings.
+**README updated:** All 50+ Razorpay references replaced with Paytm equivalents across 8+ sections.

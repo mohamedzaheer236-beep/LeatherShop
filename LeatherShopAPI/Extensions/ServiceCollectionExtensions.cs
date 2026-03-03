@@ -40,6 +40,9 @@ public static class ServiceCollectionExtensions
         // HttpClient-based services
         services.AddHttpClient<IWhatsAppService, WhatsAppService>();
 
+        // Named HttpClient for Paytm API calls (Initiate Transaction, Transaction Status)
+        services.AddHttpClient("Paytm");
+
         // Scoped services (one instance per HTTP request — matches DbContext lifetime)
         services.AddScoped<IChatBotService, ChatBotService>();
         services.AddScoped<IProductService, ProductService>();

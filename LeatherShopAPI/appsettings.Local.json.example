@@ -14,9 +14,10 @@
     "VerifyToken": "YOUR_WEBHOOK_VERIFY_TOKEN",
     "AppSecret": "YOUR_WHATSAPP_APP_SECRET_FROM_META_DASHBOARD"
   },
-  "Razorpay": {
-    "KeyId": "rzp_test_xxxxx",
-    "KeySecret": "YOUR_RAZORPAY_SECRET"
+  "Paytm": {
+    "MerchantId": "YOUR_PAYTM_MERCHANT_ID",
+    "MerchantKey": "YOUR_PAYTM_MERCHANT_KEY",
+    "Environment": "staging"
   },
   "App": {
     "OwnerPhone": "YOUR_PHONE_WITH_COUNTRY_CODE_NO_PLUS"

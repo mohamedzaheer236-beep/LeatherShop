@@ -8,17 +8,19 @@ using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Controllers;
 
-/// <summary>Public (customer-facing). No [Authorize] — customers access payment page and Razorpay calls verify.</summary>
+/// <summary>Public (customer-facing). No [Authorize] — customers access payment page and Paytm handles checkout.</summary>
 [ApiController]
 [Route("api/[controller]")]
 [EnableRateLimiting("fixed")]
 public class PaymentController : ControllerBase
 {
     private readonly IPaymentService _paymentService;
+    private readonly IConfiguration _config;
 
-    public PaymentController(IPaymentService paymentService)
+    public PaymentController(IPaymentService paymentService, IConfiguration config)
     {
         _paymentService = paymentService;
+        _config = config;
     }
 
     [HttpGet("pay/{orderNumber}")]
@@ -29,16 +31,21 @@ public class PaymentController : ControllerBase
         if (result == PaymentPageResult.NotFound)
             return Content(BuildMessagePage("Order Not Found",
                 "This order was not found or has already been paid.",
-                "🔍", "#666"), "text/html");
+                "&#128269;", "#666"), "text/html");
 
         if (result == PaymentPageResult.Expired)
             return Content(BuildMessagePage("Payment Link Expired",
                 "This payment link has expired. Your items have been restored to your cart.\n\nSay <strong>checkout</strong> on WhatsApp to get a new payment link.",
-                "⏰", "#e65100"), "text/html");
+                "&#9200;", "#e65100"), "text/html");
 
         var safeOrderNumber = WebUtility.HtmlEncode(data!.OrderNumber);
-        var safeCustomerPhone = WebUtility.HtmlEncode(data.CustomerPhone);
-        var safeRazorpayKey = WebUtility.HtmlEncode(data.RazorpayKeyId);
+        var safeMerchantId = WebUtility.HtmlEncode(data.PaytmMerchantId);
+        var safeTxnToken = WebUtility.HtmlEncode(data.PaytmTxnToken);
+
+        var paytmEnv = _config["Paytm:Environment"] ?? "production";
+        var paytmHost = paytmEnv.Equals("staging", StringComparison.OrdinalIgnoreCase)
+            ? "securegw-stage.paytm.in"
+            : "securegw.paytm.in";
 
         var itemsHtml = string.Join("", data.Items.Select(i =>
             $@"<div class='item'>
@@ -60,7 +67,6 @@ public class PaymentController : ControllerBase
     <meta charset='UTF-8'>
     <title>Pay - {safeOrderNumber}</title>
     <meta name='viewport' content='width=device-width, initial-scale=1'>
-    <script src='https://checkout.razorpay.com/v1/checkout.js'></script>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }}
@@ -115,20 +121,25 @@ public class PaymentController : ControllerBase
             </div>
             <button class='btn' id='payBtn' onclick='pay()'>Pay &#x20B9;{data.TotalAmount:F2}</button>
         </div>
-        <div class='secure'>🔒 Secured by Razorpay</div>
+        <div class='secure'>&#128274; Secured by Paytm</div>
     </div>
 
     <div class='expired-overlay' id='expiredOverlay' style='display:none'>
         <div class='expired-box'>
-            <div style='font-size:48px'>⏰</div>
+            <div style='font-size:48px'>&#9200;</div>
             <h2>Link Expired</h2>
             <p>This payment link has expired. Your items have been restored to your cart.<br><br>Say <strong>checkout</strong> on WhatsApp to get a new link.</p>
         </div>
     </div>
 
+    <script type='application/javascript' crossorigin='anonymous' src='https://{paytmHost}/merchantpgpui/checkoutjs/merchants/{safeMerchantId}.js'></script>
     <script>
         var expiresAt = '{expiresIso}';
         var expired = false;
+        var paytmMid = '{safeMerchantId}';
+        var paytmTxnToken = '{safeTxnToken}';
+        var orderNumber = '{safeOrderNumber}';
+        var orderAmount = '{data.TotalAmount:F2}';
 
         function startCountdown() {{
             if (!expiresAt) return;
@@ -160,46 +171,61 @@ public class PaymentController : ControllerBase
                 document.getElementById('expiredOverlay').style.display = 'flex';
                 return;
             }}
-            if (!'{safeRazorpayKey}') {{
+            if (!paytmMid || !paytmTxnToken) {{
                 alert('Payment gateway is not configured. Please contact the shop owner.');
                 return;
             }}
-            var options = {{
-                key: '{safeRazorpayKey}',
-                amount: {data.AmountInPaise},
-                currency: 'INR',
-                name: 'Leather Shop',
-                description: 'Order {safeOrderNumber}',
-                handler: function(response) {{
-                    document.getElementById('payBtn').disabled = true;
-                    document.getElementById('payBtn').textContent = 'Verifying...';
-                    fetch('/api/payment/verify', {{
-                        method: 'POST',
-                        headers: {{ 'Content-Type': 'application/json' }},
-                        body: JSON.stringify({{
-                            paymentId: response.razorpay_payment_id,
-                            orderId: '{safeOrderNumber}',
-                            razorpayOrderId: response.razorpay_order_id || '',
-                            signature: response.razorpay_signature || ''
-                        }})
-                    }}).then(function(r) {{
-                        if (!r.ok) throw new Error('Verification failed');
-                        return r.json();
-                    }}).then(function(d) {{
-                        document.body.innerHTML = '<div style=""min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;background:linear-gradient(135deg,#1a1a2e,#16213e)""><div style=""background:#fff;border-radius:16px;padding:40px;text-align:center;max-width:400px""><div style=""font-size:64px"">✅</div><h2 style=""color:#2e7d32;margin:16px 0 8px"">Payment Successful!</h2><p style=""color:#666;font-size:14px;line-height:1.6"">Thank you for your order.<br>Check WhatsApp for your confirmation.</p></div></div>';
-                    }}).catch(function() {{
-                        document.body.innerHTML = '<div style=""min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;background:linear-gradient(135deg,#1a1a2e,#16213e)""><div style=""background:#fff;border-radius:16px;padding:40px;text-align:center;max-width:400px""><div style=""font-size:64px"">⚠️</div><h2 style=""color:#e65100;margin:16px 0 8px"">Payment Status Unknown</h2><p style=""color:#666;font-size:14px;line-height:1.6"">We could not confirm your payment. If money was deducted, please contact us — your payment is safe.</p></div></div>';
-                    }});
+
+            var config = {{
+                'root': '',
+                'flow': 'DEFAULT',
+                'data': {{
+                    'orderId': orderNumber,
+                    'token': paytmTxnToken,
+                    'tokenType': 'TXN_TOKEN',
+                    'amount': orderAmount
                 }},
-                prefill: {{ contact: '{safeCustomerPhone}' }},
-                theme: {{ color: '#2e7d32' }},
-                modal: {{ ondismiss: function() {{ /* User closed Razorpay modal — do nothing, button stays active */ }} }}
+                'handler': {{
+                    'notifyMerchant': function(eventName, data) {{
+                        console.log('Paytm event:', eventName, data);
+                    }},
+                    'transactionStatus': function(paymentStatus) {{
+                        console.log('Paytm payment status:', paymentStatus);
+                        if (paymentStatus.STATUS === 'TXN_SUCCESS') {{
+                            document.getElementById('payBtn').disabled = true;
+                            document.getElementById('payBtn').textContent = 'Verifying...';
+                            fetch('/api/payment/verify', {{
+                                method: 'POST',
+                                headers: {{ 'Content-Type': 'application/json' }},
+                                body: JSON.stringify({{
+                                    transactionId: paymentStatus.TXNID || '',
+                                    orderId: orderNumber
+                                }})
+                            }}).then(function(r) {{
+                                if (!r.ok) throw new Error('Verification failed');
+                                return r.json();
+                            }}).then(function(d) {{
+                                document.body.innerHTML = '<div style=""min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;background:linear-gradient(135deg,#1a1a2e,#16213e)""><div style=""background:#fff;border-radius:16px;padding:40px;text-align:center;max-width:400px""><div style=""font-size:64px"">&#9989;</div><h2 style=""color:#2e7d32;margin:16px 0 8px"">Payment Successful!</h2><p style=""color:#666;font-size:14px;line-height:1.6"">Thank you for your order.<br>Check WhatsApp for your confirmation.</p></div></div>';
+                            }}).catch(function() {{
+                                document.body.innerHTML = '<div style=""min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;background:linear-gradient(135deg,#1a1a2e,#16213e)""><div style=""background:#fff;border-radius:16px;padding:40px;text-align:center;max-width:400px""><div style=""font-size:64px"">&#9888;&#65039;</div><h2 style=""color:#e65100;margin:16px 0 8px"">Payment Status Unknown</h2><p style=""color:#666;font-size:14px;line-height:1.6"">We could not confirm your payment. If money was deducted, please contact us &#8212; your payment is safe.</p></div></div>';
+                            }});
+                        }} else {{
+                            alert('Payment was not completed. Status: ' + (paymentStatus.STATUS || 'Unknown') + '. Please try again.');
+                        }}
+                    }}
+                }}
             }};
-            var rzp = new Razorpay(options);
-            rzp.on('payment.failed', function(resp) {{
-                alert('Payment failed: ' + (resp.error.description || 'Unknown error. Please try again.'));
-            }});
-            rzp.open();
+
+            if (window.Paytm && window.Paytm.CheckoutJs) {{
+                window.Paytm.CheckoutJs.init(config).then(function onSuccess() {{
+                    window.Paytm.CheckoutJs.invoke();
+                }}).catch(function onError(error) {{
+                    console.error('Paytm Checkout init error:', error);
+                    alert('Could not initialize payment. Please try again.');
+                }});
+            }} else {{
+                alert('Payment gateway is loading. Please try again in a moment.');
+            }}
         }}
     </script>
 </body>

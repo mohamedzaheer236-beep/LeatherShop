@@ -29,7 +29,7 @@ public class Order
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
     [MaxLength(100)]
-    public string PaymentId { get; set; } = string.Empty; // Razorpay/Stripe payment ID
+    public string PaymentId { get; set; } = string.Empty; // Paytm transaction ID
 
     public bool IsPaid { get; set; } = false;
 
