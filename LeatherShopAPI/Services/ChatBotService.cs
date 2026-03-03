@@ -764,6 +764,34 @@ public class ChatBotService : IChatBotService
 
         if (!cartItems.Any())
         {
+            // Check if there's a pending unpaid order (cart was converted to order at checkout)
+            var pendingOrder = await _db.Orders
+                .Where(o => o.CustomerId == customerId
+                         && o.Status == OrderStatus.Pending
+                         && o.PaymentExpiresAt != null
+                         && o.PaymentExpiresAt > DateTime.UtcNow)
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (pendingOrder != null)
+            {
+                var remaining = pendingOrder.PaymentExpiresAt!.Value - DateTime.UtcNow;
+                var mins = (int)remaining.TotalMinutes;
+                var secs = remaining.Seconds;
+                var baseUrl = GetPublicBaseUrl();
+                var paymentUrl = baseUrl != null
+                    ? $"{baseUrl}/api/payment/pay/{Uri.EscapeDataString(pendingOrder.OrderNumber)}"
+                    : null;
+
+                var msg = $"⏳ You have a pending order *{pendingOrder.OrderNumber}* (₹{pendingOrder.TotalAmount}).\n\n" +
+                          $"Your cart items are in this order — pay within *{mins}m {secs}s* to complete it.\n\n" +
+                          (paymentUrl != null ? $"💳 Pay here: {paymentUrl}\n\n" : "") +
+                          $"If you don't pay in time, your items will be restored to the cart automatically.";
+
+                await BotSendText(to, msg);
+                return;
+            }
+
             await BotSendButtons(
                 to,
                 bodyText: "🛒 Your cart is empty!\n\nBrowse our products to add items.",
@@ -820,6 +848,29 @@ public class ChatBotService : IChatBotService
 
         if (!cartItems.Any())
         {
+            // Check if there's a pending unpaid order
+            var pendingOrder = await _db.Orders
+                .Where(o => o.CustomerId == customer.Id
+                         && o.Status == OrderStatus.Pending
+                         && o.PaymentExpiresAt != null
+                         && o.PaymentExpiresAt > DateTime.UtcNow)
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (pendingOrder != null)
+            {
+                var baseUrl = GetPublicBaseUrl();
+                var paymentUrl = baseUrl != null
+                    ? $"{baseUrl}/api/payment/pay/{Uri.EscapeDataString(pendingOrder.OrderNumber)}"
+                    : null;
+
+                await BotSendText(to,
+                    $"⏳ You already have a pending order *{pendingOrder.OrderNumber}* (₹{pendingOrder.TotalAmount}).\n\n" +
+                    (paymentUrl != null ? $"💳 Pay here: {paymentUrl}\n\n" : "") +
+                    $"Complete the payment first, or wait for it to expire to get a new checkout link.");
+                return;
+            }
+
             await BotSendText(to, "🛒 Your cart is empty! Browse products first.");
             return;
         }
@@ -878,6 +929,29 @@ public class ChatBotService : IChatBotService
 
         if (!cartItems.Any())
         {
+            // Check if there's a pending unpaid order
+            var pendingOrder = await _db.Orders
+                .Where(o => o.CustomerId == customer.Id
+                         && o.Status == OrderStatus.Pending
+                         && o.PaymentExpiresAt != null
+                         && o.PaymentExpiresAt > DateTime.UtcNow)
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (pendingOrder != null)
+            {
+                var pendingBaseUrl = GetPublicBaseUrl();
+                var pendingPayUrl = pendingBaseUrl != null
+                    ? $"{pendingBaseUrl}/api/payment/pay/{Uri.EscapeDataString(pendingOrder.OrderNumber)}"
+                    : null;
+
+                await BotSendText(to,
+                    $"⏳ You already have a pending order *{pendingOrder.OrderNumber}* (₹{pendingOrder.TotalAmount}).\n\n" +
+                    (pendingPayUrl != null ? $"💳 Pay here: {pendingPayUrl}\n\n" : "") +
+                    $"Complete the payment first, or wait for it to expire to get a new checkout link.");
+                return;
+            }
+
             await BotSendText(to, "🛒 Your cart is empty! Browse products first.");
             return;
         }
