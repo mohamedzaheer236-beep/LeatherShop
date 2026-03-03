@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
+using LeatherShopAPI.Helpers;
 using LeatherShopAPI.Models;
 
 namespace LeatherShopAPI.Services;
@@ -69,46 +70,7 @@ public sealed class ExpiredOrderCleanupService : BackgroundService
 
         foreach (var order in expiredOrders)
         {
-            // 1. Cancel the order
-            order.Status = OrderStatus.Cancelled;
-            order.UpdatedAt = now;
-
-            // 2. Restore stock
-            foreach (var item in order.OrderItems)
-            {
-                item.Product.StockQuantity += item.Quantity;
-            }
-
-            // 3. Restore cart items (merge with any existing)
-            var existingCartItems = await db.CartItems
-                .Where(ci => ci.CustomerId == order.CustomerId)
-                .ToListAsync(ct);
-
-            foreach (var orderItem in order.OrderItems)
-            {
-                var existingCart = existingCartItems
-                    .FirstOrDefault(ci => ci.ProductId == orderItem.ProductId && ci.SelectedImageId == orderItem.SelectedImageId);
-
-                if (existingCart != null)
-                {
-                    existingCart.Quantity += orderItem.Quantity;
-                }
-                else
-                {
-                    var newCartItem = new CartItem
-                    {
-                        CustomerId = order.CustomerId,
-                        ProductId = orderItem.ProductId,
-                        Quantity = orderItem.Quantity,
-                        SelectedImageId = orderItem.SelectedImageId
-                    };
-                    db.CartItems.Add(newCartItem);
-                    existingCartItems.Add(newCartItem); // Track to avoid duplicates within same batch
-                }
-            }
-
-            _logger.LogInformation("Expired order {OrderNumber}: cancelled, stock restored, cart restored for customer {CustomerId}.",
-                order.OrderNumber, order.CustomerId);
+            await OrderExpiryHelper.CancelAndRestoreCartAsync(db, order, _logger);
         }
 
         await db.SaveChangesAsync(ct);

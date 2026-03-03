@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using LeatherShopAPI.DTOs.Broadcast;
 using LeatherShopAPI.Models;
+using LeatherShopAPI.Services;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Controllers;
@@ -60,7 +61,14 @@ public class BroadcastController : ControllerBase
     public async Task<IActionResult> GetTemplates()
     {
         var templates = await _broadcastService.GetTemplatesAsync();
-        return Ok(ApiResponse<object>.Ok(templates));
+        return Ok(ApiResponse<List<WhatsAppTemplate>>.Ok(templates));
+    }
+
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats()
+    {
+        var totalSent = await _broadcastService.GetTotalSentCountAsync();
+        return Ok(ApiResponse<int>.Ok(totalSent));
     }
 
     /// <summary>Upload an image for broadcast carousel cards. Reuses product image pipeline (resize + compress).</summary>

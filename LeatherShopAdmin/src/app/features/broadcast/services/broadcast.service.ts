@@ -11,7 +11,6 @@ import { environment } from '../../../../environments/environment';
 })
 export class BroadcastService {
   private baseUrl = `${environment.apiUrl}/broadcast`;
-  private customerUrl = `${environment.apiUrl}/customers`;
 
   constructor(private http: HttpClient) {}
 
@@ -40,7 +39,7 @@ export class BroadcastService {
     return this.http.post<ApiResponse<string>>(`${this.baseUrl}/upload-image`, formData).pipe(map(res => res.data));
   }
 
-  getSubscriberCount(): Observable<{ subscriberCount: number; totalCount: number }> {
-    return this.http.get<ApiResponse<{ subscriberCount: number; totalCount: number }>>(`${this.customerUrl}/count`).pipe(map(res => res.data));
+  getTotalSentCount(): Observable<number> {
+    return this.http.get<ApiResponse<number>>(`${this.baseUrl}/stats`).pipe(map(res => res.data));
   }
 }

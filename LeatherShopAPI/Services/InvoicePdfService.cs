@@ -12,13 +12,11 @@ namespace LeatherShopAPI.Services;
 public class InvoicePdfService
 {
     private readonly IWebHostEnvironment _env;
-    private readonly IConfiguration _config;
     private readonly ILogger<InvoicePdfService> _logger;
 
-    public InvoicePdfService(IWebHostEnvironment env, IConfiguration config, ILogger<InvoicePdfService> logger)
+    public InvoicePdfService(IWebHostEnvironment env, ILogger<InvoicePdfService> logger)
     {
         _env = env;
-        _config = config;
         _logger = logger;
     }
 

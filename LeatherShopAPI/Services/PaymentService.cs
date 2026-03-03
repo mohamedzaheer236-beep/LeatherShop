@@ -140,47 +140,7 @@ public class PaymentService : IPaymentService
     /// </summary>
     internal async Task ExpireOrderAndRestoreCartAsync(Order order)
     {
-        if (order.Status == OrderStatus.Cancelled) return; // Already expired
-
-        _logger.LogInformation("Payment link expired for order {OrderNumber}. Cancelling and restoring cart for customer {CustomerId}.",
-            order.OrderNumber, order.CustomerId);
-
-        // 1. Cancel the order
-        order.Status = OrderStatus.Cancelled;
-        order.UpdatedAt = DateTime.UtcNow;
-
-        // 2. Restore stock
-        foreach (var item in order.OrderItems)
-        {
-            item.Product.StockQuantity += item.Quantity;
-        }
-
-        // 3. Restore cart items (check for duplicates — customer may have added new items)
-        var existingCartItems = await _db.CartItems
-            .Where(ci => ci.CustomerId == order.CustomerId)
-            .ToListAsync();
-
-        foreach (var orderItem in order.OrderItems)
-        {
-            var existingCart = existingCartItems
-                .FirstOrDefault(ci => ci.ProductId == orderItem.ProductId && ci.SelectedImageId == orderItem.SelectedImageId);
-
-            if (existingCart != null)
-            {
-                existingCart.Quantity += orderItem.Quantity;
-            }
-            else
-            {
-                _db.CartItems.Add(new CartItem
-                {
-                    CustomerId = order.CustomerId,
-                    ProductId = orderItem.ProductId,
-                    Quantity = orderItem.Quantity,
-                    SelectedImageId = orderItem.SelectedImageId
-                });
-            }
-        }
-
+        await OrderExpiryHelper.CancelAndRestoreCartAsync(_db, order, _logger);
         await _db.SaveChangesAsync();
     }
 
@@ -221,6 +181,25 @@ public class PaymentService : IPaymentService
             _logger.LogWarning("Paytm payment not successful for order {OrderId}. Status: {Status}, Code: {Code}, Msg: {Msg}",
                 order.Id, txnStatus.Status, txnStatus.ResultCode, txnStatus.ResultMsg);
             return null;
+        }
+
+        // Verify the paid amount matches the order total — protect against amount tampering
+        if (decimal.TryParse(txnStatus.TxnAmount, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var paidAmount))
+        {
+            if (paidAmount != order.TotalAmount)
+            {
+                _logger.LogError(
+                    "PAYMENT AMOUNT MISMATCH for order {OrderId} ({OrderNumber}). Expected: {Expected}, Paid: {Paid}. Rejecting payment.",
+                    order.Id, order.OrderNumber, order.TotalAmount, paidAmount);
+                return null;
+            }
+        }
+        else
+        {
+            _logger.LogWarning(
+                "Could not parse TxnAmount '{TxnAmount}' for order {OrderId}. Proceeding with caution.",
+                txnStatus.TxnAmount, order.Id);
         }
 
         // Paytm payment is verified via server-to-server API — proceed to confirm.
@@ -382,7 +361,8 @@ public class PaymentService : IPaymentService
                 Status = result.Body.ResultInfo?.ResultStatus,
                 ResultCode = result.Body.ResultInfo?.ResultCode,
                 ResultMsg = result.Body.ResultInfo?.ResultMsg,
-                TxnId = result.Body.TxnId
+                TxnId = result.Body.TxnId,
+                TxnAmount = result.Body.TxnAmount
             };
         }
         catch (Exception ex)
@@ -457,5 +437,6 @@ public class PaymentService : IPaymentService
         public string? ResultCode { get; set; }
         public string? ResultMsg { get; set; }
         public string? TxnId { get; set; }
+        public string? TxnAmount { get; set; }
     }
 }

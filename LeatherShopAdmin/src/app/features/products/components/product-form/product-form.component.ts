@@ -78,14 +78,14 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
           for (const url of data.imageUrls) {
             const preview = url.startsWith('http')
               ? url
-              : environment.apiUrl.replace('/api', '') + url;
+              : environment.baseUrl + url;
             this.images.push({ preview, path: url });
           }
         } else if (data.imageUrl) {
           // Fallback: single imageUrl only (no imageUrls from server)
           const preview = data.imageUrl.startsWith('http')
             ? data.imageUrl
-            : environment.apiUrl.replace('/api', '') + data.imageUrl;
+            : environment.baseUrl + data.imageUrl;
           this.images.push({ preview, path: data.imageUrl });
         }
         // Sync loaded images back to form controls so imageUrls is not stale

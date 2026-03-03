@@ -146,4 +146,9 @@ public class BroadcastService : IBroadcastService
     {
         return await _whatsApp.GetApprovedTemplates();
     }
+
+    public async Task<int> GetTotalSentCountAsync()
+    {
+        return await _db.BroadcastMessages.SumAsync(b => b.SentCount);
+    }
 }

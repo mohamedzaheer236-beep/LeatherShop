@@ -531,7 +531,7 @@ export class CustomersComponent implements OnInit {
 
   resolveImageUrl(url: string): string {
     if (!url) return '';
-    return url.startsWith('http') ? url : environment.apiUrl.replace('/api', '') + url;
+    return url.startsWith('http') ? url : environment.baseUrl + url;
   }
 
   get bcAnyUploading(): boolean {

@@ -125,7 +125,7 @@ public class ProductsController : ControllerBase
         if (files == null || files.Count == 0)
             return BadRequest(ApiResponse.Fail("No files provided."));
 
-        const int MaxFiles = 10;
+        const int MaxFiles = 4;
         if (files.Count > MaxFiles)
             return BadRequest(ApiResponse.Fail($"Maximum {MaxFiles} files per upload."));
 

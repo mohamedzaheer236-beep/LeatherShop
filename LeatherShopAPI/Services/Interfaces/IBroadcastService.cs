@@ -9,4 +9,5 @@ public interface IBroadcastService
     Task<BroadcastHistoryDto?> GetBroadcastStatusAsync(int broadcastId);
     Task<PaginatedResult<BroadcastHistoryDto>> GetHistoryAsync(int page = 1, int pageSize = 10);
     Task<List<WhatsAppTemplate>> GetTemplatesAsync();
+    Task<int> GetTotalSentCountAsync();
 }

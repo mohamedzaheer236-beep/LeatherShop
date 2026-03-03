@@ -15,6 +15,7 @@ import { BroadcastHistory, CarouselCard, CarouselCardUI } from '../../models/bro
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { TemplateLoaderService } from '../../../../shared/services/template-loader.service';
 import { ProductService } from '../../../products/services/product.service';
+import { CustomerService } from '../../../customers/services/customer.service';
 import { Product, ProductImageItem } from '../../../products/models/product.model';
 import { environment } from '../../../../../environments/environment';
 
@@ -91,6 +92,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   constructor(
     private fb: FormBuilder,
     private broadcastService: BroadcastService,
+    private customerService: CustomerService,
     private notification: NotificationService,
     public templateLoader: TemplateLoaderService,
     private productService: ProductService
@@ -100,8 +102,12 @@ export class BroadcastComponent implements OnInit, OnDestroy {
     this.initForm();
     this.loadHistory();
     this.templateLoader.loadTemplates();
-    this.broadcastService.getSubscriberCount().subscribe({
+    this.customerService.getSubscriberCount().subscribe({
       next: (data) => { this.subscriberCount = data.subscriberCount; },
+      error: () => { /* Toast shown by error interceptor */ }
+    });
+    this.broadcastService.getTotalSentCount().subscribe({
+      next: (count) => { this.totalSent = count; },
       error: () => { /* Toast shown by error interceptor */ }
     });
     this.loadProducts();
@@ -317,7 +323,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   /** Resolve relative image URLs to full backend URLs */
   resolveImageUrl(url: string): string {
     if (!url) return '';
-    return url.startsWith('http') ? url : environment.apiUrl.replace('/api', '') + url;
+    return url.startsWith('http') ? url : environment.baseUrl + url;
   }
 
   /** Select a specific product image for a carousel card */
@@ -353,7 +359,6 @@ export class BroadcastComponent implements OnInit, OnDestroy {
       next: (result) => {
         this.history = result.items;
         this.historyTotalRecords = result.totalCount;
-        this.totalSent = result.items.reduce((sum, b) => sum + b.sentCount, 0);
       },
       error: () => { /* Toast shown by error interceptor */ }
     });
