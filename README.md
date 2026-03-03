@@ -38,7 +38,7 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 | **Service Implementations** | `Services/ProductService.cs`, `OrderService.cs`, `CustomerService.cs`, `DashboardService.cs`, `BroadcastService.cs`, `PaymentService.cs`, `WhatsAppService.cs`, `ChatBotService.cs`, `ChatService.cs` | All business logic lives here — DB queries, WhatsApp API calls, chatbot state machine, admin chat |
 | **Real-time (SignalR)** | `Hubs/NotificationHub.cs` | SignalR hub for real-time push notifications. Pushes `NewOrder` (order notifications to admin dashboard bell), `NewMessage` (incoming WhatsApp messages to chat page), `MessageSent` (outgoing message confirmations), `OutboxMessageFailed` (permanently failed outbox messages → admin toast + chat page badge). JWT-authenticated via query string token. |
 | **Chat System** | `Controllers/ChatController.cs`, `Services/ChatService.cs`, `Models/ChatMessage.cs`, `DTOs/Chat/ChatDtos.cs`, `Data/Configurations/ChatMessageConfiguration.cs` | Full 2-way admin ↔ customer chat. Admin sends messages via dashboard → API → WhatsApp. Customer replies arrive via webhook → saved to DB → pushed to admin via SignalR. Bot auto-pauses when admin takes over, resumes after timeout. |
-| **Background Processing** | `Services/BroadcastBackgroundService.cs`, `Services/WhatsAppOutboxProcessor.cs` | **Broadcast:** DB-backed `BackgroundService` + `Channel<int>` trigger — all job data stored in PostgreSQL. Resumes incomplete broadcasts on restart. Chunked batch processing (10 concurrent × 200ms delay ≈ 50 msgs/sec). Progress saved every 50 messages. Graceful shutdown saves checkpoint. **Outbox:** Transactional outbox for order confirmations — polls every 10s, exponential backoff retry (30s→10m), marks Failed after 5 attempts. On permanent failure, pushes `OutboxMessageFailed` SignalR event to admins. Admin can view failed messages and retry via `GET /api/chat/failed-messages`, `POST /api/chat/outbox/{id}/retry`, `GET /api/chat/failed-messages/count`. |
+| **Background Processing** | `Services/BroadcastBackgroundService.cs`, `Services/WhatsAppOutboxProcessor.cs`, `Services/ExpiredOrderCleanupService.cs` | **Broadcast:** DB-backed `BackgroundService` + `Channel<int>` trigger — all job data stored in PostgreSQL. Resumes incomplete broadcasts on restart. Chunked batch processing (10 concurrent × 200ms delay ≈ 50 msgs/sec). Progress saved every 50 messages. Graceful shutdown saves checkpoint. **Outbox:** Transactional outbox for order confirmations — polls every 10s, exponential backoff retry (30s→10m), marks Failed after 5 attempts. On permanent failure, pushes `OutboxMessageFailed` SignalR event to admins. Admin can view failed messages and retry via `GET /api/chat/failed-messages`, `POST /api/chat/outbox/{id}/retry`, `GET /api/chat/failed-messages/count`. **Expired Orders:** Polls every 60s for unpaid orders past `PaymentExpiresAt` — cancels order, restores stock, restores cart items. |
 | **Entity Configurations** | `Data/Configurations/ProductConfiguration.cs`, `CustomerConfiguration.cs`, `CartItemConfiguration.cs`, `OrderConfiguration.cs`, `OrderItemConfiguration.cs`, `BroadcastMessageConfiguration.cs`, `ChatMessageConfiguration.cs` | Fluent API: relationships (1:1, 1:N, M:1), indexes, unique constraints, delete behavior, seed data |
 | **Split DTOs (validated)** | `DTOs/Product/`, `DTOs/Order/`, `DTOs/Customer/`, `DTOs/Dashboard/`, `DTOs/Broadcast/`, `DTOs/Payment/`, `DTOs/WhatsApp/`, `DTOs/Chat/` | Per-feature DTO files with `[Required]`, `[MaxLength]`, `[Range]`, `[Url]`, `[RegularExpression]` validation attributes |
 | **DI Extensions** | `Extensions/ServiceCollectionExtensions.cs` | Grouped DI registration: `AddDatabase()`, `AddApplicationServices()`, `AddCorsPolicies()` |
@@ -184,12 +184,23 @@ Customer sends "Hi" / "Hello" / "Menu"
          │       │
          │       ▼
          │   Payment Link sent (Razorpay HTML page)
+         │   ⏳ Link expires in 5 minutes
          │       │
-         │       ▼
-         │   Customer Pays → Payment Verified → Order Confirmed
+         │       ├── Customer Pays within 5 min
+         │       │       │
+         │       │       ▼
+         │       │   Payment Verified → Order Confirmed
+         │       │       │
+         │       │       ▼
+         │       │   WhatsApp: "✅ Payment Received! Order confirmed!"
          │       │
-         │       ▼
-         │   WhatsApp: "✅ Payment Received! Order confirmed!"
+         │       └── Link Expires (5 min timeout)
+         │               │
+         │               ▼
+         │           Order Cancelled → Stock Restored → Cart Restored
+         │               │
+         │               ▼
+         │           Customer can say "checkout" for a new link
          │
          └── My Orders
                  │
@@ -811,12 +822,92 @@ Temporary tokens expire every 24 hours. For production, use a **permanent System
 
 ### Razorpay Payment Setup
 
-1. Create account at [razorpay.com](https://razorpay.com/)
-2. Get **Key ID** and **Key Secret** from Dashboard → Settings → API Keys
-3. For testing, use **Test Mode** keys (prefix `rzp_test_`)
-4. Paste into `appsettings.json` → `Razorpay:KeyId` and `Razorpay:KeySecret`
+#### 1. Create a Razorpay Account
+1. Go to [razorpay.com](https://razorpay.com/) → **Sign Up**
+2. Complete KYC verification (PAN, Aadhaar, bank details for business)
+3. Once approved, you'll land on the Razorpay Dashboard
 
-> **Note:** Razorpay signature verification is implemented (HMAC-SHA256). When `Razorpay:KeySecret` is configured, verification is mandatory — mismatched signatures reject the payment. In dev mode without `KeySecret`, verification is skipped with a warning.
+#### 2. Generate API Keys
+1. Razorpay Dashboard → **Account & Settings** (gear icon, left sidebar)
+2. **API Keys** tab → click **Generate Key**
+3. You'll see:
+   - **Key ID** — starts with `rzp_test_` (test mode) or `rzp_live_` (live mode)
+   - **Key Secret** — shown ONCE, copy it immediately
+4. **Test Mode vs Live Mode**: Toggle at the top of the Razorpay dashboard. Use Test Mode keys (`rzp_test_*`) during development — no real money is charged. Switch to Live Mode (`rzp_live_*`) for production.
+
+#### 3. Configure in the Project
+
+**For Local Development** — add to `appsettings.Local.json`:
+```json
+{
+  "Razorpay": {
+    "KeyId": "rzp_test_XXXXXXXXXXXXXX",
+    "KeySecret": "XXXXXXXXXXXXXXXXXXXXXX"
+  }
+}
+```
+
+**For Railway Production** — set as environment variables:
+| Variable | Value |
+|----------|-------|
+| `Razorpay__KeyId` | `rzp_live_XXXXXXXXXXXXXX` (your live key) |
+| `Razorpay__KeySecret` | `XXXXXXXXXXXXXXXXXXXXXX` (your live secret) |
+
+Railway → your service → **Variables** tab → add both variables → **Deploy** to apply.
+
+#### 4. Test the Payment Flow
+1. Use Razorpay **Test Mode** keys
+2. Place an order via WhatsApp chatbot → you'll get a payment link
+3. Click the link → Razorpay checkout opens
+4. Use [Razorpay test card numbers](https://razorpay.com/docs/payments/payments/test-card-details/):
+   - **Card:** `4111 1111 1111 1111`
+   - **Expiry:** Any future date
+   - **CVV:** Any 3 digits
+   - **OTP:** `1234` (for 3D Secure)
+5. Payment completes → order marked as Paid → WhatsApp confirmation sent
+
+#### 5. How It Works (Technical)
+
+```
+Customer clicks payment link
+    │
+    ▼
+GET /api/payment/pay/{orderNumber}
+    → Server renders HTML page with Razorpay checkout.js
+    → Razorpay Key ID injected into client-side JS
+    → 5-minute countdown timer starts
+    │
+    ▼
+Customer clicks "Pay" button
+    → Razorpay opens payment modal (card/UPI/netbanking)
+    → Customer completes payment on Razorpay's servers
+    │
+    ▼
+Razorpay returns: razorpay_payment_id + razorpay_signature
+    │
+    ▼
+POST /api/payment/verify
+    → Server computes HMAC-SHA256(razorpay_order_id|payment_id, KeySecret)
+    → Compares with signature using constant-time comparison
+    → If valid: marks order as Paid + Confirmed
+    → Sends WhatsApp confirmation to customer + owner
+    → Pushes SignalR notification to admin dashboard
+```
+
+**Security:**
+- Signature verification is **mandatory** — `HMAC-SHA256` with `CryptographicOperations.FixedTimeEquals()` (constant-time, prevents timing attacks)
+- If `Razorpay:KeySecret` is not configured, payment verification is **rejected** (fail-closed)
+- If `Razorpay:KeyId` is empty/missing, the payment page throws a clear `InvalidOperationException` at startup
+
+**Payment Link Expiry (5 minutes):**
+- Each order has a `PaymentExpiresAt` timestamp set to `DateTime.UtcNow.AddMinutes(5)` when created
+- Payment page shows a live countdown timer — when it reaches zero, the Pay button is disabled and an overlay appears
+- On expiry: order is auto-cancelled, stock quantities restored, cart items restored to the customer's cart
+- Customer can say "checkout" on WhatsApp to get a fresh payment link with a new 5-minute window
+- `ExpiredOrderCleanupService` (background service, polls every 60s) catches orders that expire without the link ever being opened
+- **Edge case handled**: If the customer completes Razorpay payment right at the expiry boundary (money already charged but order auto-cancelled), the verify endpoint detects this, re-confirms the order, re-deducts stock, and clears restored cart items — no money is lost
+
+> **Note:** If Razorpay keys are not configured, clicking the Pay button will show an alert: "Payment gateway is not configured. Please contact the shop owner."
 
 ---
 
@@ -942,8 +1033,9 @@ Temporary tokens expire every 24 hours. For production, use a **permanent System
                       │ PaymentId    │       └──────────────┘
                       │ IsPaid       │
                       │ ShippingAddr │       ┌──────────────┐
-                      │ CreatedAt    │       │ ChatMessages │
-                      │ UpdatedAt    │       ├──────────────┤
+                      │ PaymentExpAt │       │ ChatMessages │
+                      │ CreatedAt    │       ├──────────────┤
+                      │ UpdatedAt    │
                       └──────────────┘       │ Id (PK)      │
                                              │ CustomerId(FK│◄─cascade
                                              │ Direction    │ (Incoming/Outgoing)
@@ -1275,8 +1367,8 @@ restartPolicyMaxRetries = 10
 | `WhatsApp__BusinessAccountId` | Meta business account ID |
 | `WhatsApp__AccessToken` | **Permanent** System User token (never expires) |
 | `WhatsApp__VerifyToken` | Webhook verification token |
-| `Razorpay__KeyId` | Razorpay API key |
-| `Razorpay__KeySecret` | Razorpay API secret |
+| `Razorpay__KeyId` | Razorpay API key — starts with `rzp_test_` (test) or `rzp_live_` (production). **Required for payments to work.** |
+| `Razorpay__KeySecret` | Razorpay API secret — **required** for signature verification. Without this, all payments are rejected. |
 | `App__BaseUrl` | `https://leathershop-production.up.railway.app` (used for payment links; WhatsApp images use `RAILWAY_PUBLIC_DOMAIN` as fallback) |
 | `App__OwnerPhone` | Shop owner's WhatsApp number with country code, no `+` (e.g., `YOUR_PHONE_NUMBER`) — receives order notifications via WhatsApp |
 | `Admin__SeedPassword` | Admin user seed password (only used on first startup when `AdminUsers` table is empty) |
@@ -1889,3 +1981,56 @@ Full deep-dive code review of all recent broadcast/carousel/image changes across
 | A3 | **Cleanup** | Removed dead `getResultSeverity()` method, fixed misleading comments on `cardBodyMaxLength` and `carouselCardsValid` | `broadcast.component.ts` |
 
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors.
+
+### Phase 21 — Payment Link Expiry, Cart Restore & UI Redesign (March 3, 2026)
+
+Payment links sent via WhatsApp never expired — a link from yesterday still worked. The payment page had UTF-8 encoding issues (₹ displayed as `â‚¹`), plain styling, and empty Razorpay keys caused the Pay button to silently do nothing.
+
+**Problems fixed:**
+1. **No payment link expiry** — links stayed valid forever, locking stock indefinitely
+2. **Cart lost permanently** — when an order was created, cart items were cleared and never restored on failure/expiry
+3. **UTF-8 encoding bug** — payment page HTML lacked `<meta charset='UTF-8'>`, causing `₹` to render as `â‚¹`
+4. **Empty Razorpay key bypass** — `appsettings.json` has `"KeyId": ""` (empty string), which passed the `?? throw` null check but silently broke Razorpay checkout
+5. **Plain/basic UI** — original payment page was a simple white card with a table, no branding or visual polish
+6. **No feedback on errors** — Razorpay checkout failures were invisible to the customer
+
+**Solution (11 files modified, 1 new file):**
+
+| # | Category | Change | Files |
+|----|----------|--------|-------|
+| 1 | **DB Model** | Added `PaymentExpiresAt` (nullable `DateTime`) to `Order` model | `Order.cs` |
+| 2 | **Migration** | EF Core migration `AddPaymentExpiresAt` — adds column to `Orders` table | `Migrations/` |
+| 3 | **Order Creation** | `PlaceOrder()` in `ChatBotService` sets `PaymentExpiresAt = DateTime.UtcNow.AddMinutes(5)` | `ChatBotService.cs` |
+| 4 | **WhatsApp Message** | Order confirmation message now says: "⏳ This link expires in **5 minutes**. If it expires, just say **checkout** to get a new link." | `ChatBotService.cs` |
+| 5 | **Payment Service** | `GetPaymentPageDataAsync()` detects expired links → calls `ExpireOrderAndRestoreCartAsync()` which: cancels order, restores stock quantities, re-creates cart items (merges with any existing cart items) | `PaymentService.cs` |
+| 6 | **Service Interface** | Changed return type to `(PaymentPageResult Result, PaymentPageDto? Data)` tuple — distinguishes NotFound / Expired / Ok | `IPaymentService.cs` |
+| 7 | **DTO** | Added `ExpiresAtUtc` to `PaymentPageDto` for client-side countdown | `PaymentDtos.cs` |
+| 8 | **Razorpay Key Validation** | Replaced `?? throw` (only catches null) with `string.IsNullOrWhiteSpace()` (catches empty strings too) | `PaymentService.cs` |
+| 9 | **Payment Page UI** | Complete redesign: dark gradient background, card-based layout, green header with order number, live `MM:SS` countdown timer, animated pulse dot, clean item list, proper `₹` via `&#x20B9;` HTML entity, `<meta charset='UTF-8'>`, disabled button + overlay on expiry, "Verifying..." state during payment confirmation, separate polished pages for expired/not-found states | `PaymentController.cs` |
+| 10 | **Razorpay Error Handling** | Added `rzp.on('payment.failed')` handler — customer sees alert on failure. Added JS guard for empty Razorpay key. Added `modal.ondismiss` handler. | `PaymentController.cs` |
+| 11 | **Background Cleanup** | New `ExpiredOrderCleanupService` (BackgroundService) polls DB every 60s for unpaid orders past `PaymentExpiresAt` — cancels order, restores stock, restores cart items. Catches orders where the link was never opened. | `ExpiredOrderCleanupService.cs` (new) |
+| 12 | **Service Registration** | Registered `ExpiredOrderCleanupService` in DI | `ServiceCollectionExtensions.cs` |
+| 13 | **Edge Case** | `VerifyPaymentAsync()` handles the race condition: if customer completes Razorpay payment after the order was auto-cancelled by expiry (money already charged), re-confirms the order, re-deducts stock, clears restored cart items | `PaymentService.cs` |
+
+**Payment link lifecycle:**
+```
+PlaceOrder() → PaymentExpiresAt = now + 5 min
+    │
+    ├── Customer opens link within 5 min
+    │       → Live countdown shown → Customer pays → Order confirmed
+    │
+    ├── Customer opens link after 5 min
+    │       → Expired page shown → Order cancelled → Stock + cart restored
+    │
+    ├── Customer never opens link
+    │       → ExpiredOrderCleanupService (60s poll) detects → Same cancel + restore
+    │
+    └── Edge case: payment completes at expiry boundary
+            → Order was auto-cancelled but Razorpay charged the customer
+            → VerifyPaymentAsync detects cancelled order with valid signature
+            → Re-confirms order, re-deducts stock, clears restored cart
+            → No money lost, no stock inconsistency
+```
+
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors.
+**Commit:** `a9d037f` — pushed to GitHub, deployed to Railway.
