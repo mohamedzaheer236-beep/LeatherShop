@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, OnDestroy, inject } from '@angular/core';
 
 import { MenuItem } from 'primeng/api';
 import { MenubarModule } from 'primeng/menubar';
@@ -19,12 +19,14 @@ import { TimeAgoPipe } from '../../pipes/time.pipes';
   imports: [MenubarModule, ButtonModule, TooltipModule, BadgeModule, OverlayPanelModule, TimeAgoPipe],
   templateUrl: './navbar.component.html',
   styleUrl: './navbar.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NavbarComponent implements OnInit, OnDestroy {
   private auth = inject(AuthService);
   private signalR = inject(SignalRService);
   private notification = inject(NotificationService);
   private router = inject(Router);
+  private cdr = inject(ChangeDetectorRef);
 
   items: MenuItem[] = [];
   username = '';
@@ -51,9 +53,8 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.signalR.start();
     this.subs.push(
       this.signalR.newOrder$.subscribe(order => {
-        this.notifications.unshift(order);
-        // Keep max 20 notifications
-        if (this.notifications.length > 20) this.notifications.pop();
+        this.notifications = [order, ...this.notifications.slice(0, 19)];
+        this.cdr.markForCheck();
       }),
       this.signalR.outboxFailed$.subscribe(event => {
         this.notification.error(

@@ -1,4 +1,4 @@
-﻿import { Component, OnInit, inject } from '@angular/core';
+﻿import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { DashboardService } from '../../services/dashboard.service';
@@ -25,9 +25,11 @@ import { ButtonModule } from 'primeng/button';
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardComponent implements OnInit {
   private dashboardService = inject(DashboardService);
+  private cdr = inject(ChangeDetectorRef);
 
   dashboard: Dashboard | null = null;
   loading = true;
@@ -48,10 +50,12 @@ export class DashboardComponent implements OnInit {
       next: data => {
         this.dashboard = data;
         this.loading = false;
+        this.cdr.markForCheck();
       },
       error: () => {
         this.errorMessage = 'Failed to load dashboard data. Please try again.';
         this.loading = false;
+        this.cdr.markForCheck();
       },
     });
   }

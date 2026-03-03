@@ -1124,7 +1124,7 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 | M1 | ~~**No Pagination on Any List Endpoint**~~ | ~~All services, all controllers~~ | **FIXED** — All list endpoints now return server-side paginated results via `PaginatedResult<T>` (generic model with `Items`, `TotalCount`, `Page`, `PageSize`, `TotalPages`). Orders: `GET /api/orders?page=1&pageSize=25`. Customers: `GET /api/customers?page=1&pageSize=25`. Products: `GET /api/products?page=1&pageSize=25`. Broadcast History: `GET /api/broadcast/history?page=1&pageSize=10`. All query params clamped 1-100. Frontend uses PrimeNG `p-paginator`, fetches only the current page. Customer checkbox selections tracked via `Map<number, string>` (ID→phone) — survive page changes for cross-page broadcast. DB indexes added for all filtered/sorted columns. |
 | M2 | ~~**N+1 Queries in BulkImport**~~ | ~~`CustomerService.cs`~~ | **FIXED** — Replaced per-customer `AnyAsync` query with a single `SELECT PhoneNumber` query that loads all existing phone numbers into a `HashSet<string>`. Then checks containment in O(1) per import entry. Also prevents duplicates within the same import batch by adding to the HashSet as we go. 1000 imports = 1 DB query instead of 1000. |
 | M3 | ~~**`.ToLower()` in LINQ Kills DB Indexes**~~ | ~~`ProductService.cs`, `CustomerService.cs`~~ | **FIXED (F101)** — All `.ToLower()` patterns replaced with `EF.Functions.ILike()`. Search input wildcards (`%`, `_`) escaped via `SqlHelper.EscapeLikePattern()` (F127). |
-| M4 | ~~**No `OnPush` Change Detection**~~ | ~~All 7 Angular components~~ | **PARTIALLY FIXED** — Added `ChangeDetectionStrategy.OnPush` to 3 safe leaf components: `LoadingSpinnerComponent`, `BroadcastHistoryComponent`, `ToastComponent`. Page-level components left as Default (would need `ChangeDetectorRef.markForCheck()` throughout — larger refactor). |
+| M4 | ~~**No `OnPush` Change Detection**~~ | ~~All Angular components~~ | **FIXED** — All 15 components now use `ChangeDetectionStrategy.OnPush` with `ChangeDetectorRef.markForCheck()` after every async state mutation. Array mutations converted to immutable patterns. |
 | M5 | ~~**Memory Leaks: No Unsubscribe**~~ | All 6 feature components | **FIXED** — Product-list simplified to button-triggered search (no `valueChanges` subscriptions). All HTTP `subscribe()` calls auto-complete — no leak risk. Observable patterns are leak-safe by design. |
 | M6 | ~~**Product Search on Every Keystroke**~~ | `product-list.component.html` | **FIXED** — Removed `(input)="onSearch()"`. API call now fires only via dedicated Search button (`pi pi-search`) or Enter key (`keyup.enter`). No debounce needed — user explicitly triggers search. |
 | M7 | ~~**No `trackBy` on Any `*ngFor`**~~ | ~~All list templates~~ | **FIXED** — Orders list has `trackBy: trackByOrderId` on the main `*ngFor`. Prevents full DOM re-renders when order list is refreshed. Other lists either use `p-table` (handles DOM diffing internally) or have static collections. |
@@ -1244,7 +1244,7 @@ Comprehensive line-by-line audit of the entire codebase. These remain to be fixe
 | 39 | **`inject()` function DI** — All components and services use Angular's `inject()` function instead of constructor injection (migrated via `@angular/core:inject` schematic) |
 | 40 | **ESLint + Prettier** — `@angular-eslint` + `prettier` + `eslint-config-prettier` fully configured. 0 lint errors. `.prettierrc` for consistent formatting. `npm run format` script available. |
 | 41 | **Component decomposition** — `BroadcastFormComponent`, `BroadcastHistoryComponent`, `CustomerBroadcastDialogComponent` extracted from monolithic parent components. Parents are now thin orchestrators. |
-| 42 | **OnPush on leaf components** — `LoadingSpinnerComponent`, `BroadcastHistoryComponent`, `ToastComponent` use `ChangeDetectionStrategy.OnPush` for reduced CD cycles. |
+| 42 | **OnPush on all components** — All 15 components use `ChangeDetectionStrategy.OnPush` with proper `ChangeDetectorRef.markForCheck()` calls, immutable array patterns, and coverage of `SignalR`, `setTimeout`, `setInterval`, `FileReader.onload`, and `Promise` callbacks. |
 | 43 | **Active route highlighting** — Navbar visually indicates active page with gold text/icon color via `routerLinkActiveOptions` + CSS `.p-menuitem-link-active` styling. |
 | 44 | **Impure `TimeAgoPipe`** — Relative timestamps ("5m ago") auto-refresh on every change detection cycle (`pure: false`). No stale "just now" labels on old messages. |
 | 45 | **JWT HttpOnly refresh tokens** — Access tokens (15 min) stored in memory only. Refresh tokens (7 days) in `HttpOnly`/`Secure`/`SameSite=None` cookies with automatic rotation. Token refresh interceptor with queue for concurrent 401s. |
@@ -1655,7 +1655,7 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 | F39 | **WhatsApp list row title truncation** | `ChatBotService.cs` | Truncates at 24 chars with no ellipsis. Product names get cut mid-word. | Truncate at 21 chars + add `"..."`. |
 | F40 | **`PhoneNumberHelper.Normalize` doesn't validate** | `PhoneNumberHelper.cs` | Strips formatting but doesn't verify the result is numeric. Letters can slip through. | After stripping, validate with `long.TryParse` or regex `^\d{7,15}$`. |
 | F41 | **Add Customer requires address, but bulk import doesn't** | `customers.component.ts` | Add dialog has `Validators.required` for address (min 10 chars), but bulk import creates customers with no address. Inconsistent. | Either make address optional in add dialog, or add address support to bulk import. |
-| F42 | ~~**No `OnPush` change detection**~~ | ~~All Angular components~~ | **PARTIALLY FIXED** — Added `OnPush` to 3 leaf components: `LoadingSpinnerComponent`, `BroadcastHistoryComponent`, `ToastComponent`. Page-level components left as Default. | Remaining components need `ChangeDetectorRef.markForCheck()` throughout — larger refactor. |
+| F42 | ~~**No `OnPush` change detection**~~ | ~~All Angular components~~ | **FIXED** — All 15 components now use `ChangeDetectionStrategy.OnPush` with proper `ChangeDetectorRef.markForCheck()` calls after every async state mutation (`.subscribe()`, `setTimeout`, `setInterval`, `FileReader.onload`, `SignalR` subscriptions, `Promise` chains). Array mutations converted to immutable patterns (`[...arr, item]` instead of `.push()`). | N/A — Fully resolved. |
 | F43 | **Broadcast layout breaks on mobile** | `broadcast.component.scss` | Fixed 2-column grid (`1fr 300px`) with no responsive breakpoint. Sidebar squishes on small screens. | Add `@media (max-width: 768px) { grid-template-columns: 1fr; }`. |
 | F44 | **Logging — console only** | `Program.cs` | No structured logging. Need Serilog or similar for log files, search, and alerting. | Add Serilog with file/JSON/cloud sinks. |
 
@@ -1795,7 +1795,6 @@ Resolved all Railway startup warnings and remaining NuGet vulnerability. **Build
 **Deferred Items (not bugs, require major refactoring):**
 | Item | Reason Deferred |
 |------|----------------|
-| OnPush Change Detection (all components) | All components use mutation patterns (`customer.isSubscribed = x`). Requires full refactor to immutable data/signals — high risk of breakage. |
 | ChatBotService God Class (1053 lines) | Needs comprehensive test coverage before safe decomposition. Architectural refactoring, not a bug. |
 | Stale Cart Prices at Checkout | Current behavior (always use current prices) is standard e-commerce. "Fix" requires DB migration and might lose existing carts. |
 | PrimeNG Internal API Access | Already guarded with null checks. `filterViewChild`, `filterValue` are borderline public API in PrimeNG v17. |
@@ -1875,7 +1874,7 @@ Deep read of every `.cs`, `.ts`, `.html`, and `.scss` file searching for swallow
 | F61 | MEDIUM | "Select All" selects across all paginator pages | UX confusion only — broadcast sends to selected, which is the intent. |
 | ~~F78~~ | ~~MEDIUM~~ | ~~Chat stale messages on quick conversation switch~~ | ✅ **FIXED (F106)** — `loadMessages()` captures `requestedCustomerId` and discards stale responses. |
 | ~~F79~~ | ~~MEDIUM~~ | ~~Chat `loadConversations()` called on every message (no debounce)~~ | ✅ **FIXED (F107)** — Added `debouncedLoadConversations()` with 500ms debounce. |
-| M4 | MEDIUM | No `OnPush` change detection | Performance optimization for scale. Works fine with default CD. |
+| M4 | MEDIUM | ~~No `OnPush` change detection~~ | **FIXED** — All 15 components migrated to OnPush with full `markForCheck()` coverage. |
 | M8 | MEDIUM | ChatBotService is 1055-line god class | Architectural — decomposition would touch 15+ files. Functional as-is. |
 | P14 | LOW | Shared HttpClient header mutation in WhatsAppService | Single-instance deployment. Thread-safety concern is theoretical. |
 | ~~P15~~ | ~~LOW~~ | ~~Information-level payload logging (phone numbers)~~ | ✅ **FIXED** — Changed to `LogDebug`. Phone numbers no longer in standard log output. |
@@ -2349,3 +2348,34 @@ Comprehensive deep audit of all backend (9 controllers, 16 services, 5 ChatBot h
 | 15 | **Moved `::ng-deep` to global styles** — Navbar active route highlighting moved from `:host ::ng-deep .p-menubar` to global `body .navbar-menubar` rule. Now truly zero `::ng-deep` in any component. | `navbar.component.scss`, `styles.scss` |
 
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors.
+
+---
+
+### Phase 28 — Full OnPush Change Detection Migration (March 4, 2026)
+
+Migrated all 15 Angular components to `ChangeDetectionStrategy.OnPush` — completing what was previously a partial fix (3 leaf components only). Every async state mutation now calls `ChangeDetectorRef.markForCheck()`.
+
+**Approach:**
+- Injected `ChangeDetectorRef` via `inject()` in all 12 remaining components
+- Added `markForCheck()` after every `.subscribe()` callback (both `next` and `error`), `setTimeout`, `setInterval` + nested subscribe, `FileReader.onload`, `Promise.then`/`.catch`, and `SignalR` subscription callbacks
+- Converted mutable array operations (`.push()`, `.unshift()`) to immutable patterns (`[...arr, item]`, `[item, ...arr.slice(0, n)]`) for proper OnPush reference detection
+
+**Components migrated (by difficulty):**
+| # | Component | Complexity | Key Patterns |
+|---|-----------|-----------|-------------|
+| 1 | `AppComponent` | Easy | Router subscribe |
+| 2 | `LoginComponent` | Easy | Auth subscribe (next/error) |
+| 3 | `DashboardComponent` | Easy | Load subscribe (next/error) |
+| 4 | `OrdersComponent` | Moderate | 4 HTTP subscribes (next/error each) |
+| 5 | `ProductListComponent` | Moderate | 5 HTTP subscribes |
+| 6 | `NavbarComponent` | Moderate | SignalR subscribe + immutable array fix |
+| 7 | `ProductFormComponent` | Hard | 5 HTTP subscribes + Promise.all.then + Promise.catch + FileReader chain |
+| 8 | `CustomersComponent` | Hard | 9 HTTP subscribes with dialog state flags |
+| 9 | `BroadcastComponent` | Hard | setInterval + nested subscribe polling pattern |
+| 10 | `BroadcastFormComponent` | Hard | setInterval polling + FileReader.onload (header + card images) + 6 subscribes |
+| 11 | `CustomerBroadcastDialogComponent` | Hard | FileReader.onload (header + card) + 6 subscribes |
+| 12 | `ChatPageComponent` | Very Hard | 3 SignalR subs + 3 setTimeout + 9 HTTP subscribes + immutable array fixes |
+
+**Already OnPush (no changes needed):** `LoadingSpinnerComponent`, `BroadcastHistoryComponent`, `ToastComponent`
+
+**Build verified:** Frontend 0 errors, 0 warnings.

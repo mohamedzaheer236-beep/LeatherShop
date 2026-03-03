@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, Output, OnInit, inject } from '@angular/core';
 
 import {
   ReactiveFormsModule,
@@ -28,6 +28,7 @@ import { ButtonModule } from 'primeng/button';
   imports: [ReactiveFormsModule, FormsModule, DialogModule, DropdownModule, InputTextModule, ButtonModule],
   templateUrl: './customer-broadcast-dialog.component.html',
   styleUrl: './customer-broadcast-dialog.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CustomerBroadcastDialogComponent implements OnInit {
   private fb = inject(FormBuilder);
@@ -35,6 +36,7 @@ export class CustomerBroadcastDialogComponent implements OnInit {
   private notification = inject(NotificationService);
   templateLoader = inject(TemplateLoaderService);
   private productService = inject(ProductService);
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() phoneNumbers: string[] = [];
   @Input() visible = false;
@@ -124,6 +126,7 @@ export class CustomerBroadcastDialogComponent implements OnInit {
     const reader = new FileReader();
     reader.onload = () => {
       this.headerImagePreview = reader.result as string;
+      this.cdr.markForCheck();
     };
     reader.readAsDataURL(file);
 
@@ -132,11 +135,13 @@ export class CustomerBroadcastDialogComponent implements OnInit {
       next: path => {
         this.broadcastForm.patchValue({ imageUrl: path });
         this.headerImageUploading = false;
+        this.cdr.markForCheck();
       },
       error: () => {
         this.headerImagePreview = null;
         this.headerImageUploading = false;
         this.notification.error('Image upload failed.');
+        this.cdr.markForCheck();
       },
     });
     input.value = '';
@@ -157,6 +162,7 @@ export class CustomerBroadcastDialogComponent implements OnInit {
     const reader = new FileReader();
     reader.onload = () => {
       card.imagePreview = reader.result as string;
+      this.cdr.markForCheck();
     };
     reader.readAsDataURL(file);
 
@@ -165,11 +171,13 @@ export class CustomerBroadcastDialogComponent implements OnInit {
       next: path => {
         card.imageUrl = path;
         card.uploading = false;
+        this.cdr.markForCheck();
       },
       error: () => {
         card.imagePreview = null;
         card.uploading = false;
         this.notification.error(`Card ${index + 1} image upload failed.`);
+        this.cdr.markForCheck();
       },
     });
     input.value = '';
@@ -288,6 +296,7 @@ export class CustomerBroadcastDialogComponent implements OnInit {
           },
           error: () => {
             this.sending = false;
+            this.cdr.markForCheck();
           },
         });
     } else {
@@ -309,6 +318,7 @@ export class CustomerBroadcastDialogComponent implements OnInit {
           },
           error: () => {
             this.sending = false;
+            this.cdr.markForCheck();
           },
         });
     }
@@ -346,6 +356,7 @@ export class CustomerBroadcastDialogComponent implements OnInit {
           label: `${p.name} — ₹${p.price}`,
           value: p.id,
         }));
+        this.cdr.markForCheck();
       },
       error: () => {
         /* silently ignore — products are optional enhancement */

@@ -1,4 +1,4 @@
-﻿import { Component, OnInit, Renderer2, ViewChild, inject } from '@angular/core';
+﻿import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, Renderer2, ViewChild, inject } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
@@ -39,6 +39,7 @@ import { PaginatorModule } from 'primeng/paginator';
   templateUrl: './product-list.component.html',
   styleUrl: './product-list.component.scss',
   providers: [ConfirmationService],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductListComponent implements OnInit {
   private fb = inject(FormBuilder);
@@ -46,6 +47,7 @@ export class ProductListComponent implements OnInit {
   private notification = inject(NotificationService);
   private confirmationService = inject(ConfirmationService);
   private renderer = inject(Renderer2);
+  private cdr = inject(ChangeDetectorRef);
 
   products: Product[] = [];
   categoryOptions: { label: string; value: string }[] = [];
@@ -73,6 +75,7 @@ export class ProductListComponent implements OnInit {
     this.productService.getCategories().subscribe({
       next: data => {
         this.categoryOptions = data.map(c => ({ label: c, value: c }));
+        this.cdr.markForCheck();
       },
       error: () => {
         /* Toast shown by error interceptor */
@@ -81,6 +84,7 @@ export class ProductListComponent implements OnInit {
     this.productService.getBrands().subscribe({
       next: data => {
         this.brandOptions = data.map(b => ({ label: b, value: b }));
+        this.cdr.markForCheck();
       },
       error: () => {
         /* Toast shown by error interceptor */
@@ -130,10 +134,12 @@ export class ProductListComponent implements OnInit {
           this.products = result.items;
           this.totalRecords = result.totalCount;
           this.loading = false;
+          this.cdr.markForCheck();
         },
         error: () => {
           this.errorMessage = 'Failed to load products. Please try again.';
           this.loading = false;
+          this.cdr.markForCheck();
         },
       });
   }
@@ -149,6 +155,7 @@ export class ProductListComponent implements OnInit {
       next: () => {
         product.isActive = !product.isActive;
         this.notification.success(`Product ${product.isActive ? 'activated' : 'deactivated'}.`);
+        this.cdr.markForCheck();
       },
       error: () => {
         // Toast shown by error interceptor
@@ -167,6 +174,7 @@ export class ProductListComponent implements OnInit {
           next: () => {
             this.products = this.products.filter(p => p.id !== product.id);
             this.notification.success('Product deleted successfully.');
+            this.cdr.markForCheck();
           },
           error: () => {
             // Toast shown by error interceptor

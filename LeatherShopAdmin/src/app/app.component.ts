@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
 import { RouterOutlet, Router, NavigationEnd } from '@angular/router';
 
 import { NavbarComponent } from './shared/components/navbar/navbar.component';
@@ -11,9 +11,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
   standalone: true,
   imports: [RouterOutlet, NavbarComponent, ToastComponent],
   templateUrl: './app.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppComponent {
   private router = inject(Router);
+  private cdr = inject(ChangeDetectorRef);
 
   showNavbar = true;
   private destroyRef = inject(DestroyRef);
@@ -26,6 +28,7 @@ export class AppComponent {
       )
       .subscribe((e: NavigationEnd) => {
         this.showNavbar = !e.urlAfterRedirects.startsWith('/login');
+        this.cdr.markForCheck();
       });
   }
 }

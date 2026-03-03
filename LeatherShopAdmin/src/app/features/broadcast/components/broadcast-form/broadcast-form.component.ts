@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnDestroy, OnInit, Output, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output, inject } from '@angular/core';
 
 import {
   ReactiveFormsModule,
@@ -28,6 +28,7 @@ import { ButtonModule } from 'primeng/button';
   imports: [ReactiveFormsModule, FormsModule, CardModule, DropdownModule, InputTextModule, ButtonModule],
   templateUrl: './broadcast-form.component.html',
   styleUrl: './broadcast-form.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BroadcastFormComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
@@ -35,6 +36,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
   private notification = inject(NotificationService);
   templateLoader = inject(TemplateLoaderService);
   private productService = inject(ProductService);
+  private cdr = inject(ChangeDetectorRef);
 
   /** Emits when a broadcast has been sent (parent should refresh history). */
   @Output() sent = new EventEmitter<void>();
@@ -165,6 +167,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
     const reader = new FileReader();
     reader.onload = () => {
       this.headerImagePreview = reader.result as string;
+      this.cdr.markForCheck();
     };
     reader.readAsDataURL(file);
 
@@ -173,11 +176,13 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
       next: path => {
         this.broadcastForm.patchValue({ imageUrl: path });
         this.headerImageUploading = false;
+        this.cdr.markForCheck();
       },
       error: () => {
         this.headerImagePreview = null;
         this.headerImageUploading = false;
         this.notification.error('Image upload failed. Please try again.');
+        this.cdr.markForCheck();
       },
     });
     input.value = '';
@@ -202,6 +207,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
     const reader = new FileReader();
     reader.onload = () => {
       card.imagePreview = reader.result as string;
+      this.cdr.markForCheck();
     };
     reader.readAsDataURL(file);
 
@@ -210,11 +216,13 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
       next: path => {
         card.imageUrl = path;
         card.uploading = false;
+        this.cdr.markForCheck();
       },
       error: () => {
         card.imagePreview = null;
         card.uploading = false;
         this.notification.error(`Card ${index + 1} image upload failed.`);
+        this.cdr.markForCheck();
       },
     });
     input.value = '';
@@ -320,12 +328,14 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
             this.broadcastForm.reset();
             this.selectedTemplateIsCarousel = false;
             this.carouselCards = [];
+            this.cdr.markForCheck();
             this.pollBroadcastStatus(res.broadcastId, res.totalRecipients);
           },
           error: () => {
             this.sending = false;
             this.resultMessage = 'Failed to send carousel broadcast. Check your template.';
             this.resultType = 'error';
+            this.cdr.markForCheck();
           },
         });
     } else {
@@ -346,12 +356,14 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
             this.submitted = false;
             this.broadcastForm.reset();
             this.headerImagePreview = null;
+            this.cdr.markForCheck();
             this.pollBroadcastStatus(res.broadcastId, res.totalRecipients);
           },
           error: () => {
             this.sending = false;
             this.resultMessage = 'Failed to send broadcast. Check your template.';
             this.resultType = 'error';
+            this.cdr.markForCheck();
           },
         });
     }
@@ -367,6 +379,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
           label: `${p.name} — ₹${p.price}`,
           value: p.id,
         }));
+        this.cdr.markForCheck();
       },
       error: () => {
         /* silently ignore — products are optional enhancement */
@@ -414,6 +427,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
               this.resultType = 'success';
               this.notification.success(`Broadcast sent to ${status.sentCount} subscribers.`);
             }
+            this.cdr.markForCheck();
           }
         },
         error: () => {
@@ -423,6 +437,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
           this.resultMessage = 'Could not verify broadcast delivery status.';
           this.resultType = 'error';
           this.sent.emit();
+          this.cdr.markForCheck();
         },
       });
     }, 1000);

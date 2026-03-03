@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, OnDestroy, inject } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { PaginatorState } from 'primeng/paginator';
@@ -34,12 +34,14 @@ import { BroadcastHistoryComponent } from '../broadcast-history/broadcast-histor
   ],
   templateUrl: './broadcast.component.html',
   styleUrl: './broadcast.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BroadcastComponent implements OnInit, OnDestroy {
   private broadcastService = inject(BroadcastService);
   private customerService = inject(CustomerService);
   private notification = inject(NotificationService);
   private templateLoader = inject(TemplateLoaderService);
+  private cdr = inject(ChangeDetectorRef);
 
   history: BroadcastHistory[] = [];
   subscriberCount = 0;
@@ -65,6 +67,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
     this.customerService.getSubscriberCount().subscribe({
       next: data => {
         this.subscriberCount = data.subscriberCount;
+        this.cdr.markForCheck();
       },
       error: () => {
         /* silently ignore */
@@ -73,6 +76,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
     this.broadcastService.getTotalSentCount().subscribe({
       next: count => {
         this.totalSent = count;
+        this.cdr.markForCheck();
       },
       error: () => {
         /* silently ignore */
@@ -92,6 +96,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
       next: result => {
         this.history = result.items;
         this.historyTotalRecords = result.totalCount;
+        this.cdr.markForCheck();
       },
       error: () => {
         /* silently ignore */
@@ -111,6 +116,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
     this.broadcastService.getTotalSentCount().subscribe({
       next: count => {
         this.totalSent = count;
+        this.cdr.markForCheck();
       },
       error: () => {
         /* silently ignore */
@@ -137,12 +143,14 @@ export class BroadcastComponent implements OnInit, OnDestroy {
           this.resultMessage = `Sending to ${res.totalRecipients} subscribers...`;
           this.resultType = 'success';
           this.customMessage = '';
+          this.cdr.markForCheck();
           this.pollBroadcastStatus(res.broadcastId, res.totalRecipients);
         },
         error: () => {
           this.sending = false;
           this.resultMessage = 'Failed to send broadcast. Make sure the shop_deals template is approved.';
           this.resultType = 'error';
+          this.cdr.markForCheck();
         },
       });
   }
@@ -175,6 +183,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
               this.resultType = 'success';
               this.notification.success(`Broadcast sent to ${status.sentCount} subscribers.`);
             }
+            this.cdr.markForCheck();
           }
         },
         error: () => {
@@ -184,6 +193,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
           this.resultMessage = 'Could not verify broadcast delivery status.';
           this.resultType = 'error';
           this.loadHistory();
+          this.cdr.markForCheck();
         },
       });
     }, 1000);

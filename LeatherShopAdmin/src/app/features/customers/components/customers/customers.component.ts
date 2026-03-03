@@ -1,4 +1,4 @@
-﻿import { Component, OnInit, inject } from '@angular/core';
+﻿import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { PaginatorState } from 'primeng/paginator';
@@ -48,11 +48,13 @@ import { PaginatorModule } from 'primeng/paginator';
   ],
   templateUrl: './customers.component.html',
   styleUrl: './customers.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CustomersComponent implements OnInit {
   private fb = inject(FormBuilder);
   private customerService = inject(CustomerService);
   private notification = inject(NotificationService);
+  private cdr = inject(ChangeDetectorRef);
 
   customers: Customer[] = [];
   loading = true;
@@ -134,11 +136,13 @@ export class CustomersComponent implements OnInit {
       next: data => {
         this.subscriberCount = data.subscriberCount;
         this.totalCount = data.totalCount;
+        this.cdr.markForCheck();
       },
       error: () => {
         // Show N/A state instead of misleading zeros
         this.subscriberCount = null;
         this.totalCount = null;
+        this.cdr.markForCheck();
       },
     });
   }
@@ -154,8 +158,12 @@ export class CustomersComponent implements OnInit {
           this.totalRecords = result.totalCount;
           this.allSelected = this.customers.length > 0 && this.customers.every(c => c.selected);
           this.loading = false;
+          this.cdr.markForCheck();
         },
-        error: () => (this.loading = false),
+        error: () => {
+          this.loading = false;
+          this.cdr.markForCheck();
+        },
       });
   }
 
@@ -231,10 +239,12 @@ export class CustomersComponent implements OnInit {
         this.notification.success('Customer added successfully!');
         this.loadCustomers();
         this.loadCounts();
+        this.cdr.markForCheck();
       },
       error: () => {
         // Toast shown by error interceptor (includes API message for duplicates, etc.)
         this.addingCustomer = false;
+        this.cdr.markForCheck();
       },
     });
   }
@@ -275,10 +285,12 @@ export class CustomersComponent implements OnInit {
         this.notification.success('Customer updated successfully!');
         this.loadCustomers();
         this.loadCounts();
+        this.cdr.markForCheck();
       },
       error: () => {
         // Toast shown by error interceptor (includes API message)
         this.editingCustomer = false;
+        this.cdr.markForCheck();
       },
     });
   }
@@ -306,12 +318,14 @@ export class CustomersComponent implements OnInit {
         this.notification.success('Customer deleted successfully!');
         this.loadCustomers();
         this.loadCounts();
+        this.cdr.markForCheck();
       },
       error: () => {
         // Toast already shown by error interceptor (uses API message for 409, etc.)
         this.deletingCustomer = false;
         this.showDeleteConfirm = false;
         this.customerToDelete = null;
+        this.cdr.markForCheck();
       },
     });
   }
@@ -374,10 +388,12 @@ export class CustomersComponent implements OnInit {
         this.showImportDialog = false;
         this.loadCustomers();
         this.loadCounts();
+        this.cdr.markForCheck();
       },
       error: () => {
         // Toast shown by error interceptor
         this.importing = false;
+        this.cdr.markForCheck();
       },
     });
   }
@@ -389,6 +405,7 @@ export class CustomersComponent implements OnInit {
         customer.isSubscribed = newValue;
         this.notification.success(`Subscription ${newValue ? 'enabled' : 'disabled'}.`);
         this.loadCounts();
+        this.cdr.markForCheck();
       },
       error: () => {
         // Toast shown by error interceptor

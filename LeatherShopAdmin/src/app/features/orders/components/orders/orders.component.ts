@@ -1,4 +1,4 @@
-﻿import { Component, OnInit, inject } from '@angular/core';
+﻿import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { PaginatorState } from 'primeng/paginator';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
@@ -33,11 +33,13 @@ import { PaginatorModule } from 'primeng/paginator';
   ],
   templateUrl: './orders.component.html',
   styleUrl: './orders.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OrdersComponent implements OnInit {
   private fb = inject(FormBuilder);
   private orderService = inject(OrderService);
   private notification = inject(NotificationService);
+  private cdr = inject(ChangeDetectorRef);
 
   orders: Order[] = [];
   loading = true;
@@ -73,8 +75,12 @@ export class OrdersComponent implements OnInit {
         this.orders = result.items;
         this.totalRecords = result.totalCount;
         this.loading = false;
+        this.cdr.markForCheck();
       },
-      error: () => (this.loading = false),
+      error: () => {
+        this.loading = false;
+        this.cdr.markForCheck();
+      },
     });
   }
 
@@ -100,9 +106,11 @@ export class OrdersComponent implements OnInit {
       next: () => {
         order.status = newStatus;
         this.notification.success(`Order status updated to ${newStatus}.`);
+        this.cdr.markForCheck();
       },
       error: () => {
         order.status = previousStatus;
+        this.cdr.markForCheck();
         // Toast shown by error interceptor
       },
     });
@@ -128,10 +136,12 @@ export class OrdersComponent implements OnInit {
         a.click();
         URL.revokeObjectURL(url);
         order.downloading = false;
+        this.cdr.markForCheck();
       },
       error: () => {
         order.downloading = false;
         this.notification.error('Failed to download invoice.');
+        this.cdr.markForCheck();
       },
     });
   }

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, inject } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { InputTextModule } from 'primeng/inputtext';
@@ -33,10 +33,12 @@ import { ConversationTimePipe, MessageTimePipe } from '../../../../shared/pipes/
   ],
   templateUrl: './chat-page.component.html',
   styleUrl: './chat-page.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
   private chatService = inject(ChatService);
   private signalR = inject(SignalRService);
+  private cdr = inject(ChangeDetectorRef);
 
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
 
@@ -79,7 +81,7 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
           // Avoid duplicates (admin's own sent message already added optimistically)
           const exists = this.messages.some(m => m.id === msg.id);
           if (!exists) {
-            this.messages.push({
+            this.messages = [...this.messages, {
               id: msg.id,
               direction: msg.direction as ChatMessage['direction'],
               messageType: msg.messageType,
@@ -87,8 +89,9 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
               senderName: msg.senderName,
               isFromBot: msg.isFromBot,
               timestamp: msg.timestamp,
-            });
+            }];
             this.shouldScrollToBottom = true;
+            this.cdr.markForCheck();
           }
         }
       }),
@@ -141,6 +144,7 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.conversationRefreshTimeout = window.setTimeout(() => {
       this.loadConversations();
       this.conversationRefreshTimeout = null;
+      this.cdr.markForCheck();
     }, 500);
   }
 
@@ -155,8 +159,12 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
             convs.find(c => c.customerId === this.selectedCustomerId) || this.selectedConversation;
         }
         this.loadingConversations = false;
+        this.cdr.markForCheck();
       },
-      error: () => (this.loadingConversations = false),
+      error: () => {
+        this.loadingConversations = false;
+        this.cdr.markForCheck();
+      },
     });
   }
 
@@ -209,8 +217,12 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
         }
         this.hasMoreMessages = this.currentPage < result.totalPages;
         this.loadingMessages = false;
+        this.cdr.markForCheck();
       },
-      error: () => (this.loadingMessages = false),
+      error: () => {
+        this.loadingMessages = false;
+        this.cdr.markForCheck();
+      },
     });
   }
 
@@ -229,7 +241,7 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.chatService.sendMessage(this.selectedCustomerId, text).subscribe({
       next: msg => {
         // Add the sent message to the UI
-        this.messages.push(msg);
+        this.messages = [...this.messages, msg];
         this.shouldScrollToBottom = true;
         this.sending = false;
 
@@ -237,10 +249,12 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
         if (this.selectedConversation) {
           this.selectedConversation.isBotPaused = true;
         }
+        this.cdr.markForCheck();
       },
       error: () => {
         this.messageText = text; // Restore on error
         this.sending = false;
+        this.cdr.markForCheck();
       },
     });
   }
@@ -252,6 +266,7 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
         if (this.selectedConversation) {
           this.selectedConversation.isBotPaused = result.isBotPaused;
         }
+        this.cdr.markForCheck();
       },
       error: () => {
         /* Toast shown by error interceptor */
@@ -275,9 +290,11 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.selectedConversation = null;
         this.messages = [];
         this.loadConversations();
+        this.cdr.markForCheck();
       },
       error: () => {
         this.deletingConversation = false;
+        this.cdr.markForCheck();
       },
     });
   }
@@ -298,7 +315,10 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   loadFailedMessageCount(): void {
     this.chatService.getFailedMessageCount().subscribe({
-      next: count => (this.failedCount = count),
+      next: count => {
+        this.failedCount = count;
+        this.cdr.markForCheck();
+      },
       error: () => {
         /* Silent — badge is optional */
       },
@@ -312,7 +332,10 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   loadFailedMessages(): void {
     this.chatService.getFailedMessages().subscribe({
-      next: msgs => (this.failedMessages = msgs),
+      next: msgs => {
+        this.failedMessages = msgs;
+        this.cdr.markForCheck();
+      },
       error: () => {
         /* Toast shown by error interceptor */
       },
@@ -330,8 +353,12 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
         if (this.failedMessages.length === 0) {
           this.showFailedMessages = false;
         }
+        this.cdr.markForCheck();
       },
-      error: () => (this.retryingId = null),
+      error: () => {
+        this.retryingId = null;
+        this.cdr.markForCheck();
+      },
     });
   }
 

@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -11,11 +11,13 @@ import { InputTextModule } from 'primeng/inputtext';
   imports: [ReactiveFormsModule, ButtonModule, InputTextModule],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginComponent {
   private fb = inject(FormBuilder);
   private auth = inject(AuthService);
   private router = inject(Router);
+  private cdr = inject(ChangeDetectorRef);
 
   loginForm: FormGroup;
   loading = false;
@@ -60,10 +62,12 @@ export class LoginComponent {
         } else {
           this.errorMessage = res.message || 'Login failed. Please try again.';
         }
+        this.cdr.markForCheck();
       },
       error: err => {
         this.loading = false;
         this.errorMessage = err.error?.message || 'Login failed. Please try again.';
+        this.cdr.markForCheck();
       },
     });
   }

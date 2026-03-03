@@ -1,4 +1,4 @@
-﻿import { Component, HostListener, OnInit, inject } from '@angular/core';
+﻿import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, OnInit, inject } from '@angular/core';
 
 import {
   ReactiveFormsModule,
@@ -43,6 +43,7 @@ import { environment } from '../../../../../environments/environment';
   templateUrl: './product-form.component.html',
   styleUrl: './product-form.component.scss',
   providers: [ConfirmationService],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductFormComponent implements OnInit, HasUnsavedChanges {
   private fb = inject(FormBuilder);
@@ -51,6 +52,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
   private router = inject(Router);
   private notification = inject(NotificationService);
   private confirmationService = inject(ConfirmationService);
+  private cdr = inject(ChangeDetectorRef);
 
   productForm!: FormGroup;
   isEdit = false;
@@ -111,6 +113,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
           this.productForm.get('stockQuantity')!.updateValueAndValidity();
           // Update snapshot once product data is loaded — this is the real baseline
           this.originalSnapshot = JSON.stringify(this.productForm.value);
+          this.cdr.markForCheck();
         },
         error: () => {
           // Toast shown by error interceptor — just navigate back
@@ -123,6 +126,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     this.productService.getCategories().subscribe({
       next: data => {
         this.categoryOptions = data.map(c => ({ label: c, value: c }));
+        this.cdr.markForCheck();
       },
       error: () => {
         // Toast shown by error interceptor
@@ -209,16 +213,19 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
               this.syncFormImages();
               this.uploading = false;
               this.notification.success(paths.length === 1 ? 'Image uploaded!' : `${paths.length} images uploaded!`);
+              this.cdr.markForCheck();
             });
           },
           error: () => {
             this.uploading = false;
+            this.cdr.markForCheck();
           },
         });
       })
       .catch(() => {
         this.uploading = false;
         this.notification.error('Failed to process images. Please try again.');
+        this.cdr.markForCheck();
       });
 
     // Reset the file input so the same file(s) can be re-selected
@@ -386,7 +393,10 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
           this.notification.success('Product updated successfully!');
           this.router.navigate(['/products']);
         },
-        error: () => (this.saving = false),
+        error: () => {
+          this.saving = false;
+          this.cdr.markForCheck();
+        },
       });
     } else {
       this.productService.createProduct(formValue).subscribe({
@@ -396,7 +406,10 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
           this.notification.success('Product created successfully!');
           this.router.navigate(['/products']);
         },
-        error: () => (this.saving = false),
+        error: () => {
+          this.saving = false;
+          this.cdr.markForCheck();
+        },
       });
     }
   }
