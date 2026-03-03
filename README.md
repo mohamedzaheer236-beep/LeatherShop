@@ -2396,3 +2396,18 @@ Comprehensive re-audit of all backend (27 files) and all frontend (40+ files). F
 | 6 | **LOW** | **OnPush mutable array** — `ProductFormComponent.removeImage()` used `splice()` (mutation) without `markForCheck()`. Changed to immutable `filter()` + `markForCheck()`. | `product-form.component.ts` |
 
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
+
+### Phase 30 — Broadcast Duplication Extraction (March 4, 2026)
+
+Eliminated ~200 lines of duplicated code across broadcast components by extracting shared logic into a dedicated helper service and centralising polling into the existing BroadcastService.
+
+| # | Change | Description | File(s) |
+|---|--------|-------------|---------|
+| 1 | **BroadcastFormHelperService** | New component-level injectable service that manages all shared broadcast form state: template metadata parsing, carousel card lifecycle, header / card image upload orchestration, product loading, image validation, and `resolveImageUrl()`. Provided per-component via `providers: []` so each form instance gets its own state and inherits the host component's `ChangeDetectorRef`. | `broadcast-form-helper.service.ts` (new) |
+| 2 | **Observable-based polling** | Extracted the duplicated `setInterval` + `getBroadcastStatus` polling loop into `BroadcastService.pollBroadcastStatus()`. Returns an `Observable<BroadcastHistory>` that emits the final status and completes. Teardown function clears the interval automatically on unsubscribe. | `broadcast.service.ts` |
+| 3 | **BroadcastFormComponent** | Removed ~170 lines of carousel/image/product/polling logic. Delegates to `BroadcastFormHelperService` for form state and to `BroadcastService.pollBroadcastStatus()` for delivery tracking. Cleanup switched from `clearInterval` map to `Subscription` map. | `broadcast-form.component.ts`, `broadcast-form.component.html` |
+| 4 | **CustomerBroadcastDialogComponent** | Removed ~180 lines of carousel/image/product logic. Delegates to `BroadcastFormHelperService`. Eliminated `broadcastLang` intermediate variable — language code resolved inline via `helper.getLanguageCode()`. | `customer-broadcast-dialog.component.ts`, `customer-broadcast-dialog.component.html` |
+| 5 | **BroadcastComponent** | Replaced `setInterval` polling with `BroadcastService.pollBroadcastStatus()` Observable subscription. Cleanup switched from interval map to subscription map. | `broadcast.component.ts` |
+
+**Net result:** 477 additions, 579 deletions (−102 lines). Shared logic lives in one place.
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
