@@ -927,7 +927,7 @@ POST /api/payment/verify  (with transactionId + orderId)
 ### Products
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/products` | List all products. Query params: `?category=Wallet&brand=Royal Leather&search=classic` |
+| GET | `/api/products` | List products (paginated). Query params: `?category=Wallet&brand=Royal Leather&search=classic&page=1&pageSize=25` |
 | GET | `/api/products/{id}` | Get single product by ID |
 | POST | `/api/products` | Create product (JSON body: name, description, brand, category, price, stockQuantity, imageUrl) |
 | PUT | `/api/products/{id}` | Update product (partial update — send only fields to change) |
@@ -938,13 +938,13 @@ POST /api/payment/verify  (with transactionId + orderId)
 ### Orders
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/orders` | List all orders. Query params: `?status=Pending` |
+| GET | `/api/orders` | List orders (paginated). Query params: `?status=Pending&page=1&pageSize=25` |
 | PUT | `/api/orders/{id}/status` | Update status (JSON body: `"Confirmed"`). Sends WhatsApp notification. |
 
 ### Customers
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/customers` | List all customers. Query params: `?subscribedOnly=true&search=phone_or_name` |
+| GET | `/api/customers` | List customers (paginated). Query params: `?subscribedOnly=true&search=phone_or_name&page=1&pageSize=25` |
 | GET | `/api/customers/count` | Get subscriber count and total count |
 | POST | `/api/customers` | Create a single customer (sends WhatsApp welcome message) |
 | POST | `/api/customers/import` | Bulk import customers from list |
@@ -961,7 +961,7 @@ POST /api/payment/verify  (with transactionId + orderId)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/broadcast/send` | Send template message to all subscribers (standard + carousel) |
-| GET | `/api/broadcast/history` | Last 20 broadcast records |
+| GET | `/api/broadcast/history` | Broadcast history (paginated). Query params: `?page=1&pageSize=10` |
 | GET | `/api/broadcast/{id}/status` | Poll broadcast delivery status |
 | GET | `/api/broadcast/templates` | List approved WhatsApp templates from Meta (detects carousel) |
 | POST | `/api/broadcast/upload-image` | Upload image file for broadcast header/carousel cards |
@@ -1077,7 +1077,7 @@ These features are not built yet and would need to be added for production:
 | ~~**Razorpay Signature Verification**~~ | ✅ **IMPLEMENTED (migrated to Paytm)** — `PaymentService.VerifyPaymentAsync` calls Paytm's Transaction Status API server-to-server and verifies the response checksum using AES-128-CBC algorithm via `PaytmChecksum` helper. Rejects unverified payments. |
 | **Logging to File/Service** | Uses default console logging only. Need Serilog or similar for production. |
 | ~~**Rate Limiting**~~ | ✅ **IMPLEMENTED (F104)** — ASP.NET Core rate limiting middleware with global and per-endpoint limits. |
-| ~~**Pagination**~~ | ✅ **IMPLEMENTED** — Orders have server-side pagination with `PaginatedResult<T>` (`GET /api/orders?page=1&pageSize=25`). Frontend uses PrimeNG `p-paginator` (25/50/100 rows). Customer table uses client-side pagination (all records loaded for checkbox selection). DB indexes on `IsSubscribed`, `CreatedAt`, `Status`, `IsPaid`, `IsActive`. |
+| ~~**Pagination**~~ | ✅ **IMPLEMENTED** — All list endpoints have server-side pagination with `PaginatedResult<T>`. Orders: `GET /api/orders?page=1&pageSize=25`. Customers: `GET /api/customers?page=1&pageSize=25`. Products: `GET /api/products?page=1&pageSize=25`. Broadcast History: `GET /api/broadcast/history?page=1&pageSize=10`. All use `CountAsync()` + `Skip/Take`. Frontend uses PrimeNG `p-paginator` (25/50/100 rows). Customer selections tracked via `Map<id, phone>` — survive page changes. DB indexes on `IsSubscribed`, `CreatedAt`, `Status`, `IsPaid`, `IsActive`. |
 | ~~**Product Image in WhatsApp**~~ | ✅ **IMPLEMENTED** — `SendImageMessage` added to `IWhatsAppService`/`WhatsAppService` (WhatsApp Cloud API `image` type with `link` + `caption`). `ChatBotService.SendProductDetails()` sends product photo with all details as the caption when `ImageUrl` is set. Constructs full public URL from `RAILWAY_PUBLIC_DOMAIN` env var (auto-provided by Railway) with `App:BaseUrl` config as primary source. Falls back gracefully to text-only button message if image send fails (try-catch with `LogWarning`). Caption and body text truncated to WhatsApp's 1024-char limit. Action buttons (Add to Cart / Categories / Menu) sent as a separate follow-up message since WhatsApp image messages don't support inline interactive buttons. **Requires:** Railway Volume mounted at `/app/wwwroot/uploads` for image persistence across redeployments. |
 | ~~**Customer Address Collection**~~ | ✅ **IMPLEMENTED** — Bot asks for shipping address at checkout if not set. If address exists, shows Confirm/Change buttons before placing order. Address stored on `Customer.Address` and copied to `Order.ShippingAddress`. Admin UI requires address on create/edit (min 10 chars). |
 | **Order Cancellation by Customer** | No WhatsApp flow for customers to cancel orders. |
@@ -1120,7 +1120,7 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 
 | # | Issue | Location | Details |
 |---|-------|----------|---------|
-| M1 | ~~**No Pagination on Any List Endpoint**~~ | ~~All services, all controllers~~ | **FIXED** — Orders API returns server-side paginated results via `PaginatedResult<T>` (generic model with `Items`, `TotalCount`, `Page`, `PageSize`, `TotalPages`). `GET /api/orders` accepts `?page=1&pageSize=25` query params (clamped 1-100). Frontend orders page uses PrimeNG `p-paginator` with 25/50/100 rows, fetches only the current page from the API. Customer table uses client-side pagination (25/50/100 rows via PrimeNG `[paginator]`) — correct for the selection use-case where all customers must be in memory for checkbox state. DB indexes added for all filtered/sorted columns. |
+| M1 | ~~**No Pagination on Any List Endpoint**~~ | ~~All services, all controllers~~ | **FIXED** — All list endpoints now return server-side paginated results via `PaginatedResult<T>` (generic model with `Items`, `TotalCount`, `Page`, `PageSize`, `TotalPages`). Orders: `GET /api/orders?page=1&pageSize=25`. Customers: `GET /api/customers?page=1&pageSize=25`. Products: `GET /api/products?page=1&pageSize=25`. Broadcast History: `GET /api/broadcast/history?page=1&pageSize=10`. All query params clamped 1-100. Frontend uses PrimeNG `p-paginator`, fetches only the current page. Customer checkbox selections tracked via `Map<number, string>` (ID→phone) — survive page changes for cross-page broadcast. DB indexes added for all filtered/sorted columns. |
 | M2 | ~~**N+1 Queries in BulkImport**~~ | ~~`CustomerService.cs`~~ | **FIXED** — Replaced per-customer `AnyAsync` query with a single `SELECT PhoneNumber` query that loads all existing phone numbers into a `HashSet<string>`. Then checks containment in O(1) per import entry. Also prevents duplicates within the same import batch by adding to the HashSet as we go. 1000 imports = 1 DB query instead of 1000. |
 | M3 | ~~**`.ToLower()` in LINQ Kills DB Indexes**~~ | ~~`ProductService.cs`, `CustomerService.cs`~~ | **FIXED (F101)** — All `.ToLower()` patterns replaced with `EF.Functions.ILike()`. Search input wildcards (`%`, `_`) escaped via `SqlHelper.EscapeLikePattern()` (F127). |
 | M4 | **No `OnPush` Change Detection** | All 7 Angular components | All use default change detection. Extra re-renders on every event. `OnPush` would significantly reduce CD cycles. |
@@ -2134,3 +2134,80 @@ Client only has a Paytm business account — no Razorpay. Complete removal of Ra
 
 **Build verified:** Backend 0 errors, 0 warnings.
 **README updated:** All 50+ Razorpay references replaced with Paytm equivalents across 8+ sections.
+
+**Commit:** `f25d6d1` — pushed to GitHub, deployed to Railway.
+
+### Phase 24 — Server-Side Pagination for All Tables (March 4, 2026)
+
+All data tables were audited for scalability. Before this phase, only Orders had server-side pagination. Customers, Products, and Broadcast History loaded ALL records into the browser — a major scalability bottleneck.
+
+**Before vs After:**
+
+| Table | Before | After |
+|-------|--------|-------|
+| **Orders** | ✅ Server-side pagination (already done) | ✅ No change needed |
+| **Customers** | ❌ Client-side — loaded ALL into browser, `p-table [paginator]` | ✅ Server-side `Skip/Take` + `CountAsync()` + `p-paginator` |
+| **Products** | ❌ No pagination at all — rendered every product | ✅ Server-side `Skip/Take` + `CountAsync()` + `p-paginator` |
+| **Broadcast History** | ❌ `.Take(20)` hardcap, client-side paginator | ✅ Server-side `Skip/Take` + `CountAsync()` + `p-paginator` |
+
+**Architecture pattern (applied consistently to all 4 tables):**
+
+```
+Backend:
+  Controller: [FromQuery] page=1, pageSize=25 → clamp 1-100
+  Service:    CountAsync() → Skip((page-1)*pageSize).Take(pageSize)
+  Returns:    PaginatedResult<T> { Items, TotalCount, Page, PageSize, TotalPages }
+
+Frontend:
+  Service:    HttpParams with page + pageSize → Observable<PaginatedResult<T>>
+  Component:  totalRecords, currentPage, pageSize state
+              onPageChange(event) → update page → reload from API
+              onFilterChange() → reset to page 1 → reload
+  Template:   Standalone <p-paginator> (not built into p-table)
+```
+
+**Backend changes (9 files):**
+
+| # | File | Change |
+|----|------|--------|
+| 1 | `ICustomerService.cs` | `GetAllAsync` return type: `List<CustomerListDto>` → `PaginatedResult<CustomerListDto>`, added `page`, `pageSize` params |
+| 2 | `CustomerService.cs` | Added `CountAsync()` + `Skip/Take` with preserved `subscribedOnly` and `search` filters |
+| 3 | `CustomersController.cs` | Added `[FromQuery] page=1, pageSize=25` with validation (clamped 1-100) |
+| 4 | `IProductService.cs` | `GetAllAsync` return type: `List<ProductDto>` → `PaginatedResult<ProductDto>`, added `page`, `pageSize` params |
+| 5 | `ProductService.cs` | Added `CountAsync()` + `Skip/Take` with preserved `category`, `brand`, `search` filters |
+| 6 | `ProductsController.cs` | Added `[FromQuery] page=1, pageSize=25` with validation |
+| 7 | `IBroadcastService.cs` | `GetHistoryAsync` return type: `List<BroadcastHistoryDto>` → `PaginatedResult<BroadcastHistoryDto>`, added `page`, `pageSize` params |
+| 8 | `BroadcastService.cs` | Removed `.Take(20)` hardcap, added proper `CountAsync()` + `Skip/Take` |
+| 9 | `BroadcastController.cs` | Added `[FromQuery] page=1, pageSize=10` with validation |
+
+**Frontend changes (10 files):**
+
+| # | File | Change |
+|----|------|--------|
+| 1 | `core/models/paginated-result.model.ts` | **NEW** — Shared `PaginatedResult<T>` interface (moved from order-specific model) |
+| 2 | `order.model.ts` | Removed local `PaginatedResult<T>` (now shared) |
+| 3 | `order.service.ts` | Import from shared model |
+| 4 | `customer.service.ts` | Added `page`, `pageSize` params, returns `PaginatedResult<Customer>` |
+| 5 | `customers.component.ts` | Added pagination state + `onPageChange()`. Selections tracked via `Map<number, string>` (ID→phone) — survive page changes for cross-page broadcast. `PaginatorModule` imported. |
+| 6 | `customers.component.html` | Removed `[paginator]` from `p-table`, added standalone `p-paginator`. Cross-page selection hint updated. |
+| 7 | `product.service.ts` | Added `page`, `pageSize` params, returns `PaginatedResult<Product>` |
+| 8 | `product-list.component.ts` | Added pagination state + `onPageChange()`. Filter/search reset to page 1. `PaginatorModule` imported. |
+| 9 | `product-list.component.html` | Added standalone `p-paginator` below table |
+| 10 | `broadcast.service.ts` | Added `page`, `pageSize` params, returns `PaginatedResult<BroadcastHistory>` |
+| 11 | `broadcast.component.ts` | Added history pagination state + `onHistoryPageChange()`. `PaginatorModule` imported. |
+| 12 | `broadcast.component.html` | Removed `[paginator]` from `p-table`, added standalone `p-paginator`. History section visibility uses `historyTotalRecords`. |
+
+**Customer selection design (cross-page):**
+- Selections tracked in `Map<number, string>` (customer ID → phone number)
+- When loading a page, each customer's `selected` flag is restored from the Map
+- Broadcast sends phone numbers from the Map — works for multi-page selections
+- "Select All" checkbox only selects/deselects the current page (intentional — user explicitly picks customers)
+- Selection count badge shows total across all pages
+
+**Product dropdown for carousel cards:**
+- Customers and Broadcast components load products for carousel card picker dropdowns
+- Uses `pageSize=100` to load all active products for the dropdown (dropdown needs full list)
+- This is intentional — carousel card picker needs the full product list in memory
+
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors.
+**README updated:** API endpoints, pagination audit sections, M1 fix, and Phase 24 changelog added.

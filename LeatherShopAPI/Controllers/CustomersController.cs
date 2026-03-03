@@ -19,10 +19,18 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] bool? subscribedOnly, [FromQuery] string? search)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] bool? subscribedOnly,
+        [FromQuery] string? search,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25)
     {
-        var customers = await _customerService.GetAllAsync(subscribedOnly, search);
-        return Ok(ApiResponse<List<CustomerListDto>>.Ok(customers));
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 25;
+        if (pageSize > 100) pageSize = 100;
+
+        var result = await _customerService.GetAllAsync(subscribedOnly, search, page, pageSize);
+        return Ok(ApiResponse<PaginatedResult<CustomerListDto>>.Ok(result));
     }
 
     [HttpGet("count")]

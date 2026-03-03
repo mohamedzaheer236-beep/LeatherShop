@@ -343,11 +343,11 @@
   </div>
 
   <!-- Broadcast History -->
-  <div class="history-section" *ngIf="history.length > 0">
+  <div class="history-section" *ngIf="historyTotalRecords > 0">
     <div class="section-header">
       <h3><i class="pi pi-history"></i> Broadcast History</h3>
     </div>
-    <p-table [value]="history" [paginator]="history.length > 10" [rows]="10"
+    <p-table [value]="history"
              styleClass="p-datatable-striped" [tableStyle]="{'min-width': '50rem'}" [rowHover]="true">
       <ng-template pTemplate="header">
         <tr>
@@ -368,5 +368,15 @@
         </tr>
       </ng-template>
     </p-table>
+
+    <p-paginator *ngIf="historyTotalRecords > 0"
+      [first]="(historyCurrentPage - 1) * historyPageSize"
+      [rows]="historyPageSize"
+      [totalRecords]="historyTotalRecords"
+      [rowsPerPageOptions]="[10, 25, 50]"
+      (onPageChange)="onHistoryPageChange($event)"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} broadcasts">
+    </p-paginator>
   </div>
 </div>

@@ -22,7 +22,7 @@ public class ProductService : IProductService
         _env = env;
     }
 
-    public async Task<List<ProductDto>> GetAllAsync(string? category, string? brand, string? search)
+    public async Task<PaginatedResult<ProductDto>> GetAllAsync(string? category, string? brand, string? search, int page = 1, int pageSize = 25)
     {
         var query = _db.Products.AsNoTracking().Include(p => p.Images).AsQueryable();
 
@@ -38,8 +38,20 @@ public class ProductService : IProductService
             query = query.Where(p => EF.Functions.ILike(p.Name, $"%{escaped}%") || EF.Functions.ILike(p.Description, $"%{escaped}%"));
         }
 
-        var products = await query.OrderByDescending(p => p.CreatedAt).ToListAsync();
-        return products.Select(p => p.ToDto()).ToList();
+        var totalCount = await query.CountAsync();
+
+        var products = await query.OrderByDescending(p => p.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PaginatedResult<ProductDto>
+        {
+            Items = products.Select(p => p.ToDto()).ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<ProductDto?> GetByIdAsync(int id)

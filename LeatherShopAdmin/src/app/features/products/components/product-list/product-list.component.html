@@ -107,6 +107,16 @@
     </ng-template>
   </p-table>
 
+  <p-paginator *ngIf="!loading && !errorMessage && totalRecords > 0"
+    [first]="(currentPage - 1) * pageSize"
+    [rows]="pageSize"
+    [totalRecords]="totalRecords"
+    [rowsPerPageOptions]="[25, 50, 100]"
+    (onPageChange)="onPageChange($event)"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
+  </p-paginator>
+
   <div *ngIf="!loading && !errorMessage && products.length === 0" class="empty-state">
     <i class="pi pi-box"></i>
     <p>No products found. Add your first product!</p>

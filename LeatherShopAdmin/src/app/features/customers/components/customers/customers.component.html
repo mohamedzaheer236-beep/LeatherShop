@@ -246,7 +246,7 @@
   <!-- Selection Action Bar -->
   <div class="selection-bar" *ngIf="selectedCount > 0">
     <span style="font-weight:700; color:#3f51b5;">{{ selectedCount }} customer(s) selected</span>
-    <span *ngIf="allSelected && customers.length > 25" style="font-size:13px; color:#888; margin-left:8px;">(across all pages)</span>
+    <span *ngIf="selectedCount > customers.length" style="font-size:13px; color:#888; margin-left:8px;">(across multiple pages)</span>
     <p-button label="Send Broadcast to Selected" icon="pi pi-send" size="small" (onClick)="openBroadcastDialog()"></p-button>
     <p-button label="Clear Selection" icon="pi pi-times" severity="secondary" [outlined]="true" size="small" (onClick)="clearSelection()"></p-button>
   </div>
@@ -255,9 +255,7 @@
 
   <!-- Customer Table -->
   <p-table [value]="customers" *ngIf="!loading && customers.length > 0"
-           [tableStyle]="{'min-width': '60rem'}" styleClass="p-datatable-striped" [rowHover]="true"
-           [paginator]="true" [rows]="25" [rowsPerPageOptions]="[25, 50, 100]"
-           [showCurrentPageReport]="true" currentPageReportTemplate="Showing {first} to {last} of {totalRecords} customers">
+           [tableStyle]="{'min-width': '60rem'}" styleClass="p-datatable-striped" [rowHover]="true">
     <ng-template pTemplate="header">
       <tr>
         <th style="width:50px;">
@@ -310,6 +308,16 @@
       <tr><td colspan="8" style="text-align:center; padding:40px; color:#999;">No customers found.</td></tr>
     </ng-template>
   </p-table>
+
+  <p-paginator *ngIf="!loading && totalRecords > 0"
+    [first]="(currentPage - 1) * pageSize"
+    [rows]="pageSize"
+    [totalRecords]="totalRecords"
+    [rowsPerPageOptions]="[25, 50, 100]"
+    (onPageChange)="onPageChange($event)"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} customers">
+  </p-paginator>
 
   <div *ngIf="!loading && customers.length === 0" class="empty-state">
     <i class="pi pi-users"></i>

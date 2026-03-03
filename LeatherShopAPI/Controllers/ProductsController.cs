@@ -20,10 +20,18 @@ public class ProductsController : ControllerBase
 
     [HttpGet]
     public async Task<IActionResult> GetAll(
-        [FromQuery] string? category, [FromQuery] string? brand, [FromQuery] string? search)
+        [FromQuery] string? category,
+        [FromQuery] string? brand,
+        [FromQuery] string? search,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25)
     {
-        var products = await _productService.GetAllAsync(category, brand, search);
-        return Ok(ApiResponse<List<ProductDto>>.Ok(products));
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 25;
+        if (pageSize > 100) pageSize = 100;
+
+        var result = await _productService.GetAllAsync(category, brand, search, page, pageSize);
+        return Ok(ApiResponse<PaginatedResult<ProductDto>>.Ok(result));
     }
 
     [HttpGet("{id}")]

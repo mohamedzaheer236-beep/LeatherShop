@@ -109,11 +109,16 @@ public class BroadcastService : IBroadcastService
             .FirstOrDefaultAsync();
     }
 
-    public async Task<List<BroadcastHistoryDto>> GetHistoryAsync()
+    public async Task<PaginatedResult<BroadcastHistoryDto>> GetHistoryAsync(int page = 1, int pageSize = 10)
     {
-        return await _db.BroadcastMessages
+        var query = _db.BroadcastMessages.AsQueryable();
+
+        var totalCount = await query.CountAsync();
+
+        var items = await query
             .OrderByDescending(b => b.SentAt)
-            .Take(20)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(b => new BroadcastHistoryDto
             {
                 Id = b.Id,
@@ -127,6 +132,14 @@ public class BroadcastService : IBroadcastService
                 IsCarousel = b.IsCarousel
             })
             .ToListAsync();
+
+        return new PaginatedResult<BroadcastHistoryDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<List<WhatsAppTemplate>> GetTemplatesAsync()

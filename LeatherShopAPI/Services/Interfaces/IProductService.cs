@@ -1,10 +1,11 @@
 using LeatherShopAPI.DTOs.Product;
+using LeatherShopAPI.Models;
 
 namespace LeatherShopAPI.Services.Interfaces;
 
 public interface IProductService
 {
-    Task<List<ProductDto>> GetAllAsync(string? category, string? brand, string? search);
+    Task<PaginatedResult<ProductDto>> GetAllAsync(string? category, string? brand, string? search, int page = 1, int pageSize = 25);
     Task<ProductDto?> GetByIdAsync(int id);
     Task<ProductDto> CreateAsync(CreateProductDto dto);
     Task<bool> UpdateAsync(int id, UpdateProductDto dto);

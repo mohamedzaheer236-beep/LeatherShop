@@ -9,6 +9,7 @@ import {
   AbstractControl,
   ValidationErrors
 } from '@angular/forms';
+import { PaginatorState } from 'primeng/paginator';
 import { BroadcastService } from '../../services/broadcast.service';
 import { BroadcastHistory, CarouselCard, CarouselCardUI } from '../../models/broadcast.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
@@ -26,6 +27,7 @@ import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToolbarModule } from 'primeng/toolbar';
 import { DividerModule } from 'primeng/divider';
+import { PaginatorModule } from 'primeng/paginator';
 
 @Component({
   selector: 'app-broadcast',
@@ -42,7 +44,8 @@ import { DividerModule } from 'primeng/divider';
     TableModule,
     TagModule,
     ToolbarModule,
-    DividerModule
+    DividerModule,
+    PaginatorModule
   ],
   templateUrl: './broadcast.component.html',
   styleUrl: './broadcast.component.scss'
@@ -57,6 +60,11 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   history: BroadcastHistory[] = [];
   subscriberCount = 0;
   totalSent = 0;
+
+  // Broadcast history pagination
+  historyTotalRecords = 0;
+  historyCurrentPage = 1;
+  historyPageSize = 10;
 
   broadcastMode: 'custom' | 'template' = 'custom';
   customMessage = '';
@@ -100,9 +108,9 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   }
 
   private loadProducts(): void {
-    this.productService.getProducts().subscribe({
-      next: (products) => {
-        this.products = products.filter(p => p.isActive);
+    this.productService.getProducts(undefined, undefined, undefined, 1, 100).subscribe({
+      next: (result) => {
+        this.products = result.items.filter(p => p.isActive);
         this.productOptions = this.products.map(p => ({
           label: `${p.name} — ₹${p.price}`,
           value: p.id
@@ -341,13 +349,20 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   }
 
   loadHistory(): void {
-    this.broadcastService.getBroadcastHistory().subscribe({
-      next: (data) => {
-        this.history = data;
-        this.totalSent = data.reduce((sum, b) => sum + b.sentCount, 0);
+    this.broadcastService.getBroadcastHistory(this.historyCurrentPage, this.historyPageSize).subscribe({
+      next: (result) => {
+        this.history = result.items;
+        this.historyTotalRecords = result.totalCount;
+        this.totalSent = result.items.reduce((sum, b) => sum + b.sentCount, 0);
       },
       error: () => { /* Toast shown by error interceptor */ }
     });
+  }
+
+  onHistoryPageChange(event: PaginatorState): void {
+    this.historyCurrentPage = (event.page ?? 0) + 1;
+    this.historyPageSize = event.rows ?? this.historyPageSize;
+    this.loadHistory();
   }
 
   sendCustomMessage(): void {

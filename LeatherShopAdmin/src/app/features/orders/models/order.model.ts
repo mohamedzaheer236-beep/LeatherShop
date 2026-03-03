@@ -18,11 +18,3 @@ export interface OrderItem {
   unitPrice: number;
   selectedImageUrl?: string;
 }
-
-export interface PaginatedResult<T> {
-  items: T[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}

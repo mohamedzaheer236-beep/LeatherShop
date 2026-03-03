@@ -21,7 +21,7 @@ public class CustomerService : ICustomerService
         _logger = logger;
     }
 
-    public async Task<List<CustomerListDto>> GetAllAsync(bool? subscribedOnly, string? search)
+    public async Task<PaginatedResult<CustomerListDto>> GetAllAsync(bool? subscribedOnly, string? search, int page = 1, int pageSize = 25)
     {
         var query = _db.Customers.AsNoTracking().AsQueryable();
 
@@ -34,7 +34,11 @@ public class CustomerService : ICustomerService
             query = query.Where(c => EF.Functions.ILike(c.PhoneNumber, $"%{escaped}%") || EF.Functions.ILike(c.Name, $"%{escaped}%"));
         }
 
-        return await query.OrderByDescending(c => c.CreatedAt)
+        var totalCount = await query.CountAsync();
+
+        var items = await query.OrderByDescending(c => c.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(c => new CustomerListDto
             {
                 Id = c.Id,
@@ -45,6 +49,14 @@ public class CustomerService : ICustomerService
                 CreatedAt = c.CreatedAt,
                 OrderCount = c.Orders.Count
             }).ToListAsync();
+
+        return new PaginatedResult<CustomerListDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<CustomerCountDto> GetCountAsync()

@@ -9,6 +9,7 @@ import {
   AbstractControl,
   ValidationErrors
 } from '@angular/forms';
+import { PaginatorState } from 'primeng/paginator';
 import { CustomerService } from '../../services/customer.service';
 import { Customer, CreateCustomer, UpdateCustomer } from '../../models/customer.model';
 import { BroadcastService } from '../../../broadcast/services/broadcast.service';
@@ -33,11 +34,12 @@ import { BadgeModule } from 'primeng/badge';
 import { MessageModule } from 'primeng/message';
 import { TableModule } from 'primeng/table';
 import { TooltipModule } from 'primeng/tooltip';
+import { PaginatorModule } from 'primeng/paginator';
 
 @Component({
   selector: 'app-customers',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, LoadingSpinnerComponent, TableModule, ButtonModule, InputTextModule, TagModule, CardModule, CheckboxModule, DialogModule, DropdownModule, InputTextareaModule, ToolbarModule, DividerModule, BadgeModule, MessageModule, TooltipModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, LoadingSpinnerComponent, TableModule, ButtonModule, InputTextModule, TagModule, CardModule, CheckboxModule, DialogModule, DropdownModule, InputTextareaModule, ToolbarModule, DividerModule, BadgeModule, MessageModule, TooltipModule, PaginatorModule],
   templateUrl: './customers.component.html',
   styleUrl: './customers.component.scss'
 })
@@ -74,9 +76,14 @@ export class CustomersComponent implements OnInit {
   showImportDialog = false;
   importing = false;
 
-  // Selection — kept with ngModel for dynamic row binding
+  // Selection — tracked by ID→phone map so selections survive page changes
   allSelected = false;
-  private _selectedCount = 0;
+  private _selectedMap = new Map<number, string>();
+
+  // Pagination
+  totalRecords = 0;
+  currentPage = 1;
+  pageSize = 25;
 
   // Broadcast from selection
   showBroadcastDialog = false;
@@ -115,9 +122,9 @@ export class CustomersComponent implements OnInit {
   }
 
   private loadProducts(): void {
-    this.productService.getProducts().subscribe({
-      next: (products) => {
-        this.products = products.filter(p => p.isActive);
+    this.productService.getProducts(undefined, undefined, undefined, 1, 100).subscribe({
+      next: (result) => {
+        this.products = result.items.filter(p => p.isActive);
         this.productOptions = this.products.map(p => ({
           label: `${p.name} — ₹${p.price}`,
           value: p.id
@@ -221,41 +228,52 @@ export class CustomersComponent implements OnInit {
   loadCustomers(): void {
     this.loading = true;
     const { searchTerm, subscribedOnly } = this.filterForm.value;
-    this.customerService.getCustomers(subscribedOnly, searchTerm || undefined).subscribe({
-      next: (data) => {
-        this.customers = data.map(c => ({ ...c, selected: false }));
-        this.allSelected = false;
-        this._selectedCount = 0;
+    this.customerService.getCustomers(subscribedOnly, searchTerm || undefined, this.currentPage, this.pageSize).subscribe({
+      next: (result) => {
+        this.customers = result.items.map(c => ({ ...c, selected: this._selectedMap.has(c.id) }));
+        this.totalRecords = result.totalCount;
+        this.allSelected = this.customers.length > 0 && this.customers.every(c => c.selected);
         this.loading = false;
       },
       error: () => this.loading = false
     });
   }
 
-  onFilterChange(): void { this.loadCustomers(); }
-  onSearch(): void { this.loadCustomers(); }
+  onFilterChange(): void { this.currentPage = 1; this.loadCustomers(); }
+  onSearch(): void { this.currentPage = 1; this.loadCustomers(); }
   clearSearch(): void {
     this.filterForm.patchValue({ searchTerm: '' });
+    this.currentPage = 1;
+    this.loadCustomers();
+  }
+
+  onPageChange(event: PaginatorState): void {
+    this.currentPage = (event.page ?? 0) + 1;
+    this.pageSize = event.rows ?? this.pageSize;
     this.loadCustomers();
   }
 
   get searchTerm(): string { return this.filterForm.get('searchTerm')?.value || ''; }
 
-  get selectedCount(): number { return this._selectedCount; }
+  get selectedCount(): number { return this._selectedMap.size; }
 
   toggleSelectAll(): void {
-    this.customers.forEach(c => c.selected = this.allSelected);
-    this._selectedCount = this.allSelected ? this.customers.length : 0;
+    this.customers.forEach(c => {
+      c.selected = this.allSelected;
+      if (this.allSelected) this._selectedMap.set(c.id, c.phoneNumber);
+      else this._selectedMap.delete(c.id);
+    });
   }
 
   onRowSelect(customer: Customer): void {
-    this._selectedCount += customer.selected ? 1 : -1;
-    this.allSelected = this._selectedCount === this.customers.length;
+    if (customer.selected) this._selectedMap.set(customer.id, customer.phoneNumber);
+    else this._selectedMap.delete(customer.id);
+    this.allSelected = this.customers.length > 0 && this.customers.every(c => c.selected);
   }
 
   clearSelection(): void {
     this.customers.forEach(c => c.selected = false);
-    this._selectedCount = 0;
+    this._selectedMap.clear();
     this.allSelected = false;
   }
 
@@ -463,7 +481,7 @@ export class CustomersComponent implements OnInit {
       return;
     }
 
-    const phoneNumbers = this.customers.filter(c => c.selected).map(c => c.phoneNumber);
+    const phoneNumbers = Array.from(this._selectedMap.values());
     if (phoneNumbers.length === 0) {
       this.notification.error('No customers selected!');
       return;

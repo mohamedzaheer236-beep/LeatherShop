@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { BroadcastRequest, BroadcastResult, BroadcastHistory, WhatsAppTemplate } from '../models/broadcast.model';
+import { PaginatedResult } from '../../../core/models/paginated-result.model';
 import { ApiResponse } from '../../../core/models/api-response.model';
 import { environment } from '../../../../environments/environment';
 
@@ -22,8 +23,11 @@ export class BroadcastService {
     return this.http.get<ApiResponse<BroadcastHistory>>(`${this.baseUrl}/${broadcastId}/status`).pipe(map(res => res.data));
   }
 
-  getBroadcastHistory(): Observable<BroadcastHistory[]> {
-    return this.http.get<ApiResponse<BroadcastHistory[]>>(`${this.baseUrl}/history`).pipe(map(res => res.data));
+  getBroadcastHistory(page: number = 1, pageSize: number = 10): Observable<PaginatedResult<BroadcastHistory>> {
+    const params = new HttpParams()
+      .set('page', page.toString())
+      .set('pageSize', pageSize.toString());
+    return this.http.get<ApiResponse<PaginatedResult<BroadcastHistory>>>(`${this.baseUrl}/history`, { params }).pipe(map(res => res.data));
   }
 
   getApprovedTemplates(): Observable<WhatsAppTemplate[]> {

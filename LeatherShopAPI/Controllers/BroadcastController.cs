@@ -44,10 +44,16 @@ public class BroadcastController : ControllerBase
     }
 
     [HttpGet("history")]
-    public async Task<IActionResult> GetHistory()
+    public async Task<IActionResult> GetHistory(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
     {
-        var history = await _broadcastService.GetHistoryAsync();
-        return Ok(ApiResponse<List<BroadcastHistoryDto>>.Ok(history));
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 10;
+        if (pageSize > 100) pageSize = 100;
+
+        var history = await _broadcastService.GetHistoryAsync(page, pageSize);
+        return Ok(ApiResponse<PaginatedResult<BroadcastHistoryDto>>.Ok(history));
     }
 
     [HttpGet("templates")]
