@@ -24,6 +24,8 @@ public class PaymentPageDto
     public int AmountInPaise { get; set; }
     public string RazorpayKeyId { get; set; } = string.Empty;
     public List<PaymentPageItemDto> Items { get; set; } = new();
+    /// <summary>UTC time when this payment link expires. Null = no expiration (legacy).</summary>
+    public DateTime? ExpiresAtUtc { get; set; }
 }
 
 public class PaymentPageItemDto

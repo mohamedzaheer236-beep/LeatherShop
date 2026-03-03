@@ -29,24 +29,35 @@ public class PaymentService : IPaymentService
         _logger = logger;
     }
 
-    public async Task<PaymentPageDto?> GetPaymentPageDataAsync(string orderNumber)
+    public async Task<(PaymentPageResult Result, PaymentPageDto? Data)> GetPaymentPageDataAsync(string orderNumber)
     {
         var order = await _db.Orders
-            .AsNoTracking()
             .Include(o => o.Customer)
             .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
 
-        if (order == null || order.IsPaid) return null;
+        if (order == null || order.IsPaid) return (PaymentPageResult.NotFound, null);
 
-        return new PaymentPageDto
+        // Check if payment link has expired
+        if (order.PaymentExpiresAt.HasValue && DateTime.UtcNow > order.PaymentExpiresAt.Value)
+        {
+            await ExpireOrderAndRestoreCartAsync(order);
+            return (PaymentPageResult.Expired, null);
+        }
+
+        var razorpayKeyId = _config["Razorpay:KeyId"];
+        if (string.IsNullOrWhiteSpace(razorpayKeyId))
+            throw new InvalidOperationException("Razorpay:KeyId not configured. Set it in appsettings or environment variables (Razorpay__KeyId).");
+
+        return (PaymentPageResult.Ok, new PaymentPageDto
         {
             OrderId = order.Id,
             OrderNumber = order.OrderNumber,
             CustomerPhone = order.Customer.PhoneNumber,
             TotalAmount = order.TotalAmount,
             AmountInPaise = (int)Math.Round(order.TotalAmount * 100, MidpointRounding.AwayFromZero),
-            RazorpayKeyId = _config["Razorpay:KeyId"] ?? throw new InvalidOperationException("Razorpay:KeyId not configured. Set it in appsettings or environment variables."),
+            RazorpayKeyId = razorpayKeyId,
+            ExpiresAtUtc = order.PaymentExpiresAt,
             Items = order.OrderItems.Select(oi => new PaymentPageItemDto
             {
                 ProductName = oi.Product.Name,
@@ -54,7 +65,57 @@ public class PaymentService : IPaymentService
                 UnitPrice = oi.UnitPrice,
                 Subtotal = oi.UnitPrice * oi.Quantity
             }).ToList()
-        };
+        });
+    }
+
+    /// <summary>
+    /// Cancels an expired order, restores product stock, and re-creates cart items
+    /// so the customer can checkout again without re-adding products.
+    /// </summary>
+    internal async Task ExpireOrderAndRestoreCartAsync(Order order)
+    {
+        if (order.Status == OrderStatus.Cancelled) return; // Already expired
+
+        _logger.LogInformation("Payment link expired for order {OrderNumber}. Cancelling and restoring cart for customer {CustomerId}.",
+            order.OrderNumber, order.CustomerId);
+
+        // 1. Cancel the order
+        order.Status = OrderStatus.Cancelled;
+        order.UpdatedAt = DateTime.UtcNow;
+
+        // 2. Restore stock
+        foreach (var item in order.OrderItems)
+        {
+            item.Product.StockQuantity += item.Quantity;
+        }
+
+        // 3. Restore cart items (check for duplicates — customer may have added new items)
+        var existingCartItems = await _db.CartItems
+            .Where(ci => ci.CustomerId == order.CustomerId)
+            .ToListAsync();
+
+        foreach (var orderItem in order.OrderItems)
+        {
+            var existingCart = existingCartItems
+                .FirstOrDefault(ci => ci.ProductId == orderItem.ProductId && ci.SelectedImageId == orderItem.SelectedImageId);
+
+            if (existingCart != null)
+            {
+                existingCart.Quantity += orderItem.Quantity;
+            }
+            else
+            {
+                _db.CartItems.Add(new CartItem
+                {
+                    CustomerId = order.CustomerId,
+                    ProductId = orderItem.ProductId,
+                    Quantity = orderItem.Quantity,
+                    SelectedImageId = orderItem.SelectedImageId
+                });
+            }
+        }
+
+        await _db.SaveChangesAsync();
     }
 
     public async Task<PaymentVerifyResultDto?> VerifyPaymentAsync(PaymentVerifyDto dto)
@@ -100,6 +161,45 @@ public class PaymentService : IPaymentService
         {
             _logger.LogWarning("Razorpay signature mismatch for order {OrderId}. Possible tampering.", order.Id);
             return null;
+        }
+
+        // Signature is valid — if the order was auto-cancelled due to expiry while the customer
+        // was completing payment in the Razorpay modal, we must honor the payment (money is already charged).
+        // Re-confirm the order, re-deduct stock, and clear restored cart items.
+        if (order.Status == OrderStatus.Cancelled)
+        {
+            _logger.LogWarning("Order {OrderNumber} was auto-cancelled (expired) but received valid payment {PaymentId}. Re-confirming.",
+                order.OrderNumber, dto.PaymentId);
+
+            // Re-deduct stock (it was restored when the order was cancelled)
+            var orderItems = await _db.OrderItems
+                .Include(oi => oi.Product)
+                .Where(oi => oi.OrderId == order.Id)
+                .ToListAsync();
+
+            foreach (var item in orderItems)
+            {
+                item.Product.StockQuantity -= item.Quantity;
+            }
+
+            // Remove cart items that were restored (best-effort: remove matching product+image combos)
+            var restoredCartItems = await _db.CartItems
+                .Where(ci => ci.CustomerId == order.CustomerId)
+                .ToListAsync();
+
+            foreach (var orderItem in orderItems)
+            {
+                var cartItem = restoredCartItems
+                    .FirstOrDefault(ci => ci.ProductId == orderItem.ProductId && ci.SelectedImageId == orderItem.SelectedImageId);
+
+                if (cartItem != null)
+                {
+                    cartItem.Quantity -= orderItem.Quantity;
+                    if (cartItem.Quantity <= 0)
+                        _db.CartItems.Remove(cartItem);
+                    restoredCartItems.Remove(cartItem);
+                }
+            }
         }
 
         order.PaymentId = dto.PaymentId;

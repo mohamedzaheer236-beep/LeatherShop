@@ -62,6 +62,10 @@ public static class ServiceCollectionExtensions
         // with exponential backoff retry. Polls DB every 10s for pending messages.
         services.AddHostedService<WhatsAppOutboxProcessor>();
 
+        // Expired order cleanup: cancels unpaid orders past their PaymentExpiresAt,
+        // restores stock quantities, and restores cart items. Runs every 60s.
+        services.AddHostedService<ExpiredOrderCleanupService>();
+
         return services;
     }
 

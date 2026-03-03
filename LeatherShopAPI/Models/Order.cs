@@ -39,6 +39,9 @@ public class Order
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>When the payment link expires. Null = no expiration (legacy orders).</summary>
+    public DateTime? PaymentExpiresAt { get; set; }
+
     // Navigation
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 }

@@ -912,6 +912,7 @@ public class ChatBotService : IChatBotService
             TotalAmount = total,
             Status = OrderStatus.Pending,
             ShippingAddress = customer.Address,
+            PaymentExpiresAt = DateTime.UtcNow.AddMinutes(5),
             OrderItems = cartItems.Select(ci => new OrderItem
             {
                 ProductId = ci.ProductId,
@@ -939,6 +940,8 @@ public class ChatBotService : IChatBotService
                            $"💰 Total: *₹{total}*\n" +
                            $"📍 Ship to: _{customer.Address}_\n\n" +
                            $"💳 Pay here: {paymentUrl}\n\n" +
+                           $"⏳ This link expires in *5 minutes*.\n" +
+                           $"If it expires, just say *checkout* to get a new link.\n\n" +
                            $"We'll confirm once payment is received.";
 
         // Transactional Outbox: write the WhatsApp message to the DB in the SAME transaction
