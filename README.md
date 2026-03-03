@@ -2397,6 +2397,22 @@ Comprehensive re-audit of all backend (27 files) and all frontend (40+ files). F
 
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
 
+### Phase 31 — Customer Dialog Extraction & LoginResponse Consolidation (March 4, 2026)
+
+Decomposed the oversized CustomersComponent (730+ lines across TS/HTML/SCSS) into focused child components and consolidated a duplicated response type.
+
+| # | Change | Description | File(s) |
+|---|--------|-------------|---------|
+| 1 | **CustomerAddDialogComponent** | Standalone child component owning the add-customer form (phone/name/address), reactive validation, and `createCustomer()` call. Emits `(saved)` on success. OnPush. | `customer-add-dialog/` (3 files, new) |
+| 2 | **CustomerEditDialogComponent** | Standalone child component owning the edit-customer form (name/address/isSubscribed). Receives `@Input() customer`, populates form `onShow()`, calls `updateCustomer()`. OnPush. | `customer-edit-dialog/` (3 files, new) |
+| 3 | **CustomerDeleteDialogComponent** | Standalone confirmation dialog. Receives `@Input() customer`, shows warning, calls `deleteCustomer()`, emits `(deleted)`. OnPush. | `customer-delete-dialog/` (3 files, new) |
+| 4 | **CustomerImportDialogComponent** | Standalone bulk-import dialog. Owns textarea + line-by-line parsing/validation logic, calls `bulkImportCustomers()`, emits `(imported)`. OnPush. | `customer-import-dialog/` (3 files, new) |
+| 5 | **Shared `_dialog-form.scss`** | Extracted `.dialog-form` and `.form-field` styles into a reusable SCSS partial. All dialog components `@use` it. Removed orphaned styles from parent. | `shared/styles/_dialog-form.scss` (new) |
+| 6 | **CustomersComponent slimmed** | Removed all inline dialog HTML, form groups, submit methods, and validation helpers. Parent now only manages list/filter/pagination/selection. Toolbar buttons set visibility booleans directly. | `customers.component.ts`, `.html`, `.scss` |
+| 7 | **LoginResponse → ApiResponse\<LoginData\>** | Created `LoginData` interface in `auth/models/auth.model.ts`. Replaced inline `LoginResponse` interface in `auth.service.ts` with `ApiResponse<LoginData>`, eliminating duplication of the `ApiResponse<T>` envelope shape. | `auth.model.ts` (new), `auth.service.ts` |
+
+**Net result:** 535 additions, 365 deletions (+170 lines from decomposition). CustomersComponent reduced from 730+ to 439 lines.
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
 ### Phase 30 — Broadcast Duplication Extraction (March 4, 2026)
 
 Eliminated ~200 lines of duplicated code across broadcast components by extracting shared logic into a dedicated helper service and centralising polling into the existing BroadcastService.
