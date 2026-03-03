@@ -2034,3 +2034,22 @@ PlaceOrder() → PaymentExpiresAt = now + 5 min
 
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors.
 **Commit:** `a9d037f` — pushed to GitHub, deployed to Railway.
+
+### Phase 22 — Pending Order Awareness in Cart & Checkout (March 3, 2026)
+
+After checkout, the bot clears the cart (items move into the order). If the customer tapped "View Cart" or "Checkout" during the 5-minute payment window, they saw "Your cart is empty!" — confusing because they just placed an order.
+
+**Problem:** Three places (`SendCartSummary`, `ProcessCheckout`, `PlaceOrder`) showed "cart is empty" without checking for a pending unpaid order.
+
+**Fix applied to `ChatBotService.cs` (3 locations):**
+
+When the cart is empty, the bot now queries for a pending unpaid order (`Status == Pending` + `PaymentExpiresAt > now`). If one exists:
+
+- **View Cart** → Shows: "⏳ You have a pending order **ORD-xxx** (₹597.00). Your cart items are in this order — pay within **4m 32s** to complete it. 💳 Pay here: {link}. If you don't pay in time, your items will be restored to the cart automatically."
+- **Checkout** → Shows: "⏳ You already have a pending order **ORD-xxx** (₹597.00). 💳 Pay here: {link}. Complete the payment first, or wait for it to expire to get a new checkout link."
+- **PlaceOrder** → Same as Checkout (prevents duplicate orders)
+
+If no pending order exists, falls through to the original "cart is empty" message.
+
+**Build verified:** 0 errors, 0 warnings.
+**Commit:** `5d8579f` — pushed to GitHub, deployed to Railway.
