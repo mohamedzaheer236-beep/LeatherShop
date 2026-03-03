@@ -1,97 +1,28 @@
 ﻿<!-- Add Customer Dialog -->
-<p-dialog header="Add Customer" [(visible)]="showAddDialog" [modal]="true" [style]="{'width': '450px'}">
-  <form [formGroup]="addCustomerForm">
-    <div class="dialog-form">
-      <div class="form-field">
-        <label for="addPhone">Phone Number *</label>
-        <input type="text" pInputText id="addPhone" formControlName="phoneNumber" placeholder="e.g. 919876543210" class="w-full" />
-        @if (isAddFieldInvalid('phoneNumber') && addCustomerForm.get('phoneNumber')?.errors?.['required']) {
-          <small class="p-error">Phone number is required.</small>
-        }
-        @if (isAddFieldInvalid('phoneNumber') && addCustomerForm.get('phoneNumber')?.errors?.['pattern']) {
-          <small class="p-error">Enter a valid phone number (10-15 digits).</small>
-        }
-      </div>
-      <div class="form-field">
-        <label for="addName">Name</label>
-        <input type="text" pInputText id="addName" formControlName="name" placeholder="Customer name (optional)" class="w-full" />
-      </div>
-      <div class="form-field">
-        <label for="addAddress">Address *</label>
-        <textarea pInputTextarea id="addAddress" formControlName="address" rows="3" placeholder="Full shipping address" class="w-full"></textarea>
-        @if (isAddFieldInvalid('address') && addCustomerForm.get('address')?.errors?.['required']) {
-          <small class="p-error">Address is required.</small>
-        }
-        @if (isAddFieldInvalid('address') && addCustomerForm.get('address')?.errors?.['minlength']) {
-          <small class="p-error">Address must be at least 10 characters.</small>
-        }
-      </div>
-    </div>
-  </form>
-  <ng-template pTemplate="footer">
-    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showAddDialog = false" icon="pi pi-times"></p-button>
-    <p-button label="Add Customer" (onClick)="addCustomer()" [disabled]="addingCustomer" [loading]="addingCustomer" icon="pi pi-check"></p-button>
-  </ng-template>
-</p-dialog>
+<app-customer-add-dialog
+  [(visible)]="showAddDialog"
+  (saved)="onCustomerSaved()">
+</app-customer-add-dialog>
 
 <!-- Edit Customer Dialog -->
-<p-dialog header="Edit Customer" [(visible)]="showEditDialog" [modal]="true" [style]="{'width': '450px'}">
-  <form [formGroup]="editCustomerForm">
-    <div class="dialog-form">
-      <div class="form-field">
-        <label for="editName">Name</label>
-        <input type="text" pInputText id="editName" formControlName="name" placeholder="Customer name" class="w-full" />
-      </div>
-      <div class="form-field">
-        <label for="editAddress">Address *</label>
-        <textarea pInputTextarea id="editAddress" formControlName="address" rows="3" placeholder="Full shipping address" class="w-full"></textarea>
-        @if (isEditFieldInvalid('address') && editCustomerForm.get('address')?.errors?.['required']) {
-          <small class="p-error">Address is required.</small>
-        }
-        @if (isEditFieldInvalid('address') && editCustomerForm.get('address')?.errors?.['minlength']) {
-          <small class="p-error">Address must be at least 10 characters.</small>
-        }
-      </div>
-      <div class="form-field">
-        <label>Subscription</label>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <p-checkbox formControlName="isSubscribed" [binary]="true"></p-checkbox>
-          <span>Subscribed to broadcasts</span>
-        </div>
-      </div>
-    </div>
-  </form>
-  <ng-template pTemplate="footer">
-    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showEditDialog = false" icon="pi pi-times"></p-button>
-    <p-button label="Save Changes" (onClick)="editCustomer()" [disabled]="editingCustomer" [loading]="editingCustomer" icon="pi pi-check"></p-button>
-  </ng-template>
-</p-dialog>
+<app-customer-edit-dialog
+  [(visible)]="showEditDialog"
+  [customer]="editTarget"
+  (saved)="onCustomerSaved()">
+</app-customer-edit-dialog>
 
 <!-- Delete Confirmation Dialog -->
-<p-dialog header="Delete Customer" [(visible)]="showDeleteConfirm" [modal]="true" [style]="{'width': '400px'}">
-  <div class="delete-confirm-content">
-    <i class="pi pi-exclamation-triangle" style="font-size:2rem; color:#e74c3c;"></i>
-    <p>Are you sure you want to delete <strong>{{ customerToDelete?.name || customerToDelete?.phoneNumber }}</strong>?</p>
-    <p style="color:#888; font-size:13px;">This will permanently delete the customer and all their orders, cart items, and chat messages.</p>
-  </div>
-  <ng-template pTemplate="footer">
-    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showDeleteConfirm = false" icon="pi pi-times"></p-button>
-    <p-button label="Delete" severity="danger" (onClick)="deleteCustomer()" [disabled]="deletingCustomer" [loading]="deletingCustomer" icon="pi pi-trash"></p-button>
-  </ng-template>
-</p-dialog>
+<app-customer-delete-dialog
+  [(visible)]="showDeleteConfirm"
+  [customer]="deleteTarget"
+  (deleted)="onCustomerDeleted()">
+</app-customer-delete-dialog>
 
 <!-- Bulk Import Dialog -->
-<p-dialog header="Bulk Import Customers" [(visible)]="showImportDialog" [modal]="true" [style]="{'width': '500px'}">
-  <p style="color:#888; font-size:13px; margin-bottom:12px;">Paste one customer per line. Format: <code>phone,name</code> (name is optional)</p>
-  <form [formGroup]="importForm">
-    <textarea pInputTextarea formControlName="importText" rows="8" class="w-full" style="font-family:monospace;"
-    placeholder="919876543210,John&#10;919876543211,Jane&#10;919876543212"></textarea>
-  </form>
-  <ng-template pTemplate="footer">
-    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showImportDialog = false" icon="pi pi-times"></p-button>
-    <p-button label="Import Customers" (onClick)="importCustomers()" [disabled]="importing" [loading]="importing" icon="pi pi-upload"></p-button>
-  </ng-template>
-</p-dialog>
+<app-customer-import-dialog
+  [(visible)]="showImportDialog"
+  (imported)="onCustomersImported()">
+</app-customer-import-dialog>
 
 <!-- Broadcast to Selected Dialog -->
 <app-customer-broadcast-dialog
@@ -110,8 +41,8 @@
       </div>
     </ng-template>
     <ng-template pTemplate="right">
-      <p-button label="Add Customer" icon="pi pi-plus" severity="primary" (onClick)="openAddDialog()"></p-button>
-      <p-button label="Import Bulk" icon="pi pi-upload" severity="secondary" [outlined]="true" (onClick)="openImportDialog()"></p-button>
+      <p-button label="Add Customer" icon="pi pi-plus" severity="primary" (onClick)="showAddDialog = true"></p-button>
+      <p-button label="Import Bulk" icon="pi pi-upload" severity="secondary" [outlined]="true" (onClick)="showImportDialog = true"></p-button>
     </ng-template>
   </p-toolbar>
 
@@ -138,7 +69,7 @@
       @if (selectedCount > customers.length) {
         <span style="font-size:13px; color:#888; margin-left:8px;">(across multiple pages)</span>
       }
-      <p-button label="Send Broadcast to Selected" icon="pi pi-send" size="small" (onClick)="openBroadcastDialog()"></p-button>
+      <p-button label="Send Broadcast to Selected" icon="pi pi-send" size="small" (onClick)="showBroadcastDialog = true"></p-button>
       <p-button label="Clear Selection" icon="pi pi-times" severity="secondary" [outlined]="true" size="small" (onClick)="clearSelection()"></p-button>
     </div>
   }

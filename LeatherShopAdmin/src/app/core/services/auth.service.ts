@@ -3,16 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap, firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
-
-export interface LoginResponse {
-  success: boolean;
-  message: string;
-  data: {
-    token: string;
-    username: string;
-    expiresAt: string;
-  };
-}
+import { ApiResponse } from '../models/api-response.model';
+import { LoginData } from '../../features/auth/models/auth.model';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -25,9 +17,9 @@ export class AuthService {
   private accessToken: string | null = null;
   private accessTokenExpiry: Date | null = null;
 
-  login(username: string, password: string): Observable<LoginResponse> {
+  login(username: string, password: string): Observable<ApiResponse<LoginData>> {
     return this.http
-      .post<LoginResponse>(`${environment.apiUrl}/auth/login`, { username, password }, { withCredentials: true })
+      .post<ApiResponse<LoginData>>(`${environment.apiUrl}/auth/login`, { username, password }, { withCredentials: true })
       .pipe(
         tap(res => {
           if (res.success && res.data) {
@@ -43,8 +35,8 @@ export class AuthService {
    * Get a new access token using the HttpOnly refresh token cookie.
    * Called by the auth interceptor on 401 and by the guard on page reload.
    */
-  refreshAccessToken(): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${environment.apiUrl}/auth/refresh`, {}, { withCredentials: true }).pipe(
+  refreshAccessToken(): Observable<ApiResponse<LoginData>> {
+    return this.http.post<ApiResponse<LoginData>>(`${environment.apiUrl}/auth/refresh`, {}, { withCredentials: true }).pipe(
       tap(res => {
         if (res.success && res.data) {
           this.accessToken = res.data.token;

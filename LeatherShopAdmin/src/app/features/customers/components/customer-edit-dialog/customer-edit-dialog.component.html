@@ -1,0 +1,32 @@
+<p-dialog header="Edit Customer" [(visible)]="visible" (visibleChange)="visibleChange.emit($event)"
+  (onShow)="onShow()" [modal]="true" [style]="{'width': '450px'}">
+  <form [formGroup]="form">
+    <div class="dialog-form">
+      <div class="form-field">
+        <label for="editName">Name</label>
+        <input type="text" pInputText id="editName" formControlName="name" placeholder="Customer name" class="w-full" />
+      </div>
+      <div class="form-field">
+        <label for="editAddress">Address *</label>
+        <textarea pInputTextarea id="editAddress" formControlName="address" rows="3" placeholder="Full shipping address" class="w-full"></textarea>
+        @if (isFieldInvalid('address') && form.get('address')?.errors?.['required']) {
+          <small class="p-error">Address is required.</small>
+        }
+        @if (isFieldInvalid('address') && form.get('address')?.errors?.['minlength']) {
+          <small class="p-error">Address must be at least 10 characters.</small>
+        }
+      </div>
+      <div class="form-field">
+        <label>Subscription</label>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <p-checkbox formControlName="isSubscribed" [binary]="true"></p-checkbox>
+          <span>Subscribed to broadcasts</span>
+        </div>
+      </div>
+    </div>
+  </form>
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="close()" icon="pi pi-times"></p-button>
+    <p-button label="Save Changes" (onClick)="submit()" [disabled]="submitting" [loading]="submitting" icon="pi pi-check"></p-button>
+  </ng-template>
+</p-dialog>

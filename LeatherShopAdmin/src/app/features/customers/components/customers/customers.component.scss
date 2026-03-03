@@ -28,22 +28,6 @@
   margin-bottom: 16px;
 }
 
-.dialog-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.form-field {
-  label {
-    display: block;
-    margin-bottom: 6px;
-    font-weight: 600;
-    font-size: 14px;
-    color: #334155;
-  }
-}
-
 .row-selected {
   background: #eef2ff !important;
 }
@@ -52,15 +36,6 @@
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.delete-confirm-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 12px;
-  padding: 8px 0;
 }
 
 /* ─── Carousel / Image Upload — from shared partial ─── */

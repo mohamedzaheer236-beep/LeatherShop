@@ -1,0 +1,35 @@
+<p-dialog header="Add Customer" [(visible)]="visible" (visibleChange)="visibleChange.emit($event)"
+  (onShow)="onShow()" [modal]="true" [style]="{'width': '450px'}">
+  <form [formGroup]="form">
+    <div class="dialog-form">
+      <div class="form-field">
+        <label for="addPhone">Phone Number *</label>
+        <input type="text" pInputText id="addPhone" formControlName="phoneNumber" placeholder="e.g. 919876543210" class="w-full" />
+        @if (isFieldInvalid('phoneNumber') && form.get('phoneNumber')?.errors?.['required']) {
+          <small class="p-error">Phone number is required.</small>
+        }
+        @if (isFieldInvalid('phoneNumber') && form.get('phoneNumber')?.errors?.['pattern']) {
+          <small class="p-error">Enter a valid phone number (10-15 digits).</small>
+        }
+      </div>
+      <div class="form-field">
+        <label for="addName">Name</label>
+        <input type="text" pInputText id="addName" formControlName="name" placeholder="Customer name (optional)" class="w-full" />
+      </div>
+      <div class="form-field">
+        <label for="addAddress">Address *</label>
+        <textarea pInputTextarea id="addAddress" formControlName="address" rows="3" placeholder="Full shipping address" class="w-full"></textarea>
+        @if (isFieldInvalid('address') && form.get('address')?.errors?.['required']) {
+          <small class="p-error">Address is required.</small>
+        }
+        @if (isFieldInvalid('address') && form.get('address')?.errors?.['minlength']) {
+          <small class="p-error">Address must be at least 10 characters.</small>
+        }
+      </div>
+    </div>
+  </form>
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="close()" icon="pi pi-times"></p-button>
+    <p-button label="Add Customer" (onClick)="submit()" [disabled]="submitting" [loading]="submitting" icon="pi pi-check"></p-button>
+  </ng-template>
+</p-dialog>

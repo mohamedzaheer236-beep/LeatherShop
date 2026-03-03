@@ -1,0 +1,12 @@
+<p-dialog header="Bulk Import Customers" [(visible)]="visible" (visibleChange)="visibleChange.emit($event)"
+  (onShow)="onShow()" [modal]="true" [style]="{'width': '500px'}">
+  <p style="color:#888; font-size:13px; margin-bottom:12px;">Paste one customer per line. Format: <code>phone,name</code> (name is optional)</p>
+  <form [formGroup]="form">
+    <textarea pInputTextarea formControlName="importText" rows="8" class="w-full" style="font-family:monospace;"
+    placeholder="919876543210,John&#10;919876543211,Jane&#10;919876543212"></textarea>
+  </form>
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="close()" icon="pi pi-times"></p-button>
+    <p-button label="Import Customers" (onClick)="submit()" [disabled]="importing" [loading]="importing" icon="pi pi-upload"></p-button>
+  </ng-template>
+</p-dialog>
