@@ -9,16 +9,16 @@
     <div class="dialog-form">
       <div class="form-field">
         <label for="bcTemplate">Template Name *</label>
-        @if (templateLoader.getState().templatesLoaded && templateLoader.getState().templates.length > 0) {
+        @if (helper.templateLoader.getState().templatesLoaded && helper.templateLoader.getState().templates.length > 0) {
           <p-dropdown
             id="bcTemplate"
-            [options]="templateLoader.getState().templateOptions" formControlName="template"
+            [options]="helper.templateLoader.getState().templateOptions" formControlName="template"
             (onChange)="onTemplateSelect()"
             placeholder="Select an approved template" [style]="{'width': '100%'}"
             [filter]="true" filterPlaceholder="Search templates..." appendTo="body">
           </p-dropdown>
         }
-        @if (!templateLoader.getState().templatesLoaded || templateLoader.getState().templates.length === 0) {
+        @if (!helper.templateLoader.getState().templatesLoaded || helper.templateLoader.getState().templates.length === 0) {
           <input
             type="text" pInputText formControlName="template" placeholder="e.g. new_product_launch" class="w-full" />
         }
@@ -32,26 +32,26 @@
             <i class="pi pi-times-circle"></i> This template is not approved.
           </small>
         }
-        @if (isCarousel) {
+        @if (helper.isCarousel) {
           <small class="carousel-badge">
-            <i class="pi pi-images"></i> Carousel template — {{ carouselCards.length }} cards
+            <i class="pi pi-images"></i> Carousel template — {{ helper.carouselCards.length }} cards
           </small>
         }
       </div>
 
       <!-- Standard Template Fields -->
-      @if (!isCarousel) {
-        @if (bodyParamCount > 0) {
+      @if (!helper.isCarousel) {
+        @if (helper.bodyParamCount > 0) {
           <div class="form-field">
             <label for="bcParams">Parameters (comma separated)</label>
             <input type="text" pInputText id="bcParams" formControlName="params" placeholder="param1, param2" class="w-full" />
-            <small class="hint"><i class="pi pi-info-circle"></i> This template requires {{ bodyParamCount }} parameter(s)</small>
+            <small class="hint"><i class="pi pi-info-circle"></i> This template requires {{ helper.bodyParamCount }} parameter(s)</small>
           </div>
         }
-        @if (hasImageHeader) {
+        @if (helper.hasImageHeader) {
           <div class="form-field">
             <label>Header Image (optional)</label>
-            @if (!headerImagePreview) {
+            @if (!helper.headerImagePreview) {
               <div class="image-upload-zone">
                 <label class="upload-dropzone" for="bcHeaderImageInput">
                   <i class="pi pi-cloud-upload"></i>
@@ -61,15 +61,15 @@
                 <input type="file" id="bcHeaderImageInput" accept="image/*" (change)="onHeaderImageSelect($event)" hidden />
               </div>
             }
-            @if (headerImagePreview) {
+            @if (helper.headerImagePreview) {
               <div class="image-preview-wrap">
-                <img [src]="headerImagePreview" alt="Header preview" class="image-preview" />
-                @if (headerImageUploading) {
+                <img [src]="helper.headerImagePreview" alt="Header preview" class="image-preview" />
+                @if (helper.headerImageUploading) {
                   <div class="image-preview-overlay">
                     <i class="pi pi-spin pi-spinner"></i> Uploading...
                   </div>
                 }
-                @if (!headerImageUploading) {
+                @if (!helper.headerImageUploading) {
                   <button type="button" class="remove-image-btn" (click)="removeHeaderImage()">
                     <i class="pi pi-times"></i>
                   </button>
@@ -81,19 +81,19 @@
       }
 
       <!-- Carousel Card Fields -->
-      @if (isCarousel) {
+      @if (helper.isCarousel) {
         <div class="carousel-cards-section">
-          @for (card of carouselCards; track card; let i = $index) {
+          @for (card of helper.carouselCards; track card; let i = $index) {
             <div class="carousel-card-item">
               <div class="carousel-card-header">
-                <span class="card-number">Card {{ i + 1 }} of {{ carouselCards.length }}</span>
+                <span class="card-number">Card {{ i + 1 }} of {{ helper.carouselCards.length }}</span>
               </div>
               <div class="form-field">
                 <label [for]="'bcCardProduct_' + i">Link to Product *</label>
                 <p-dropdown [inputId]="'bcCardProduct_' + i"
-                  [options]="productOptions"
+                  [options]="helper.productOptions"
                   [(ngModel)]="card.selectedProductId" [ngModelOptions]="{standalone: true}"
-                  (onChange)="onCardProductSelect(i)"
+                  (onChange)="helper.onCardProductSelect(i)"
                   placeholder="Select a product" [style]="{'width': '100%'}"
                   [showClear]="true" [filter]="true" filterPlaceholder="Search products..."
                   appendTo="body">
@@ -104,15 +104,15 @@
                   </small>
                 }
               </div>
-              @if (card.selectedProductId && getCardProductImages(i).length > 0) {
+              @if (card.selectedProductId && helper.getCardProductImages(i).length > 0) {
                 <div class="form-field">
                   <label>Select Image for Card *</label>
                   <div class="product-image-picker">
-                    @for (img of getCardProductImages(i); track img) {
+                    @for (img of helper.getCardProductImages(i); track img) {
                       <div class="picker-thumb"
                         [class.selected]="card.selectedImageId === img.id"
-                        (click)="selectCardImage(i, img)">
-                        <img [src]="resolveImageUrl(img.url)" alt="Product image" />
+                        (click)="helper.selectCardImage(i, img)">
+                        <img [src]="helper.resolveImageUrl(img.url)" alt="Product image" />
                         @if (card.selectedImageId === img.id) {
                           <i class="pi pi-check-circle selected-badge"></i>
                         }
@@ -121,7 +121,7 @@
                   </div>
                 </div>
               }
-              @if (!card.selectedProductId || getCardProductImages(i).length === 0) {
+              @if (!card.selectedProductId || helper.getCardProductImages(i).length === 0) {
                 <div class="form-field">
                   <label>Card Image *</label>
                   @if (!card.imagePreview) {
@@ -131,17 +131,17 @@
                         <span>{{ card.selectedProductId ? 'No product images — upload' : 'Select product or upload' }}</span>
                         <small>JPG, PNG — auto-compressed</small>
                       </label>
-                      <input type="file" [id]="'bcCardImage_' + i" accept="image/*" (change)="onCardImageSelect($event, i)" hidden />
+                      <input type="file" [id]="'bcCardImage_' + i" accept="image/*" (change)="helper.handleCardImageUpload($event, i)" hidden />
                     </div>
                   }
-                  @if (card.imagePreview && (!card.selectedProductId || getCardProductImages(i).length === 0)) {
+                  @if (card.imagePreview && (!card.selectedProductId || helper.getCardProductImages(i).length === 0)) {
                     <div class="image-preview-wrap">
                       <img [src]="card.imagePreview" alt="Card preview" class="image-preview" />
                       @if (card.uploading) {
                         <div class="image-preview-overlay"><i class="pi pi-spin pi-spinner"></i> Uploading...</div>
                       }
                       @if (!card.uploading) {
-                        <button type="button" class="remove-image-btn" (click)="removeCardImage(i)">
+                        <button type="button" class="remove-image-btn" (click)="helper.removeCardImage(i)">
                           <i class="pi pi-times"></i>
                         </button>
                       }
@@ -154,8 +154,8 @@
                 <input pInputText [id]="'bcCardBody_' + i"
                   [(ngModel)]="card.bodyParam" [ngModelOptions]="{standalone: true}"
                   placeholder="e.g. Premium Leather Wallet"
-                  [maxlength]="cardBodyMaxLength" class="w-full" />
-                  <small class="hint">{{ card.bodyParam.length }}/{{ cardBodyMaxLength }} characters</small>
+                  [maxlength]="helper.cardBodyMaxLength" class="w-full" />
+                  <small class="hint">{{ card.bodyParam.length }}/{{ helper.cardBodyMaxLength }} characters</small>
                 </div>
               </div>
             }
@@ -166,7 +166,7 @@
     <ng-template pTemplate="footer">
       <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="close()" icon="pi pi-times"></p-button>
       <p-button [label]="'Send to ' + phoneNumbers.length + ' Customers'" (onClick)="send()"
-        [disabled]="sending || broadcastForm.invalid || anyUploading || (isCarousel && !carouselCardsValid)"
+        [disabled]="sending || broadcastForm.invalid || helper.anyUploading || (helper.isCarousel && !helper.carouselCardsValid)"
         [loading]="sending" icon="pi pi-send">
       </p-button>
     </ng-template>

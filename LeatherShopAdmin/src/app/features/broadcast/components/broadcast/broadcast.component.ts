@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, OnDestroy, inject } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { PaginatorState } from 'primeng/paginator';
 import { BroadcastService } from '../../services/broadcast.service';
 import { BroadcastHistory } from '../../models/broadcast.model';
@@ -60,7 +61,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   resultMessage = '';
   resultType: 'success' | 'error' | '' = '';
 
-  private pollingIntervals = new Map<number, ReturnType<typeof setInterval>>();
+  private pollingSubs = new Map<number, Subscription>();
 
   ngOnInit(): void {
     this.loadHistory();
@@ -85,8 +86,8 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.pollingIntervals.forEach(interval => clearInterval(interval));
-    this.pollingIntervals.clear();
+    this.pollingSubs.forEach(sub => sub.unsubscribe());
+    this.pollingSubs.clear();
   }
 
   // ─── History ───
@@ -144,7 +145,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
           this.resultType = 'success';
           this.customMessage = '';
           this.cdr.markForCheck();
-          this.pollBroadcastStatus(res.broadcastId, res.totalRecipients);
+          this.startPolling(res.broadcastId, res.totalRecipients);
         },
         error: () => {
           this.sending = false;
@@ -155,48 +156,38 @@ export class BroadcastComponent implements OnInit, OnDestroy {
       });
   }
 
-  private pollBroadcastStatus(broadcastId: number, totalRecipients: number): void {
-    if (this.pollingIntervals.has(broadcastId)) return;
+  private startPolling(broadcastId: number, totalRecipients: number): void {
+    if (this.pollingSubs.has(broadcastId)) return;
 
-    let attempts = 0;
-    const maxAttempts = 30;
-    const interval = setInterval(() => {
-      attempts++;
-      this.broadcastService.getBroadcastStatus(broadcastId).subscribe({
-        next: status => {
-          const processed = status.sentCount + status.failedCount;
-          if (processed >= totalRecipients || attempts >= maxAttempts) {
-            clearInterval(interval);
-            this.pollingIntervals.delete(broadcastId);
-            this.sending = this.pollingIntervals.size > 0;
-            this.loadHistory();
-            if (status.failedCount > 0 && status.sentCount === 0) {
-              this.resultMessage = `Broadcast failed! ${status.failedCount} message(s) could not be delivered.`;
-              this.resultType = 'error';
-              this.notification.error(`Broadcast failed for ${status.failedCount} recipient(s).`);
-            } else if (status.failedCount > 0) {
-              this.resultMessage = `Broadcast completed: ${status.sentCount} sent, ${status.failedCount} failed.`;
-              this.resultType = 'success';
-              this.notification.warning(`Broadcast: ${status.sentCount} sent, ${status.failedCount} failed.`);
-            } else {
-              this.resultMessage = `Broadcast successful! ${status.sentCount} message(s) delivered.`;
-              this.resultType = 'success';
-              this.notification.success(`Broadcast sent to ${status.sentCount} subscribers.`);
-            }
-            this.cdr.markForCheck();
-          }
-        },
-        error: () => {
-          clearInterval(interval);
-          this.pollingIntervals.delete(broadcastId);
-          this.sending = this.pollingIntervals.size > 0;
-          this.resultMessage = 'Could not verify broadcast delivery status.';
+    const sub = this.broadcastService.pollBroadcastStatus(broadcastId, totalRecipients).subscribe({
+      next: status => {
+        this.pollingSubs.delete(broadcastId);
+        this.sending = this.pollingSubs.size > 0;
+        this.loadHistory();
+        if (status.failedCount > 0 && status.sentCount === 0) {
+          this.resultMessage = `Broadcast failed! ${status.failedCount} message(s) could not be delivered.`;
           this.resultType = 'error';
-          this.loadHistory();
-          this.cdr.markForCheck();
-        },
-      });
-    }, 1000);
-    this.pollingIntervals.set(broadcastId, interval);
+          this.notification.error(`Broadcast failed for ${status.failedCount} recipient(s).`);
+        } else if (status.failedCount > 0) {
+          this.resultMessage = `Broadcast completed: ${status.sentCount} sent, ${status.failedCount} failed.`;
+          this.resultType = 'success';
+          this.notification.warning(`Broadcast: ${status.sentCount} sent, ${status.failedCount} failed.`);
+        } else {
+          this.resultMessage = `Broadcast successful! ${status.sentCount} message(s) delivered.`;
+          this.resultType = 'success';
+          this.notification.success(`Broadcast sent to ${status.sentCount} subscribers.`);
+        }
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.pollingSubs.delete(broadcastId);
+        this.sending = this.pollingSubs.size > 0;
+        this.resultMessage = 'Could not verify broadcast delivery status.';
+        this.resultType = 'error';
+        this.loadHistory();
+        this.cdr.markForCheck();
+      },
+    });
+    this.pollingSubs.set(broadcastId, sub);
   }
 }

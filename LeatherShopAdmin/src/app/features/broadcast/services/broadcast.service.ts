@@ -44,4 +44,37 @@ export class BroadcastService {
   getTotalSentCount(): Observable<number> {
     return this.http.get<ApiResponse<number>>(`${this.baseUrl}/stats`).pipe(map(res => res.data));
   }
+
+  /**
+   * Polls a broadcast's delivery status every second until all messages are
+   * processed or 30 attempts are exhausted.
+   *
+   * Returns an Observable that emits the final {@link BroadcastStatus} and
+   * completes. Unsubscribing cancels the polling interval automatically.
+   */
+  pollBroadcastStatus(broadcastId: number, totalRecipients: number): Observable<BroadcastHistory> {
+    return new Observable<BroadcastHistory>(subscriber => {
+      let attempts = 0;
+      const maxAttempts = 30;
+      const intervalId = setInterval(() => {
+        attempts++;
+        this.getBroadcastStatus(broadcastId).subscribe({
+          next: status => {
+            const processed = status.sentCount + status.failedCount;
+            if (processed >= totalRecipients || attempts >= maxAttempts) {
+              clearInterval(intervalId);
+              subscriber.next(status);
+              subscriber.complete();
+            }
+          },
+          error: err => {
+            clearInterval(intervalId);
+            subscriber.error(err);
+          },
+        });
+      }, 1000);
+
+      return () => clearInterval(intervalId);
+    });
+  }
 }
