@@ -2379,3 +2379,20 @@ Migrated all 15 Angular components to `ChangeDetectionStrategy.OnPush` — compl
 **Already OnPush (no changes needed):** `LoadingSpinnerComponent`, `BroadcastHistoryComponent`, `ToastComponent`
 
 **Build verified:** Frontend 0 errors, 0 warnings.
+
+---
+
+### Phase 29 — Final Deep Audit & Hardening II (March 4, 2026)
+
+Comprehensive re-audit of all backend (27 files) and all frontend (40+ files). Found and fixed 1 high, 3 medium, and 2 low issues.
+
+| # | Severity | Fix | File(s) |
+|---|----------|-----|--------|
+| 1 | **HIGH** | **Paytm checksum bypass** — Missing `Head.Signature` in Paytm response was silently accepted (verification skipped). Now treats missing checksum as verification failure and rejects the response. | `PaymentService.cs` |
+| 2 | **HIGH** | **New customer message ordering** — First-time customers' incoming messages were saved AFTER bot responses (wrong chronological order in chat history). Fixed by creating customer + saving incoming message BEFORE bot processes it. `ChatBotService.ProcessMessage` finds the pre-created customer via `FirstOrDefaultAsync`. | `WebhookProcessingService.cs` |
+| 3 | **MEDIUM** | **Missing CancellationToken** — `BotMessageSender.SaveAndPushBotMessage` wasn't passing CT to `SaveMessageAsync`. Added `, ct` parameter. | `BotMessageSender.cs` |
+| 4 | **MEDIUM** | **Missing CancellationToken** — `ChatService.IsBotPausedAsync` called `FindAsync(customerId)` without CT. Changed to `FindAsync(new object[] { customerId }, ct)`. | `ChatService.cs` |
+| 5 | **MEDIUM** | **Startup cold-start contention** — `ChatCleanupBackgroundService` ran cleanup query immediately on startup, competing with migrations. Added 2-minute initial delay. | `ChatCleanupBackgroundService.cs` |
+| 6 | **LOW** | **OnPush mutable array** — `ProductFormComponent.removeImage()` used `splice()` (mutation) without `markForCheck()`. Changed to immutable `filter()` + `markForCheck()`. | `product-form.component.ts` |
+
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.

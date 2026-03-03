@@ -192,7 +192,7 @@ public class ChatService : IChatService
 
     public async Task<bool> IsBotPausedAsync(int customerId, CancellationToken ct = default)
     {
-        var customer = await _db.Customers.FindAsync(customerId);
+        var customer = await _db.Customers.FindAsync(new object[] { customerId }, ct);
         if (customer == null) return false;
         return await CheckAndAutoResumeBotAsync(customer, ct);
     }

@@ -25,6 +25,9 @@ public class ChatCleanupBackgroundService : BackgroundService
         _logger.LogInformation("ChatCleanupBackgroundService started. Runs every {Hours}h, deletes messages older than {Days} days.",
             Interval.TotalHours, MessageRetention.TotalDays);
 
+        // Delay startup to avoid competing with migrations and initial requests on cold start
+        await Task.Delay(TimeSpan.FromMinutes(2), stoppingToken);
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try

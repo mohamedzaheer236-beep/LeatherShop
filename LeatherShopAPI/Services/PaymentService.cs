@@ -348,13 +348,15 @@ public class PaymentService : IPaymentService
             // Verify the response checksum from Paytm
             var responseBodyJson = JsonSerializer.Serialize(result.Body);
             var responseChecksum = result.Head?.Signature;
-            if (!string.IsNullOrEmpty(responseChecksum))
+            if (string.IsNullOrEmpty(responseChecksum))
             {
-                if (!PaytmChecksum.VerifySignature(responseBodyJson, merchantKey, responseChecksum))
-                {
-                    _logger.LogWarning("Paytm Transaction Status response checksum mismatch for order {OrderId}. Possible tampering.", orderId);
-                    return null;
-                }
+                _logger.LogWarning("Missing checksum in Paytm Transaction Status response for order {OrderId}. Rejecting response.", orderId);
+                return null;
+            }
+            if (!PaytmChecksum.VerifySignature(responseBodyJson, merchantKey, responseChecksum))
+            {
+                _logger.LogWarning("Paytm Transaction Status response checksum mismatch for order {OrderId}. Possible tampering.", orderId);
+                return null;
             }
 
             return new PaytmTxnStatusResult

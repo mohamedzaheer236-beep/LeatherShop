@@ -295,8 +295,9 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
 
   /** Remove an image by index */
   removeImage(index: number): void {
-    this.images.splice(index, 1);
+    this.images = this.images.filter((_, i) => i !== index);
     this.syncFormImages();
+    this.cdr.markForCheck();
   }
 
   /** Sync the images array back to form controls */

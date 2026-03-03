@@ -92,16 +92,16 @@ public class WebhookProcessingService : IWebhookProcessingService
                 return;
             }
         }
+        else
+        {
+            // New customer: save their incoming message BEFORE bot processes it.
+            // This ensures correct chronological ordering (incoming message timestamp < bot response timestamps).
+            // ProcessMessage's FirstOrDefaultAsync will find the customer we create here.
+            await HandleNewCustomerFirstMessageAsync(phone, incomingContent, contactName, message.Type, ct);
+        }
 
         // Delegate to chatbot for automated response
         await _chatBot.ProcessMessage(from, contactName, message.Type, textBody, interactiveId, interactiveTitle, ct);
-
-        // Handle brand-new customers: ProcessMessage creates them internally.
-        // We must save their first message AND push via SignalR so admins see it in real-time.
-        if (customer == null)
-        {
-            await HandleNewCustomerFirstMessageAsync(phone, incomingContent, contactName, message.Type, ct);
-        }
     }
 
     private static (string? textBody, string? interactiveId, string? interactiveTitle) ExtractMessageContent(
@@ -168,8 +168,16 @@ public class WebhookProcessingService : IWebhookProcessingService
     private async Task HandleNewCustomerFirstMessageAsync(
         string phone, string incomingContent, string contactName, string messageType, CancellationToken ct)
     {
+        // Create the customer record so we can save their incoming message
+        // before the bot processes it (ensures correct chronological ordering).
+        // ChatBotService.ProcessMessage will find this customer via FirstOrDefaultAsync.
         var newCustomer = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone, ct);
-        if (newCustomer == null) return;
+        if (newCustomer == null)
+        {
+            newCustomer = new Customer { PhoneNumber = phone, Name = contactName };
+            _db.Customers.Add(newCustomer);
+            await _db.SaveChangesAsync(ct);
+        }
 
         var senderName = string.IsNullOrEmpty(contactName) ? phone : contactName;
 

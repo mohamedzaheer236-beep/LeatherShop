@@ -72,7 +72,7 @@ public class BotMessageSender
         try
         {
             var saved = await _chatService.SaveMessageAsync(
-                CurrentCustomerId.Value, MessageDirection.Outgoing, content, "Bot", true, messageType);
+                CurrentCustomerId.Value, MessageDirection.Outgoing, content, "Bot", true, messageType, ct);
 
             await _hubContext.Clients.Group($"chat_{CurrentCustomerId.Value}").SendAsync("ReceiveMessage", new ChatMessageDto
             {
