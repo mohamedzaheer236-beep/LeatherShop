@@ -1619,7 +1619,7 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 | F7 | ~~**First message from new customer lost**~~ | ~~`WhatsAppWebhookController.cs`~~ | ✅ **FIXED** — After `ProcessMessage()` (which creates the customer), re-fetches customer by phone and saves the initial message to chat history. First-ever messages are no longer lost. |
 | F8 | ~~**`int.Parse` on interactive IDs**~~ | ~~`ChatBotService.cs`~~ | ✅ **FIXED** — All 3 `int.Parse` calls replaced with `int.TryParse` + user-friendly fallback (see P3). |
 | F9 | ~~**SignalR stale token on reconnect**~~ | ~~`signalr.service.ts`~~ | ✅ **FIXED** — Changed `accessTokenFactory: () => token` (captured closure) to `accessTokenFactory: () => this.auth.getToken()!` which reads a fresh token on every reconnect attempt. |
-| F10 | ~~**Double toast notifications**~~ | `error.interceptor.ts` + all components | ✅ **FIXED** — Removed all component-level `notification.error()` calls that duplicated the interceptor toast. 13 locations fixed across `product-list.component.ts`, `product-form.component.ts`, `orders.component.ts`, `customers.component.ts`. Components now only manage UI state (loading flags, reverts) in error handlers; the interceptor shows the user-facing toast using the API message. | ~~Remove per-component toasts~~ ✅ Done |
+| F10 | ~~**Double toast notifications**~~ | `error.interceptor.ts` + all components | ✅ **FIXED** — Removed all component-level `notification.error()` calls that duplicated the interceptor toast. 13 locations fixed initially, then 3 more found in Phase 34 deep audit: `orders.component.ts` (downloadInvoice), `broadcast-form-helper.service.ts` (handleHeaderImageUpload, handleCardImageUpload). Also fixed parent+child success toast duplication in `customers.component.ts` → `onBroadcastSent()`. Components now only manage UI state (loading flags, reverts) in error handlers; the interceptor shows the user-facing toast. | ~~Remove per-component toasts~~ ✅ Done |
 | F11 | **Orders paginator visual desync** | `orders.component.html` | `<p-paginator>` has no `[first]` binding. When filter resets `currentPage = 1`, paginator UI still shows the old page number. | Add `[first]="(currentPage - 1) * pageSize"` to the paginator element. |
 | F12 | ~~**SignalR not stopped on 401 logout**~~ | ~~`error.interceptor.ts`~~ | ✅ **FIXED** — Interceptor now calls `signalR.stop()` before `auth.logout()` on 401. | ~~Call `signalR.stop()` inside `auth.logout()`~~ ✅ Done |
 | F13 | ~~**Multiple 401s trigger concurrent navigations**~~ | ~~`error.interceptor.ts`~~ | ✅ **FIXED** — Added `isLoggingOut` module-level flag. First 401 sets the flag, calls `signalR.stop()` + `auth.logout()`, then resets after 2s delay. Subsequent 401s from concurrent requests skip logout entirely. |
@@ -2459,4 +2459,35 @@ Eliminated ~200 lines of duplicated code across broadcast components by extracti
 | 5 | **BroadcastComponent** | Replaced `setInterval` polling with `BroadcastService.pollBroadcastStatus()` Observable subscription. Cleanup switched from interval map to subscription map. | `broadcast.component.ts` |
 
 **Net result:** 477 additions, 579 deletions (−102 lines). Shared logic lives in one place.
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
+
+### Phase 33 — SCSS Deduplication & Remaining Audit Fixes (March 4, 2026)
+
+Fixed all 9 remaining audit items from Phase 32's deep audit. Major SCSS deduplication across broadcast components.
+
+| # | Change | Description | File(s) |
+|---|--------|-------------|----------|
+| 1 | **SCSS shared partials** | Created `_broadcast-form-shared.scss` (form layout: `.card-section-header`, `.form-grid`, `.form-field`, `.hint`, `.send-action`) and `_status-banner.scss` (`.status-banner` with sending/success/error variants + `@keyframes slideDown`). Removed ~500 lines of duplicated styles across 3 broadcast components. | `_broadcast-form-shared.scss` (new), `_status-banner.scss` (new), `broadcast-form.component.scss`, `broadcast.component.scss`, `customer-broadcast-dialog.component.scss` |
+| 2 | **WhatsApp auth fix** | Added Bearer token to `GetTemplatesAsync()` — was previously unauthenticated, causing silent template fetch failures. | `WhatsAppService.cs` |
+| 3 | **Shared HttpClient** | Replaced `new HttpClient()` in `PaytmChecksum.cs` with `IHttpClientFactory` injected via static helper method. Prevents socket exhaustion. | `PaytmChecksum.cs`, `PaymentController.cs` |
+| 4 | **Dashboard query optimization** | Separated `CountAsync()` from `Include()` in dashboard queries. Count now runs without JOINs. | `DashboardService.cs` |
+| 5 | **IMemoryCache for conversation state** | Replaced per-message DB writes (`Customer.PendingProductId`, `PendingAction`) with `ConversationStateService` using `IMemoryCache` with 30-min sliding expiration. Suitable for single-replica Railway deployment. | `ConversationStateService.cs` (new), `ChatBotService.cs` |
+| 6 | **Runtime data seeder** | Extracted seed data from EF migration `HasData()` into `DataSeeder.SeedAsync()` — runs at startup via `app.Services.SeedDatabase()`. Avoids migration lock-in when seed data changes. | `DataSeeder.cs` (new), `ServiceCollectionExtensions.cs` |
+| 7 | **CSS design token system** | Established 39+ `--ls-*` CSS custom properties in `:root` of `styles.scss`. All shared SCSS partials use tokens instead of hardcoded values. | `styles.scss` |
+| 8 | **Utility CSS classes** | Added `.sr-only` (screen-reader-only) class used by broadcast file upload buttons. | `broadcast-form.component.scss` |
+
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
+
+### Phase 34 — OnPush & Notification Audit (March 4, 2026)
+
+Deep audit of all 15 Angular components for OnPush change detection bugs and duplicate notification patterns.
+
+| # | Change | Description | File(s) |
+|---|--------|-------------|----------|
+| 1 | **Template loader OnPush fix** | `TemplateLoaderService.loadTemplates()` mutated shared state inside a `.subscribe()` callback but OnPush consumers were never notified. Added `onComplete?: () => void` callback parameter. `BroadcastFormHelperService.init()` passes `() => this.cdr.markForCheck()` so both broadcast form and customer broadcast dialog update after templates load. Fixed the "Loading templates from Meta..." spinner staying indefinitely. | `template-loader.service.ts`, `broadcast-form-helper.service.ts` |
+| 2 | **Duplicate error toasts removed** | Removed 3 component/service-level `notification.error()` calls that duplicated the global error interceptor's toast: (1) `orders.component.ts` — downloadInvoice error, (2) `broadcast-form-helper.service.ts` — header image upload error, (3) `broadcast-form-helper.service.ts` — carousel card image upload error. | `orders.component.ts`, `broadcast-form-helper.service.ts` |
+| 3 | **Duplicate success toast removed** | `customers.component.ts` → `onBroadcastSent()` showed "Broadcast sent to selected customers!" while the dialog already showed "Carousel/Broadcast sending to N customers...". Removed the parent's redundant toast. | `customers.component.ts` |
+| 4 | **Singular/plural grammar fix** | Dialog notification now says "1 customer" instead of "1 customers" — proper singular/plural handling. | `customer-broadcast-dialog.component.ts` |
+| 5 | **Full OnPush audit — all pass** | Audited all 15 component/service files for missing `markForCheck()` after async callbacks (`.subscribe()`, `setTimeout`, `setInterval`, `FileReader.onload`, `SignalR .on()`, `Promise.then`). All confirmed correct after fixes #1-4. | All 15 components |
+
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
