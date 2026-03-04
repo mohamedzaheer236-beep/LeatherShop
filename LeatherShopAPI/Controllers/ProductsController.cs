@@ -94,9 +94,12 @@ public class ProductsController : ControllerBase
     }
 
     [HttpGet("check-name")]
-    public async Task<IActionResult> CheckName([FromQuery] string name, [FromQuery] int? excludeId, CancellationToken ct)
+    public async Task<IActionResult> CheckName([FromQuery] string? name, [FromQuery] int? excludeId, CancellationToken ct)
     {
-        var exists = await _productService.NameExistsAsync(name, excludeId, ct);
+        if (string.IsNullOrWhiteSpace(name))
+            return BadRequest(ApiResponse.Fail("Product name is required."));
+
+        var exists = await _productService.NameExistsAsync(name.Trim(), excludeId, ct);
         return Ok(ApiResponse<bool>.Ok(exists));
     }
 

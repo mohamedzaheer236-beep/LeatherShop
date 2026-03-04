@@ -23,6 +23,10 @@ internal static class OrderExpiryHelper
     {
         if (order.Status == OrderStatus.Cancelled) return;
 
+        if (order.OrderItems == null || !order.OrderItems.Any())
+            throw new InvalidOperationException(
+                $"Order {order.OrderNumber} must be loaded with .Include(o => o.OrderItems).ThenInclude(oi => oi.Product).");
+
         logger?.LogInformation(
             "Cancelling order {OrderNumber} and restoring cart for customer {CustomerId}.",
             order.OrderNumber, order.CustomerId);
@@ -34,6 +38,9 @@ internal static class OrderExpiryHelper
         // 2. Restore stock
         foreach (var item in order.OrderItems)
         {
+            if (item.Product == null)
+                throw new InvalidOperationException(
+                    $"OrderItem {item.Id} missing Product navigation — ensure .ThenInclude(oi => oi.Product).");
             item.Product.StockQuantity += item.Quantity;
         }
 

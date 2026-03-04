@@ -79,7 +79,7 @@ public class BroadcastService : IBroadcastService
 
         // Enqueue just the broadcast ID — background service reads all data from DB.
         // If app restarts before processing, ResumeIncompleteBroadcastsAsync picks it up.
-        await _channel.Writer.WriteAsync(broadcast.Id);
+        await _channel.Writer.WriteAsync(broadcast.Id, ct);
 
         return new BroadcastResultDto
         {

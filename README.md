@@ -2491,3 +2491,42 @@ Deep audit of all 15 Angular components for OnPush change detection bugs and dup
 | 5 | **Full OnPush audit — all pass** | Audited all 15 component/service files for missing `markForCheck()` after async callbacks (`.subscribe()`, `setTimeout`, `setInterval`, `FileReader.onload`, `SignalR .on()`, `Promise.then`). All confirmed correct after fixes #1-4. | All 15 components |
 
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
+
+### Phase 35 — Final Deep Audit & Hardening (March 4, 2026)
+
+Comprehensive deep audit of the entire codebase (24 backend services, 9 controllers, middleware, extensions, helpers, data configurations, all 15 Angular components, services, interceptors, guards, SCSS). Fixed all HIGH and key MEDIUM severity issues found.
+
+**Backend Fixes:**
+
+| # | Severity | Change | Description | File(s) |
+|---|----------|--------|-------------|---------|
+| 1 | **HIGH** | **DATABASE_URL parsing guard** | Added validation that `userInfo.Split(':', 2)` produces at least 2 elements before accessing `[1]`. Previously threw `IndexOutOfRangeException` on malformed URLs with no helpful message. | `ServiceCollectionExtensions.cs` |
+| 2 | **HIGH** | **OrderExpiryHelper null safety** | Added guard for `order.OrderItems` being null/empty and null check on `item.Product` navigation. Previously threw `NullReferenceException` if caller forgot `.Include()` / `.ThenInclude()`. | `OrderExpiryHelper.cs` |
+| 3 | **MEDIUM** | **PaymentExpiresAt index** | Added database index on `Order.PaymentExpiresAt` — used by `ExpiredOrderCleanupService` to find expired orders. Without it, cleanup queries do full table scans. | `OrderConfiguration.cs` |
+| 4 | **MEDIUM** | **CancellationToken propagation** | Added `ct` parameter to `_channel.Writer.WriteAsync()` in `BroadcastService` — enables graceful shutdown cancellation. | `BroadcastService.cs` |
+| 5 | **MEDIUM** | **CheckName null guard** | `ProductsController.CheckName` now validates `name` is not null/empty before querying. Returns `400 Bad Request` with clear message. | `ProductsController.cs` |
+| 6 | **MEDIUM** | **New customer race condition** | `WebhookProcessingService.HandleNewCustomerFirstMessageAsync` now catches `DbUpdateException` when two simultaneous webhooks for the same new phone try to insert. Detaches the failed entity and reloads the existing customer. | `WebhookProcessingService.cs` |
+
+**Frontend Fixes:**
+
+| # | Severity | Change | Description | File(s) |
+|---|----------|--------|-------------|---------|
+| 7 | **MEDIUM** | **Chat page responsive layout** | Added `@media (max-width: 768px)` breakpoint to stack sidebar above chat area. Sidebar limited to `max-height: 45vh`, chat main area flexes to fill remaining space. Previously sidebar was fixed `340px` causing overflow on mobile. | `chat-page.component.scss` |
+
+**Full Audit Summary (no action needed):**
+
+| Area | Result |
+|------|--------|
+| SQL Injection | CLEAN — All queries use EF Core LINQ. LIKE patterns escaped via `SqlHelper.EscapeLikePattern`. |
+| Resource Leaks | CLEAN — `HttpClient` via DI, all streams use `using`, no manual HttpClient instantiation. |
+| Async Anti-patterns | CLEAN — Zero `.Result`/`.Wait()` blocking calls. No sync-over-async. |
+| Fire-and-forget | CLEAN — All background work uses `BackgroundService` or `Task.WhenAll`. |
+| DI Patterns | CLEAN — No service locator, no captive dependency. Correct lifetime scoping throughout. |
+| OnPush + markForCheck | CLEAN — All 15 components properly call `markForCheck()` after every async state change. |
+| Memory Leaks | CLEAN — All subscriptions, timers, object URLs properly cleaned up. `ngOnDestroy` on all stateful components. |
+| Security (XSS) | CLEAN — `innerHTML` usage protected by `FormatMessagePipe` which escapes `<`, `>`, `&`. |
+| Form Validation | CLEAN — All validators applied, `markAllAsTouched()` on submit, async name validator debounced. |
+| Routing Guards | CLEAN — All protected routes guarded, `unsavedChangesGuard` on product forms. |
+| SCSS Architecture | CLEAN — Shared partials via `@use`, CSS design tokens, no duplication. |
+
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.

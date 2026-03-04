@@ -30,6 +30,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(o => o.Status);
         builder.HasIndex(o => o.CreatedAt);
         builder.HasIndex(o => o.IsPaid);
+        builder.HasIndex(o => o.PaymentExpiresAt); // Used by ExpiredOrderCleanupService
 
         // Many-to-one: Order → Customer (Restrict: preserve order history for accounting)
         builder.HasOne(o => o.Customer)

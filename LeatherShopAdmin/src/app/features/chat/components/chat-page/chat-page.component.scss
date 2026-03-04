@@ -456,3 +456,28 @@
   font-size: 0.75rem;
   color: var(--text-color-secondary);
 }
+
+/* ─── Responsive: stack sidebar above chat on narrow screens ─── */
+@media (max-width: 768px) {
+  .chat-container {
+    flex-direction: column;
+    height: calc(100vh - 60px);
+  }
+
+  .chat-sidebar {
+    width: 100%;
+    min-width: unset;
+    max-height: 45vh;
+    border-right: none;
+    border-bottom: 1px solid var(--surface-border);
+  }
+
+  .chat-main {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .chat-header { padding: 0.5rem 0.75rem; }
+  .message-input-area { padding: 0.5rem; }
+  .no-chat-selected { padding: 1rem; }
+}

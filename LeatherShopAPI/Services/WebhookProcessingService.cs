@@ -174,7 +174,17 @@ public class WebhookProcessingService : IWebhookProcessingService
         {
             newCustomer = new Customer { PhoneNumber = phone, Name = contactName };
             _db.Customers.Add(newCustomer);
-            await _db.SaveChangesAsync(ct);
+            try
+            {
+                await _db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException)
+            {
+                // Race condition: another webhook already created this customer — reload it.
+                _db.Entry(newCustomer).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+                newCustomer = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone, ct);
+                if (newCustomer == null) throw; // Not a race condition — rethrow the original error
+            }
         }
 
         var senderName = string.IsNullOrEmpty(contactName) ? phone : contactName;
