@@ -43,7 +43,7 @@ export class BroadcastFormHelperService {
 
   /** Load templates and products. Call from component's ngOnInit. */
   init(): void {
-    this.templateLoader.loadTemplates();
+    this.templateLoader.loadTemplates(false, () => this.cdr.markForCheck());
     this.loadProducts();
   }
 

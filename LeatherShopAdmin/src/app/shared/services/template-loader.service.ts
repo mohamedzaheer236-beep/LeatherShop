@@ -32,8 +32,11 @@ export class TemplateLoaderService {
     return this.state;
   }
 
-  loadTemplates(forceReload = false): void {
-    if (this.loaded && !forceReload) return;
+  loadTemplates(forceReload = false, onComplete?: () => void): void {
+    if (this.loaded && !forceReload) {
+      onComplete?.();
+      return;
+    }
     // Prevent duplicate concurrent HTTP requests
     if (this.state.loadingTemplates && !forceReload) return;
 
@@ -54,11 +57,13 @@ export class TemplateLoaderService {
         this.state.templatesLoaded = true;
         this.state.loadingTemplates = false;
         this.loaded = true;
+        onComplete?.();
       },
       error: () => {
         this.state.templatesLoaded = true;
         this.state.loadingTemplates = false;
         // Don't set this.loaded = true — allow next navigation to retry on transient failures
+        onComplete?.();
       },
     });
   }
