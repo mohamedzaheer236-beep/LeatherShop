@@ -392,6 +392,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
           this.saving = false;
           this.savedSuccessfully = true;
           this.notification.success('Product updated successfully!');
+          this.cdr.markForCheck();
           this.router.navigate(['/products']);
         },
         error: () => {
@@ -405,6 +406,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
           this.saving = false;
           this.savedSuccessfully = true;
           this.notification.success('Product created successfully!');
+          this.cdr.markForCheck();
           this.router.navigate(['/products']);
         },
         error: () => {

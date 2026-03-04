@@ -170,7 +170,10 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   onSearch(): void {
     if (this.searchTimeout) clearTimeout(this.searchTimeout);
-    this.searchTimeout = window.setTimeout(() => this.loadConversations(), 300);
+    this.searchTimeout = window.setTimeout(() => {
+      this.loadConversations();
+      this.cdr.markForCheck();
+    }, 300);
   }
 
   selectConversation(conv: Conversation): void {

@@ -221,7 +221,6 @@ export class CustomersComponent implements OnInit {
 
   onBroadcastSent(): void {
     this.showBroadcastDialog = false;
-    this.notification.success('Broadcast sent to selected customers!');
   }
 
   // ─── Subscription Toggle (inline, not a dialog) ───

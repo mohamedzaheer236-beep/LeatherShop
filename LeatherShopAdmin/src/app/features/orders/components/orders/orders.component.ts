@@ -140,7 +140,6 @@ export class OrdersComponent implements OnInit {
       },
       error: () => {
         order.downloading = false;
-        this.notification.error('Failed to download invoice.');
         this.cdr.markForCheck();
       },
     });

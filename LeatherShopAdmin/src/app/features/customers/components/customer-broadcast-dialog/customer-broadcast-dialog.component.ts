@@ -136,7 +136,7 @@ export class CustomerBroadcastDialogComponent implements OnInit {
         })
         .subscribe({
           next: res => {
-            this.onSendSuccess(`Carousel sending to ${res.totalRecipients} customers...`);
+            this.onSendSuccess(`Carousel sending to ${res.totalRecipients} customer${res.totalRecipients === 1 ? '' : 's'}...`);
           },
           error: () => {
             this.sending = false;
@@ -158,7 +158,7 @@ export class CustomerBroadcastDialogComponent implements OnInit {
         })
         .subscribe({
           next: res => {
-            this.onSendSuccess(`Broadcast sending to ${res.totalRecipients} customers...`);
+            this.onSendSuccess(`Broadcast sending to ${res.totalRecipients} customer${res.totalRecipients === 1 ? '' : 's'}...`);
           },
           error: () => {
             this.sending = false;

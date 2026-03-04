@@ -129,7 +129,6 @@ export class BroadcastFormHelperService {
       error: () => {
         this.headerImagePreview = null;
         this.headerImageUploading = false;
-        this.notification.error('Image upload failed. Please try again.');
         this.cdr.markForCheck();
       },
     });
@@ -166,7 +165,6 @@ export class BroadcastFormHelperService {
       error: () => {
         card.imagePreview = null;
         card.uploading = false;
-        this.notification.error(`Card ${index + 1} image upload failed.`);
         this.cdr.markForCheck();
       },
     });
