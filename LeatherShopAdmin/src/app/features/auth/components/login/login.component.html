@@ -1,94 +1,144 @@
 <div class="login-page">
-  <!-- Spline 3D Background (loads after form) -->
-  <iframe
-    class="spline-bg"
-    src="https://my.spline.design/interactiveaistartupheropage-s4MZKTFkESyL5jVYbgOLMYYB/"
-    frameborder="0"
-    loading="lazy">
-  </iframe>
-
-  <!-- Dark overlay for readability -->
-  <div class="bg-overlay"></div>
-
-  <!-- Glassmorphism Login Card -->
-  <div class="glass-card">
-    <!-- Brand header -->
-    <div class="card-header">
-      <div class="logo-ring">
-        <i class="pi pi-lock"></i>
-      </div>
-      <h1 class="card-title">Leather Shop</h1>
-      <p class="card-subtitle">Admin Portal</p>
-    </div>
-
-    <!-- Error message -->
-    @if (errorMessage) {
-      <div class="error-banner">
-        <i class="pi pi-exclamation-triangle"></i>
-        <span>{{ errorMessage }}</span>
-      </div>
-    }
-
-    <!-- Login Form -->
-    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
-      <!-- Username -->
-      <div class="form-field">
-        <label for="username">
-          <i class="pi pi-user"></i>
-          Username
-        </label>
-        <input pInputText
-          id="username"
-          formControlName="username"
-          placeholder="Enter your username"
-          [class.ng-invalid-visible]="f['username'].touched && f['username'].errors"
-          autocomplete="username"/>
-        @if (f['username'].touched && f['username'].errors?.['required']) {
-          <small class="field-error">
-            <i class="pi pi-info-circle"></i> Username is required
-          </small>
-        }
-      </div>
-
-      <!-- Password -->
-      <div class="form-field">
-        <label for="password">
-          <i class="pi pi-key"></i>
-          Password
-        </label>
-        <div class="password-wrapper">
-          <input pInputText
-            id="password"
-            [type]="showPassword ? 'text' : 'password'"
-            formControlName="password"
-            placeholder="Enter your password"
-            [class.ng-invalid-visible]="f['password'].touched && f['password'].errors"
-            autocomplete="current-password"/>
-          <button type="button" class="toggle-password" (click)="togglePassword()">
-            <i class="pi" [class.pi-eye-slash]="showPassword" [class.pi-eye]="!showPassword"></i>
-          </button>
-        </div>
-        @if (f['password'].touched && f['password'].errors?.['required']) {
-          <small class="field-error">
-            <i class="pi pi-info-circle"></i> Password is required
-          </small>
-        }
-      </div>
-
-      <!-- Login button -->
-      <button pButton
-        type="submit"
-        label="Sign In"
-        icon="pi pi-sign-in"
-        class="login-btn"
-        [loading]="loading"
-        [disabled]="loading">
-      </button>
-    </form>
-
-    <div class="form-footer">
-      <i class="pi pi-shield"></i>
-      <span>Secure Admin Access</span>
-    </div>
+  <!-- Floating decorative shapes -->
+  <div class="floating-shapes">
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="shape shape-3"></div>
+    <div class="shape shape-4"></div>
+    <div class="shape shape-5"></div>
+    <div class="shape shape-6"></div>
   </div>
-</div>
+
+  <div class="login-container">
+    <!-- Left side - Branding illustration -->
+    <div class="brand-side">
+      <div class="brand-content">
+        <div class="brand-icon">
+          <svg viewBox="0 0 120 120" class="leather-icon">
+            <!-- Shield shape -->
+            <path d="M60 10 L100 30 L100 70 Q100 100 60 115 Q20 100 20 70 L20 30 Z"
+              fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2.5"
+              class="shield-path"/>
+              <!-- Leather stitching pattern -->
+              <path d="M45 45 Q60 35 75 45 Q85 55 75 70 Q60 82 45 70 Q35 55 45 45"
+                fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"
+                stroke-dasharray="4 3" class="stitch-path"/>
+                <!-- L letter -->
+                <text x="50" y="68" font-family="Georgia, serif" font-size="32"
+                font-weight="bold" fill="white" class="brand-letter">L</text>
+              </svg>
+            </div>
+
+            <h1 class="brand-title">Leather Shop</h1>
+            <p class="brand-subtitle">Admin Portal</p>
+
+            <div class="brand-features">
+              <div class="feature-item">
+                <i class="pi pi-shield"></i>
+                <span>Secure Access</span>
+              </div>
+              <div class="feature-item">
+                <i class="pi pi-chart-line"></i>
+                <span>Analytics Dashboard</span>
+              </div>
+              <div class="feature-item">
+                <i class="pi pi-box"></i>
+                <span>Product Management</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Animated wave -->
+          <div class="wave-container">
+            <svg viewBox="0 0 500 150" preserveAspectRatio="none" class="wave">
+              <path d="M0,50 C150,100 350,0 500,50 L500,150 L0,150 Z"
+                fill="rgba(255,255,255,0.08)" class="wave-path"/>
+                <path d="M0,80 C150,30 350,110 500,60 L500,150 L0,150 Z"
+                  fill="rgba(255,255,255,0.05)" class="wave-path-2"/>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Right side - Login form -->
+            <div class="form-side">
+              <div class="form-wrapper">
+                <div class="form-header">
+                  <div class="welcome-icon">
+                    <i class="pi pi-lock"></i>
+                  </div>
+                  <h2 class="form-title">Welcome Back</h2>
+                  <p class="form-subtitle">Sign in to your admin account</p>
+                </div>
+
+                <!-- Error message -->
+                @if (errorMessage) {
+                  <div class="error-banner">
+                    <i class="pi pi-exclamation-triangle"></i>
+                    <span>{{ errorMessage }}</span>
+                  </div>
+                }
+
+                <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
+                  <!-- Username -->
+                  <div class="form-field">
+                    <label for="username">
+                      <i class="pi pi-user"></i>
+                      Username
+                    </label>
+                    <input pInputText
+                      id="username"
+                      formControlName="username"
+                      placeholder="Enter your username"
+                      [class.ng-invalid-visible]="f['username'].touched && f['username'].errors"
+                      autocomplete="username"/>
+                      @if (f['username'].touched && f['username'].errors?.['required']) {
+                        <small class="field-error">
+                          <i class="pi pi-info-circle"></i> Username is required
+                        </small>
+                      }
+                    </div>
+
+                    <!-- Password -->
+                    <div class="form-field">
+                      <label for="password">
+                        <i class="pi pi-key"></i>
+                        Password
+                      </label>
+                      <div class="password-wrapper">
+                        <input pInputText
+                          id="password"
+                          [type]="showPassword ? 'text' : 'password'"
+                          formControlName="password"
+                          placeholder="Enter your password"
+                          [class.ng-invalid-visible]="f['password'].touched && f['password'].errors"
+                          autocomplete="current-password"/>
+                          <button type="button" class="toggle-password" (click)="togglePassword()">
+                            <i class="pi" [class.pi-eye-slash]="showPassword" [class.pi-eye]="!showPassword"></i>
+                          </button>
+                        </div>
+                        @if (f['password'].touched && f['password'].errors?.['required']) {
+                          <small class="field-error">
+                            <i class="pi pi-info-circle"></i> Password is required
+                          </small>
+                        }
+                      </div>
+
+                      <!-- Login button -->
+                      <button pButton
+                        type="submit"
+                        label="Sign In"
+                        icon="pi pi-sign-in"
+                        class="login-btn"
+                        [loading]="loading"
+                        [disabled]="loading">
+                      </button>
+                    </form>
+
+                    <div class="form-footer">
+                      <i class="pi pi-shield"></i>
+                      <span>Secure Admin Access</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
