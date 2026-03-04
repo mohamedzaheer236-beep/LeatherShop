@@ -51,9 +51,9 @@
   <app-loading-spinner [loading]="loading" message="Loading products..."></app-loading-spinner>
 
   @if (errorMessage && !loading) {
-    <div class="error-state" style="text-align:center; padding:60px 20px;">
-      <i class="pi pi-exclamation-circle" style="font-size:3rem; color:#e74c3c; margin-bottom:16px; display:block;"></i>
-      <p style="font-size:1.1rem; color:#666; margin-bottom:16px;">{{ errorMessage }}</p>
+    <div class="error-state">
+      <i class="pi pi-exclamation-circle error-icon"></i>
+      <p class="error-message">{{ errorMessage }}</p>
       <p-button label="Retry" icon="pi pi-refresh" (onClick)="loadProducts()"></p-button>
     </div>
   }
@@ -106,7 +106,7 @@
         </tr>
       </ng-template>
       <ng-template pTemplate="emptymessage">
-        <tr><td colspan="7" style="text-align:center; padding:40px; color:#999;">No products found. Add your first product!</td></tr>
+        <tr><td colspan="7" class="empty-row">No products found. Add your first product!</td></tr>
       </ng-template>
     </p-table>
   }

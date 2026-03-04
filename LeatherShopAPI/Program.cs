@@ -126,30 +126,12 @@ builder.WebHost.UseUrls($"http://+:{port}");
 
 var app = builder.Build();
 
-// --- Auto-migrate database + seed admin user on startup ---
+// --- Auto-migrate database + seed data on startup ---
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
-
-    // Seed default admin if no admin users exist
-    if (!await db.AdminUsers.AnyAsync())
-    {
-        var adminPassword = app.Configuration["Admin:SeedPassword"];
-        if (string.IsNullOrWhiteSpace(adminPassword))
-            throw new InvalidOperationException(
-                "Admin:SeedPassword is not configured but no admin users exist in the database. " +
-                "Set it in appsettings.Local.json or via Admin__SeedPassword environment variable.");
-
-        await db.AdminUsers.AddAsync(new LeatherShopAPI.Models.AdminUser
-        {
-            Username = "Admin",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword),
-            CreatedAt = DateTime.UtcNow
-        });
-        await db.SaveChangesAsync();
-        Console.WriteLine("\u2705 Default admin user seeded.");
-    }
+    await DataSeeder.SeedAsync(db, app.Configuration);
 }
 
 // --- Global exception handling (must be first in pipeline) ---

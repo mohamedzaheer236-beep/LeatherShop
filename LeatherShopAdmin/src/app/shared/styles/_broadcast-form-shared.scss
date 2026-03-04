@@ -1,0 +1,120 @@
+// ─── Shared Broadcast Form Styles ───
+// Used by broadcast-form and broadcast components
+
+.card-section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--ls-border-light);
+
+  > i {
+    font-size: 24px;
+    color: var(--ls-accent);
+    margin-top: 2px;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ls-text-primary);
+  }
+
+  p {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--ls-text-placeholder);
+  }
+}
+
+.form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 16px;
+}
+
+.form-field {
+  margin-bottom: 1.25rem;
+
+  label, .field-label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    color: var(--ls-text-secondary);
+  }
+
+  .req-star {
+    color: var(--ls-text-placeholder);
+    font-weight: 700;
+    transition: color 0.2s;
+
+    &.error {
+      color: var(--ls-error);
+    }
+  }
+
+  .p-error {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.75rem;
+  }
+}
+
+.hint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--ls-text-placeholder);
+
+  i { margin-right: 4px; }
+
+  &.warn {
+    color: var(--ls-stat-orange-fg);
+  }
+
+  &.error {
+    color: var(--ls-stat-red-fg);
+    font-weight: 600;
+  }
+}
+
+.send-action {
+  margin-top: 8px;
+
+  .form-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    background: var(--ls-warning-bg);
+    border: 1px solid var(--ls-warning-border);
+    border-radius: var(--ls-radius-md, 8px);
+    color: var(--ls-warning-text);
+    font-size: 0.8rem;
+    font-weight: 500;
+
+    i {
+      color: var(--ls-warning-icon);
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+  }
+
+  .send-hint {
+    display: block;
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--ls-text-placeholder);
+    text-align: center;
+    line-height: 1.5;
+
+    i {
+      margin-right: 4px;
+    }
+  }
+}

@@ -21,8 +21,25 @@ public class DashboardService : IDashboardService
 
     public async Task<DashboardDto> GetDashboardAsync(CancellationToken ct = default)
     {
-        // Sequential awaits — DbContext is NOT thread-safe so Task.WhenAll is not safe here.
-        // First query materializes recent orders with includes; remaining queries are simple COUNT/SUM that execute in <1ms each.
+        // Single query for all scalar statistics — EF Core translates this into one SQL round-trip
+        // using sub-selects, replacing 6 sequential COUNT/SUM calls.
+        var stats = await _db.Orders
+            .AsNoTracking()
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                TotalOrders = g.Count(),
+                TotalRevenue = g.Where(o => o.IsPaid).Sum(o => o.TotalAmount),
+                PendingOrders = g.Count(o => o.Status == OrderStatus.Pending)
+            })
+            .FirstOrDefaultAsync(ct);
+
+        // Separate queries for cross-table counts (cannot be in the same GroupBy)
+        var totalProducts = await _db.Products.CountAsync(p => p.IsActive, ct);
+        var totalCustomers = await _db.Customers.CountAsync(ct);
+        var lowStockProducts = await _db.Products.CountAsync(p => p.IsActive && p.StockQuantity <= LowStockThreshold, ct);
+
+        // Recent orders with includes — separate query (needs navigation properties)
         var recentOrders = await _db.Orders
             .AsNoTracking()
             .Include(o => o.Customer)
@@ -33,12 +50,12 @@ public class DashboardService : IDashboardService
 
         return new DashboardDto
         {
-            TotalProducts = await _db.Products.CountAsync(p => p.IsActive, ct),
-            TotalCustomers = await _db.Customers.CountAsync(ct),
-            TotalOrders = await _db.Orders.CountAsync(ct),
-            TotalRevenue = await _db.Orders.Where(o => o.IsPaid).SumAsync(o => o.TotalAmount, ct),
-            PendingOrders = await _db.Orders.CountAsync(o => o.Status == OrderStatus.Pending, ct),
-            LowStockProducts = await _db.Products.CountAsync(p => p.IsActive && p.StockQuantity <= LowStockThreshold, ct),
+            TotalProducts = totalProducts,
+            TotalCustomers = totalCustomers,
+            TotalOrders = stats?.TotalOrders ?? 0,
+            TotalRevenue = stats?.TotalRevenue ?? 0,
+            PendingOrders = stats?.PendingOrders ?? 0,
+            LowStockProducts = lowStockProducts,
             RecentOrders = recentOrders.Select(o => o.ToDto()).ToList()
         };
     }

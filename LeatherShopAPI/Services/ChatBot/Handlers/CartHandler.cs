@@ -2,6 +2,7 @@ using System.Text;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Models.WhatsApp;
+using LeatherShopAPI.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace LeatherShopAPI.Services.ChatBot.Handlers;
@@ -13,12 +14,14 @@ public class CartHandler
 {
     private readonly AppDbContext _db;
     private readonly BotMessageSender _bot;
+    private readonly ConversationStateService _convState;
     private readonly IConfiguration _config;
 
-    public CartHandler(AppDbContext db, BotMessageSender bot, IConfiguration config)
+    public CartHandler(AppDbContext db, BotMessageSender bot, ConversationStateService convState, IConfiguration config)
     {
         _db = db;
         _bot = bot;
+        _convState = convState;
         _config = config;
     }
 
@@ -31,9 +34,7 @@ public class CartHandler
             return;
         }
 
-        customer.PendingProductId = productId;
-        customer.PendingImageId = selectedImageId;
-        await _db.SaveChangesAsync(ct);
+        _convState.SetPendingProduct(customer.Id, productId, selectedImageId);
 
         await _bot.SendText(to,
             $"How many *{product.Name}* would you like to add?\n\n" +
@@ -42,14 +43,12 @@ public class CartHandler
             $"Type a number (e.g. *1*, *2*, *5*):", ct);
     }
 
-    public async Task AddToCartWithQuantity(string to, Customer customer, int productId, int quantity, CancellationToken ct = default)
+    public async Task AddToCartWithQuantity(string to, Customer customer, int productId, int quantity, int? pendingImageId = null, CancellationToken ct = default)
     {
         var product = await _db.Products.FirstOrDefaultAsync(p => p.Id == productId, ct);
         if (product == null || !product.IsActive || product.StockQuantity <= 0)
         {
-            customer.PendingProductId = null;
-            customer.PendingImageId = null;
-            await _db.SaveChangesAsync(ct);
+            _convState.ClearPendingProduct(customer.Id);
             await _bot.SendText(to, "Sorry, this product is no longer available.", ct);
             return;
         }
@@ -71,9 +70,7 @@ public class CartHandler
             var canAdd = product.StockQuantity - alreadyInCart;
             if (canAdd <= 0)
             {
-                customer.PendingProductId = null;
-                customer.PendingImageId = null;
-                await _db.SaveChangesAsync(ct);
+                _convState.ClearPendingProduct(customer.Id);
                 await _bot.SendButtons(to,
                     bodyText: $"❌ You already have *{alreadyInCart}* of *{product.Name}* in your cart, which is the maximum available stock.\n\nYou can't add more.",
                     buttons: new List<ButtonOption>
@@ -94,7 +91,6 @@ public class CartHandler
         }
 
         // Add to cart — merge only when same product AND same selected image
-        var pendingImageId = customer.PendingImageId;
         var existingItem = await _db.CartItems
             .FirstOrDefaultAsync(ci => ci.CustomerId == customer.Id
                                     && ci.ProductId == productId
@@ -111,12 +107,11 @@ public class CartHandler
                 CustomerId = customer.Id,
                 ProductId = productId,
                 Quantity = quantity,
-                SelectedImageId = customer.PendingImageId
+                SelectedImageId = pendingImageId
             });
         }
 
-        customer.PendingProductId = null;
-        customer.PendingImageId = null;
+        _convState.ClearPendingProduct(customer.Id);
         await _db.SaveChangesAsync(ct);
 
         var cartCount = await _db.CartItems.Where(ci => ci.CustomerId == customer.Id).SumAsync(ci => ci.Quantity, ct);

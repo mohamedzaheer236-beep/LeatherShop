@@ -1,6 +1,3 @@
-using Microsoft.EntityFrameworkCore;
-using LeatherShopAPI.Data;
-using LeatherShopAPI.Extensions;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.ChatBot;
 using LeatherShopAPI.Services.ChatBot.Handlers;
@@ -14,8 +11,8 @@ namespace LeatherShopAPI.Services;
 /// </summary>
 public class ChatBotService : IChatBotService
 {
-    private readonly AppDbContext _db;
     private readonly BotMessageSender _bot;
+    private readonly ConversationStateService _convState;
     private readonly MenuHandler _menuHandler;
     private readonly ProductHandler _productHandler;
     private readonly CartHandler _cartHandler;
@@ -24,8 +21,8 @@ public class ChatBotService : IChatBotService
     private readonly ILogger<ChatBotService> _logger;
 
     public ChatBotService(
-        AppDbContext db,
         BotMessageSender bot,
+        ConversationStateService convState,
         MenuHandler menuHandler,
         ProductHandler productHandler,
         CartHandler cartHandler,
@@ -33,8 +30,8 @@ public class ChatBotService : IChatBotService
         OrderHistoryHandler orderHistoryHandler,
         ILogger<ChatBotService> logger)
     {
-        _db = db;
         _bot = bot;
+        _convState = convState;
         _menuHandler = menuHandler;
         _productHandler = productHandler;
         _cartHandler = cartHandler;
@@ -44,19 +41,10 @@ public class ChatBotService : IChatBotService
     }
 
     /// <summary>Process an incoming WhatsApp message and route to the appropriate handler.</summary>
-    public async Task ProcessMessage(string from, string name, string messageType,
+    public async Task ProcessMessage(Customer customer, string messageType,
         string? textBody, string? interactiveId, string? interactiveTitle, CancellationToken ct = default)
     {
-        var phone = PhoneNumberHelper.Normalize(from);
-
-        // Ensure customer exists
-        var customer = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone, ct);
-        if (customer == null)
-        {
-            customer = new Customer { PhoneNumber = phone, Name = name };
-            _db.Customers.Add(customer);
-            await _db.SaveChangesAsync(ct);
-        }
+        var phone = customer.PhoneNumber;
 
         // Set per-request customer ID for bot message saving
         _bot.CurrentCustomerId = customer.Id;
@@ -97,20 +85,20 @@ public class ChatBotService : IChatBotService
     private async Task<bool> HandlePendingStates(string phone, Customer customer,
         string input, string? textBody, string? interactiveId, CancellationToken ct)
     {
+        var state = _convState.GetState(customer.Id);
+
         // ---- ADDRESS CONFIRMATION ----
-        if (customer.PendingAction == Customer.PendingActions.ConfirmingAddress)
+        if (state.PendingAction == ConversationState.PendingActions.ConfirmingAddress)
         {
             if (interactiveId == "confirm_address")
             {
-                customer.PendingAction = null;
-                await _db.SaveChangesAsync(ct);
+                _convState.SetPendingAction(customer.Id, null);
                 await _checkoutHandler.PlaceOrder(phone, customer, ct);
                 return true;
             }
             if (interactiveId == "change_address")
             {
-                customer.PendingAction = Customer.PendingActions.AwaitingAddress;
-                await _db.SaveChangesAsync(ct);
+                _convState.SetPendingAction(customer.Id, ConversationState.PendingActions.AwaitingAddress);
                 await _bot.SendText(phone,
                     "📍 *Enter your new shipping address:*\n\n" +
                     "_Example: 123, MG Road, Anna Nagar, Chennai - 600040_", ct);
@@ -118,8 +106,7 @@ public class ChatBotService : IChatBotService
             }
             if (!string.IsNullOrEmpty(interactiveId))
             {
-                customer.PendingAction = null;
-                await _db.SaveChangesAsync(ct);
+                _convState.SetPendingAction(customer.Id, null);
                 // Fall through to normal routing
             }
             else
@@ -130,12 +117,11 @@ public class ChatBotService : IChatBotService
         }
 
         // ---- ADDRESS INPUT ----
-        if (customer.PendingAction == Customer.PendingActions.AwaitingAddress)
+        if (state.PendingAction == ConversationState.PendingActions.AwaitingAddress)
         {
             if (!string.IsNullOrEmpty(interactiveId))
             {
-                customer.PendingAction = null;
-                await _db.SaveChangesAsync(ct);
+                _convState.SetPendingAction(customer.Id, null);
                 // Fall through to normal routing
             }
             else
@@ -152,18 +138,16 @@ public class ChatBotService : IChatBotService
         }
 
         // ---- QUANTITY INPUT ----
-        if (customer.PendingProductId.HasValue && int.TryParse(input, out var qty))
+        if (state.PendingProductId.HasValue && int.TryParse(input, out var qty))
         {
-            await _cartHandler.AddToCartWithQuantity(phone, customer, customer.PendingProductId.Value, qty, ct);
+            await _cartHandler.AddToCartWithQuantity(phone, customer, state.PendingProductId.Value, qty, state.PendingImageId, ct);
             return true;
         }
 
         // Clear stale pending product if user typed something else
-        if (customer.PendingProductId.HasValue)
+        if (state.PendingProductId.HasValue)
         {
-            customer.PendingProductId = null;
-            customer.PendingImageId = null;
-            await _db.SaveChangesAsync(ct);
+            _convState.ClearPendingProduct(customer.Id);
         }
 
         return false;

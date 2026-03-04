@@ -1,0 +1,95 @@
+// ─── Status Banner Styles ───
+// Used by broadcast-form and broadcast components
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.status-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  position: relative;
+  animation: slideDown 0.3s ease-out;
+
+  .status-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    i { font-size: 20px; }
+  }
+
+  .status-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 2px;
+  }
+
+  .status-title {
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .status-detail {
+    font-size: 13px;
+    line-height: 1.5;
+    opacity: 0.9;
+  }
+
+  .status-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    opacity: 0.6;
+    transition: opacity 0.2s, background 0.2s;
+    flex-shrink: 0;
+
+    &:hover {
+      opacity: 1;
+      background: rgba(0, 0, 0, 0.08);
+    }
+
+    i { font-size: 14px; }
+  }
+}
+
+.status-sending {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border: 1px solid #93c5fd;
+  .status-icon { background: #3b82f6; i { color: #fff; } }
+  .status-title { color: #1e40af; }
+  .status-detail { color: #1e3a5f; }
+  .status-close i { color: #3b82f6; }
+}
+
+.status-success {
+  background: linear-gradient(135deg, var(--ls-success-bg), #d1fae5);
+  border: 1px solid var(--ls-success-border);
+  .status-icon { background: var(--ls-success-dark); i { color: #fff; } }
+  .status-title { color: #065f46; }
+  .status-detail { color: #064e3b; }
+  .status-close i { color: var(--ls-success-dark); }
+}
+
+.status-error {
+  background: linear-gradient(135deg, var(--ls-error-bg), var(--ls-error-border));
+  border: 1px solid #fca5a5;
+  .status-icon { background: var(--ls-error-dark); i { color: #fff; } }
+  .status-title { color: #991b1b; }
+  .status-detail { color: #7f1d1d; }
+  .status-close i { color: var(--ls-error-dark); }
+}

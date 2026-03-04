@@ -167,8 +167,7 @@
                     <label [for]="'cardProduct_' + i">Link to Product <span class="req-star">*</span></label>
                     <p-dropdown [inputId]="'cardProduct_' + i"
                       [options]="helper.productOptions"
-                      [(ngModel)]="card.selectedProductId"
-                      [ngModelOptions]="{standalone: true}"
+                      [(ngModel)]="card.selectedProductId" [ngModelOptions]="{standalone: true}"
                       (onChange)="helper.onCardProductSelect(i)"
                       placeholder="Select a product"
                       [style]="{'width': '100%'}"

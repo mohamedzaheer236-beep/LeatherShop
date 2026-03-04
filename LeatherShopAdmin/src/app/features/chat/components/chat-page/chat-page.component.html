@@ -4,10 +4,10 @@
     <div class="sidebar-header">
       <h3><i class="pi pi-comments"></i> Chats</h3>
       <div class="search-box">
-        <span class="p-input-icon-left" style="width:100%">
+        <span class="p-input-icon-left w-full">
           <i class="pi pi-search"></i>
           <input pInputText type="text" placeholder="Search customers..."
-            [(ngModel)]="searchTerm" (input)="onSearch()" style="width:100%" />
+            [(ngModel)]="searchTerm" (input)="onSearch()" class="w-full" />
           </span>
         </div>
       </div>
@@ -149,10 +149,10 @@
 
     <!-- Delete Conversation Confirmation -->
     <p-dialog header="Delete Conversation" [(visible)]="showDeleteConversation" [modal]="true" [style]="{'width': '400px'}">
-      <div style="text-align:center; padding:8px 0;">
-        <i class="pi pi-exclamation-triangle" style="font-size:2rem; color:#e74c3c;"></i>
+      <div class="delete-confirm-body">
+        <i class="pi pi-exclamation-triangle warning-icon-lg"></i>
         <p>Are you sure you want to delete all chat messages with <strong>{{ selectedConversation?.customerName }}</strong>?</p>
-        <p style="color:#888; font-size:13px;">This action cannot be undone.</p>
+        <p class="confirm-hint-text">This action cannot be undone.</p>
       </div>
       <ng-template pTemplate="footer">
         <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="showDeleteConversation = false" icon="pi pi-times"></p-button>

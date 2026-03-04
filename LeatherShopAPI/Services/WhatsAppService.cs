@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -41,9 +42,6 @@ public class WhatsAppService : IWhatsAppService
         _httpClient = httpClient;
         _config = config;
         _logger = logger;
-
-        _httpClient.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", AccessToken);
     }
 
     /// <summary>Send a simple text message</summary>
@@ -242,7 +240,9 @@ public class WhatsAppService : IWhatsAppService
         }
 
         var url = $"https://graph.facebook.com/{ApiVersion}/{wabaId}/message_templates?status=APPROVED&limit=100";
-        using var response = await _httpClient.GetAsync(url, ct);
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
+        using var response = await _httpClient.SendAsync(request, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
 
         if (!response.IsSuccessStatusCode)
@@ -347,8 +347,10 @@ public class WhatsAppService : IWhatsAppService
 
         for (int attempt = 0; attempt <= RateLimitMaxRetries; attempt++)
         {
-            using var content = new StringContent(json, Encoding.UTF8, "application/json");
-            using var response = await _httpClient.PostAsync(BaseUrl, content, ct);
+            using var request = new HttpRequestMessage(HttpMethod.Post, BaseUrl);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
+            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var response = await _httpClient.SendAsync(request, ct);
             var responseBody = await response.Content.ReadAsStringAsync(ct);
 
             if (response.IsSuccessStatusCode)

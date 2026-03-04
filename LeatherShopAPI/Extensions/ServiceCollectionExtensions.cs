@@ -63,6 +63,10 @@ public static class ServiceCollectionExtensions
         // Named HttpClient for Paytm API calls (Initiate Transaction, Transaction Status)
         services.AddHttpClient("Paytm");
 
+        // In-memory cache for ephemeral chatbot conversation state (pending product/action)
+        services.AddMemoryCache();
+        services.AddSingleton<ConversationStateService>();
+
         // Scoped services (one instance per HTTP request — matches DbContext lifetime)
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IWebhookProcessingService, WebhookProcessingService>();

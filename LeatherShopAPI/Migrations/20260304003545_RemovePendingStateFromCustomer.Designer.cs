@@ -3,6 +3,7 @@ using System;
 using LeatherShopAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LeatherShopAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260304003545_RemovePendingStateFromCustomer")]
+    partial class RemovePendingStateFromCustomer
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -415,6 +418,98 @@ namespace LeatherShopAPI.Migrations
                     b.HasIndex("IsActive");
 
                     b.ToTable("Products");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Brand = "Royal Leather",
+                            Category = "Wallet",
+                            CreatedAt = new DateTime(2026, 3, 4, 0, 35, 43, 440, DateTimeKind.Utc).AddTicks(3794),
+                            Description = "Premium genuine leather wallet with multiple card slots",
+                            ImageUrl = "/images/wallet1.jpg",
+                            IsActive = true,
+                            Name = "Classic Leather Wallet",
+                            Price = 899m,
+                            RowVersion = 0u,
+                            StockQuantity = 50,
+                            UpdatedAt = new DateTime(2026, 3, 4, 0, 35, 43, 440, DateTimeKind.Utc).AddTicks(3796)
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Brand = "Royal Leather",
+                            Category = "Belt",
+                            CreatedAt = new DateTime(2026, 3, 4, 0, 35, 43, 440, DateTimeKind.Utc).AddTicks(3801),
+                            Description = "Formal leather belt with silver buckle",
+                            ImageUrl = "/images/belt1.jpg",
+                            IsActive = true,
+                            Name = "Executive Leather Belt",
+                            Price = 1299m,
+                            RowVersion = 0u,
+                            StockQuantity = 30,
+                            UpdatedAt = new DateTime(2026, 3, 4, 0, 35, 43, 440, DateTimeKind.Utc).AddTicks(3802)
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Brand = "Heritage Craft",
+                            Category = "Bag",
+                            CreatedAt = new DateTime(2026, 3, 4, 0, 35, 43, 440, DateTimeKind.Utc).AddTicks(3804),
+                            Description = "Handcrafted messenger bag for daily use",
+                            ImageUrl = "/images/bag1.jpg",
+                            IsActive = true,
+                            Name = "Leather Messenger Bag",
+                            Price = 3499m,
+                            RowVersion = 0u,
+                            StockQuantity = 20,
+                            UpdatedAt = new DateTime(2026, 3, 4, 0, 35, 43, 440, DateTimeKind.Utc).AddTicks(3804)
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Brand = "StepCraft",
+                            Category = "Shoes",
+                            CreatedAt = new DateTime(2026, 3, 4, 0, 35, 43, 440, DateTimeKind.Utc).AddTicks(3805),
+                            Description = "Premium leather formal shoes",
+                            ImageUrl = "/images/shoes1.jpg",
+                            IsActive = true,
+                            Name = "Leather Oxford Shoes",
+                            Price = 4999m,
+                            RowVersion = 0u,
+                            StockQuantity = 15,
+                            UpdatedAt = new DateTime(2026, 3, 4, 0, 35, 43, 440, DateTimeKind.Utc).AddTicks(3806)
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Brand = "Royal Leather",
+                            Category = "Accessories",
+                            CreatedAt = new DateTime(2026, 3, 4, 0, 35, 43, 440, DateTimeKind.Utc).AddTicks(3807),
+                            Description = "Stylish leather keychain with metal ring",
+                            ImageUrl = "/images/keychain1.jpg",
+                            IsActive = true,
+                            Name = "Leather Keychain",
+                            Price = 299m,
+                            RowVersion = 0u,
+                            StockQuantity = 100,
+                            UpdatedAt = new DateTime(2026, 3, 4, 0, 35, 43, 440, DateTimeKind.Utc).AddTicks(3807)
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Brand = "Heritage Craft",
+                            Category = "Bag",
+                            CreatedAt = new DateTime(2026, 3, 4, 0, 35, 43, 440, DateTimeKind.Utc).AddTicks(3809),
+                            Description = "Slim leather sleeve for 15-inch laptops",
+                            ImageUrl = "/images/sleeve1.jpg",
+                            IsActive = true,
+                            Name = "Leather Laptop Sleeve",
+                            Price = 2499m,
+                            RowVersion = 0u,
+                            StockQuantity = 25,
+                            UpdatedAt = new DateTime(2026, 3, 4, 0, 35, 43, 440, DateTimeKind.Utc).AddTicks(3809)
+                        });
                 });
 
             modelBuilder.Entity("LeatherShopAPI.Models.ProductImage", b =>

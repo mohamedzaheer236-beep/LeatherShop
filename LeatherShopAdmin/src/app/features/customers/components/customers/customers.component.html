@@ -58,16 +58,16 @@
     }
     <label class="toggle-filter">
       <p-checkbox formControlName="subscribedOnly" [binary]="true" (onChange)="onFilterChange()" inputId="subscribedOnly" aria-label="Show only subscribed customers"></p-checkbox>
-      <span style="margin-left:8px;"><label for="subscribedOnly">Subscribers only</label></span>
+      <span class="selection-note"><label for="subscribedOnly">Subscribers only</label></span>
     </label>
   </div>
 
   <!-- Selection Action Bar -->
   @if (selectedCount > 0) {
     <div class="selection-bar">
-      <span style="font-weight:700; color:#3f51b5;">{{ selectedCount }} customer(s) selected</span>
+      <span class="selection-count">{{ selectedCount }} customer(s) selected</span>
       @if (selectedCount > customers.length) {
-        <span style="font-size:13px; color:#888; margin-left:8px;">(across multiple pages)</span>
+        <span class="selection-note">(across multiple pages)</span>
       }
       <p-button label="Send Broadcast to Selected" icon="pi pi-send" size="small" (onClick)="showBroadcastDialog = true"></p-button>
       <p-button label="Clear Selection" icon="pi pi-times" severity="secondary" [outlined]="true" size="small" (onClick)="clearSelection()"></p-button>
@@ -82,7 +82,7 @@
       [tableStyle]="{'min-width': '60rem'}" styleClass="p-datatable-striped" [rowHover]="true">
       <ng-template pTemplate="header">
         <tr>
-          <th style="width:50px;">
+          <th class="col-checkbox">
             <p-checkbox [binary]="true" [(ngModel)]="allSelected" (onChange)="toggleSelectAll()" aria-label="Select all customers"></p-checkbox>
           </th>
           <th>Phone Number</th>
@@ -99,7 +99,7 @@
           <td>
             <p-checkbox [binary]="true" [(ngModel)]="customer.selected" (onChange)="onRowSelect(customer)" [attr.aria-label]="'Select customer ' + (customer.name || customer.phoneNumber)"></p-checkbox>
           </td>
-          <td><strong style="font-family:monospace; font-size:13px;">{{ customer.phoneNumber }}</strong></td>
+          <td><strong class="phone-number">{{ customer.phoneNumber }}</strong></td>
           <td>{{ customer.name || '-' }}</td>
           <td>{{ customer.address || '-' }}</td>
           <td>
@@ -129,7 +129,7 @@
         </tr>
       </ng-template>
       <ng-template pTemplate="emptymessage">
-        <tr><td colspan="8" style="text-align:center; padding:40px; color:#999;">No customers found.</td></tr>
+        <tr><td colspan="8" class="empty-row">No customers found.</td></tr>
       </ng-template>
     </p-table>
   }

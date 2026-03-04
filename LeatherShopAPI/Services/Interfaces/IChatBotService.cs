@@ -1,8 +1,8 @@
-using System.Threading;
+using LeatherShopAPI.Models;
 
 namespace LeatherShopAPI.Services.Interfaces;
 
 public interface IChatBotService
 {
-    Task ProcessMessage(string from, string name, string messageType, string? textBody, string? interactiveId, string? interactiveTitle, CancellationToken ct = default);
+    Task ProcessMessage(Customer customer, string messageType, string? textBody, string? interactiveId, string? interactiveTitle, CancellationToken ct = default);
 }

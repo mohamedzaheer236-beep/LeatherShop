@@ -1,25 +1,16 @@
 // ─── Shared Carousel Broadcast Styles ───
 // Used by both broadcast and customers components
 
-.hint {
-  display: block;
-  margin-top: 4px;
-  font-size: 12px;
-  color: #64748b;
-
-  i { margin-right: 4px; }
-}
-
 .carousel-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   margin-top: 6px;
   padding: 4px 10px;
-  background: #eef2ff;
-  border: 1px solid #c7d2fe;
+  background: var(--ls-accent-light);
+  border: 1px solid var(--ls-accent-ring-solid, #c7d2fe);
   border-radius: 6px;
-  color: #4338ca;
+  color: var(--ls-accent-dark);
   font-weight: 600;
   font-size: 12px !important;
 }
@@ -36,20 +27,20 @@
   justify-content: center;
   gap: 6px;
   padding: 24px 16px;
-  border: 2px dashed #cbd5e1;
+  border: 2px dashed var(--ls-border-medium);
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--ls-bg-table-stripe);
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s;
 
   &:hover {
-    border-color: #6366f1;
-    background: #eef2ff;
+    border-color: var(--ls-accent);
+    background: var(--ls-accent-light);
   }
 
-  i { font-size: 28px; color: #94a3b8; }
-  span { font-size: 13px; font-weight: 600; color: #475569; }
-  small { font-size: 11px; color: #94a3b8; }
+  i { font-size: 28px; color: var(--ls-text-placeholder); }
+  span { font-size: 13px; font-weight: 600; color: var(--ls-text-secondary); }
+  small { font-size: 11px; color: var(--ls-text-placeholder); }
 }
 
 .image-preview-wrap {
@@ -57,7 +48,7 @@
   display: inline-block;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--ls-border-medium);
   max-width: 220px;
 }
 
@@ -101,7 +92,7 @@
   justify-content: center;
   transition: background 0.2s;
 
-  &:hover { background: #dc2626; }
+  &:hover { background: var(--ls-error-dark); }
   i { font-size: 12px; }
 }
 
@@ -113,25 +104,25 @@
 }
 
 .carousel-card-item {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--ls-bg-table-stripe);
+  border: 1px solid var(--ls-border-medium);
   border-radius: 12px;
   padding: 16px;
   transition: border-color 0.2s;
 
-  &:hover { border-color: #6366f1; }
+  &:hover { border-color: var(--ls-accent); }
 }
 
 .carousel-card-header {
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--ls-border-medium);
 }
 
 .card-number {
   font-size: 13px;
   font-weight: 700;
-  color: #6366f1;
+  color: var(--ls-accent);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -154,12 +145,12 @@
   transition: border-color 0.2s, transform 0.15s;
 
   &:hover {
-    border-color: #a5b4fc;
+    border-color: var(--ls-accent-ring-solid, #a5b4fc);
     transform: scale(1.05);
   }
 
   &.selected {
-    border-color: #6366f1;
+    border-color: var(--ls-accent);
     box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
   }
 
@@ -174,7 +165,7 @@
     top: 4px;
     right: 4px;
     color: #fff;
-    background: #6366f1;
+    background: var(--ls-accent);
     border-radius: 50%;
     font-size: 16px;
     padding: 2px;

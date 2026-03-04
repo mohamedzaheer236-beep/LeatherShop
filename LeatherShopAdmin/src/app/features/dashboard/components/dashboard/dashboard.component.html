@@ -4,9 +4,9 @@
   <app-loading-spinner [loading]="loading" message="Loading dashboard..."></app-loading-spinner>
 
   @if (errorMessage && !loading) {
-    <div class="error-state" style="text-align:center; padding:60px 20px;">
-      <i class="pi pi-exclamation-circle" style="font-size:3rem; color:#e74c3c; margin-bottom:16px; display:block;"></i>
-      <p style="font-size:1.1rem; color:#666; margin-bottom:16px;">{{ errorMessage }}</p>
+    <div class="error-state">
+      <i class="pi pi-exclamation-circle error-icon"></i>
+      <p class="error-message">{{ errorMessage }}</p>
       <p-button label="Retry" icon="pi pi-refresh" (onClick)="retry()"></p-button>
     </div>
   }
@@ -87,7 +87,7 @@
           </ng-template>
           <ng-template pTemplate="body" let-order>
             <tr>
-              <td><strong style="font-family: monospace;">{{ order.orderNumber }}</strong></td>
+              <td><strong class="font-mono">{{ order.orderNumber }}</strong></td>
               <td>{{ order.customerName || order.customerPhone }}</td>
               <td>&#8377;{{ order.totalAmount | number:'1.0-0' }}</td>
               <td><p-tag [value]="order.status" [severity]="getSeverity(order.status)"></p-tag></td>
@@ -96,7 +96,7 @@
             </tr>
           </ng-template>
           <ng-template pTemplate="emptymessage">
-            <tr><td colspan="6" style="text-align:center; padding:24px; color:#999;">No recent orders.</td></tr>
+            <tr><td colspan="6" class="empty-row">No recent orders.</td></tr>
           </ng-template>
         </p-table>
       </div>

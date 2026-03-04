@@ -8,14 +8,14 @@
       margin: 0;
       font-size: 20px;
       font-weight: 700;
-      color: #1e293b;
+      color: var(--ls-text-primary);
       display: flex;
       align-items: center;
       gap: 10px;
 
       i {
         font-size: 18px;
-        color: #6366f1;
+        color: var(--ls-accent);
       }
     }
   }

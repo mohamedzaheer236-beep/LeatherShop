@@ -1,8 +1,8 @@
 <p-dialog header="Bulk Import Customers" [(visible)]="visible" (visibleChange)="visibleChange.emit($event)"
   (onShow)="onShow()" [modal]="true" [style]="{'width': '500px'}">
-  <p style="color:#888; font-size:13px; margin-bottom:12px;">Paste one customer per line. Format: <code>phone,name</code> (name is optional)</p>
+  <p class="dialog-hint-text">Paste one customer per line. Format: <code>phone,name</code> (name is optional)</p>
   <form [formGroup]="form">
-    <textarea pInputTextarea formControlName="importText" rows="8" class="w-full" style="font-family:monospace;"
+    <textarea pInputTextarea formControlName="importText" rows="8" class="w-full font-mono"
     placeholder="919876543210,John&#10;919876543211,Jane&#10;919876543212"></textarea>
   </form>
   <ng-template pTemplate="footer">

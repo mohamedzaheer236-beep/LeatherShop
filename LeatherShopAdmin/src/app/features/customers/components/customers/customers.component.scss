@@ -21,15 +21,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #eef2ff;
-  border: 1px solid #c7d2fe;
+  background: var(--ls-accent-light);
+  border: 1px solid var(--ls-accent-ring-solid, #c7d2fe);
   border-radius: 10px;
   padding: 10px 20px;
   margin-bottom: 16px;
 }
 
 .row-selected {
-  background: #eef2ff !important;
+  background: var(--ls-accent-light) !important;
 }
 
 .action-buttons {

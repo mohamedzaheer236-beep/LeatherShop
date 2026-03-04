@@ -16,7 +16,7 @@
       </ng-template>
       <ng-template pTemplate="body" let-b>
         <tr>
-          <td><strong style="font-family: monospace; font-size: 13px;">{{ b.messageTemplate }}</strong></td>
+          <td><strong class="font-mono">{{ b.messageTemplate }}</strong></td>
           <td>{{ b.totalRecipients }}</td>
           <td><p-tag [value]="b.sentCount.toString()" severity="success"></p-tag></td>
           <td><p-tag [value]="b.failedCount.toString()" [severity]="b.failedCount > 0 ? 'danger' : 'info'"></p-tag></td>

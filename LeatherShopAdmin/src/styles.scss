@@ -95,6 +95,35 @@
   --ls-font-lg: 18px;
   --ls-font-xl: 22px;
   --ls-font-2xl: 26px;
+
+  /* Status / Semantic */
+  --ls-error: #ef4444;
+  --ls-error-dark: #dc2626;
+  --ls-error-bg: #fef2f2;
+  --ls-error-border: #fecaca;
+  --ls-success: #10b981;
+  --ls-success-dark: #059669;
+  --ls-success-bg: #ecfdf5;
+  --ls-success-border: #6ee7b7;
+  --ls-warning-amber: #f59e0b;
+  --ls-warning-bg: #fef3c7;
+  --ls-warning-border: #fde68a;
+  --ls-warning-text: #92400e;
+  --ls-warning-icon: #d97706;
+
+  /* Dashboard stat icon palettes */
+  --ls-stat-blue-bg: #e3f2fd;
+  --ls-stat-blue-fg: #1565c0;
+  --ls-stat-green-bg: #e8f5e9;
+  --ls-stat-green-fg: #2e7d32;
+  --ls-stat-purple-bg: #f3e5f5;
+  --ls-stat-purple-fg: #7b1fa2;
+  --ls-stat-gold-bg: #fff8e1;
+  --ls-stat-gold-fg: #f57f17;
+  --ls-stat-orange-bg: #fff3e0;
+  --ls-stat-orange-fg: #e65100;
+  --ls-stat-red-bg: #ffebee;
+  --ls-stat-red-fg: #c62828;
 }
 
 /* =============================================
@@ -108,6 +137,37 @@ body {
   color: var(--ls-text-body);
   min-height: 100vh;
 }
+
+/* =============================================
+   Reusable Utility Classes
+   ============================================= */
+
+/* Typography */
+.font-mono { font-family: monospace; }
+
+/* Error / empty states (shared across dashboard, product-list, etc.) */
+.error-state       { text-align: center; padding: 60px 20px; }
+.error-icon        { font-size: 3rem; color: var(--ls-error-dark); margin-bottom: 16px; display: block; }
+.error-message     { font-size: 1.1rem; color: var(--ls-text-muted); margin-bottom: 16px; }
+.empty-row         { text-align: center; padding: 40px; color: var(--ls-text-placeholder); }
+
+/* Confirm / delete dialogs */
+.warning-icon-lg   { font-size: 2rem; color: var(--ls-error-dark); }
+.confirm-hint-text { color: var(--ls-text-placeholder); font-size: 13px; }
+.dialog-hint-text  { color: var(--ls-text-placeholder); font-size: 13px; margin-bottom: 12px; }
+.delete-confirm-body { text-align: center; padding: 8px 0; }
+
+/* Customer table utilities */
+.phone-number      { font-family: monospace; font-size: 13px; }
+.selection-count   { font-weight: 700; color: var(--ls-accent); }
+.selection-note    { font-size: 13px; color: var(--ls-text-placeholder); margin-left: 8px; }
+.col-checkbox      { width: 50px; }
+.inline-row        { display: flex; align-items: center; gap: 8px; }
+
+/* Broadcast sidebar stat icon modifiers */
+.stat-icon-wrap--success { background: var(--ls-success-bg); i { color: var(--ls-success); } }
+.stat-icon-wrap--accent  { background: var(--ls-accent-light); i { color: var(--ls-accent); } }
+.stat-icon-wrap--warning { background: var(--ls-warning-bg); i { color: var(--ls-warning-icon); } }
 
 .main-content {
   padding: 28px 36px;

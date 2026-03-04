@@ -1,6 +1,7 @@
 using LeatherShopAPI.Data;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Models.WhatsApp;
+using LeatherShopAPI.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace LeatherShopAPI.Services.ChatBot.Handlers;
@@ -12,13 +13,15 @@ public class CheckoutHandler
 {
     private readonly AppDbContext _db;
     private readonly BotMessageSender _bot;
+    private readonly ConversationStateService _convState;
     private readonly IConfiguration _config;
     private readonly ILogger<CheckoutHandler> _logger;
 
-    public CheckoutHandler(AppDbContext db, BotMessageSender bot, IConfiguration config, ILogger<CheckoutHandler> logger)
+    public CheckoutHandler(AppDbContext db, BotMessageSender bot, ConversationStateService convState, IConfiguration config, ILogger<CheckoutHandler> logger)
     {
         _db = db;
         _bot = bot;
+        _convState = convState;
         _config = config;
         _logger = logger;
     }
@@ -52,8 +55,7 @@ public class CheckoutHandler
         // Ask for shipping address if not set
         if (string.IsNullOrWhiteSpace(customer.Address))
         {
-            customer.PendingAction = Customer.PendingActions.AwaitingAddress;
-            await _db.SaveChangesAsync(ct);
+            _convState.SetPendingAction(customer.Id, ConversationState.PendingActions.AwaitingAddress);
 
             await _bot.SendText(to,
                 "📍 *Shipping Address Required*\n\n" +
@@ -63,8 +65,7 @@ public class CheckoutHandler
         }
 
         // Address exists — ask the customer to confirm or change it
-        customer.PendingAction = Customer.PendingActions.ConfirmingAddress;
-        await _db.SaveChangesAsync(ct);
+        _convState.SetPendingAction(customer.Id, ConversationState.PendingActions.ConfirmingAddress);
 
         var cartTotal = cartItems.Sum(ci => ci.Product.Price * ci.Quantity);
         var itemLines = string.Join("\n", cartItems.Select(ci =>
@@ -116,8 +117,7 @@ public class CheckoutHandler
         {
             _logger.LogError("Cannot generate payment link — App:BaseUrl is not configured and RAILWAY_PUBLIC_DOMAIN is not set");
             await _bot.SendText(to, "❌ Sorry, we couldn't generate a payment link right now. Please contact us directly to complete your order.", ct);
-            customer.PendingAction = null;
-            await _db.SaveChangesAsync(ct);
+            _convState.SetPendingAction(customer.Id, null);
             return;
         }
 
@@ -207,7 +207,7 @@ public class CheckoutHandler
     public async Task HandleAddressInput(string to, Customer customer, string address, CancellationToken ct = default)
     {
         customer.Address = address;
-        customer.PendingAction = null;
+        _convState.SetPendingAction(customer.Id, null);
         await _db.SaveChangesAsync(ct);
 
         try

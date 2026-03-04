@@ -28,7 +28,7 @@
   position: absolute;
   top: 0;
   right: -2px;
-  background: #ef4444;
+  background: var(--ls-error);
   color: #fff;
   font-size: 0.65rem;
   font-weight: 700;
@@ -102,7 +102,7 @@
 }
 
 .notification-icon i {
-  color: #22c55e;
+  color: var(--ls-success);
   font-size: 0.85rem;
 }
 
@@ -149,7 +149,7 @@
 .navbar-logout-btn {
   background: rgba(220, 38, 38, 0.15) !important;
   border: 1px solid rgba(220, 38, 38, 0.3) !important;
-  color: #fca5a5 !important;
+  color: var(--ls-error-border) !important;
   width: 34px !important;
   height: 34px !important;
   transition: all 0.2s ease !important;

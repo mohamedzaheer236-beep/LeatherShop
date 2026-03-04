@@ -1,9 +1,9 @@
 <p-dialog header="Delete Customer" [(visible)]="visible" (visibleChange)="visibleChange.emit($event)"
   [modal]="true" [style]="{'width': '400px'}">
   <div class="delete-confirm-content">
-    <i class="pi pi-exclamation-triangle" style="font-size:2rem; color:#e74c3c;"></i>
+    <i class="pi pi-exclamation-triangle warning-icon-lg"></i>
     <p>Are you sure you want to delete <strong>{{ customer?.name || customer?.phoneNumber }}</strong>?</p>
-    <p style="color:#888; font-size:13px;">This will permanently delete the customer and all their orders, cart items, and chat messages.</p>
+    <p class="confirm-hint-text">This will permanently delete the customer and all their orders, cart items, and chat messages.</p>
   </div>
   <ng-template pTemplate="footer">
     <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="close()" icon="pi pi-times"></p-button>

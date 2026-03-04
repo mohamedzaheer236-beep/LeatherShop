@@ -61,7 +61,7 @@
     transition: color 0.2s;
 
     &.error {
-      color: #ef4444;
+      color: var(--ls-error);
     }
   }
 
@@ -229,10 +229,10 @@
     gap: 6px;
     padding: 6px 10px;
     margin-bottom: 4px;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+    background: var(--ls-error-bg);
+    border: 1px solid var(--ls-error-border);
     border-radius: 6px;
-    color: #dc2626;
+    color: var(--ls-error-dark);
     font-size: 12.5px;
     font-weight: 500;
     line-height: 1.4;
@@ -274,15 +274,15 @@
   gap: 8px;
   margin-top: 20px;
   padding: 10px 14px;
-  background: #fef3c7;
-  border: 1px solid #fde68a;
+  background: var(--ls-warning-bg);
+  border: 1px solid var(--ls-warning-border);
   border-radius: var(--ls-radius-md, 8px);
-  color: #92400e;
+  color: var(--ls-warning-text);
   font-size: 0.8rem;
   font-weight: 500;
 
   i {
-    color: #d97706;
+    color: var(--ls-warning-icon);
     font-size: 14px;
     flex-shrink: 0;
   }
@@ -334,7 +334,7 @@
   line-height: 1.5;
 
   > i {
-    color: #10b981;
+    color: var(--ls-success);
     font-size: 14px;
     margin-top: 2px;
     flex-shrink: 0;

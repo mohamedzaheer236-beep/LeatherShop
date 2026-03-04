@@ -92,8 +92,8 @@
                 <label [for]="'bcCardProduct_' + i">Link to Product *</label>
                 <p-dropdown [inputId]="'bcCardProduct_' + i"
                   [options]="helper.productOptions"
-                  [(ngModel)]="card.selectedProductId" [ngModelOptions]="{standalone: true}"
-                  (onChange)="helper.onCardProductSelect(i)"
+                    [(ngModel)]="card.selectedProductId" [ngModelOptions]="{standalone: true}"
+                    (onChange)="helper.onCardProductSelect(i)"
                   placeholder="Select a product" [style]="{'width': '100%'}"
                   [showClear]="true" [filter]="true" filterPlaceholder="Search products..."
                   appendTo="body">
@@ -152,7 +152,7 @@
               <div class="form-field">
                 <label [for]="'bcCardBody_' + i">Body Parameter</label>
                 <input pInputText [id]="'bcCardBody_' + i"
-                  [(ngModel)]="card.bodyParam" [ngModelOptions]="{standalone: true}"
+                   [(ngModel)]="card.bodyParam" [ngModelOptions]="{standalone: true}"
                   placeholder="e.g. Premium Leather Wallet"
                   [maxlength]="helper.cardBodyMaxLength" class="w-full" />
                   <small class="hint">{{ card.bodyParam.length }}/{{ helper.cardBodyMaxLength }} characters</small>
