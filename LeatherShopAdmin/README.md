@@ -1,6 +1,34 @@
 # LeatherShopAdmin
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 18.2.21.
+Leather Shop Admin Portal — Angular 18 admin dashboard for managing products, orders, customers, broadcasts, and chat.
+
+## Features
+
+- **Dashboard** — Analytics and overview
+- **Products** — CRUD product management
+- **Orders** — Order tracking and management
+- **Customers** — Customer management
+- **Broadcast** — WhatsApp broadcast messaging
+- **Chat** — Real-time chat with customers
+- **Auth** — Secure admin login with JWT
+
+## Login Page
+
+The login page features an interactive **Spline 3D background** with a glassmorphism login card.
+
+### Technical Details
+- **3D Background**: Hosted on [Spline](https://spline.design) via public embed URL (iframe)
+- **Glassmorphism Card**: Semi-transparent card with `backdrop-filter: blur()` and purple-blue gradient
+- **Lazy Loading**: The 3D scene loads after the login form appears for better perceived performance
+- **Fallback**: If Spline CDN is unavailable, the page shows a dark background — login form remains fully functional
+- **Files Modified**: `login.component.html`, `login.component.scss` only — no TS logic or dependencies changed
+
+### Spline Scene Dependency
+The login background relies on a published Spline scene:
+```
+https://my.spline.design/interactiveaistartupheropage-s4MZKTFkESyL5jVYbgOLMYYB/
+```
+> **Note**: Do not unpublish or delete this scene from the Spline account, or the 3D background will stop loading.
 
 ## Development server
 
