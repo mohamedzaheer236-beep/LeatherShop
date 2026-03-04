@@ -18,9 +18,10 @@ public class PaymentController : ControllerBase
     private readonly IConfiguration _config;
     private readonly IWebHostEnvironment _env;
 
-    // Cache templates in memory after first load
-    private static string? _paymentPageTemplate;
-    private static string? _messagePageTemplate;
+    // Thread-safe cache for HTML templates (loaded once on first request)
+    private static volatile string? _paymentPageTemplate;
+    private static volatile string? _messagePageTemplate;
+    private static readonly SemaphoreSlim _templateLock = new(1, 1);
 
     public PaymentController(IPaymentService paymentService, IConfiguration config, IWebHostEnvironment env)
     {
@@ -87,22 +88,34 @@ public class PaymentController : ControllerBase
         return Ok(ApiResponse<PaymentVerifyResultDto>.Ok(result, "Payment verified successfully."));
     }
 
-    /// <summary>Loads the payment page HTML template from wwwroot/templates, with in-memory caching.</summary>
+    /// <summary>Loads the payment page HTML template from wwwroot/templates, with thread-safe in-memory caching.</summary>
     private async Task<string> LoadPaymentPageTemplate(CancellationToken ct)
     {
         if (_paymentPageTemplate != null) return _paymentPageTemplate;
-        var path = Path.Combine(_env.WebRootPath, "templates", "payment-page.html");
-        _paymentPageTemplate = await System.IO.File.ReadAllTextAsync(path, ct);
-        return _paymentPageTemplate;
+        await _templateLock.WaitAsync(ct);
+        try
+        {
+            if (_paymentPageTemplate != null) return _paymentPageTemplate;
+            var path = Path.Combine(_env.WebRootPath, "templates", "payment-page.html");
+            _paymentPageTemplate = await System.IO.File.ReadAllTextAsync(path, ct);
+            return _paymentPageTemplate;
+        }
+        finally { _templateLock.Release(); }
     }
 
-    /// <summary>Loads the message page HTML template from wwwroot/templates, with in-memory caching.</summary>
+    /// <summary>Loads the message page HTML template from wwwroot/templates, with thread-safe in-memory caching.</summary>
     private async Task<string> LoadMessagePageTemplate(CancellationToken ct)
     {
         if (_messagePageTemplate != null) return _messagePageTemplate;
-        var path = Path.Combine(_env.WebRootPath, "templates", "payment-message.html");
-        _messagePageTemplate = await System.IO.File.ReadAllTextAsync(path, ct);
-        return _messagePageTemplate;
+        await _templateLock.WaitAsync(ct);
+        try
+        {
+            if (_messagePageTemplate != null) return _messagePageTemplate;
+            var path = Path.Combine(_env.WebRootPath, "templates", "payment-message.html");
+            _messagePageTemplate = await System.IO.File.ReadAllTextAsync(path, ct);
+            return _messagePageTemplate;
+        }
+        finally { _templateLock.Release(); }
     }
 
     /// <summary>Generates a full-page HTML message (used for expired/not-found states) using the template file.</summary>

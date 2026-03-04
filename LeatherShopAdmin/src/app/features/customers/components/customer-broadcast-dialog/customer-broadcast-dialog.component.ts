@@ -13,6 +13,7 @@ import { BroadcastService } from '../../../broadcast/services/broadcast.service'
 import { BroadcastFormHelperService } from '../../../broadcast/services/broadcast-form-helper.service';
 import { CarouselCard } from '../../../broadcast/models/broadcast.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
+import { isFieldInvalid as checkFieldInvalid } from '../../../../shared/utils/form.utils';
 
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
@@ -90,8 +91,7 @@ export class CustomerBroadcastDialogComponent implements OnInit {
   // ─── Computed ───
 
   isFieldInvalid(field: string): boolean {
-    const control = this.broadcastForm.get(field);
-    return !!(control && control.invalid && (control.dirty || control.touched || this.submitted));
+    return checkFieldInvalid(this.broadcastForm, field, this.submitted);
   }
 
   // ─── Send ───

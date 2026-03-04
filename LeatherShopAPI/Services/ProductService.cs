@@ -24,23 +24,24 @@ public class ProductService : IProductService
 
     public async Task<PaginatedResult<ProductDto>> GetAllAsync(string? category, string? brand, string? search, int page = 1, int pageSize = 25, CancellationToken ct = default)
     {
-        var query = _db.Products.AsNoTracking().Include(p => p.Images).AsQueryable();
+        var baseQuery = _db.Products.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrEmpty(category))
-            query = query.Where(p => EF.Functions.ILike(p.Category, EscapeLikePattern(category)));
+            baseQuery = baseQuery.Where(p => EF.Functions.ILike(p.Category, EscapeLikePattern(category)));
 
         if (!string.IsNullOrEmpty(brand))
-            query = query.Where(p => EF.Functions.ILike(p.Brand, EscapeLikePattern(brand)));
+            baseQuery = baseQuery.Where(p => EF.Functions.ILike(p.Brand, EscapeLikePattern(brand)));
 
         if (!string.IsNullOrEmpty(search))
         {
             var escaped = EscapeLikePattern(search);
-            query = query.Where(p => EF.Functions.ILike(p.Name, $"%{escaped}%") || EF.Functions.ILike(p.Description, $"%{escaped}%"));
+            baseQuery = baseQuery.Where(p => EF.Functions.ILike(p.Name, $"%{escaped}%") || EF.Functions.ILike(p.Description, $"%{escaped}%"));
         }
 
-        var totalCount = await query.CountAsync(ct);
+        var totalCount = await baseQuery.CountAsync(ct);
 
-        var products = await query.OrderByDescending(p => p.CreatedAt)
+        var products = await baseQuery.Include(p => p.Images)
+            .OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(ct);

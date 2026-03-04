@@ -7,6 +7,7 @@ using LeatherShopAPI.DTOs.Broadcast;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Models.WhatsApp;
 using LeatherShopAPI.Services.Interfaces;
+using LeatherShopAPI.Services.ChatBot;
 
 namespace LeatherShopAPI.Services;
 
@@ -75,23 +76,15 @@ public sealed class BroadcastBackgroundService : BackgroundService
 
     /// <summary>
     /// Resolve a relative image path (e.g., /uploads/abc.jpg) to a full public URL.
-    /// Uses App:BaseUrl config with RAILWAY_PUBLIC_DOMAIN fallback.
+    /// Delegates to shared ChatBotHelpers.GetPublicBaseUrl for consistent base URL resolution.
     /// </summary>
     private string? ResolveImageUrl(string? relativePath)
     {
         if (string.IsNullOrEmpty(relativePath)) return null;
         if (relativePath.StartsWith("http")) return relativePath; // already full URL
 
-        var baseUrl = _config["App:BaseUrl"]?.TrimEnd('/');
-        if (string.IsNullOrEmpty(baseUrl) || baseUrl.Contains("WILL_BE_SET") || baseUrl.Contains("localhost"))
-        {
-            var railwayDomain = Environment.GetEnvironmentVariable("RAILWAY_PUBLIC_DOMAIN");
-            if (!string.IsNullOrEmpty(railwayDomain))
-                baseUrl = $"https://{railwayDomain}";
-            else
-                return null;
-        }
-        return $"{baseUrl}{relativePath}";
+        var baseUrl = ChatBotHelpers.GetPublicBaseUrl(_config);
+        return baseUrl != null ? $"{baseUrl}{relativePath}" : null;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

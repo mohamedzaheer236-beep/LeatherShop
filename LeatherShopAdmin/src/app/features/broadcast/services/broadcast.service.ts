@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, map, interval, concatMap, takeWhile, last, take } from 'rxjs';
 import { BroadcastRequest, BroadcastResult, BroadcastHistory, WhatsAppTemplate } from '../models/broadcast.model';
 import { PaginatedResult } from '../../../core/models/paginated-result.model';
 import { ApiResponse } from '../../../core/models/api-response.model';
@@ -50,31 +50,15 @@ export class BroadcastService {
    * processed or 30 attempts are exhausted.
    *
    * Returns an Observable that emits the final {@link BroadcastStatus} and
-   * completes. Unsubscribing cancels the polling interval automatically.
+   * completes. Unsubscribing cancels the polling automatically.
    */
   pollBroadcastStatus(broadcastId: number, totalRecipients: number): Observable<BroadcastHistory> {
-    return new Observable<BroadcastHistory>(subscriber => {
-      let attempts = 0;
-      const maxAttempts = 30;
-      const intervalId = setInterval(() => {
-        attempts++;
-        this.getBroadcastStatus(broadcastId).subscribe({
-          next: status => {
-            const processed = status.sentCount + status.failedCount;
-            if (processed >= totalRecipients || attempts >= maxAttempts) {
-              clearInterval(intervalId);
-              subscriber.next(status);
-              subscriber.complete();
-            }
-          },
-          error: err => {
-            clearInterval(intervalId);
-            subscriber.error(err);
-          },
-        });
-      }, 1000);
-
-      return () => clearInterval(intervalId);
-    });
+    const maxAttempts = 30;
+    return interval(1000).pipe(
+      take(maxAttempts),
+      concatMap(() => this.getBroadcastStatus(broadcastId)),
+      takeWhile(status => status.sentCount + status.failedCount < totalRecipients, true),
+      last(),
+    );
   }
 }

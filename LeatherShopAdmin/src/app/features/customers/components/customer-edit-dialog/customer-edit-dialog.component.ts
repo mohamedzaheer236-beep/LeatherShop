@@ -3,6 +3,7 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { CustomerService } from '../../services/customer.service';
 import { Customer, UpdateCustomer } from '../../models/customer.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
+import { isFieldInvalid } from '../../../../shared/utils/form.utils';
 
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
@@ -83,7 +84,6 @@ export class CustomerEditDialogComponent {
   }
 
   isFieldInvalid(field: string): boolean {
-    const control = this.form.get(field);
-    return !!(control && control.invalid && (control.dirty || control.touched || this.submitted));
+    return isFieldInvalid(this.form, field, this.submitted);
   }
 }

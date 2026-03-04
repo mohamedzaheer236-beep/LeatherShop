@@ -37,18 +37,16 @@ public class OrderService : IOrderService
 
     public async Task<PaginatedResult<OrderDto>> GetAllAsync(string? status, int page = 1, int pageSize = 25, CancellationToken ct = default)
     {
-        var query = _db.Orders
-            .AsNoTracking()
-            .Include(o => o.Customer)
-            .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
-            .AsQueryable();
+        var baseQuery = _db.Orders.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrEmpty(status) && Enum.TryParse<OrderStatus>(status, true, out var orderStatus))
-            query = query.Where(o => o.Status == orderStatus);
+            baseQuery = baseQuery.Where(o => o.Status == orderStatus);
 
-        var totalCount = await query.CountAsync(ct);
+        var totalCount = await baseQuery.CountAsync(ct);
 
-        var orders = await query
+        var orders = await baseQuery
+            .Include(o => o.Customer)
+            .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
             .OrderByDescending(o => o.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)

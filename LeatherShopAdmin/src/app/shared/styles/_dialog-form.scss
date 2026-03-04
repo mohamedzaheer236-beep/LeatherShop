@@ -1,17 +1,28 @@
-/** Shared styles for p-dialog form layouts used by customer dialog components. */
+/** Shared styles for p-dialog form layouts used across dialog components. */
 
 .dialog-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 1.25rem;
 }
 
 .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
   label {
     display: block;
-    margin-bottom: 6px;
     font-weight: 600;
-    font-size: 14px;
-    color: #334155;
+    font-size: 0.92rem;
+    color: var(--text-color);
+  }
+
+  .hint {
+    color: var(--text-color-secondary);
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
   }
 }

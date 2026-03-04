@@ -2413,7 +2413,34 @@ Decomposed the oversized CustomersComponent (730+ lines across TS/HTML/SCSS) int
 
 **Net result:** 535 additions, 365 deletions (+170 lines from decomposition). CustomersComponent reduced from 730+ to 439 lines.
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
-### Phase 30 — Broadcast Duplication Extraction (March 4, 2026)
+
+### Phase 32 — Final Deep Audit & Cross-Cutting Fixes (March 4, 2026)
+
+Comprehensive audit of the entire codebase (backend + frontend). Fixed all high-severity and key medium-severity issues found.
+
+**Backend Fixes:**
+
+| # | Severity | Change | Description | File(s) |
+|---|----------|--------|-------------|---------|
+| 1 | **High** | **Pagination count query optimization** | Separated `CountAsync()` from `Include()` queries in `OrderService.GetAllAsync` and `ProductService.GetAllAsync`. Count now runs without JOINs, avoiding unnecessary SQL complexity. | `OrderService.cs`, `ProductService.cs` |
+| 2 | **High** | **RefreshToken DB indexes** | Created `RefreshTokenConfiguration` with unique index on `Token` and index on `AdminUserId`. Prevents full table scans on every token refresh/revoke. | `RefreshTokenConfiguration.cs` (new) |
+| 3 | **High** | **BulkImport memory fix** | Changed `BulkImportAsync` to only query phone numbers from the imported batch (`WHERE PhoneNumber IN (...)`) instead of loading all customer phones into memory. | `CustomerService.cs` |
+| 4 | **High** | **Thread-safe template caching** | Replaced static `string?` fields with `volatile` + `SemaphoreSlim` double-check locking in `PaymentController` for HTML template loading. | `PaymentController.cs` |
+| 5 | **Medium** | **Deduplicate base URL resolution** | `BroadcastBackgroundService.ResolveImageUrl` now delegates to shared `ChatBotHelpers.GetPublicBaseUrl()` instead of duplicating the logic. | `BroadcastBackgroundService.cs` |
+
+**Frontend Fixes:**
+
+| # | Severity | Change | Description | File(s) |
+|---|----------|--------|-------------|---------|
+| 6 | **High** | **TimeAgoPipe made pure** | Changed from impure (re-runs every CD cycle) to pure pipe with a `_tick` parameter. Navbar passes a counter that increments every 60s to trigger re-evaluation only when needed. | `time.pipes.ts`, `navbar.component.ts`, `navbar.component.html` |
+| 7 | **High** | **pollBroadcastStatus rewritten with RxJS** | Replaced manual `setInterval` + nested `.subscribe()` (leak-prone) with idiomatic `interval().pipe(take(), concatMap(), takeWhile(), last())`. Unsubscription now properly cancels in-flight HTTP requests. | `broadcast.service.ts` |
+| 8 | **Medium** | **Navbar subscription cleanup standardized** | Replaced manual `Subscription[]` + `ngOnDestroy` with `takeUntilDestroyed(inject(DestroyRef))`. Removed `OnDestroy` interface. | `navbar.component.ts` |
+| 9 | **Medium** | **isFieldInvalid extracted to shared utility** | Created `form.utils.ts` with reusable `isFieldInvalid()` function. Replaced identical implementations in 5 components (customer-add, customer-edit, customer-broadcast, broadcast-form, product-form). | `form.utils.ts` (new), 5 component files |
+| 10 | **Medium** | **Environment interface for type safety** | Created `Environment` interface in `environment.model.ts`. Both `environment.ts` and `environment.prod.ts` now use typed exports — mismatched or missing properties cause compile errors. | `environment.model.ts` (new), `environment.ts`, `environment.prod.ts` |
+| 11 | **Medium** | **Broadcast dialog SCSS deduplication** | Replaced inline `.dialog-form` / `.form-field` redeclaration in `customer-broadcast-dialog.component.scss` with `@use` of shared `_dialog-form.scss` partial. Updated partial to use CSS custom properties consistently. | `customer-broadcast-dialog.component.scss`, `_dialog-form.scss` |
+| 12 | **Medium** | **Notification tracking by stable ID** | Changed `@for` tracking in navbar notification list from object reference (`track n`) to stable key (`track n.orderNumber`). Prevents unnecessary DOM re-creation when the array is replaced. | `navbar.component.html` |
+
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
 
 Eliminated ~200 lines of duplicated code across broadcast components by extracting shared logic into a dedicated helper service and centralising polling into the existing BroadcastService.
 

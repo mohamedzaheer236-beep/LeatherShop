@@ -14,6 +14,7 @@ import { BroadcastService } from '../../services/broadcast.service';
 import { BroadcastFormHelperService } from '../../services/broadcast-form-helper.service';
 import { CarouselCard } from '../../models/broadcast.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
+import { isFieldInvalid as checkFieldInvalid } from '../../../../shared/utils/form.utils';
 
 import { CardModule } from 'primeng/card';
 import { DropdownModule } from 'primeng/dropdown';
@@ -78,8 +79,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
   }
 
   isFieldInvalid(field: string): boolean {
-    const control = this.f[field];
-    return control.invalid && (control.dirty || control.touched || this.submitted);
+    return checkFieldInvalid(this.broadcastForm, field, this.submitted);
   }
 
   get isValidTemplate(): boolean {

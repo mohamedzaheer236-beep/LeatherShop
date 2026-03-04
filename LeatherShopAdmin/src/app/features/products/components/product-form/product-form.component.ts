@@ -13,6 +13,7 @@ import { Observable, of, timer } from 'rxjs';
 import { switchMap, map, catchError } from 'rxjs/operators';
 import { ProductService } from '../../services/product.service';
 import { NotificationService } from '../../../../shared/services/notification.service';
+import { isFieldInvalid as checkFieldInvalid } from '../../../../shared/utils/form.utils';
 import { HasUnsavedChanges } from '../../../../core/guards/unsaved-changes.guard';
 import { ConfirmationService } from 'primeng/api';
 import { CardModule } from 'primeng/card';
@@ -350,8 +351,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
 
   /** Check if a field should display its error state */
   isFieldInvalid(field: string): boolean {
-    const control = this.f[field];
-    return control.invalid && (control.dirty || control.touched || this.submitted);
+    return checkFieldInvalid(this.productForm, field, this.submitted);
   }
 
   onSubmit(): void {

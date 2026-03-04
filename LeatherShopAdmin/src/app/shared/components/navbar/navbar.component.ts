@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { MenuItem } from 'primeng/api';
 import { MenubarModule } from 'primeng/menubar';
@@ -7,7 +8,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { BadgeModule } from 'primeng/badge';
 import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { interval } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { SignalRService, OrderNotification } from '../../../core/services/signalr.service';
 import { NotificationService } from '../../services/notification.service';
@@ -21,17 +22,18 @@ import { TimeAgoPipe } from '../../pipes/time.pipes';
   styleUrl: './navbar.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class NavbarComponent implements OnInit, OnDestroy {
+export class NavbarComponent implements OnInit {
   private auth = inject(AuthService);
   private signalR = inject(SignalRService);
   private notification = inject(NotificationService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
+  private destroyRef = inject(DestroyRef);
 
   items: MenuItem[] = [];
   username = '';
   notifications: OrderNotification[] = [];
-  private subs: Subscription[] = [];
+  timeAgoTick = 0;
 
   ngOnInit(): void {
     this.username = this.auth.getUsername() || 'Admin';
@@ -51,21 +53,21 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
     // Start SignalR and listen for order notifications
     this.signalR.start();
-    this.subs.push(
-      this.signalR.newOrder$.subscribe(order => {
-        this.notifications = [order, ...this.notifications.slice(0, 19)];
-        this.cdr.markForCheck();
-      }),
-      this.signalR.outboxFailed$.subscribe(event => {
-        this.notification.error(
-          `Message delivery failed for ${event.customerName}: ${event.context}. Go to Chat → Failed Messages to retry.`,
-        );
-      }),
-    );
-  }
+    this.signalR.newOrder$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(order => {
+      this.notifications = [order, ...this.notifications.slice(0, 19)];
+      this.cdr.markForCheck();
+    });
+    this.signalR.outboxFailed$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(event => {
+      this.notification.error(
+        `Message delivery failed for ${event.customerName}: ${event.context}. Go to Chat → Failed Messages to retry.`,
+      );
+    });
 
-  ngOnDestroy(): void {
-    this.subs.forEach(s => s.unsubscribe());
+    // Tick every 60s to refresh the timeAgo pipe's relative timestamps
+    interval(60_000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.timeAgoTick++;
+      this.cdr.markForCheck();
+    });
   }
 
   clearNotifications(): void {

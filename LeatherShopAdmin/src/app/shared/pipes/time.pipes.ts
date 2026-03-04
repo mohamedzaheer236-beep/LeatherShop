@@ -1,12 +1,13 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
 /**
- * Impure pipe that formats a timestamp into a relative/short time label.
- * Used in notification list sidebar. Impure so it auto-refreshes as time passes.
+ * Pure pipe that formats a timestamp into a relative/short time label.
+ * Accepts an optional `tick` parameter to trigger re-evaluation
+ * (e.g., pass a counter that increments every minute from the component).
  */
-@Pipe({ name: 'timeAgo', standalone: true, pure: false })
+@Pipe({ name: 'timeAgo', standalone: true, pure: true })
 export class TimeAgoPipe implements PipeTransform {
-  transform(timestamp: string | null | undefined): string {
+  transform(timestamp: string | null | undefined, _tick?: number): string {
     if (!timestamp) return '';
     const diff = Date.now() - new Date(timestamp).getTime();
     const mins = Math.floor(diff / 60000);

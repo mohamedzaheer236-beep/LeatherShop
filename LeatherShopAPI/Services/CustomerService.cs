@@ -118,8 +118,16 @@ public class CustomerService : ICustomerService
         if (dto.Customers.Count > 1000)
             throw new ArgumentException("Maximum 1000 customers per import. Please split into smaller batches.");
 
-        // Load all existing phone numbers into a HashSet to avoid N+1 queries
-        var existingPhones = (await _db.Customers.Select(c => c.PhoneNumber).ToListAsync(ct))
+        // Only check imported phone numbers against DB (not all customers)
+        var importedPhones = dto.Customers
+            .Select(c => PhoneNumberHelper.Normalize(c.PhoneNumber))
+            .Where(p => !string.IsNullOrEmpty(p) && p.Length >= 5)
+            .ToList();
+
+        var existingPhones = (await _db.Customers
+            .Where(c => importedPhones.Contains(c.PhoneNumber))
+            .Select(c => c.PhoneNumber)
+            .ToListAsync(ct))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         int added = 0, skipped = 0;
