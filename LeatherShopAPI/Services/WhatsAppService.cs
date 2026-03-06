@@ -74,6 +74,23 @@ public class WhatsAppService : IWhatsAppService
         await SendRequest(payload, ct);
     }
 
+    /// <summary>Send a video message with optional caption</summary>
+    public async Task SendVideoMessage(string to, string videoUrl, string? caption = null, CancellationToken ct = default)
+    {
+        var payload = new
+        {
+            messaging_product = "whatsapp",
+            to,
+            type = "video",
+            video = new
+            {
+                link = videoUrl,
+                caption
+            }
+        };
+        await SendRequest(payload, ct);
+    }
+
     /// <summary>
     /// Send interactive LIST message (menu with sections).
     /// Customer taps a button → sees a scrollable list of items to pick from.

@@ -7,6 +7,7 @@ public interface IWhatsAppService
 {
     Task SendTextMessage(string to, string message, CancellationToken ct = default);
     Task SendImageMessage(string to, string imageUrl, string? caption = null, CancellationToken ct = default);
+    Task SendVideoMessage(string to, string videoUrl, string? caption = null, CancellationToken ct = default);
     Task SendListMessage(string to, string headerText, string bodyText, string buttonText, List<ListSection> sections, CancellationToken ct = default);
     Task SendButtonMessage(string to, string bodyText, List<ButtonOption> buttons, CancellationToken ct = default);
     Task SendTemplateMessage(string to, string templateName, string languageCode = "en", List<string>? parameters = null, string? imageUrl = null, CancellationToken ct = default);

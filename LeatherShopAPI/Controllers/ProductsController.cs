@@ -148,4 +148,25 @@ public class ProductsController : ControllerBase
             return BadRequest(ApiResponse.Fail(ex.Message));
         }
     }
+
+    [HttpPost("upload-video")]
+    [RequestSizeLimit(16 * 1024 * 1024)] // 16 MB (WhatsApp limit)
+    public async Task<IActionResult> UploadVideo(IFormFile file, CancellationToken ct)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(ApiResponse.Fail("No file provided."));
+
+        if (file.Length > 16 * 1024 * 1024)
+            return BadRequest(ApiResponse.Fail("Video file must be under 16 MB (WhatsApp limit)."));
+
+        try
+        {
+            var relativePath = await _productService.UploadVideoAsync(file, ct);
+            return Ok(ApiResponse<string>.Ok(relativePath, "Video uploaded successfully."));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse.Fail(ex.Message));
+        }
+    }
 }

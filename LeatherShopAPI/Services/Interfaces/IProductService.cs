@@ -16,4 +16,5 @@ public interface IProductService
     Task<bool> NameExistsAsync(string name, int? excludeId = null, CancellationToken ct = default);
     Task<string> UploadImageAsync(IFormFile file, CancellationToken ct = default);
     Task<List<string>> UploadImagesAsync(IList<IFormFile> files, CancellationToken ct = default);
+    Task<string> UploadVideoAsync(IFormFile file, CancellationToken ct = default);
 }

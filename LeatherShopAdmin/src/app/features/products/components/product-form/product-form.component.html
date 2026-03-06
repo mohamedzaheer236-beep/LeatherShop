@@ -160,6 +160,50 @@
             }
           </div>
 
+          <!-- Video Upload — optional, single video -->
+          <div class="form-field">
+            <label>Product Video <span class="upload-count">(optional — shown on WhatsApp)</span></label>
+
+            @if (video) {
+              <div class="video-card">
+                <video [src]="video.preview" controls class="video-preview" preload="metadata">
+                  Your browser does not support the video tag.
+                </video>
+                <button type="button" class="remove-video-btn" (click)="removeVideo()" title="Remove video">
+                  <i class="pi pi-times"></i>
+                </button>
+              </div>
+            }
+
+            @if (videoError) {
+              <div class="image-errors">
+                <div class="image-error-item">
+                  <i class="pi pi-exclamation-circle"></i>
+                  <span>{{ videoError }}</span>
+                </div>
+              </div>
+            }
+
+            @if (!video && !videoUploading) {
+              <div class="image-upload-area">
+                <label for="videoFileInput" class="upload-dropzone">
+                  <i class="pi pi-video"></i>
+                  <span class="upload-text">Click to upload a product video</span>
+                  <span class="upload-hint">MP4 or 3GP — max 16 MB (WhatsApp limit)</span>
+                  <span class="upload-hint">Video will be sent to customers alongside product details</span>
+                </label>
+                <input id="videoFileInput" type="file" accept=".mp4,.3gp" (change)="onVideoSelect($event)" class="hidden-file-input" />
+              </div>
+            }
+
+            @if (videoUploading) {
+              <div class="upload-progress">
+                <i class="pi pi-spin pi-spinner"></i>
+                <span>Uploading video...</span>
+              </div>
+            }
+          </div>
+
           <!-- Description — full width -->
           <div class="form-field">
             <label for="description">Description</label>
@@ -178,7 +222,7 @@
             <p-button label="Cancel" severity="secondary" [outlined]="true" routerLink="/products" icon="pi pi-times"></p-button>
             <p-button [label]="saving ? 'Saving...' : (isEdit ? 'Update Product' : 'Create Product')"
               type="submit" icon="pi pi-check"
-              [disabled]="saving || uploading || productForm.invalid || f['name'].pending"
+              [disabled]="saving || uploading || videoUploading || productForm.invalid || f['name'].pending"
             [loading]="saving"></p-button>
           </div>
         </form>
@@ -203,6 +247,10 @@
         <div class="tip-item">
           <i class="pi pi-check-circle"></i>
           <span>Upload up to 4 product images (JPG, PNG, WebP, GIF). Images are auto-compressed to ~300KB for optimal loading.</span>
+        </div>
+        <div class="tip-item">
+          <i class="pi pi-check-circle"></i>
+          <span>Upload a product video (MP4/3GP, max 16 MB) — sent to customers on WhatsApp when they view the product.</span>
         </div>
         <div class="tip-item">
           <i class="pi pi-check-circle"></i>

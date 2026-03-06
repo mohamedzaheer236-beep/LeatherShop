@@ -12,6 +12,7 @@ export interface Product {
   price: number;
   stockQuantity: number;
   imageUrl: string;
+  videoUrl?: string;
   imageUrls: string[];
   imageItems: ProductImageItem[];
   isActive: boolean;
@@ -26,4 +27,5 @@ export interface CreateProduct {
   stockQuantity: number;
   imageUrl: string;
   imageUrls?: string[];
+  videoUrl?: string;
 }

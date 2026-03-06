@@ -42,6 +42,7 @@ public static class MappingExtensions
             Price = p.Price,
             StockQuantity = p.StockQuantity,
             ImageUrl = p.ImageUrl,
+            VideoUrl = p.VideoUrl,
             ImageUrls = imageUrls,
             ImageItems = imageItems,
             IsActive = p.IsActive,

@@ -237,6 +237,9 @@ public class ProductHandler
         {
             _logger.LogWarning(ex, "Failed to send action buttons after product images (rate limit), product {ProductId}", product.Id);
         }
+
+        // Send product video if available
+        await TrySendProductVideo(to, product, ct);
     }
 
     private async Task SendProductDetailsButtons(string to, Product product, string details, CancellationToken ct = default)
@@ -259,6 +262,34 @@ public class ProductHandler
         catch (WhatsAppApiException ex)
         {
             _logger.LogWarning(ex, "Failed to send product detail buttons for product {ProductId}", product.Id);
+        }
+
+        // Send product video if available
+        await TrySendProductVideo(to, product, ct);
+    }
+
+    /// <summary>
+    /// Sends the product video as a follow-up message if VideoUrl is set.
+    /// </summary>
+    private async Task TrySendProductVideo(string to, Product product, CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(product.VideoUrl)) return;
+
+        try
+        {
+            var baseUrl = ChatBotHelpers.GetPublicBaseUrl(_config);
+            if (string.IsNullOrEmpty(baseUrl))
+            {
+                _logger.LogWarning("GetPublicBaseUrl() returned null — skipping video send for product {ProductId}", product.Id);
+                return;
+            }
+
+            var videoFullUrl = product.VideoUrl.StartsWith("http") ? product.VideoUrl : $"{baseUrl}{product.VideoUrl}";
+            await _bot.SendVideo(to, videoFullUrl, $"🎬 {product.Name} — Product Video", ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send product video for product {ProductId}, skipping", product.Id);
         }
     }
 }

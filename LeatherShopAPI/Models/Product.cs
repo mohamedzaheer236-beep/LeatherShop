@@ -28,6 +28,9 @@ public class Product
     [MaxLength(500)]
     public string ImageUrl { get; set; } = string.Empty;
 
+    [MaxLength(500)]
+    public string? VideoUrl { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

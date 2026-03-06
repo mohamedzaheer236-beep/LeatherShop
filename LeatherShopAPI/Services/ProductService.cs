@@ -73,7 +73,8 @@ public class ProductService : IProductService
             Category = dto.Category,
             Price = dto.Price,
             StockQuantity = dto.StockQuantity,
-            ImageUrl = dto.ImageUrl ?? string.Empty
+            ImageUrl = dto.ImageUrl ?? string.Empty,
+            VideoUrl = dto.VideoUrl
         };
 
         // Add additional images if provided
@@ -107,6 +108,7 @@ public class ProductService : IProductService
         if (dto.Price.HasValue) product.Price = dto.Price.Value;
         if (dto.StockQuantity.HasValue) product.StockQuantity = dto.StockQuantity.Value;
         if (dto.ImageUrl != null) product.ImageUrl = dto.ImageUrl;
+        if (dto.VideoUrl != null) product.VideoUrl = dto.VideoUrl.Length == 0 ? null : dto.VideoUrl;
         if (dto.IsActive.HasValue) product.IsActive = dto.IsActive.Value;
 
         // Replace additional images if the list was explicitly provided
@@ -253,5 +255,27 @@ public class ProductService : IProductService
             paths.Add(path);
         }
         return paths;
+    }
+
+    public async Task<string> UploadVideoAsync(IFormFile file, CancellationToken ct = default)
+    {
+        var uploadsDir = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads");
+        Directory.CreateDirectory(uploadsDir);
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var allowedExts = new[] { ".mp4", ".3gp" };
+        if (!allowedExts.Contains(ext))
+            throw new ArgumentException("Only video files (.mp4, .3gp) are allowed.");
+
+        if (file.Length > 16 * 1024 * 1024)
+            throw new ArgumentException("Video file must be under 16 MB (WhatsApp limit).");
+
+        var fileName = $"{Guid.NewGuid()}{ext}";
+        var filePath = Path.Combine(uploadsDir, fileName);
+
+        using var stream = new FileStream(filePath, FileMode.Create);
+        await file.CopyToAsync(stream, ct);
+
+        return $"/uploads/{fileName}";
     }
 }

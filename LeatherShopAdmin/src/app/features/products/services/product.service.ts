@@ -67,4 +67,10 @@ export class ProductService {
     files.forEach(f => formData.append('files', f));
     return this.http.post<ApiResponse<string[]>>(`${this.baseUrl}/upload-images`, formData).pipe(map(res => res.data));
   }
+
+  uploadVideo(file: File): Observable<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<ApiResponse<string>>(`${this.baseUrl}/upload-video`, formData).pipe(map(res => res.data));
+  }
 }

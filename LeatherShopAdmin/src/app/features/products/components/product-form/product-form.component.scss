@@ -171,6 +171,47 @@
   display: block;
 }
 
+/* Video upload styles */
+.video-card {
+  position: relative;
+  border: 1px solid var(--ls-border-light, #e2e8f0);
+  border-radius: var(--ls-radius-md, 8px);
+  overflow: hidden;
+  background: var(--ls-bg-subtle, #f8fafc);
+  margin-bottom: 12px;
+  max-width: 480px;
+}
+
+.video-preview {
+  width: 100%;
+  max-height: 300px;
+  display: block;
+  background: #000;
+}
+
+.remove-video-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  z-index: 1;
+
+  &:hover {
+    background: rgba(220, 38, 38, 0.9);
+  }
+}
+
 .upload-dropzone {
   display: flex;
   flex-direction: column;

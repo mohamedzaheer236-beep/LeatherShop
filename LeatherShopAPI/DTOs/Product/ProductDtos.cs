@@ -12,6 +12,7 @@ public class ProductDto
     public decimal Price { get; set; }
     public int StockQuantity { get; set; }
     public string ImageUrl { get; set; } = string.Empty;
+    public string? VideoUrl { get; set; }
     /// <summary>All image URLs in display order (primary first, then additional).</summary>
     public List<string> ImageUrls { get; set; } = new();
     /// <summary>All images with IDs, in display order. Primary image has id=0.</summary>
@@ -54,6 +55,9 @@ public class CreateProductDto
 
     /// <summary>Additional image URLs (beyond the primary ImageUrl). Max 4 total.</summary>
     public List<string>? ImageUrls { get; set; }
+
+    [MaxLength(500)]
+    public string? VideoUrl { get; set; }
 }
 
 public class UpdateProductDto
@@ -80,6 +84,9 @@ public class UpdateProductDto
 
     /// <summary>Additional image URLs (beyond the primary ImageUrl). Max 4 total. Pass empty list to clear.</summary>
     public List<string>? ImageUrls { get; set; }
+
+    [MaxLength(500)]
+    public string? VideoUrl { get; set; }
 
     public bool? IsActive { get; set; }
 }

@@ -68,6 +68,11 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
   readonly maxImages = 4;
   imageErrors: string[] = [];
 
+  /** Video upload support */
+  videoUploading = false;
+  video: { preview: string; path: string } | null = null;
+  videoError = '';
+
   private originalSnapshot = '';
 
   categoryOptions: { label: string; value: string }[] = [];
@@ -93,6 +98,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
             price: data.price,
             stockQuantity: data.stockQuantity,
             imageUrl: data.imageUrl,
+            videoUrl: data.videoUrl || '',
           });
 
           // Load existing images into the multi-image array
@@ -109,6 +115,13 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
           }
           // Sync loaded images back to form controls so imageUrls is not stale
           this.syncFormImages();
+
+          // Load existing video
+          if (data.videoUrl) {
+            const preview = data.videoUrl.startsWith('http') ? data.videoUrl : environment.baseUrl + data.videoUrl;
+            this.video = { preview, path: data.videoUrl };
+          }
+
           // In edit mode, allow stock of 0 (out of stock)
           this.productForm.get('stockQuantity')!.setValidators([Validators.required, Validators.min(0)]);
           this.productForm.get('stockQuantity')!.updateValueAndValidity();
@@ -144,6 +157,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
       stockQuantity: [null, [Validators.required, Validators.min(1)]],
       imageUrl: [''],
       imageUrls: [[] as string[]],
+      videoUrl: [''],
       description: [''],
     });
   }
@@ -301,6 +315,56 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     this.cdr.markForCheck();
   }
 
+  /** Handle video file selection */
+  onVideoSelect(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    if (!file) return;
+
+    this.videoError = '';
+    const allowedTypes = ['video/mp4', 'video/3gpp'];
+    if (!allowedTypes.includes(file.type)) {
+      this.videoError = 'Only MP4 and 3GP video files are allowed.';
+      if (event.target) (event.target as HTMLInputElement).value = '';
+      this.cdr.markForCheck();
+      return;
+    }
+
+    if (file.size > 16 * 1024 * 1024) {
+      this.videoError = 'Video must be under 16 MB (WhatsApp limit).';
+      if (event.target) (event.target as HTMLInputElement).value = '';
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.videoUploading = true;
+    this.cdr.markForCheck();
+
+    this.productService.uploadVideo(file).subscribe({
+      next: path => {
+        const preview = path.startsWith('http') ? path : environment.baseUrl + path;
+        this.video = { preview, path };
+        this.productForm.patchValue({ videoUrl: path });
+        this.videoUploading = false;
+        this.notification.success('Video uploaded!');
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.videoUploading = false;
+        this.cdr.markForCheck();
+      },
+    });
+
+    if (event.target) (event.target as HTMLInputElement).value = '';
+  }
+
+  /** Remove the uploaded video */
+  removeVideo(): void {
+    this.video = null;
+    this.productForm.patchValue({ videoUrl: '' });
+    this.cdr.markForCheck();
+  }
+
   /** Sync the images array back to form controls */
   private syncFormImages(): void {
     const primary = this.images.length > 0 ? this.images[0].path : '';
@@ -381,6 +445,8 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     const formValue = { ...this.productForm.value };
     // Send null instead of empty string for optional imageUrl (backend [Url] validator rejects "")
     if (!formValue.imageUrl) formValue.imageUrl = null;
+    // Send null instead of empty string for optional videoUrl
+    if (!formValue.videoUrl) formValue.videoUrl = null;
     // Ensure imageUrls is sent as array (even if empty) so backend replaces the old set
     if (!formValue.imageUrls || formValue.imageUrls.length === 0) {
       formValue.imageUrls = [];

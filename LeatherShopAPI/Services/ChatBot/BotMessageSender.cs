@@ -60,6 +60,12 @@ public class BotMessageSender
         await SaveAndPushBotMessage(caption ?? "[image]", "image", ct);
     }
 
+    public async Task SendVideo(string to, string videoUrl, string? caption, CancellationToken ct = default)
+    {
+        await _whatsApp.SendVideoMessage(to, videoUrl, caption, ct);
+        await SaveAndPushBotMessage(caption ?? "[video]", "video", ct);
+    }
+
     public async Task SendCarousel(string to, string templateName, string bodyText, List<CarouselCard> cards, CancellationToken ct = default)
     {
         await _whatsApp.SendCarouselTemplateMessage(to, templateName, cards, ct: ct);
