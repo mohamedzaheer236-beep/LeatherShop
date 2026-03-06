@@ -1267,21 +1267,21 @@ Comprehensive line-by-line audit of the entire codebase. These remain to be fixe
 | 41 | **Component decomposition** — `BroadcastFormComponent`, `BroadcastHistoryComponent`, `CustomerBroadcastDialogComponent` extracted from monolithic parent components. Parents are now thin orchestrators. |
 | 42 | **OnPush on all components** — All 15 components use `ChangeDetectionStrategy.OnPush` with proper `ChangeDetectorRef.markForCheck()` calls, immutable array patterns, and coverage of `SignalR`, `setTimeout`, `setInterval`, `FileReader.onload`, and `Promise` callbacks. |
 | 43 | **Active route highlighting** — Navbar visually indicates active page with gold text/icon color via `routerLinkActiveOptions` + CSS `.p-menuitem-link-active` styling. |
-| 44 | **Impure `TimeAgoPipe`** — Relative timestamps ("5m ago") auto-refresh on every change detection cycle (`pure: false`). No stale "just now" labels on old messages. |
+| 44 | **Pure `TimeAgoPipe` with tick refresh** — Relative timestamps ("5m ago") auto-refresh via a `_tick` counter parameter that increments every 60s (changed from impure `pure: false` to pure pipe in Phase 32 for performance). No stale "just now" labels on old messages. |
 | 45 | **JWT HttpOnly refresh tokens** — Access tokens (15 min) stored in memory only. Refresh tokens (7 days) in `HttpOnly`/`Secure`/`SameSite=None` cookies with automatic rotation. Token refresh interceptor with queue for concurrent 401s. |
 | 46 | **IMemoryCache conversation state** — Ephemeral bot state (`PendingProductId`, `PendingImageId`, `PendingAction`) stored in `ConversationStateService` with 30-min sliding expiration. Removed 3 columns from `Customers` table — no DB writes for transient chatbot navigation state. |
 | 47 | **Runtime data seeder** — Admin user + sample products seeded at startup via `DataSeeder.SeedAsync()` instead of EF Core `HasData()`. Idempotent (checks `Any()` before inserting). Clean migration history — no seed data in snapshots. |
 | 48 | **CSS design token system** — 39+ `--ls-*` custom properties in `:root` covering brand, accent, text, surface, border, status/semantic colors, and stat icon palettes. All component SCSS files reference tokens instead of hardcoded hex values. |
 | 49 | **SCSS shared partials** — `_broadcast-form-shared.scss` (form layout), `_status-banner.scss` (status banner + keyframes), `_carousel.scss` (image upload/picker), `_dialog-form.scss` (dialog layout). Components `@use` partials — single source of truth, zero style duplication across broadcast/customer components. |
 | 50 | **Utility CSS classes** — 15 reusable utility classes in `styles.scss` (`.font-mono`, `.error-state`, `.empty-row`, `.phone-number`, `.selection-count`, `.col-checkbox`, etc.) replacing 31 inline `style=""` attributes across 9 templates. |
-| 46 | **API versioning** — All endpoints use `/api/v1/...` URL prefix via `Asp.Versioning.Mvc`. `ReportApiVersions` header enabled. |
-| 47 | **CancellationToken propagation** — All controller actions accept and forward `CancellationToken` to services and EF Core queries. Client disconnection cancels in-progress operations. |
-| 48 | **Native CSS class bindings** — All `[ngClass]` replaced with `[class.x]="condition"` native bindings. No dependency on `CommonModule` for class toggling. |
-| 49 | **Typed DTOs everywhere** — No anonymous types in controller responses. All endpoints return typed DTOs (`ToggleBotResponseDto`, `FailedMessageCountDto`, `VerifyResponse`, `UpdateOrderStatusDto`). |
-| 50 | **Interface-based DI** — All services registered and injected via interfaces (`IOrderService`, `IInvoicePdfService`, etc.). No concrete-class injection. |
-| 51 | **String literal union types** — Frontend models use `OrderStatus = 'Pending' | 'Confirmed' | ...` and `direction: 'Incoming' | 'Outgoing'` instead of loose `string` types. Compile-time safety on status values. |
-| 52 | **Efficient token cleanup** — `AuthService.CleanupExpiredTokens` uses `ExecuteDeleteAsync` (server-side DELETE) instead of fetching entities into memory. |
-| 53 | **Lazy-load only what's needed** — `CustomerService.UpdateAsync`/`DeleteAsync` use `CountAsync`/`AnyAsync` instead of eager-loading `Include(c => c.Orders)` just to check counts. |
+| 51 | **API versioning** — All endpoints use `/api/v1/...` URL prefix via `Asp.Versioning.Mvc`. `ReportApiVersions` header enabled. |
+| 52 | **CancellationToken propagation** — All controller actions accept and forward `CancellationToken` to services and EF Core queries. Client disconnection cancels in-progress operations. |
+| 53 | **Native CSS class bindings** — All `[ngClass]` replaced with `[class.x]="condition"` native bindings. No dependency on `CommonModule` for class toggling. |
+| 54 | **Typed DTOs everywhere** — No anonymous types in controller responses. All endpoints return typed DTOs (`ToggleBotResponseDto`, `FailedMessageCountDto`, `VerifyResponse`, `UpdateOrderStatusDto`). |
+| 55 | **Interface-based DI** — All services registered and injected via interfaces (`IOrderService`, `IInvoicePdfService`, etc.). No concrete-class injection. |
+| 56 | **String literal union types** — Frontend models use `OrderStatus = 'Pending' | 'Confirmed' | ...` and `direction: 'Incoming' | 'Outgoing'` instead of loose `string` types. Compile-time safety on status values. |
+| 57 | **Efficient token cleanup** — `AuthService.CleanupExpiredTokens` uses `ExecuteDeleteAsync` (server-side DELETE) instead of fetching entities into memory. |
+| 58 | **Lazy-load only what's needed** — `CustomerService.UpdateAsync`/`DeleteAsync` use `CountAsync`/`AnyAsync` instead of eager-loading `Include(c => c.Orders)` just to check counts. |
 
 ### 🔍 Deep Verification Audit (Feb 2026 — Full Anti-Pattern Scan)
 
@@ -1657,8 +1657,8 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 | F15 | ~~**Product hard-delete crashes on ordered products**~~ | ~~`ProductService.cs`~~ | ✅ **FIXED** — `DeleteAsync` checks for existing `OrderItems` before deletion. Returns 409 Conflict with message "Cannot delete a product that has been ordered. Deactivate it instead." See L17 fix. |
 | F16 | **Stale cart prices at checkout** | `ChatBotService.cs` `PlaceOrder()` | Between adding to cart and checking out (could be hours/days), product prices and active status can change. Order uses current price, not the price at the time of adding. | Verify `product.IsActive` in `PlaceOrder()`. Consider storing price on `CartItem` at add-time. |
 | F17 | ~~**Swagger exposed in production**~~ | ~~`Program.cs`~~ | ✅ **FIXED** — Swagger now wrapped in `if (app.Environment.IsDevelopment())` block. Production deployments no longer expose API documentation. Railway health check should be updated to `/health` endpoint. |
-| F18 | **No server-side pagination for products** | `ProductService.cs`, `product-list.component.ts` | `GetAllAsync()` returns ALL products with no pagination. With hundreds of products, this becomes slow. | Add `PaginatedResult<T>` to products like orders has. |
-| F19 | **No server-side pagination for customers** | `CustomerService.cs` | `GetAllAsync()` returns ALL customers with no pagination. With 5000+ customers, response payload is huge. | Add server-side pagination. |
+| F18 | ~~**No server-side pagination for products**~~ | ~~`ProductService.cs`, `product-list.component.ts`~~ | ✅ **FIXED (Phase 24)** — Server-side `Skip/Take` + `CountAsync()` + `p-paginator` added. `GET /api/products?page=1&pageSize=25`. | ~~Add `PaginatedResult<T>`~~ ✅ Done |
+| F19 | ~~**No server-side pagination for customers**~~ | ~~`CustomerService.cs`~~ | ✅ **FIXED (Phase 24)** — Server-side `Skip/Take` + `CountAsync()` + `p-paginator` added. `GET /api/customers?page=1&pageSize=25`. Customer selections tracked via `Map<id, phone>` for cross-page broadcast. | ~~Add server-side pagination~~ ✅ Done |
 | F20 | **`DeleteConversationAsync` loads all messages** | `ChatService.cs` | Uses `ToListAsync()` then `RemoveRange()` — loads all messages into memory. Large conversations waste memory. | Use `ExecuteDeleteAsync()` like the cleanup service does. |
 | F21 | ~~**`.ToLower()` kills DB indexes**~~ | ~~`CustomerService.cs`, `ProductService.cs`, `ChatService.cs`~~ | ✅ **FIXED (F101/F127)** — See M3. | ~~Duplicate of M3~~ ✅ Done |
 | F22 | ~~**`PaginatedResult.TotalPages` divide-by-zero**~~ | ~~`PaginatedResult.cs`~~ | ✅ **FIXED (F95)** — See P5. | ~~Duplicate of P5~~ ✅ Done |
@@ -1829,8 +1829,6 @@ Resolved all Railway startup warnings and remaining NuGet vulnerability. **Build
 | ChatBotService God Class (1053 lines) | Needs comprehensive test coverage before safe decomposition. Architectural refactoring, not a bug. |
 | Stale Cart Prices at Checkout | Current behavior (always use current prices) is standard e-commerce. "Fix" requires DB migration and might lose existing carts. |
 | PrimeNG Internal API Access | Already guarded with null checks. `filterViewChild`, `filterValue` are borderline public API in PrimeNG v17. |
-| Server-side Pagination (Products) | Small dataset (leather shop). Touches 8+ files per feature (service, interface, controller, frontend service, component, template, model, routes). |
-| Server-side Pagination (Customers) | Same reasoning as products. Client-side pagination adequate for current scale. |
 
 ---
 
@@ -1891,10 +1889,7 @@ Deep read of every `.cs`, `.ts`, `.html`, and `.scss` file searching for swallow
 | ID | Severity | Summary | Reason Deferred |
 |----|----------|---------|-----------------|
 | F6 | HIGH | Duplicate webhook processing (no idempotency on `message.Id`) | Requires new DB table + index. WhatsApp at-least-once delivery is rare. Bot responses are idempotent for most flows. |
-| ~~F11~~ | ~~MEDIUM~~ | ~~Orders paginator visual desync (missing `[first]` binding)~~ | ✅ **FIXED (F109)** — Added `[first]="(currentPage - 1) * pageSize"` binding to `<p-paginator>`. |
 | F16 | MEDIUM | Stale cart prices at checkout | Design decision — current price is the standard e-commerce approach. |
-| F18/F19 | MEDIUM | No server-side pagination for products/customers | Small dataset (leather shop). Client-side pagination adequate. |
-| ~~F20~~ | ~~MEDIUM~~ | ~~`DeleteConversationAsync` loads all messages into memory~~ | ✅ **FIXED (F103)** — Changed to `ExecuteDeleteAsync()` — single SQL DELETE without loading entities. |
 | F24 | MEDIUM | Chat height off by 14px (double scrollbar) | CSS-only — no functional impact. |
 | F25 | MEDIUM | Auth guard doesn't preserve return URL | Low impact for internal admin panel. |
 | F36 | MEDIUM | Dashboard never auto-refreshes | Admin can manually refresh. SignalR integration possible. |
@@ -1902,13 +1897,8 @@ Deep read of every `.cs`, `.ts`, `.html`, and `.scss` file searching for swallow
 | F46 | HIGH | Welcome text may fail outside 24h window | Extremely unlikely — bot responds instantly to first message. |
 | F54 | LOW | Category-to-ID collision in chatbot (underscores vs spaces) | No current categories have this collision. |
 | F56 | LOW | Abandoned cart items never expire | Future cleanup job. Low volume. |
-| F61 | MEDIUM | "Select All" selects across all paginator pages | UX confusion only — broadcast sends to selected, which is the intent. |
-| ~~F78~~ | ~~MEDIUM~~ | ~~Chat stale messages on quick conversation switch~~ | ✅ **FIXED (F106)** — `loadMessages()` captures `requestedCustomerId` and discards stale responses. |
-| ~~F79~~ | ~~MEDIUM~~ | ~~Chat `loadConversations()` called on every message (no debounce)~~ | ✅ **FIXED (F107)** — Added `debouncedLoadConversations()` with 500ms debounce. |
-| M4 | MEDIUM | ~~No `OnPush` change detection~~ | **FIXED** — All 15 components migrated to OnPush with full `markForCheck()` coverage. |
+| F61 | MEDIUM | "Select All" selects across all paginator pages | UX confusion only — broadcast sends to selected, which is the intent. Added "(across all pages)" label + "Clear Selection" button (F113). |
 | M8 | MEDIUM | ChatBotService is 1055-line god class | Architectural — decomposition would touch 15+ files. Functional as-is. |
-| P14 | LOW | Shared HttpClient header mutation in WhatsAppService | Single-instance deployment. Thread-safety concern is theoretical. |
-| ~~P15~~ | ~~LOW~~ | ~~Information-level payload logging (phone numbers)~~ | ✅ **FIXED** — Changed to `LogDebug`. Phone numbers no longer in standard log output. |
 
 ### Phase 19 — Deep Code Quality Audit (March 2026)
 
@@ -2293,13 +2283,9 @@ Deep audit of every backend and frontend file. Fixed all actionable issues found
 |---|-----|--------|
 | 9 | **Added `baseUrl` to environment config** — All 4 occurrences of `environment.apiUrl.replace('/api', '')` replaced with `environment.baseUrl`. Both `environment.ts` and `environment.prod.ts` now have a dedicated `baseUrl` field. Eliminates assumption that `apiUrl` always contains `/api`. | `environment.ts`, `environment.prod.ts`, `broadcast.component.ts`, `customers.component.ts`, `product-form.component.ts` |
 
-**Known issues documented but NOT fixed (architectural — would require major refactoring):**
+**Known issues (architectural — not bugs, require major refactoring):**
 - `ChatBotService` is a 1150-line god class (cart, checkout, menu, address in one file)
 - `AuthController` and `WhatsAppWebhookController` bypass service layer with direct `AppDbContext` injection
-- ~~Broadcast form logic duplicated between `BroadcastComponent` and `CustomersComponent` (~400 lines)~~ → **FIXED in Phase 26** — Extracted `BroadcastFormComponent` and `CustomerBroadcastDialogComponent`
-- ~~`CustomersComponent` has 7+ responsibilities in 631 lines (SRP violation)~~ → **FIXED in Phase 26** — Decomposed to 324 lines + extracted `CustomerBroadcastDialogComponent`
-- ~~JWT stored in `localStorage` (XSS-accessible) — HttpOnly cookies would be more secure~~ → **FIXED in Phase 26** — Access tokens in-memory, refresh tokens in HttpOnly cookies
-- ~~No token refresh mechanism~~ → **FIXED in Phase 26** — Automatic token refresh with 401 retry queue
 - Payment page is 140+ lines of inline HTML/CSS/JS in a C# controller
 - WhatsApp helper models (`ListSection`, `ListRow`, `ButtonOption`, etc.) defined inside `WhatsAppService.cs` instead of dedicated model files
 
