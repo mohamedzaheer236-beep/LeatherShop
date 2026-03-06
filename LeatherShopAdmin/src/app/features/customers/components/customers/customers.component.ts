@@ -3,7 +3,7 @@ import { DatePipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { PaginatorState } from 'primeng/paginator';
 import { CustomerService } from '../../services/customer.service';
-import { Customer } from '../../models/customer.model';
+import { Customer, CustomerWithSelection } from '../../models/customer.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { CustomerAddDialogComponent } from '../customer-add-dialog/customer-add-dialog.component';
@@ -58,7 +58,7 @@ export class CustomersComponent implements OnInit {
   private notification = inject(NotificationService);
   private cdr = inject(ChangeDetectorRef);
 
-  customers: Customer[] = [];
+  customers: CustomerWithSelection[] = [];
   loading = true;
   subscriberCount: number | null = 0;
   totalCount: number | null = 0;
@@ -177,7 +177,7 @@ export class CustomersComponent implements OnInit {
     });
   }
 
-  onRowSelect(customer: Customer): void {
+  onRowSelect(customer: CustomerWithSelection): void {
     if (customer.selected) this._selectedMap.set(customer.id, customer.phoneNumber);
     else this._selectedMap.delete(customer.id);
     this.allSelected = this.customers.length > 0 && this.customers.every(c => c.selected);

@@ -6,6 +6,10 @@ export interface Customer {
   isSubscribed: boolean;
   createdAt: string;
   orderCount: number;
+}
+
+/** Customer with UI selection state - use only in component state, not for API calls */
+export interface CustomerWithSelection extends Customer {
   selected?: boolean;
 }
 

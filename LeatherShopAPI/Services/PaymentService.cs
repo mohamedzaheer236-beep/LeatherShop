@@ -159,6 +159,20 @@ public class PaymentService : IPaymentService
 
         if (order == null) return null;
 
+        // --- Idempotency: Skip if order is already paid ---
+        // Paytm may call the callback multiple times (user refresh, retries).
+        // Return success (idempotent) rather than processing again.
+        if (order.IsPaid)
+        {
+            _logger.LogInformation("Payment verification skipped — order {OrderId} ({OrderNumber}) is already paid",
+                order.Id, order.OrderNumber);
+            return new PaymentVerifyResultDto
+            {
+                Message = "Payment already verified",
+                OrderNumber = order.OrderNumber
+            };
+        }
+
         // Verify payment via Paytm Transaction Status API (server-to-server)
         var merchantId = _config["Paytm:MerchantId"];
         var merchantKey = _config["Paytm:MerchantKey"];

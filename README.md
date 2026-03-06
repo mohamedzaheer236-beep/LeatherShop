@@ -351,7 +351,7 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   │                                    #   - ApiResponse (without data)
 │   │                                    #   - Static Ok() and Fail() factory methods
 │   ├── Product.cs                       # Id, Name, Description, Brand, Category,
-│   │                                    #   Price, StockQuantity, ImageUrl, IsActive
+│   │                                    #   Price, StockQuantity, ImageUrl, VideoUrl, IsActive
 │   ├── Customer.cs                      # Id, PhoneNumber (unique), Name, Address,
 │   │                                    #   IsSubscribed, IsBotPaused, BotPausedUntil
 │   │                                    #   → has Orders, CartItems
@@ -950,11 +950,14 @@ POST /api/payment/verify  (with transactionId + orderId)
 |--------|----------|-------------|
 | GET | `/api/products` | List products (paginated). Query params: `?category=Wallet&brand=Royal Leather&search=classic&page=1&pageSize=25` |
 | GET | `/api/products/{id}` | Get single product by ID |
-| POST | `/api/products` | Create product (JSON body: name, description, brand, category, price, stockQuantity, imageUrl) |
+| POST | `/api/products` | Create product (JSON body: name, description, brand, category, price, stockQuantity, imageUrl, videoUrl) |
 | PUT | `/api/products/{id}` | Update product (partial update — send only fields to change) |
 | DELETE | `/api/products/{id}` | Delete product |
 | GET | `/api/products/categories` | List distinct active product categories |
 | GET | `/api/products/brands` | List distinct active product brands |
+| GET | `/api/products/check-name` | Check if product name exists. Query: `?name=Classic Wallet&excludeId=5` |
+| POST | `/api/products/upload-images` | Upload up to 4 product images (multipart form, auto-compressed to ~300KB JPEG) |
+| POST | `/api/products/upload-video` | Upload product video (MP4/3GP, max 16 MB for WhatsApp compatibility) |
 
 ### Orders
 | Method | Endpoint | Description |
@@ -1095,12 +1098,14 @@ These features are not built yet and would need to be added for production:
 | Feature | Details |
 |---------|---------|
 | ~~**Authentication / Authorization**~~ | ✅ **IMPLEMENTED** — JWT Bearer auth with BCrypt password hashing. Admin credentials stored in PostgreSQL `AdminUsers` table. Auto-seeded on first startup. `[Authorize]` on all admin controllers. Angular auth guard + interceptor + animated login page. |
-| ~~**Image Upload**~~ | ✅ **IMPLEMENTED** — Server-side file upload endpoint (`POST /api/products/upload-image`). Images saved to `wwwroot/uploads/` with GUID filenames. Type validation (JPG/PNG/WebP/GIF) and 20 MB server-side hard limit (images auto-compressed to ~300 KB). Frontend enforces 5 MB client-side limit. Served via `app.UseStaticFiles()`. Frontend: drag-to-browse dropzone with live preview and remove button. |
+| ~~**Image Upload**~~ | ✅ **IMPLEMENTED** — Server-side file upload endpoint (`POST /api/products/upload-images`). Images saved to `wwwroot/uploads/` with GUID filenames. Type validation (JPG/PNG/WebP/GIF) and 20 MB server-side hard limit (images auto-compressed to ~300 KB). Served via `app.UseStaticFiles()`. Frontend: multi-image upload dropzone (up to 4 images), reorderable gallery with drag-to-reorder, live preview, and remove buttons. At least 1 image required on save. |
+| ~~**Video Upload**~~ | ✅ **IMPLEMENTED** — Server-side video upload endpoint (`POST /api/products/upload-video`). Videos saved to `wwwroot/uploads/` with GUID filenames. Type validation (MP4/3GP only) and 16 MB hard limit (WhatsApp's video size limit). `VideoUrl` column added to `Products` table via EF migration. Frontend: separate video dropzone with HTML5 `<video>` preview player and remove button. Video is optional — shown on WhatsApp after product images/carousel when viewing product details. |
 | ~~**Razorpay Signature Verification**~~ | ✅ **IMPLEMENTED (migrated to Paytm)** — `PaymentService.VerifyPaymentAsync` calls Paytm's Transaction Status API server-to-server and verifies the response checksum using AES-128-CBC algorithm via `PaytmChecksum` helper. Rejects unverified payments. |
 | **Logging to File/Service** | Uses default console logging only. Need Serilog or similar for production. |
 | ~~**Rate Limiting**~~ | ✅ **IMPLEMENTED (F104)** — ASP.NET Core rate limiting middleware with global and per-endpoint limits. |
 | ~~**Pagination**~~ | ✅ **IMPLEMENTED** — All list endpoints have server-side pagination with `PaginatedResult<T>`. Orders: `GET /api/orders?page=1&pageSize=25`. Customers: `GET /api/customers?page=1&pageSize=25`. Products: `GET /api/products?page=1&pageSize=25`. Broadcast History: `GET /api/broadcast/history?page=1&pageSize=10`. All use `CountAsync()` + `Skip/Take`. Frontend uses PrimeNG `p-paginator` (25/50/100 rows). Customer selections tracked via `Map<id, phone>` — survive page changes. DB indexes on `IsSubscribed`, `CreatedAt`, `Status`, `IsPaid`, `IsActive`. |
 | ~~**Product Image in WhatsApp**~~ | ✅ **IMPLEMENTED** — `SendImageMessage` added to `IWhatsAppService`/`WhatsAppService` (WhatsApp Cloud API `image` type with `link` + `caption`). `ChatBotService.SendProductDetails()` sends product photo with all details as the caption when `ImageUrl` is set. Constructs full public URL from `RAILWAY_PUBLIC_DOMAIN` env var (auto-provided by Railway) with `App:BaseUrl` config as primary source. Falls back gracefully to text-only button message if image send fails (try-catch with `LogWarning`). Caption and body text truncated to WhatsApp's 1024-char limit. Action buttons (Add to Cart / Categories / Menu) sent as a separate follow-up message since WhatsApp image messages don't support inline interactive buttons. **Requires:** Railway Volume mounted at `/app/wwwroot/uploads` for image persistence across redeployments. |
+| ~~**Product Video in WhatsApp**~~ | ✅ **IMPLEMENTED** — `SendVideoMessage` added to `IWhatsAppService`/`WhatsAppService` (WhatsApp Cloud API `video` type with `link` + `caption`). `ProductHandler.TrySendProductVideo()` sends product video as a follow-up message after images/carousel when `VideoUrl` is set. Max 16 MB (WhatsApp limit). Graceful fallback — if video send fails, logs warning and continues (product details already sent). Video appears after product details + images in the WhatsApp conversation. |
 | ~~**Customer Address Collection**~~ | ✅ **IMPLEMENTED** — Bot asks for shipping address at checkout if not set. If address exists, shows Confirm/Change buttons before placing order. Address stored on `Customer.Address` and copied to `Order.ShippingAddress`. Admin UI requires address on create/edit (min 10 chars). |
 | **Order Cancellation by Customer** | No WhatsApp flow for customers to cancel orders. |
 | ~~**HTTPS in Production**~~ | ✅ **DEPLOYED** — Railway provides HTTPS automatically via Metal Edge. API accessible at `https://leathershop-production.up.railway.app`. |
@@ -1178,7 +1183,7 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 | L17 | ~~**Hard Delete on Products**~~ | ~~`ProductService.cs`~~ | ✅ **FIXED** — `DeleteAsync` now checks `_db.OrderItems.AnyAsync(oi => oi.ProductId == id)` before deletion. Products with order history throw `InvalidOperationException` caught by controller (returns 409 Conflict). Also fixes F15. |
 | L18 | **Auto-Migration at Startup** | `Program.cs` | `db.Database.Migrate()` runs synchronously. With multiple instances, concurrent migrations can deadlock. Should be a CI/CD step. |
 | L19 | ~~**WhatsApp Auth Header Set in Constructor**~~ | ~~`WhatsAppService.cs`~~ | ✅ **FIXED** — Removed `DefaultRequestHeaders.Authorization` from constructor. Auth token is now set per-request via `HttpRequestMessage.Headers.Authorization` in `SendRequest()` and `GetApprovedTemplates()`. If the token is rotated in config, the next request uses the new value immediately. |
-| L20 | **Helper Models Inside Service File** | `WhatsAppService.cs` | `ListSection`, `ListRow`, `ButtonOption`, `WhatsAppTemplate` defined at bottom of service file. Should be in `Models/WhatsApp/`. |
+| L20 | ~~**Helper Models Inside Service File**~~ | ~~`WhatsAppService.cs`~~ | ✅ **FIXED** — `ListSection`, `ListRow`, `ButtonOption`, `WhatsAppTemplate`, `CarouselCard` moved to `Models/WhatsApp/` folder with proper separate files. Service file now only contains business logic. |
 | L21 | ~~**No `CancellationToken` Propagation**~~ | ~~All controllers/services~~ | ✅ **FIXED** — All controller actions accept `CancellationToken` and pass it through to service methods and EF Core queries. Client disconnection now cancels in-progress database operations. |
 | L22 | **No `[ProducesResponseType]` Attributes** | All controllers | Swagger has no typed response documentation (200, 400, 404, etc.). |
 
@@ -1640,7 +1645,7 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 | # | Issue | Location | Details | Fix |
 |---|-------|----------|---------|-----|
 | F5 | ~~**Bot pause expiry never saved to DB**~~ | ~~`ChatService.cs` `IsBotCurrentlyPaused()`~~ | ✅ **FIXED** — Split into two methods: `IsBotEffectivelyPaused(customer)` (pure read-only static check, no side effects) and `CheckAndAutoResumeBotAsync(customer)` (persists auto-resume to DB via `SaveChangesAsync()` when `BotPausedUntil` expires). Webhook calls `CheckAndAutoResumeBotAsync` to persist, while other callers use `IsBotEffectivelyPaused` for cheap reads. | ~~Split into read + persist methods~~ ✅ Done |
-| F6 | **Duplicate webhook processing** | `WhatsAppWebhookController.cs` | WhatsApp delivers webhooks at-least-once. No idempotency check on `message.Id`. Each duplicate creates duplicate `ChatMessage` rows, duplicate bot responses, and potentially duplicate orders. | Store and check `message.Id` before processing. Skip if already seen. |
+| F6 | ~~**Duplicate webhook processing**~~ | ~~`WhatsAppWebhookController.cs`~~ | ✅ **FIXED** — Added `IMemoryCache` to `WebhookProcessingService`. Each incoming `message.Id` is stored in cache with 10-minute TTL before processing. Duplicate webhooks (Meta retries) are detected and skipped with debug log. Memory-based approach matches current single-replica Railway deployment; cache naturally clears on restart. | ~~Store and check `message.Id` before processing~~ ✅ Done |
 | F7 | ~~**First message from new customer lost**~~ | ~~`WhatsAppWebhookController.cs`~~ | ✅ **FIXED** — After `ProcessMessage()` (which creates the customer), re-fetches customer by phone and saves the initial message to chat history. First-ever messages are no longer lost. |
 | F8 | ~~**`int.Parse` on interactive IDs**~~ | ~~`ChatBotService.cs`~~ | ✅ **FIXED** — All 3 `int.Parse` calls replaced with `int.TryParse` + user-friendly fallback (see P3). |
 | F9 | ~~**SignalR stale token on reconnect**~~ | ~~`signalr.service.ts`~~ | ✅ **FIXED** — Changed `accessTokenFactory: () => token` (captured closure) to `accessTokenFactory: () => this.auth.getToken()!` which reads a fresh token on every reconnect attempt. |
@@ -1698,7 +1703,7 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 
 | # | Severity | Issue | Location | Details | Fix |
 |---|----------|-------|----------|---------|-----|
-| F45 | **High** | **Payment re-verification — no `IsPaid` guard** | `PaymentService.cs` `VerifyPaymentAsync()` | After fetching the order, proceeds directly to set `IsPaid = true` without checking if already paid. Re-calling verify on a paid order triggers duplicate WhatsApp notifications to owner + duplicate SignalR push to admin. `GetPaymentPageDataAsync` checks `IsPaid` but the verify endpoint does not. | Add `if (order.IsPaid) return already-paid result;` before processing. |
+| F45 | ~~**High**~~ | ~~**Payment re-verification — no `IsPaid` guard**~~ | ~~`PaymentService.cs` `VerifyPaymentAsync()`~~ | ✅ **FIXED** — Added `if (order.IsPaid)` early return before processing. Returns success result (idempotent) with message "Payment already verified" instead of re-processing. Prevents duplicate WhatsApp notifications and SignalR pushes on Paytm callback retries or user refreshes. | ~~Add `if (order.IsPaid) return already-paid result;`~~ ✅ Done |
 | F46 | **High** | **Welcome text to new customer — WhatsApp rejects outside 24h** | `ChatBotService.cs` `ProcessMessage()` | When a new customer is created, bot sends a plain text welcome message. WhatsApp requires **template messages** to initiate conversations outside the 24-hour window. If the customer's first message opens the window but the welcome response is sent after a delay (e.g., bot processing takes >24h due to downtime), it will fail silently. | Use an approved template for the welcome message, or ensure it's always within the response window. |
 | F47 | ~~**High**~~ | ~~**Payment URL broken when `App:BaseUrl` not configured**~~ | ~~`ChatBotService.cs` `PlaceOrder()`~~ | ✅ **FIXED** — `PlaceOrder()` now calls `GetPublicBaseUrl()` and checks for null. If base URL is not configured, logs an error and sends a user-friendly message ("Sorry, we couldn't generate a payment link right now. Please contact us directly.") instead of sending a broken relative URL. Customer's `PendingAction` is cleared so they can retry later. | ~~Guard against null base URL~~ ✅ Done |
 | F48 | ~~**High**~~ | ~~**Product Description MaxLength still mismatched in Fluent API**~~ | ~~`ProductConfiguration.cs`~~ | ✅ **FIXED** — See H5. | ~~Duplicate of H5~~ ✅ Done |
@@ -1888,12 +1893,10 @@ Deep read of every `.cs`, `.ts`, `.html`, and `.scss` file searching for swallow
 
 | ID | Severity | Summary | Reason Deferred |
 |----|----------|---------|-----------------|
-| F6 | HIGH | Duplicate webhook processing (no idempotency on `message.Id`) | Requires new DB table + index. WhatsApp at-least-once delivery is rare. Bot responses are idempotent for most flows. |
 | F16 | MEDIUM | Stale cart prices at checkout | Design decision — current price is the standard e-commerce approach. |
 | F24 | MEDIUM | Chat height off by 14px (double scrollbar) | CSS-only — no functional impact. |
 | F25 | MEDIUM | Auth guard doesn't preserve return URL | Low impact for internal admin panel. |
 | F36 | MEDIUM | Dashboard never auto-refreshes | Admin can manually refresh. SignalR integration possible. |
-| F45 | HIGH | Payment re-verification (no `IsPaid` guard on verify endpoint) | Requires idempotency key. Low risk — Paytm sends unique transaction IDs. |
 | F46 | HIGH | Welcome text may fail outside 24h window | Extremely unlikely — bot responds instantly to first message. |
 | F54 | LOW | Category-to-ID collision in chatbot (underscores vs spaces) | No current categories have this collision. |
 | F56 | LOW | Abandoned cart items never expire | Future cleanup job. Low volume. |
@@ -2538,5 +2541,70 @@ Comprehensive deep audit of the entire codebase (24 backend services, 9 controll
 | Form Validation | CLEAN — All validators applied, `markAllAsTouched()` on submit, async name validator debounced. |
 | Routing Guards | CLEAN — All protected routes guarded, `unsavedChangesGuard` on product forms. |
 | SCSS Architecture | CLEAN — Shared partials via `@use`, CSS design tokens, no duplication. |
+
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
+
+### Phase 36 — Product Video Upload Support (March 6, 2026)
+
+Full implementation of product video upload and WhatsApp video messaging.
+
+**Backend Changes:**
+
+| # | Type | Change | File(s) |
+|---|------|--------|---------|
+| 1 | **Model** | Added `VideoUrl` nullable column to `Product` entity | `Product.cs`, EF Migration `20260306091645_AddProductVideoUrl.cs` |
+| 2 | **DTO** | Added `VideoUrl` to `ProductDto`, `CreateProductDto`, `UpdateProductDto` | `ProductDtos.cs` |
+| 3 | **Controller** | Added `POST /api/products/upload-video` endpoint (16 MB limit, MP4/3GP validation) | `ProductsController.cs` |
+| 4 | **Service** | Added `UploadVideoAsync()` method — saves to `wwwroot/uploads/` with GUID filename | `ProductService.cs` |
+| 5 | **WhatsApp** | Added `SendVideoMessage()` to `IWhatsAppService`/`WhatsAppService` (Cloud API `video` type) | `IWhatsAppService.cs`, `WhatsAppService.cs` |
+| 6 | **Bot** | Added `SendVideo()` to `BotMessageSender` (saves to chat history like images) | `BotMessageSender.cs` |
+| 7 | **Bot** | Added `TrySendProductVideo()` in `ProductHandler` — sends video after images/carousel | `ProductHandler.cs` |
+| 8 | **Mapping** | Added `VideoUrl` mapping in `MappingExtensions.ToDto()` | `MappingExtensions.cs` |
+
+**Frontend Changes:**
+
+| # | Type | Change | File(s) |
+|---|------|--------|---------|
+| 9 | **Model** | Added `videoUrl` field to `Product` and `CreateProduct` interfaces | `product.model.ts` |
+| 10 | **Service** | Added `uploadVideo(file: File)` method | `product.service.ts` |
+| 11 | **Component** | Added video upload dropzone with HTML5 `<video>` preview player | `product-form.component.ts`, `.html` |
+| 12 | **Styles** | Added `.video-card`, `.video-preview`, `.remove-video-btn` styling | `product-form.component.scss` |
+| 13 | **UX** | Video upload disabled during save, submit blocked while video uploading | `product-form.component.ts` |
+| 14 | **UX** | Remove video sends empty string (not null) to signal video removal | `product-form.component.ts` |
+
+**Key Implementation Details:**
+
+- **16 MB limit** — WhatsApp's maximum video size. Validated on both client and server.
+- **MP4/3GP only** — Supported formats for WhatsApp video messages.
+- **Graceful fallback** — If video send fails, logs warning and continues (product details already sent).
+- **Video after images** — Video appears as follow-up message after product carousel/images in WhatsApp conversation.
+- **Optional field** — Video is not required, products work fine without it.
+
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
+
+### Phase 37 — Idempotency Fixes (March 6, 2026)
+
+Implemented proper idempotency guards for webhook processing and payment verification.
+
+**Backend Changes:**
+
+| # | Type | Change | File(s) |
+|---|------|--------|----------|
+| 1 | **Service** | Added `IMemoryCache` injection to `WebhookProcessingService` | `WebhookProcessingService.cs` |
+| 2 | **Idempotency** | Webhook message deduplication — caches `message.Id` with 10-minute TTL before processing; duplicates skipped | `WebhookProcessingService.cs` |
+| 3 | **Idempotency** | Payment `IsPaid` guard — early return if order already paid; returns idempotent success result | `PaymentService.cs` |
+
+**Key Implementation Details:**
+
+- **Memory-based webhook deduplication** — Uses existing `IMemoryCache` (already registered in DI). 10-minute TTL covers Meta's retry window (~5 min) with margin. Suitable for single-replica Railway deployment.
+- **Idempotent payment response** — Returns "Payment already verified" success instead of re-processing. Prevents duplicate WhatsApp notifications and SignalR pushes.
+- **No database migration required** — Both fixes use existing infrastructure (IMemoryCache, existing Order.IsPaid column).
+
+**Issues Resolved:**
+
+| ID | Severity | Issue | Resolution |
+|----|----------|-------|-------------|
+| F6 | HIGH | Duplicate webhook processing | ✅ Webhook message ID cached before processing; duplicates skipped |
+| F45 | HIGH | Payment re-verification without IsPaid guard | ✅ Early return for already-paid orders with idempotent success response |
 
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.

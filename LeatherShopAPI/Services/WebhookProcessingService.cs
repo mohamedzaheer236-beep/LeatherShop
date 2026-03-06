@@ -7,6 +7,7 @@ using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace LeatherShopAPI.Services;
 
@@ -14,24 +15,33 @@ public class WebhookProcessingService : IWebhookProcessingService
 {
     private const int MessagePreviewMaxLength = 80;
 
+    /// <summary>
+    /// Cache TTL for processed message IDs. Meta retries within ~5 minutes,
+    /// so 10 minutes provides adequate margin while keeping memory usage bounded.
+    /// </summary>
+    private static readonly TimeSpan MessageDeduplicationTtl = TimeSpan.FromMinutes(10);
+
     private readonly IChatBotService _chatBot;
     private readonly IChatService _chatService;
     private readonly IHubContext<NotificationHub> _hubContext;
     private readonly AppDbContext _db;
     private readonly ILogger<WebhookProcessingService> _logger;
+    private readonly IMemoryCache _cache;
 
     public WebhookProcessingService(
         IChatBotService chatBot,
         IChatService chatService,
         IHubContext<NotificationHub> hubContext,
         AppDbContext db,
-        ILogger<WebhookProcessingService> logger)
+        ILogger<WebhookProcessingService> logger,
+        IMemoryCache cache)
     {
         _chatBot = chatBot;
         _chatService = chatService;
         _hubContext = hubContext;
         _db = db;
         _logger = logger;
+        _cache = cache;
     }
 
     /// <inheritdoc />
@@ -71,6 +81,22 @@ public class WebhookProcessingService : IWebhookProcessingService
         List<Contact>? contacts,
         CancellationToken ct)
     {
+        // --- Idempotency: Deduplicate webhook retries from Meta ---
+        // Meta retries webhook delivery if it doesn't receive 200 OK within ~30 seconds.
+        // Each retry carries the same message.Id, so we cache processed IDs to skip duplicates.
+        var cacheKey = $"wa_msg_{message.Id}";
+        if (_cache.TryGetValue(cacheKey, out _))
+        {
+            _logger.LogDebug("Skipping duplicate webhook message {MessageId} from {From}", message.Id, message.From);
+            return;
+        }
+
+        // Mark as processed before any work — even if processing fails, retries won't help
+        _cache.Set(cacheKey, true, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = MessageDeduplicationTtl
+        });
+
         var from = message.From;
         var contactName = contacts?.FirstOrDefault()?.Profile?.Name ?? "";
 
