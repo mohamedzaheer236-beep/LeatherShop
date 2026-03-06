@@ -97,7 +97,10 @@ public class ProductHandler
             else try
             {
                 if (await TrySendCarousel(to, product, imageUrls, imageIds, baseUrl, ct))
+                {
+                    await TrySendProductVideo(to, product, ct);
                     return;
+                }
 
                 await SendIndividualImages(to, product, details, imageUrls, baseUrl, ct);
                 return;
