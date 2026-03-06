@@ -445,8 +445,9 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     const formValue = { ...this.productForm.value };
     // Send null instead of empty string for optional imageUrl (backend [Url] validator rejects "")
     if (!formValue.imageUrl) formValue.imageUrl = null;
-    // Send null instead of empty string for optional videoUrl
-    if (!formValue.videoUrl) formValue.videoUrl = null;
+    // For videoUrl: send empty string to signal removal, null means "no change"
+    // Only convert undefined to empty string, preserve empty string as-is
+    if (formValue.videoUrl === undefined) formValue.videoUrl = '';
     // Ensure imageUrls is sent as array (even if empty) so backend replaces the old set
     if (!formValue.imageUrls || formValue.imageUrls.length === 0) {
       formValue.imageUrls = [];
