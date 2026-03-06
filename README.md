@@ -1572,6 +1572,53 @@ dotnet run
 To check current email: `git config user.email`
 To fix: `git config user.email "mohamedzaheer236@gmail.com"`
 
+#### Railway Docker Build Fails with CS1525/CS1056 (Unicode Encoding Issues)
+
+**Problem:** Railway build fails with errors like:
+```
+error CS1525: Invalid expression term '/'
+error CS1056: Unexpected character '\0'
+```
+Build works fine locally on Windows but fails on Railway (Linux Docker).
+
+**Root Cause:** Files contain corrupted Unicode characters (typically em-dashes `—` that got corrupted to `â€"` when saved with mixed UTF-8/Windows encodings). Windows .NET compiler tolerates these, but Linux doesn't.
+
+**Symptoms:**
+- Build succeeds locally: `dotnet build` shows 0 errors
+- Railway build fails with CS1525/CS1056 at seemingly random lines in comments
+- Git shows clean working tree, no obvious issues
+
+**Diagnosis:**
+```powershell
+# Find all .cs files with non-ASCII characters
+Get-ChildItem -Recurse -Include "*.cs" -Path "LeatherShopAPI" | ForEach-Object {
+    $content = Get-Content $_.FullName -Raw -Encoding UTF8
+    if ($content -match '[^\x00-\x7F]') { Write-Host "Non-ASCII in: $($_.FullName)" }
+}
+```
+
+**Fix:**
+```powershell
+# Replace corrupted em-dash variants with plain ASCII dash in all .cs files
+Get-ChildItem -Recurse -Include "*.cs" -Path "LeatherShopAPI" | ForEach-Object {
+    $file = $_.FullName
+    $content = Get-Content $file -Raw -Encoding UTF8
+    $newContent = $content -replace 'â€"', '-' -replace '—', '-' -replace '–', '-'
+    if ($content -ne $newContent) {
+        [System.IO.File]::WriteAllText($file, $newContent, [System.Text.UTF8Encoding]::new($false))
+        Write-Host "Fixed: $file"
+    }
+}
+# Then commit and push
+git add -A
+git commit -m "fix: replace corrupted Unicode characters with ASCII"
+git push
+```
+
+**Prevention:** Configure VS Code to always save as UTF-8 without BOM:
+- Settings → Files: Encoding → `utf8`
+- Avoid copy-pasting from Word/Google Docs (they use fancy quotes and em-dashes)
+
 ---
 
 ### Recently Implemented (Enterprise Patterns)
@@ -2606,5 +2653,7 @@ Implemented proper idempotency guards for webhook processing and payment verific
 |----|----------|-------|-------------|
 | F6 | HIGH | Duplicate webhook processing | ✅ Webhook message ID cached before processing; duplicates skipped |
 | F45 | HIGH | Payment re-verification without IsPaid guard | ✅ Early return for already-paid orders with idempotent success response |
+
+**Deployment Note:** Railway builds failed due to corrupted Unicode em-dash characters (`â€"`) in 34 `.cs` files. These worked on Windows but caused `CS1525`/`CS1056` errors on Linux Docker. Fixed by batch-replacing with ASCII dashes. See [Deployment Troubleshooting](#railway-docker-build-fails-with-cs1525cs1056-unicode-encoding-issues) for prevention.
 
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
