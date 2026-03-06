@@ -195,13 +195,13 @@ public class ChatBotService : IChatBotService
             return;
         }
 
-        // View product from carousel (quick_reply) — show full details with image
+        // View product from carousel (quick_reply)
         if (input.StartsWith("view_") && input != "view_cart")
         {
             var (viewProdId, viewImgId) = ChatBotHelpers.ParseProductImagePayload(input, "view_");
             if (viewProdId.HasValue)
             {
-                await _productHandler.SendProductDetails(phone, viewProdId.Value, ct);
+                await _productHandler.SendProductDetailsText(phone, viewProdId.Value, viewImgId, ct);
                 return;
             }
             await _bot.SendText(phone, "Invalid product. Type *menu* to browse.", ct);
