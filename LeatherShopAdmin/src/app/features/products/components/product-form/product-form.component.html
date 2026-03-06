@@ -107,7 +107,12 @@
 
           <!-- Image Upload — full width, multi-image -->
           <div class="form-field">
-            <label>Product Images <span class="upload-count">({{ images.length }}/{{ maxImages }})</span></label>
+            <label>Product Images <span class="req-star">*</span> <span class="upload-count">({{ images.length }}/{{ maxImages }})</span></label>
+
+            <!-- Required validation message -->
+            @if (submitted && images.length === 0) {
+              <small class="p-error">At least one product image is required.</small>
+            }
 
             <!-- Image grid -->
             @if (images.length > 0) {

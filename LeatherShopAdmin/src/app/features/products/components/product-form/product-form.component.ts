@@ -427,6 +427,12 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
       return;
     }
 
+    // Check at least one image is uploaded
+    if (this.images.length === 0) {
+      this.notification.error('Please upload at least one product image');
+      return;
+    }
+
     if (this.productForm.invalid) {
       // Show specific toast for the first invalid field
       if (this.f['name'].errors?.['required']) this.notification.error('Product name is required');
