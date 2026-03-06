@@ -144,7 +144,7 @@ public class ProductService : IProductService
         var product = await _db.Products.FindAsync(new object[] { id }, ct);
         if (product == null) return false;
 
-        // Check if product has been ordered — can't delete products with order history
+        // Check if product has been ordered - can't delete products with order history
         var hasOrders = await _db.OrderItems.AnyAsync(oi => oi.ProductId == id, ct);
         if (hasOrders)
             throw new InvalidOperationException("Cannot delete a product that has been ordered. Deactivate it instead.");

@@ -52,7 +52,7 @@ public class AuthService : IAuthService
         if (stored == null || stored.IsRevoked || stored.ExpiresAt <= DateTime.UtcNow)
             return null;
 
-        // Revoke the old refresh token (token rotation — prevents reuse)
+        // Revoke the old refresh token (token rotation - prevents reuse)
         stored.IsRevoked = true;
 
         var result = await GenerateTokenPairAsync(stored.AdminUser, ct);

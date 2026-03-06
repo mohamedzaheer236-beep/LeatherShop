@@ -28,7 +28,7 @@ public class ExceptionHandlingMiddleware
         }
         catch (OperationCanceledException) when (!context.Response.HasStarted)
         {
-            // Client disconnected or request was cancelled — not an error.
+            // Client disconnected or request was cancelled - not an error.
             _logger.LogInformation("Request cancelled: {Method} {Path}", context.Request.Method, context.Request.Path);
             context.Response.StatusCode = 499; // Client Closed Request (nginx convention)
         }

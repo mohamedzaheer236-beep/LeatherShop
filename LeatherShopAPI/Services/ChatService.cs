@@ -33,7 +33,7 @@ public class ChatService : IChatService
             query = query.Where(c => EF.Functions.ILike(c.Name, $"%{escaped}%") || EF.Functions.ILike(c.PhoneNumber, $"%{escaped}%"));
         }
 
-        // Single query: project all conversation data in the DB — eliminates N+1 per-customer queries
+        // Single query: project all conversation data in the DB - eliminates N+1 per-customer queries
         var conversations = await query
             .Where(c => _db.ChatMessages.Any(m => m.CustomerId == c.Id))
             .Select(c => new
@@ -217,7 +217,7 @@ public class ChatService : IChatService
     {
         if (!customer.IsBotPaused) return false;
         if (customer.BotPausedUntil.HasValue && customer.BotPausedUntil.Value <= DateTime.UtcNow)
-            return false; // expired — effectively not paused
+            return false; // expired - effectively not paused
         return true;
     }
 
@@ -292,7 +292,7 @@ public class ChatService : IChatService
         message.LastError = null;
 
         await _db.SaveChangesAsync(ct);
-        _logger.LogInformation("Outbox message {Id} manually retried by admin — reset to Pending", outboxMessageId);
+        _logger.LogInformation("Outbox message {Id} manually retried by admin - reset to Pending", outboxMessageId);
         return true;
     }
 

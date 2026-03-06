@@ -18,15 +18,15 @@ public static class ServiceCollectionExtensions
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection");
 
-        // Railway provides DATABASE_URL in URI format — convert to Npgsql format
+        // Railway provides DATABASE_URL in URI format - convert to Npgsql format
         var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
         if (!string.IsNullOrEmpty(databaseUrl))
         {
             var uri = new Uri(databaseUrl);
-            var userInfo = uri.UserInfo.Split(':', 2); // Limit to 2 parts — passwords may contain ':'
+            var userInfo = uri.UserInfo.Split(':', 2); // Limit to 2 parts - passwords may contain ':'
             if (userInfo.Length < 2)
                 throw new InvalidOperationException(
-                    "DATABASE_URL is malformed — expected format: postgres://user:password@host:port/database");
+                    "DATABASE_URL is malformed - expected format: postgres://user:password@host:port/database");
             connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
         }
 
@@ -70,7 +70,7 @@ public static class ServiceCollectionExtensions
         services.AddMemoryCache();
         services.AddSingleton<ConversationStateService>();
 
-        // Scoped services (one instance per HTTP request — matches DbContext lifetime)
+        // Scoped services (one instance per HTTP request - matches DbContext lifetime)
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IWebhookProcessingService, WebhookProcessingService>();
 

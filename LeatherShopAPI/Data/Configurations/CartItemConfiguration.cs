@@ -10,7 +10,7 @@ public class CartItemConfiguration : IEntityTypeConfiguration<CartItem>
     {
         builder.HasKey(ci => ci.Id);
 
-        // Index for fast lookup (not unique — same product can appear with different images)
+        // Index for fast lookup (not unique - same product can appear with different images)
         builder.HasIndex(ci => new { ci.CustomerId, ci.ProductId });
 
         // Many-to-one: CartItem → Customer

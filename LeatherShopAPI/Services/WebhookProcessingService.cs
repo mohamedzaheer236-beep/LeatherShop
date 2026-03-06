@@ -91,7 +91,7 @@ public class WebhookProcessingService : IWebhookProcessingService
             return;
         }
 
-        // Mark as processed before any work — even if processing fails, retries won't help
+        // Mark as processed before any work - even if processing fails, retries won't help
         _cache.Set(cacheKey, true, new MemoryCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = MessageDeduplicationTtl
@@ -125,7 +125,7 @@ public class WebhookProcessingService : IWebhookProcessingService
             customer = await HandleNewCustomerFirstMessageAsync(phone, incomingContent, contactName, message.Type, ct);
         }
 
-        // Delegate to chatbot for automated response — pass tracked customer to avoid duplicate lookup
+        // Delegate to chatbot for automated response - pass tracked customer to avoid duplicate lookup
         await _chatBot.ProcessMessage(customer, message.Type, textBody, interactiveId, interactiveTitle, ct);
     }
 
@@ -206,10 +206,10 @@ public class WebhookProcessingService : IWebhookProcessingService
             }
             catch (DbUpdateException)
             {
-                // Race condition: another webhook already created this customer — reload it.
+                // Race condition: another webhook already created this customer - reload it.
                 _db.Entry(newCustomer).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
                 newCustomer = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone, ct);
-                if (newCustomer == null) throw; // Not a race condition — rethrow the original error
+                if (newCustomer == null) throw; // Not a race condition - rethrow the original error
             }
         }
 

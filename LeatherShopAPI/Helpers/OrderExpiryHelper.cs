@@ -15,7 +15,7 @@ internal static class OrderExpiryHelper
     /// Cancels the order, restores product stock, and merges order items back into
     /// the customer's cart so they can re-checkout without re-adding products.
     /// <para>
-    /// <b>Does NOT call SaveChangesAsync</b> — the caller is responsible for persisting changes.
+    /// <b>Does NOT call SaveChangesAsync</b> - the caller is responsible for persisting changes.
     /// This allows batch operations (e.g., cleaning up multiple orders) to commit once.
     /// </para>
     /// </summary>
@@ -40,7 +40,7 @@ internal static class OrderExpiryHelper
         {
             if (item.Product == null)
                 throw new InvalidOperationException(
-                    $"OrderItem {item.Id} missing Product navigation — ensure .ThenInclude(oi => oi.Product).");
+                    $"OrderItem {item.Id} missing Product navigation - ensure .ThenInclude(oi => oi.Product).");
             item.Product.StockQuantity += item.Quantity;
         }
 

@@ -92,7 +92,7 @@ public class ProductHandler
             var baseUrl = ChatBotHelpers.GetPublicBaseUrl(_config);
             if (string.IsNullOrEmpty(baseUrl))
             {
-                _logger.LogWarning("GetPublicBaseUrl() returned null — skipping image sends for product {ProductId}", productId);
+                _logger.LogWarning("GetPublicBaseUrl() returned null - skipping image sends for product {ProductId}", productId);
             }
             else try
             {
@@ -283,12 +283,12 @@ public class ProductHandler
             var baseUrl = ChatBotHelpers.GetPublicBaseUrl(_config);
             if (string.IsNullOrEmpty(baseUrl))
             {
-                _logger.LogWarning("GetPublicBaseUrl() returned null — skipping video send for product {ProductId}", product.Id);
+                _logger.LogWarning("GetPublicBaseUrl() returned null - skipping video send for product {ProductId}", product.Id);
                 return;
             }
 
             var videoFullUrl = product.VideoUrl.StartsWith("http") ? product.VideoUrl : $"{baseUrl}{product.VideoUrl}";
-            await _bot.SendVideo(to, videoFullUrl, $"🎬 {product.Name} — Product Video", ct);
+            await _bot.SendVideo(to, videoFullUrl, $"🎬 {product.Name} - Product Video", ct);
         }
         catch (Exception ex)
         {

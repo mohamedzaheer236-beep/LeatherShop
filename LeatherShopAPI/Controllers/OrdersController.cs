@@ -41,7 +41,7 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateOrderStatusDto dto, CancellationToken ct)
     {
         var newStatus = dto.Status;
-        // Validate status string at controller level — return 400 for garbage input
+        // Validate status string at controller level - return 400 for garbage input
         if (!Enum.TryParse<OrderStatus>(newStatus, true, out _))
             return BadRequest(ApiResponse.Fail($"Invalid status '{newStatus}'. Valid values: {string.Join(", ", Enum.GetNames<OrderStatus>())}."));
 

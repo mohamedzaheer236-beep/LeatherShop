@@ -64,12 +64,12 @@ public class CheckoutHandler
             return;
         }
 
-        // Address exists — ask the customer to confirm or change it
+        // Address exists - ask the customer to confirm or change it
         _convState.SetPendingAction(customer.Id, ConversationState.PendingActions.ConfirmingAddress);
 
         var cartTotal = cartItems.Sum(ci => ci.Product.Price * ci.Quantity);
         var itemLines = string.Join("\n", cartItems.Select(ci =>
-            $"  • {ci.Product.Name} x{ci.Quantity} — ₹{ci.Product.Price * ci.Quantity}"));
+            $"  • {ci.Product.Name} x{ci.Quantity} - ₹{ci.Product.Price * ci.Quantity}"));
 
         await _bot.SendButtons(to,
             $"📋 *Order Summary*\n\n" +
@@ -115,7 +115,7 @@ public class CheckoutHandler
         var baseUrl = ChatBotHelpers.GetPublicBaseUrl(_config);
         if (string.IsNullOrEmpty(baseUrl))
         {
-            _logger.LogError("Cannot generate payment link — App:BaseUrl is not configured and RAILWAY_PUBLIC_DOMAIN is not set");
+            _logger.LogError("Cannot generate payment link - App:BaseUrl is not configured and RAILWAY_PUBLIC_DOMAIN is not set");
             await _bot.SendText(to, "❌ Sorry, we couldn't generate a payment link right now. Please contact us directly to complete your order.", ct);
             _convState.SetPendingAction(customer.Id, null);
             return;
@@ -183,7 +183,7 @@ public class CheckoutHandler
             {
                 entry.State = EntityState.Detached;
             }
-            await _bot.SendText(to, "⚠️ Sorry, another order was placed at the same time for the same product. Please try placing your order again — your cart is still intact.", ct);
+            await _bot.SendText(to, "⚠️ Sorry, another order was placed at the same time for the same product. Please try placing your order again - your cart is still intact.", ct);
             return;
         }
 
@@ -199,7 +199,7 @@ public class CheckoutHandler
         catch (WhatsAppApiException ex)
         {
             _logger.LogWarning(ex,
-                "Immediate send failed for {OrderNumber} to {Phone} — outbox message {OutboxId} will be retried by background processor",
+                "Immediate send failed for {OrderNumber} to {Phone} - outbox message {OutboxId} will be retried by background processor",
                 order.OrderNumber, to, outboxMessage.Id);
         }
     }

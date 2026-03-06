@@ -168,7 +168,7 @@ public class InvoicePdfService : IInvoicePdfService
     /// Tries to load the image for an order item:
     ///   1. If SelectedImageId is set, look up the ProductImage → use its URL
     ///   2. Otherwise fall back to Product.ImageUrl (primary)
-    ///   3. Read from wwwroot (local paths) — external URLs are skipped for PDF (they'd slow it down)
+    ///   3. Read from wwwroot (local paths) - external URLs are skipped for PDF (they'd slow it down)
     /// Returns null if image can't be loaded (graceful degradation).
     /// </summary>
     private byte[]? TryLoadImage(OrderItem item)

@@ -41,7 +41,7 @@ public class WhatsAppWebhookController : ControllerBase
         // Guard: reject if verify token is not configured (prevents null == null match)
         if (string.IsNullOrEmpty(verifyToken))
         {
-            _logger.LogError("WhatsApp:VerifyToken is not configured — cannot verify webhook");
+            _logger.LogError("WhatsApp:VerifyToken is not configured - cannot verify webhook");
             return StatusCode(500);
         }
 
@@ -121,7 +121,7 @@ public class WhatsAppWebhookController : ControllerBase
                     Encoding.UTF8.GetBytes(computedHash),
                     Encoding.UTF8.GetBytes(expectedSignature)))
             {
-                _logger.LogWarning("Webhook rejected: X-Hub-Signature-256 mismatch — possible forged payload");
+                _logger.LogWarning("Webhook rejected: X-Hub-Signature-256 mismatch - possible forged payload");
                 return false;
             }
 
@@ -130,11 +130,11 @@ public class WhatsAppWebhookController : ControllerBase
 
         if (!_env.IsDevelopment())
         {
-            _logger.LogError("WhatsApp:AppSecret not configured — rejecting webhook in non-Development environment");
+            _logger.LogError("WhatsApp:AppSecret not configured - rejecting webhook in non-Development environment");
             return false;
         }
 
-        _logger.LogWarning("WhatsApp:AppSecret not configured — webhook signature verification SKIPPED (Development only).");
+        _logger.LogWarning("WhatsApp:AppSecret not configured - webhook signature verification SKIPPED (Development only).");
         return true;
     }
 }

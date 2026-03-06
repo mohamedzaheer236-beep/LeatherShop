@@ -12,7 +12,7 @@ namespace LeatherShopAPI.Services;
 ///   2. Restores product stock
 ///   3. Restores cart items so the customer can re-checkout
 ///
-/// This ensures stock isn't permanently locked by abandoned orders — even if the
+/// This ensures stock isn't permanently locked by abandoned orders - even if the
 /// customer never revisits the expired payment link.
 /// </summary>
 public sealed class ExpiredOrderCleanupService : BackgroundService

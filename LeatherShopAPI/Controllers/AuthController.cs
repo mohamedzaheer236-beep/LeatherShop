@@ -26,7 +26,7 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Admin login — validates credentials, returns access token in body and sets refresh token as HttpOnly cookie.
+    /// Admin login - validates credentials, returns access token in body and sets refresh token as HttpOnly cookie.
     /// </summary>
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct)
@@ -50,7 +50,7 @@ public class AuthController : ControllerBase
 
     /// <summary>
     /// Refresh access token using the HttpOnly refresh token cookie.
-    /// Performs token rotation — old refresh token is revoked, new one is issued.
+    /// Performs token rotation - old refresh token is revoked, new one is issued.
     /// </summary>
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh(CancellationToken ct)
@@ -80,7 +80,7 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Logout — revokes the refresh token and clears the cookie.
+    /// Logout - revokes the refresh token and clears the cookie.
     /// </summary>
     [HttpPost("logout")]
     public async Task<IActionResult> Logout(CancellationToken ct)

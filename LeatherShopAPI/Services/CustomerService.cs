@@ -172,7 +172,7 @@ public class CustomerService : ICustomerService
 
         await _db.SaveChangesAsync(ct);
 
-        // No WhatsApp message is sent on edit — this is intentional
+        // No WhatsApp message is sent on edit - this is intentional
         return new CustomerListDto
         {
             Id = customer.Id,
@@ -191,7 +191,7 @@ public class CustomerService : ICustomerService
         if (customer == null)
             return new DeleteCustomerResponse { Result = DeleteCustomerResult.NotFound };
 
-        // Prevent deletion when orders exist — order history is needed for accounting/compliance
+        // Prevent deletion when orders exist - order history is needed for accounting/compliance
         var orderCount = await _db.Orders.CountAsync(o => o.CustomerId == id, ct);
         if (orderCount > 0)
             return new DeleteCustomerResponse

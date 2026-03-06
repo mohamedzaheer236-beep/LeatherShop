@@ -36,7 +36,7 @@ public class BroadcastMessage
 
     // ─── DB-backed job data: survives Railway restarts ───
 
-    /// <summary>Processing status — Pending/Processing/Completed.</summary>
+    /// <summary>Processing status - Pending/Processing/Completed.</summary>
     public BroadcastStatus Status { get; set; } = BroadcastStatus.Pending;
 
     /// <summary>WhatsApp template language code (e.g., "en", "hi").</summary>

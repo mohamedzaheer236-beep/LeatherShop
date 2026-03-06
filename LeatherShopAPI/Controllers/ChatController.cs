@@ -44,7 +44,7 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> SendMessage(int customerId, [FromBody] SendMessageDto dto, CancellationToken ct)
     {
         // Note: [Required] + [MinLength(1)] on SendMessageDto.Message + [ApiController] auto-validation
-        // handles empty/null input. Manual check removed — model validation is sufficient.
+        // handles empty/null input. Manual check removed - model validation is sufficient.
 
         var message = await _chatService.SendMessageAsync(customerId, dto.Message, ct);
         return Ok(ApiResponse<ChatMessageDto>.Ok(message));

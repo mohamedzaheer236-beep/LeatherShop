@@ -90,7 +90,7 @@ public class CartHandler
             return;
         }
 
-        // Add to cart — merge only when same product AND same selected image
+        // Add to cart - merge only when same product AND same selected image
         var existingItem = await _db.CartItems
             .FirstOrDefaultAsync(ci => ci.CustomerId == customer.Id
                                     && ci.ProductId == productId
@@ -161,7 +161,7 @@ public class CartHandler
                     : null;
 
                 var msg = $"⏳ You have a pending order *{pendingOrder.OrderNumber}* (₹{pendingOrder.TotalAmount}).\n\n" +
-                          $"Your cart items are in this order — pay within *{mins}m {secs}s* to complete it.\n\n" +
+                          $"Your cart items are in this order - pay within *{mins}m {secs}s* to complete it.\n\n" +
                           (paymentUrl != null ? $"💳 Pay here: {paymentUrl}\n\n" : "") +
                           $"If you don't pay in time, your items will be restored to the cart automatically.";
 

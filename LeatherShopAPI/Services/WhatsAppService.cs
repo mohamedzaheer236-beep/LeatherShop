@@ -209,7 +209,7 @@ public class WhatsAppService : IWhatsAppService
     /// </summary>
     public async Task SendCarouselTemplateMessage(string to, string templateName, List<CarouselCard> cards, string languageCode = "en", CancellationToken ct = default)
     {
-        // Build card components — each card has header (image), body (text param), and button (quick_reply payload)
+        // Build card components - each card has header (image), body (text param), and button (quick_reply payload)
         var carouselCards = cards.Select((card, idx) => new Dictionary<string, object>
         {
             ["card_index"] = idx,
@@ -376,7 +376,7 @@ public class WhatsAppService : IWhatsAppService
                 return;
             }
 
-            // Retry only on rate limit errors (Meta code 131056) — all other errors fail immediately
+            // Retry only on rate limit errors (Meta code 131056) - all other errors fail immediately
             if (responseBody.Contains(RateLimitErrorCode) && attempt < RateLimitMaxRetries)
             {
                 var delay = RateLimitRetryDelaysMs[attempt];

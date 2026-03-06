@@ -164,7 +164,7 @@ public class PaymentService : IPaymentService
         // Return success (idempotent) rather than processing again.
         if (order.IsPaid)
         {
-            _logger.LogInformation("Payment verification skipped — order {OrderId} ({OrderNumber}) is already paid",
+            _logger.LogInformation("Payment verification skipped - order {OrderId} ({OrderNumber}) is already paid",
                 order.Id, order.OrderNumber);
             return new PaymentVerifyResultDto
             {
@@ -178,9 +178,9 @@ public class PaymentService : IPaymentService
         var merchantKey = _config["Paytm:MerchantKey"];
         if (string.IsNullOrEmpty(merchantId) || string.IsNullOrEmpty(merchantKey))
         {
-            _logger.LogError("Paytm:MerchantId or Paytm:MerchantKey is not configured — payment verification REJECTED for order {OrderId}. " +
+            _logger.LogError("Paytm:MerchantId or Paytm:MerchantKey is not configured - payment verification REJECTED for order {OrderId}. " +
                 "Configure Paytm credentials to enable payment processing.", order.Id);
-            return null; // REJECT — never mark as paid without server-side verification
+            return null; // REJECT - never mark as paid without server-side verification
         }
 
         var txnStatus = await GetPaytmTransactionStatusAsync(merchantId, merchantKey, order.OrderNumber, ct);
@@ -197,7 +197,7 @@ public class PaymentService : IPaymentService
             return null;
         }
 
-        // Verify the paid amount matches the order total — protect against amount tampering
+        // Verify the paid amount matches the order total - protect against amount tampering
         if (decimal.TryParse(txnStatus.TxnAmount, System.Globalization.NumberStyles.Any,
                 System.Globalization.CultureInfo.InvariantCulture, out var paidAmount))
         {
@@ -212,12 +212,12 @@ public class PaymentService : IPaymentService
         else
         {
             _logger.LogError(
-                "Could not parse TxnAmount '{TxnAmount}' for order {OrderId}. Rejecting payment — amount validation is mandatory.",
+                "Could not parse TxnAmount '{TxnAmount}' for order {OrderId}. Rejecting payment - amount validation is mandatory.",
                 txnStatus.TxnAmount, order.Id);
             return null;
         }
 
-        // Paytm payment is verified via server-to-server API — proceed to confirm.
+        // Paytm payment is verified via server-to-server API - proceed to confirm.
         // If the order was auto-cancelled due to expiry while the customer
         // was completing payment in the Paytm form, we must honor the payment (money is already charged).
         // Re-confirm the order, re-deduct stock, and clear restored cart items.
@@ -263,7 +263,7 @@ public class PaymentService : IPaymentService
         order.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
 
-        // Notify customer via WhatsApp (best-effort — don't fail the payment)
+        // Notify customer via WhatsApp (best-effort - don't fail the payment)
         try
         {
             await _whatsApp.SendTextMessage(
@@ -326,7 +326,7 @@ public class PaymentService : IPaymentService
 
     /// <summary>
     /// Calls Paytm's Transaction Status API to verify a payment server-to-server.
-    /// This is the authoritative check — we never trust client-side data alone.
+    /// This is the authoritative check - we never trust client-side data alone.
     /// </summary>
     private async Task<PaytmTxnStatusResult?> GetPaytmTransactionStatusAsync(
         string merchantId, string merchantKey, string orderId, CancellationToken ct = default)

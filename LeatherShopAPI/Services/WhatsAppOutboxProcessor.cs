@@ -9,12 +9,12 @@ using LeatherShopAPI.Services.Interfaces;
 namespace LeatherShopAPI.Services;
 
 /// <summary>
-/// Transactional Outbox Processor — polls the WhatsAppOutboxMessages table for pending
+/// Transactional Outbox Processor - polls the WhatsAppOutboxMessages table for pending
 /// messages and delivers them via WhatsApp Cloud API with exponential backoff.
 ///
 /// Why outbox instead of in-memory Channel?
 /// - Survives app restarts, container redeployments, and crashes (Railway rebuilds container on every push)
-/// - Message is committed to DB in the same transaction as the order — atomic
+/// - Message is committed to DB in the same transaction as the order - atomic
 /// - Full audit trail: admins can see pending/sent/failed messages
 /// - No message loss, ever
 ///
@@ -23,7 +23,7 @@ namespace LeatherShopAPI.Services;
 /// 2. This processor wakes up every 10 seconds, queries for due Pending messages
 /// 3. Attempts to send via IWhatsAppService (which already has transport-level retry for rate limits)
 /// 4. On success: marks Sent. On failure: increments RetryCount, sets NextRetryAt with exponential backoff
-/// 5. After MaxRetries: marks Failed — admin must manually follow up via the chat panel
+/// 5. After MaxRetries: marks Failed - admin must manually follow up via the chat panel
 ///
 /// Uses IServiceScopeFactory to create a fresh scope (DbContext + WhatsAppService) per polling cycle.
 /// Same pattern as BroadcastBackgroundService.
@@ -59,7 +59,7 @@ public sealed class WhatsAppOutboxProcessor : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("WhatsAppOutboxProcessor started — polling every {Interval}s", PollIntervalSeconds);
+        _logger.LogInformation("WhatsAppOutboxProcessor started - polling every {Interval}s", PollIntervalSeconds);
 
         // Small initial delay to let the app fully start
         await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
@@ -100,7 +100,7 @@ public sealed class WhatsAppOutboxProcessor : BackgroundService
             dueMessageIds = await queryDb.WhatsAppOutboxMessages
                 .Where(m => m.Status == OutboxMessageStatus.Pending
                             && (m.NextRetryAt == null || m.NextRetryAt <= now))
-                .OrderBy(m => m.CreatedAt) // FIFO — oldest first
+                .OrderBy(m => m.CreatedAt) // FIFO - oldest first
                 .Take(BatchSize)
                 .Select(m => m.Id)
                 .ToListAsync(ct);
@@ -146,17 +146,17 @@ public sealed class WhatsAppOutboxProcessor : BackgroundService
         try
         {
             _logger.LogInformation(
-                "Outbox: sending message {Id} (attempt {Attempt}/{Max}) — {Context}",
+                "Outbox: sending message {Id} (attempt {Attempt}/{Max}) - {Context}",
                 message.Id, message.RetryCount + 1, message.MaxRetries, message.Context);
 
             await whatsApp.SendTextMessage(message.To, message.Content, ct);
 
-            // Success — mark as sent
+            // Success - mark as sent
             message.Status = OutboxMessageStatus.Sent;
             message.SentAt = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);
 
-            _logger.LogInformation("Outbox: message {Id} sent successfully — {Context}", message.Id, message.Context);
+            _logger.LogInformation("Outbox: message {Id} sent successfully - {Context}", message.Id, message.Context);
         }
         catch (Exception ex)
         {
@@ -165,12 +165,12 @@ public sealed class WhatsAppOutboxProcessor : BackgroundService
 
             if (message.RetryCount >= message.MaxRetries)
             {
-                // Exhausted all retries — mark as permanently failed
+                // Exhausted all retries - mark as permanently failed
                 message.Status = OutboxMessageStatus.Failed;
                 await db.SaveChangesAsync(ct);
 
                 _logger.LogError(ex,
-                    "Outbox: message {Id} FAILED permanently after {Retries} attempts — {Context}. " +
+                    "Outbox: message {Id} FAILED permanently after {Retries} attempts - {Context}. " +
                     "Admin must manually follow up via chat panel.",
                     message.Id, message.RetryCount, message.Context);
 
@@ -186,7 +186,7 @@ public sealed class WhatsAppOutboxProcessor : BackgroundService
                 await db.SaveChangesAsync(ct);
 
                 _logger.LogWarning(ex,
-                    "Outbox: message {Id} failed (attempt {Attempt}/{Max}), next retry in {Delay}s — {Context}",
+                    "Outbox: message {Id} failed (attempt {Attempt}/{Max}), next retry in {Delay}s - {Context}",
                     message.Id, message.RetryCount, message.MaxRetries, delaySec, message.Context);
             }
         }
@@ -217,7 +217,7 @@ public sealed class WhatsAppOutboxProcessor : BackgroundService
         }
         catch (Exception hubEx)
         {
-            // Best-effort — don't crash the processor if SignalR push fails
+            // Best-effort - don't crash the processor if SignalR push fails
             _logger.LogWarning(hubEx, "Outbox: failed to push SignalR notification for message {Id}", message.Id);
         }
     }

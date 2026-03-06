@@ -21,10 +21,10 @@ public class PaymentPageDto
     public decimal TotalAmount { get; set; }
     public int AmountInPaise { get; set; }
 
-    /// <summary>Paytm Merchant ID (MID) — injected into client-side JS for checkout initialization.</summary>
+    /// <summary>Paytm Merchant ID (MID) - injected into client-side JS for checkout initialization.</summary>
     public string PaytmMerchantId { get; set; } = string.Empty;
 
-    /// <summary>Paytm transaction token — obtained from Initiate Transaction API, required by checkout.js.</summary>
+    /// <summary>Paytm transaction token - obtained from Initiate Transaction API, required by checkout.js.</summary>
     public string PaytmTxnToken { get; set; } = string.Empty;
 
     public List<PaymentPageItemDto> Items { get; set; } = new();

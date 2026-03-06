@@ -8,7 +8,7 @@ using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Controllers;
 
-/// <summary>Public (customer-facing). No [Authorize] — customers access payment page and Paytm handles checkout.</summary>
+/// <summary>Public (customer-facing). No [Authorize] - customers access payment page and Paytm handles checkout.</summary>
 [ApiController]
 [Route("api/[controller]")]
 [EnableRateLimiting("fixed")]

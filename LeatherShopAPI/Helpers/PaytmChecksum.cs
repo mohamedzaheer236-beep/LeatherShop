@@ -4,7 +4,7 @@ using System.Text;
 namespace LeatherShopAPI.Helpers;
 
 /// <summary>
-/// Paytm checksum utility — implements their proprietary AES-128-CBC based
+/// Paytm checksum utility - implements their proprietary AES-128-CBC based
 /// signature algorithm for Initiate Transaction and response verification.
 ///
 /// Algorithm:

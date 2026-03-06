@@ -64,7 +64,7 @@ public class ConversationStateService
     private static string CacheKey(int customerId) => $"conv_state_{customerId}";
 }
 
-/// <summary>Ephemeral chatbot conversation state — lives in memory, not in the database.</summary>
+/// <summary>Ephemeral chatbot conversation state - lives in memory, not in the database.</summary>
 public class ConversationState
 {
     /// <summary>When set, the bot is waiting for the customer to type a quantity for this product.</summary>

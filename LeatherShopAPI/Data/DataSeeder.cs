@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LeatherShopAPI.Data;
 
 /// <summary>
-/// Runtime data seeder — seeds initial admin user and sample products on startup
+/// Runtime data seeder - seeds initial admin user and sample products on startup
 /// if the database is empty. Replaces HasData() configuration which pollutes every migration
 /// with timestamp noise.
 /// </summary>

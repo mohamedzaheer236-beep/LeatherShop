@@ -21,7 +21,7 @@ public class DashboardService : IDashboardService
 
     public async Task<DashboardDto> GetDashboardAsync(CancellationToken ct = default)
     {
-        // Single query for all scalar statistics — EF Core translates this into one SQL round-trip
+        // Single query for all scalar statistics - EF Core translates this into one SQL round-trip
         // using sub-selects, replacing 6 sequential COUNT/SUM calls.
         var stats = await _db.Orders
             .AsNoTracking()
@@ -39,7 +39,7 @@ public class DashboardService : IDashboardService
         var totalCustomers = await _db.Customers.CountAsync(ct);
         var lowStockProducts = await _db.Products.CountAsync(p => p.IsActive && p.StockQuantity <= LowStockThreshold, ct);
 
-        // Recent orders with includes — separate query (needs navigation properties)
+        // Recent orders with includes - separate query (needs navigation properties)
         var recentOrders = await _db.Orders
             .AsNoTracking()
             .Include(o => o.Customer)

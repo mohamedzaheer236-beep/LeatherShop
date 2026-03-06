@@ -13,7 +13,7 @@ namespace LeatherShopAPI.Services;
 
 /// <summary>
 /// Thread-safe channel for triggering broadcast processing.
-/// Carries only the BroadcastId — all job data lives in the DB (restart-safe).
+/// Carries only the BroadcastId - all job data lives in the DB (restart-safe).
 /// Registered as a Singleton so the same channel is shared between
 /// BroadcastService (producer) and BroadcastBackgroundService (consumer).
 /// </summary>
@@ -192,7 +192,7 @@ public sealed class BroadcastBackgroundService : BackgroundService
 
         // ── 3. Process remaining recipients in throttled batches ──
         // Sends BatchSize messages concurrently, then pauses BatchDelayMs before next batch.
-        // This keeps throughput at ~50 msgs/sec — well under Meta's per-second limit.
+        // This keeps throughput at ~50 msgs/sec - well under Meta's per-second limit.
         int sent = broadcast.SentCount, failed = broadcast.FailedCount;
         int totalProcessed = 0;
         var processedPhones = new ConcurrentBag<string>(alreadyProcessed);
@@ -284,7 +284,7 @@ public sealed class BroadcastBackgroundService : BackgroundService
                 }
                 catch (OperationCanceledException)
                 {
-                    // Shutdown requested during delay — save progress and exit gracefully
+                    // Shutdown requested during delay - save progress and exit gracefully
                     await SaveProgressAsync(broadcastId, Volatile.Read(ref sent), Volatile.Read(ref failed), processedPhones);
                     _logger.LogWarning("Broadcast {BroadcastId} interrupted by shutdown during delay. Progress saved.", broadcastId);
                     return;
@@ -303,7 +303,7 @@ public sealed class BroadcastBackgroundService : BackgroundService
             return;
         }
 
-        // Normal completion — mark done
+        // Normal completion - mark done
         await MarkCompletedAsync(broadcastId, sent, failed, processedPhones);
 
         _logger.LogInformation(
@@ -313,7 +313,7 @@ public sealed class BroadcastBackgroundService : BackgroundService
 
     /// <summary>
     /// Saves broadcast progress (counts + processed phones) using a stateless SQL UPDATE.
-    /// Best-effort: failures are logged and skipped — next save or final save catches up.
+    /// Best-effort: failures are logged and skipped - next save or final save catches up.
     /// </summary>
     private async Task SaveProgressAsync(int broadcastId, int sent, int failed, ConcurrentBag<string> processedPhones)
     {

@@ -14,7 +14,7 @@ public enum OutboxMessageStatus
     /// <summary>Successfully delivered to WhatsApp.</summary>
     Sent,
 
-    /// <summary>All retry attempts exhausted — requires manual follow-up via admin chat.</summary>
+    /// <summary>All retry attempts exhausted - requires manual follow-up via admin chat.</summary>
     Failed
 }
 
@@ -22,7 +22,7 @@ public enum OutboxMessageStatus
 /// Transactional Outbox: a WhatsApp message that must be delivered reliably.
 ///
 /// Written to the DB in the SAME SaveChangesAsync() as the business operation
-/// (e.g., order creation) — so either both commit or neither does.
+/// (e.g., order creation) - so either both commit or neither does.
 ///
 /// A background service polls for Pending messages and retries with exponential backoff.
 /// This survives app restarts, container redeployments, and crashes.

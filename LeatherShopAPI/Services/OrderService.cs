@@ -11,7 +11,7 @@ namespace LeatherShopAPI.Services;
 
 public class OrderService : IOrderService
 {
-    /// <summary>Valid order status transitions — defined once, reused per call.</summary>
+    /// <summary>Valid order status transitions - defined once, reused per call.</summary>
     private static readonly Dictionary<OrderStatus, OrderStatus[]> ValidStatusTransitions = new()
     {
         [OrderStatus.Pending] = new[] { OrderStatus.Confirmed, OrderStatus.Cancelled },
@@ -81,7 +81,7 @@ public class OrderService : IOrderService
         if (!Enum.TryParse<OrderStatus>(newStatus, true, out var status))
             return UpdateStatusResult.InvalidStatus;
 
-        // Validate status transitions — prevent invalid state changes
+        // Validate status transitions - prevent invalid state changes
         var previousStatus = order.Status;
 
         if (!ValidStatusTransitions.TryGetValue(previousStatus, out var allowed) || !allowed.Contains(status))
@@ -113,7 +113,7 @@ public class OrderService : IOrderService
             return UpdateStatusResult.ConcurrencyConflict;
         }
 
-        // Notify customer via WhatsApp (best-effort — don't fail the update)
+        // Notify customer via WhatsApp (best-effort - don't fail the update)
         try
         {
             var statusEmoji = status switch
