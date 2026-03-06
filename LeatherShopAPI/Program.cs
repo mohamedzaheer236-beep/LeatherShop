@@ -171,3 +171,5 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 app.Run();
+
+// deploy trigger
