@@ -1095,7 +1095,7 @@ These features are not built yet and would need to be added for production:
 | Feature | Details |
 |---------|---------|
 | ~~**Authentication / Authorization**~~ | ✅ **IMPLEMENTED** — JWT Bearer auth with BCrypt password hashing. Admin credentials stored in PostgreSQL `AdminUsers` table. Auto-seeded on first startup. `[Authorize]` on all admin controllers. Angular auth guard + interceptor + animated login page. |
-| ~~**Image Upload**~~ | ✅ **IMPLEMENTED** — Server-side file upload endpoint (`POST /api/products/upload-image`). Images saved to `wwwroot/uploads/` with GUID filenames. Type validation (JPG/PNG/WebP/GIF) and 5 MB size limit on both client and server. Served via `app.UseStaticFiles()`. Frontend: drag-to-browse dropzone with live preview and remove button. |
+| ~~**Image Upload**~~ | ✅ **IMPLEMENTED** — Server-side file upload endpoint (`POST /api/products/upload-image`). Images saved to `wwwroot/uploads/` with GUID filenames. Type validation (JPG/PNG/WebP/GIF) and 20 MB server-side hard limit (images auto-compressed to ~300 KB). Frontend enforces 5 MB client-side limit. Served via `app.UseStaticFiles()`. Frontend: drag-to-browse dropzone with live preview and remove button. |
 | ~~**Razorpay Signature Verification**~~ | ✅ **IMPLEMENTED (migrated to Paytm)** — `PaymentService.VerifyPaymentAsync` calls Paytm's Transaction Status API server-to-server and verifies the response checksum using AES-128-CBC algorithm via `PaytmChecksum` helper. Rejects unverified payments. |
 | **Logging to File/Service** | Uses default console logging only. Need Serilog or similar for production. |
 | ~~**Rate Limiting**~~ | ✅ **IMPLEMENTED (F104)** — ASP.NET Core rate limiting middleware with global and per-endpoint limits. |
@@ -1145,11 +1145,11 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 | M1 | ~~**No Pagination on Any List Endpoint**~~ | ~~All services, all controllers~~ | **FIXED** — All list endpoints now return server-side paginated results via `PaginatedResult<T>` (generic model with `Items`, `TotalCount`, `Page`, `PageSize`, `TotalPages`). Orders: `GET /api/orders?page=1&pageSize=25`. Customers: `GET /api/customers?page=1&pageSize=25`. Products: `GET /api/products?page=1&pageSize=25`. Broadcast History: `GET /api/broadcast/history?page=1&pageSize=10`. All query params clamped 1-100. Frontend uses PrimeNG `p-paginator`, fetches only the current page. Customer checkbox selections tracked via `Map<number, string>` (ID→phone) — survive page changes for cross-page broadcast. DB indexes added for all filtered/sorted columns. |
 | M2 | ~~**N+1 Queries in BulkImport**~~ | ~~`CustomerService.cs`~~ | **FIXED** — Replaced per-customer `AnyAsync` query with a single `SELECT PhoneNumber` query that loads all existing phone numbers into a `HashSet<string>`. Then checks containment in O(1) per import entry. Also prevents duplicates within the same import batch by adding to the HashSet as we go. 1000 imports = 1 DB query instead of 1000. |
 | M3 | ~~**`.ToLower()` in LINQ Kills DB Indexes**~~ | ~~`ProductService.cs`, `CustomerService.cs`~~ | **FIXED (F101)** — All `.ToLower()` patterns replaced with `EF.Functions.ILike()`. Search input wildcards (`%`, `_`) escaped via `SqlHelper.EscapeLikePattern()` (F127). |
-| M4 | ~~**No `OnPush` Change Detection**~~ | ~~All Angular components~~ | **FIXED** — All 15 components now use `ChangeDetectionStrategy.OnPush` with `ChangeDetectorRef.markForCheck()` after every async state mutation. Array mutations converted to immutable patterns. |
+| M4 | ~~**No `OnPush` Change Detection**~~ | ~~All Angular components~~ | **FIXED** — All 19 components now use `ChangeDetectionStrategy.OnPush` with `ChangeDetectorRef.markForCheck()` after every async state mutation. Array mutations converted to immutable patterns. |
 | M5 | ~~**Memory Leaks: No Unsubscribe**~~ | All 6 feature components | **FIXED** — Product-list simplified to button-triggered search (no `valueChanges` subscriptions). All HTTP `subscribe()` calls auto-complete — no leak risk. Observable patterns are leak-safe by design. |
 | M6 | ~~**Product Search on Every Keystroke**~~ | `product-list.component.html` | **FIXED** — Removed `(input)="onSearch()"`. API call now fires only via dedicated Search button (`pi pi-search`) or Enter key (`keyup.enter`). No debounce needed — user explicitly triggers search. |
 | M7 | ~~**No `trackBy` on Any `*ngFor`**~~ | ~~All list templates~~ | **FIXED** — Orders list has `trackBy: trackByOrderId` on the main `*ngFor`. Prevents full DOM re-renders when order list is refreshed. Other lists either use `p-table` (handles DOM diffing internally) or have static collections. |
-| M8 | **ChatBotService is a 1053-Line God Class** | `ChatBotService.cs` | Cart logic, checkout, order history, menu routing, address collection all in one class. Should decompose into smaller handlers (CartHandler, CheckoutHandler, MenuHandler, AddressHandler). |
+| M8 | ~~**ChatBotService is a 1053-Line God Class**~~ | ~~`ChatBotService.cs`~~ | **FIXED** — Decomposed into 6 focused handler files: `CartHandler.cs` (176 lines), `CheckoutHandler.cs` (196 lines), `MenuHandler.cs` (80 lines), `OrderHistoryHandler.cs` (47 lines), `ProductHandler.cs` (198 lines), `BotMessageSender.cs` (88 lines). Original `ChatBotService.cs` is now a thin router (~200 lines) that delegates to handlers via constructor injection. |
 | M9 | ~~**Dashboard Makes 7 Separate DB Roundtrips**~~ | ~~`DashboardService.cs`~~ | ✅ **FIXED** — Consolidated 7 sequential queries into 4: (1) `GroupBy(_ => 1).Select()` projection fetches TotalOrders + TotalRevenue + PendingOrders in a single query, (2) TotalCustomers count, (3) TotalProducts count, (4) RecentOrders with `AsNoTracking()`. |
 | M10 | ~~**No Rate Limiting**~~ | ~~All controllers~~ | **FIXED (F104)** — ASP.NET Core rate limiting middleware configured with global 100req/min and stricter per-endpoint limits on auth/payment/webhook. |
 | M11 | ~~**Google Fonts via `@import url()` + PrimeNG Broken Font Files**~~ | ~~`styles.scss`, `angular.json`, `index.html`~~ | **FIXED** — Moved Google Fonts Inter from `@import url()` in SCSS to `<link>` in `index.html` with `preconnect` hints (faster, non-render-blocking). PrimeNG's lara-light-indigo theme ships with corrupted `Inter-roman.var.woff2` / `Inter-italic.var.woff2` that Angular's esbuild bundler can't serve correctly — caused 30+ "Failed to decode downloaded font" + "OTS parsing error" console errors. Fix: copied theme CSS to `public/primeng-theme.css` with broken `@font-face` declarations stripped, loaded as static `<link>` instead of bundled via `styles[]`. Override `--font-family: 'Inter', sans-serif` in `:root` so PrimeNG uses Google Fonts. |
@@ -1265,7 +1265,7 @@ Comprehensive line-by-line audit of the entire codebase. These remain to be fixe
 | 39 | **`inject()` function DI** — All components and services use Angular's `inject()` function instead of constructor injection (migrated via `@angular/core:inject` schematic) |
 | 40 | **ESLint + Prettier** — `@angular-eslint` + `prettier` + `eslint-config-prettier` fully configured. 0 lint errors. `.prettierrc` for consistent formatting. `npm run format` script available. |
 | 41 | **Component decomposition** — `BroadcastFormComponent`, `BroadcastHistoryComponent`, `CustomerBroadcastDialogComponent` extracted from monolithic parent components. Parents are now thin orchestrators. |
-| 42 | **OnPush on all components** — All 15 components use `ChangeDetectionStrategy.OnPush` with proper `ChangeDetectorRef.markForCheck()` calls, immutable array patterns, and coverage of `SignalR`, `setTimeout`, `setInterval`, `FileReader.onload`, and `Promise` callbacks. |
+| 42 | **OnPush on all components** — All 19 components use `ChangeDetectionStrategy.OnPush` with proper `ChangeDetectorRef.markForCheck()` calls, immutable array patterns, and coverage of `SignalR`, `setTimeout`, `setInterval`, `FileReader.onload`, and `Promise` callbacks. |
 | 43 | **Active route highlighting** — Navbar visually indicates active page with gold text/icon color via `routerLinkActiveOptions` + CSS `.p-menuitem-link-active` styling. |
 | 44 | **Pure `TimeAgoPipe` with tick refresh** — Relative timestamps ("5m ago") auto-refresh via a `_tick` counter parameter that increments every 60s (changed from impure `pure: false` to pure pipe in Phase 32 for performance). No stale "just now" labels on old messages. |
 | 45 | **JWT HttpOnly refresh tokens** — Access tokens (15 min) stored in memory only. Refresh tokens (7 days) in `HttpOnly`/`Secure`/`SameSite=None` cookies with automatic rotation. Token refresh interceptor with queue for concurrent 401s. |
@@ -1607,7 +1607,7 @@ To fix: `git config user.email "mohamedzaheer236@gmail.com"`
 | **WhatsApp Business Setup** | ✅ Permanent System User token under "Cuir Galerie" Business Portfolio (ID: YOUR_PORTFOLIO_ID, **Meta Business Verified** May 2024). WABA ID: YOUR_WABA_ID, Phone Number ID: YOUR_PHONE_NUMBER_ID, Phone: +91 84386 29975. Display name "Cuir Galerie" approved by Meta. All 7 templates APPROVED (`shop_deals`, `order_update`, `store_notification`, `hello_world`, `product_gallery` ×3). Phone quality GREEN, TIER_1K, LIVE. End-to-end chatbot flow verified working (March 6, 2026). |
 | **Railway Deployment** | ✅ Full cloud deployment: (1) `Dockerfile` — multi-stage build (SDK 8.0 → ASP.NET 8.0 runtime). (2) `railway.toml` — build config with `watchPatterns`, health check on `/health`, restart-on-failure policy. (3) `ServiceCollectionExtensions.cs` — `AddDatabase()` auto-parses Railway `DATABASE_URL` URI format to Npgsql connection string with `QuerySplittingBehavior.SplitQuery`, `AddCorsPolicies()` reads `FRONTEND_URL` env var. (4) `Program.cs` — reads `PORT` env var, Swagger in Development only, `/health` endpoint for production. `UseEphemeralDataProtectionProvider()` for containerized JWT-only deployment. (5) `appsettings.Production.json` — placeholder values, actual secrets in Railway env vars. (6) `environment.prod.ts` — API URL set to `https://leathershop-production.up.railway.app/api`. (7) PostgreSQL on Railway with persistent volume. Public URL: `leathershop-production.up.railway.app`. |
 | **Vercel Frontend Deployment** | ✅ Angular admin panel deployed to Vercel: Root directory `LeatherShopAdmin`, framework preset Angular, build command `ng build --configuration production`, output `dist/leather-shop-admin/browser`. Auto-deploys from GitHub `main` branch. |
-| **Image Upload** | ✅ Server-side file upload: `POST /api/products/upload-image` accepts multipart file, validates type (JPG/PNG/WebP/GIF) and size (< 5 MB), saves to `wwwroot/uploads/` with GUID filename, returns relative path. `app.UseStaticFiles()` serves uploaded images. Frontend: clickable browse dropzone replaces URL text input, instant local preview via `FileReader`, remove button (×) to clear. `[Url]` DTO validators removed since images are now server-relative paths. |
+| **Image Upload** | ✅ Server-side file upload: `POST /api/products/upload-image` accepts multipart file, validates type (JPG/PNG/WebP/GIF) and size (< 20 MB server-side), saves to `wwwroot/uploads/` with GUID filename, returns relative path. `app.UseStaticFiles()` serves uploaded images. Frontend enforces 5 MB client-side limit with auto-compression to ~300 KB. Frontend: clickable browse dropzone replaces URL text input, instant local preview via `FileReader`, remove button (×) to clear. `[Url]` DTO validators removed since images are now server-relative paths. |
 | **Duplicate Product Name Validation** | ✅ Async validator on product name field: `GET /api/products/check-name?name=X&excludeId=Y` endpoint performs case-insensitive DB lookup (excludes current product on edit). Frontend: 300ms debounced `AsyncValidator` with `timer()` + `switchMap()`, spinner while checking, inline error "A product with this name already exists". Submit button disabled while validation pending. |
 | **Logout + Unsaved Changes Guard Fix** | ✅ Fixed bug where clicking Logout on a dirty form, then clicking "Stay", would still log the user out on next navigation. Root cause: `auth.logout()` cleared localStorage tokens immediately before `canDeactivate` could block navigation. Fix: `AuthService.clearSession()` (tokens only, no navigate) + `navbar.logout()` navigates first via `router.navigate(['/login'])`, clears tokens only in `.then()` callback if navigation succeeded. Login component skips "already logged in" redirect when arriving from logout via `NavigationExtras.state`. |
 | **WhatsApp Product Image** | ✅ Product images now display in WhatsApp chatbot when a customer views product details. **Implementation chain:** (1) `IWhatsAppService.SendImageMessage(to, imageUrl, caption)` — new interface method. (2) `WhatsAppService.SendImageMessage()` — sends WhatsApp Cloud API `image` message type with `link` (public URL) + `caption` (product details text). (3) `ChatBotService.SendProductDetails()` — if `product.ImageUrl` is set, constructs full URL using `App:BaseUrl` config with fallback to `RAILWAY_PUBLIC_DOMAIN` env var (auto-provided by Railway), sends image with details as caption, then sends action buttons as separate message. Falls back to text-only on failure. Caption truncated to 1024 chars (WhatsApp limit). **Key debug history:** Initial deploy failed with "Param image['link'] is not a valid URL" because `App:BaseUrl` was set to placeholder `WILL_BE_SET_BY_RAILWAY_ENV_VAR` instead of actual URL. Fixed by adding `RAILWAY_PUBLIC_DOMAIN` fallback. **Files:** `IWhatsAppService.cs`, `WhatsAppService.cs`, `ChatBotService.cs` (lines ~258-305). |
@@ -1653,13 +1653,13 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 
 | # | Issue | Location | Details | Fix |
 |---|-------|----------|---------|-----|
-| F14 | **N+1 query in conversations list** | `ChatService.cs` `GetConversationsAsync()` | For each customer, fires 3 additional queries (last message, last admin message, unread count) in a `foreach` loop. 100 customers = 300+ SQL queries. | Rewrite using a single query with `GroupBy` or window functions. |
+| F14 | ~~**N+1 query in conversations list**~~ | ~~`ChatService.cs` `GetConversationsAsync()`~~ | ✅ **FIXED (F102)** — Rewrote from N+1 `foreach` loop (3 queries per customer) to a single projected query using `.Select()` subqueries. 100 customers = 1 SQL query instead of 300+. | ~~Rewrite using a single query~~ ✅ Done |
 | F15 | ~~**Product hard-delete crashes on ordered products**~~ | ~~`ProductService.cs`~~ | ✅ **FIXED** — `DeleteAsync` checks for existing `OrderItems` before deletion. Returns 409 Conflict with message "Cannot delete a product that has been ordered. Deactivate it instead." See L17 fix. |
 | F16 | **Stale cart prices at checkout** | `ChatBotService.cs` `PlaceOrder()` | Between adding to cart and checking out (could be hours/days), product prices and active status can change. Order uses current price, not the price at the time of adding. | Verify `product.IsActive` in `PlaceOrder()`. Consider storing price on `CartItem` at add-time. |
 | F17 | ~~**Swagger exposed in production**~~ | ~~`Program.cs`~~ | ✅ **FIXED** — Swagger now wrapped in `if (app.Environment.IsDevelopment())` block. Production deployments no longer expose API documentation. Railway health check should be updated to `/health` endpoint. |
 | F18 | ~~**No server-side pagination for products**~~ | ~~`ProductService.cs`, `product-list.component.ts`~~ | ✅ **FIXED (Phase 24)** — Server-side `Skip/Take` + `CountAsync()` + `p-paginator` added. `GET /api/products?page=1&pageSize=25`. | ~~Add `PaginatedResult<T>`~~ ✅ Done |
 | F19 | ~~**No server-side pagination for customers**~~ | ~~`CustomerService.cs`~~ | ✅ **FIXED (Phase 24)** — Server-side `Skip/Take` + `CountAsync()` + `p-paginator` added. `GET /api/customers?page=1&pageSize=25`. Customer selections tracked via `Map<id, phone>` for cross-page broadcast. | ~~Add server-side pagination~~ ✅ Done |
-| F20 | **`DeleteConversationAsync` loads all messages** | `ChatService.cs` | Uses `ToListAsync()` then `RemoveRange()` — loads all messages into memory. Large conversations waste memory. | Use `ExecuteDeleteAsync()` like the cleanup service does. |
+| F20 | ~~**`DeleteConversationAsync` loads all messages**~~ | ~~`ChatService.cs`~~ | ✅ **FIXED (F103)** — Changed from `ToListAsync()` + `RemoveRange()` to `ExecuteDeleteAsync()` — server-side bulk delete, zero entity loading. | ~~Use `ExecuteDeleteAsync()`~~ ✅ Done |
 | F21 | ~~**`.ToLower()` kills DB indexes**~~ | ~~`CustomerService.cs`, `ProductService.cs`, `ChatService.cs`~~ | ✅ **FIXED (F101/F127)** — See M3. | ~~Duplicate of M3~~ ✅ Done |
 | F22 | ~~**`PaginatedResult.TotalPages` divide-by-zero**~~ | ~~`PaginatedResult.cs`~~ | ✅ **FIXED (F95)** — See P5. | ~~Duplicate of P5~~ ✅ Done |
 | F23 | ~~**Admin seed password hardcoded**~~ | ~~`Program.cs`~~ | ✅ **FIXED** — `Program.cs` now reads `Admin:SeedPassword` from configuration (appsettings.Local.json / env var / user-secrets). Throws clear `InvalidOperationException` if not configured and no admin exists in DB. No hardcoded password in source. Change-password endpoint still pending. | ~~Accept from env var~~ ✅ Done (change-password endpoint still TODO) |
@@ -1686,7 +1686,7 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 | F39 | **WhatsApp list row title truncation** | `ChatBotService.cs` | Truncates at 24 chars with no ellipsis. Product names get cut mid-word. | Truncate at 21 chars + add `"..."`. |
 | F40 | **`PhoneNumberHelper.Normalize` doesn't validate** | `PhoneNumberHelper.cs` | Strips formatting but doesn't verify the result is numeric. Letters can slip through. | After stripping, validate with `long.TryParse` or regex `^\d{7,15}$`. |
 | F41 | **Add Customer requires address, but bulk import doesn't** | `customers.component.ts` | Add dialog has `Validators.required` for address (min 10 chars), but bulk import creates customers with no address. Inconsistent. | Either make address optional in add dialog, or add address support to bulk import. |
-| F42 | ~~**No `OnPush` change detection**~~ | ~~All Angular components~~ | **FIXED** — All 15 components now use `ChangeDetectionStrategy.OnPush` with proper `ChangeDetectorRef.markForCheck()` calls after every async state mutation (`.subscribe()`, `setTimeout`, `setInterval`, `FileReader.onload`, `SignalR` subscriptions, `Promise` chains). Array mutations converted to immutable patterns (`[...arr, item]` instead of `.push()`). | N/A — Fully resolved. |
+| F42 | ~~**No `OnPush` change detection**~~ | ~~All Angular components~~ | **FIXED** — All 19 components now use `ChangeDetectionStrategy.OnPush` with proper `ChangeDetectorRef.markForCheck()` calls after every async state mutation (`.subscribe()`, `setTimeout`, `setInterval`, `FileReader.onload`, `SignalR` subscriptions, `Promise` chains). Array mutations converted to immutable patterns (`[...arr, item]` instead of `.push()`). | N/A — Fully resolved. |
 | F43 | **Broadcast layout breaks on mobile** | `broadcast.component.scss` | Fixed 2-column grid (`1fr 300px`) with no responsive breakpoint. Sidebar squishes on small screens. | Add `@media (max-width: 768px) { grid-template-columns: 1fr; }`. |
 | F44 | **Logging — console only** | `Program.cs` | No structured logging. Need Serilog or similar for log files, search, and alerting. | Add Serilog with file/JSON/cloud sinks. |
 
@@ -1708,7 +1708,7 @@ Full deep analysis of the entire codebase. These are **real issues** found by re
 | F52 | **Medium** | ~~**Webhook `entry.Changes` not null-checked**~~ | ~~`WhatsAppWebhookController.cs`~~ | ✅ **FIXED** — Added `if (entry.Changes == null) continue;` before the inner `foreach` loop. Prevents `NullReferenceException` when WhatsApp sends an entry with null Changes array. Remaining entries in the batch continue processing normally. | ~~Add null-check~~ ✅ Done |
 | F53 | **Medium** | ~~**Customer deletion cascade-deletes all order history**~~ | ~~`AppDbContext` FK config~~ | ✅ **FIXED** — Changed Customer→Orders FK from `DeleteBehavior.Cascade` to `DeleteBehavior.Restrict` in both `CustomerConfiguration.cs` and `OrderConfiguration.cs`. `CustomerService.DeleteAsync()` returns a `DeleteCustomerResponse` with `DeleteCustomerResult` enum (`Deleted` / `NotFound` / `HasOrders`) — no exceptions for flow control. Controller uses pattern matching (`switch` expression) for 200/404/409 responses. Frontend delete dialog properly closes on error. Cart items and chat messages still cascade-delete (transient data). Migration `RestrictCustomerOrderDeletion` created. | ~~Restrict deletion~~ ✅ Done |
 | F54 | **Low** | **Category-to-ID round-trip collision in chatbot** | `ChatBotService.cs` | Category names converted to button IDs via `cat_leather_wallets`. Categories with underscores vs spaces collide (e.g., "Leather Wallets" and "Leather_Wallets" generate the same ID). | Use a hash or index-based ID instead of name-based. |
-| F55 | **Low** | **Broadcast history hardcoded `Take(20)`** | `BroadcastService.cs` | `GetBroadcastHistoryAsync()` always returns last 20 broadcasts with no pagination. Older broadcasts are inaccessible. | Add pagination parameters. |
+| F55 | ~~**Low**~~ | ~~**Broadcast history hardcoded `Take(20)`**~~ | ~~`BroadcastService.cs`~~ | ✅ **FIXED (Phase 24)** — Removed `.Take(20)` hardcap. Added proper server-side pagination with `CountAsync()` + `Skip/Take`. `GET /api/broadcast/history?page=1&pageSize=10`. | ~~Add pagination parameters~~ ✅ Done |
 | F56 | **Low** | **Abandoned cart items never expire** | `CartItem` model | Cart items have `AddedAt` but no expiry logic. Carts accumulate indefinitely, holding "reserved" items that skew stock perception. | Add a cleanup job similar to `ChatCleanupBackgroundService`, or expire items after 24-48h. |
 | F57 | **Low** | **`UploadImageAsync` validates extension only** | `ProductService.cs` | Checks file extension (`.jpg`, `.png`, etc.) but not actual file content. A PHP script renamed to `.jpg` passes validation. | Validate magic bytes (file signature) in addition to extension. |
 
@@ -1826,7 +1826,7 @@ Resolved all Railway startup warnings and remaining NuGet vulnerability. **Build
 **Deferred Items (not bugs, require major refactoring):**
 | Item | Reason Deferred |
 |------|----------------|
-| ChatBotService God Class (1053 lines) | Needs comprehensive test coverage before safe decomposition. Architectural refactoring, not a bug. |
+| ~~ChatBotService God Class (1053 lines)~~ | ✅ **RESOLVED** — Decomposed into 6 handler files (CartHandler, CheckoutHandler, MenuHandler, OrderHistoryHandler, ProductHandler, BotMessageSender). No longer a god class. |
 | Stale Cart Prices at Checkout | Current behavior (always use current prices) is standard e-commerce. "Fix" requires DB migration and might lose existing carts. |
 | PrimeNG Internal API Access | Already guarded with null checks. `filterViewChild`, `filterValue` are borderline public API in PrimeNG v17. |
 
@@ -1898,7 +1898,6 @@ Deep read of every `.cs`, `.ts`, `.html`, and `.scss` file searching for swallow
 | F54 | LOW | Category-to-ID collision in chatbot (underscores vs spaces) | No current categories have this collision. |
 | F56 | LOW | Abandoned cart items never expire | Future cleanup job. Low volume. |
 | F61 | MEDIUM | "Select All" selects across all paginator pages | UX confusion only — broadcast sends to selected, which is the intent. Added "(across all pages)" label + "Clear Selection" button (F113). |
-| M8 | MEDIUM | ChatBotService is 1055-line god class | Architectural — decomposition would touch 15+ files. Functional as-is. |
 
 ### Phase 19 — Deep Code Quality Audit (March 2026)
 
@@ -2284,7 +2283,7 @@ Deep audit of every backend and frontend file. Fixed all actionable issues found
 | 9 | **Added `baseUrl` to environment config** — All 4 occurrences of `environment.apiUrl.replace('/api', '')` replaced with `environment.baseUrl`. Both `environment.ts` and `environment.prod.ts` now have a dedicated `baseUrl` field. Eliminates assumption that `apiUrl` always contains `/api`. | `environment.ts`, `environment.prod.ts`, `broadcast.component.ts`, `customers.component.ts`, `product-form.component.ts` |
 
 **Known issues (architectural — not bugs, require major refactoring):**
-- `ChatBotService` is a 1150-line god class (cart, checkout, menu, address in one file)
+- ~~`ChatBotService` is a 1150-line god class~~ → **Later resolved:** Decomposed into 6 handler files in Phase 27+
 - `AuthController` and `WhatsAppWebhookController` bypass service layer with direct `AppDbContext` injection
 - Payment page is 140+ lines of inline HTML/CSS/JS in a C# controller
 - WhatsApp helper models (`ListSection`, `ListRow`, `ButtonOption`, etc.) defined inside `WhatsAppService.cs` instead of dedicated model files
@@ -2326,7 +2325,7 @@ Comprehensive refactoring across backend and frontend: JWT security hardened, An
 | 13 | **Format script** — Added `"format": "prettier --write \"src/**/*.{ts,html,scss,json}\""` to `package.json` scripts. | `package.json` |
 
 **Remaining known issues (not addressed):**
-- `ChatBotService` is a 1150-line god class — would need decomposition into CartHandler, CheckoutHandler, MenuHandler, AddressHandler
+- ~~`ChatBotService` is a 1150-line god class~~ → **Later resolved:** Decomposed into CartHandler, CheckoutHandler, MenuHandler, OrderHistoryHandler, ProductHandler, BotMessageSender
 - Payment page is 140+ lines of inline HTML/CSS/JS in a C# controller
 - WhatsApp helper models defined inside `WhatsAppService.cs` instead of dedicated model files
 - No unit tests (`skipTests: true` — tooling ready but no test files written)
@@ -2370,7 +2369,7 @@ Comprehensive deep audit of all backend (9 controllers, 16 services, 5 ChatBot h
 
 ### Phase 28 — Full OnPush Change Detection Migration (March 4, 2026)
 
-Migrated all 15 Angular components to `ChangeDetectionStrategy.OnPush` — completing what was previously a partial fix (3 leaf components only). Every async state mutation now calls `ChangeDetectorRef.markForCheck()`.
+Migrated all 15 Angular components (later grew to 19) to `ChangeDetectionStrategy.OnPush` — completing what was previously a partial fix (3 leaf components only). Every async state mutation now calls `ChangeDetectorRef.markForCheck()`.
 
 **Approach:**
 - Injected `ChangeDetectorRef` via `inject()` in all 12 remaining components
@@ -2491,7 +2490,7 @@ Fixed all 9 remaining audit items from Phase 32's deep audit. Major SCSS dedupli
 
 ### Phase 34 — OnPush & Notification Audit (March 4, 2026)
 
-Deep audit of all 15 Angular components for OnPush change detection bugs and duplicate notification patterns.
+Deep audit of all Angular components (15 at the time, later grew to 19) for OnPush change detection bugs and duplicate notification patterns.
 
 | # | Change | Description | File(s) |
 |---|--------|-------------|----------|
@@ -2499,13 +2498,13 @@ Deep audit of all 15 Angular components for OnPush change detection bugs and dup
 | 2 | **Duplicate error toasts removed** | Removed 3 component/service-level `notification.error()` calls that duplicated the global error interceptor's toast: (1) `orders.component.ts` — downloadInvoice error, (2) `broadcast-form-helper.service.ts` — header image upload error, (3) `broadcast-form-helper.service.ts` — carousel card image upload error. | `orders.component.ts`, `broadcast-form-helper.service.ts` |
 | 3 | **Duplicate success toast removed** | `customers.component.ts` → `onBroadcastSent()` showed "Broadcast sent to selected customers!" while the dialog already showed "Carousel/Broadcast sending to N customers...". Removed the parent's redundant toast. | `customers.component.ts` |
 | 4 | **Singular/plural grammar fix** | Dialog notification now says "1 customer" instead of "1 customers" — proper singular/plural handling. | `customer-broadcast-dialog.component.ts` |
-| 5 | **Full OnPush audit — all pass** | Audited all 15 component/service files for missing `markForCheck()` after async callbacks (`.subscribe()`, `setTimeout`, `setInterval`, `FileReader.onload`, `SignalR .on()`, `Promise.then`). All confirmed correct after fixes #1-4. | All 15 components |
+| 5 | **Full OnPush audit — all pass** | Audited all 19 component/service files for missing `markForCheck()` after async callbacks (`.subscribe()`, `setTimeout`, `setInterval`, `FileReader.onload`, `SignalR .on()`, `Promise.then`). All confirmed correct after fixes #1-4. | All 19 components |
 
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
 
 ### Phase 35 — Final Deep Audit & Hardening (March 4, 2026)
 
-Comprehensive deep audit of the entire codebase (24 backend services, 9 controllers, middleware, extensions, helpers, data configurations, all 15 Angular components, services, interceptors, guards, SCSS). Fixed all HIGH and key MEDIUM severity issues found.
+Comprehensive deep audit of the entire codebase (24 backend services, 9 controllers, middleware, extensions, helpers, data configurations, all 19 Angular components, services, interceptors, guards, SCSS). Fixed all HIGH and key MEDIUM severity issues found.
 
 **Backend Fixes:**
 
@@ -2533,7 +2532,7 @@ Comprehensive deep audit of the entire codebase (24 backend services, 9 controll
 | Async Anti-patterns | CLEAN — Zero `.Result`/`.Wait()` blocking calls. No sync-over-async. |
 | Fire-and-forget | CLEAN — All background work uses `BackgroundService` or `Task.WhenAll`. |
 | DI Patterns | CLEAN — No service locator, no captive dependency. Correct lifetime scoping throughout. |
-| OnPush + markForCheck | CLEAN — All 15 components properly call `markForCheck()` after every async state change. |
+| OnPush + markForCheck | CLEAN — All 19 components properly call `markForCheck()` after every async state change. |
 | Memory Leaks | CLEAN — All subscriptions, timers, object URLs properly cleaned up. `ngOnDestroy` on all stateful components. |
 | Security (XSS) | CLEAN — `innerHTML` usage protected by `FormatMessagePipe` which escapes `<`, `>`, `&`. |
 | Form Validation | CLEAN — All validators applied, `markAllAsTouched()` on submit, async name validator debounced. |
