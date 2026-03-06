@@ -1,6 +1,5 @@
 [build]
 dockerfilePath = "LeatherShopAPI/Dockerfile"
-watchPatterns = ["LeatherShopAPI/**"]
 
 [deploy]
 healthcheckPath = "/health"
