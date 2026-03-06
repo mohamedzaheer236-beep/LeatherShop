@@ -250,7 +250,7 @@ public class ChatBotService : IChatBotService
         }
 
         // Default: show main menu
-        await _bot.SendText(phone, "🙏 Welcome to our Leather Shop! Type *menu* to see options.", ct);
+        await _bot.SendText(phone, "🙏 Welcome to Cuir Galerie! Type *menu* to see options.", ct);
         await _menuHandler.SendMainMenu(phone, customer.Name, ct);
     }
 }

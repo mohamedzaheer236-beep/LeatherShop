@@ -91,7 +91,7 @@ public class CustomerService : ICustomerService
         // Send welcome message via WhatsApp
         try
         {
-            var welcomeMsg = $"👋 Welcome to *Leather Shop*{(string.IsNullOrEmpty(customer.Name) ? "" : $", {customer.Name}")}!\n\n" +
+            var welcomeMsg = $"👋 Welcome to *Cuir Galerie*{(string.IsNullOrEmpty(customer.Name) ? "" : $", {customer.Name}")}!\n\n" +
                 "We're glad to have you. You can browse our products and place orders right here on WhatsApp.\n\n" +
                 "Type *Hi* to get started!";
             await _whatsApp.SendTextMessage(phone, welcomeMsg);

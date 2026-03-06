@@ -8,12 +8,12 @@ Complete record of the WhatsApp Business setup for the Leather Shop API, includi
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| **Business Portfolio** | ✅ Created | "Leather Shop" (ID: 1270862431810807) |
+| **Business Portfolio** | ✅ Created | "Leathershop" (ID: YOUR_PORTFOLIO_ID) |
 | **Meta App** | ✅ Created | "Leather Shop" (ID: YOUR_META_APP_ID) |
 | **System User** | ✅ Created | "Leathershop" (Admin, ID: YOUR_SYSTEM_USER_ID) under Leather Shop portfolio |
 | **Permanent Token** | ✅ Generated | Never-expiring token with `whatsapp_business_messaging` + `whatsapp_business_management` permissions |
-| **WABA** | ✅ Created | WhatsApp Business Account ID: 2151682048973965 |
-| **Phone Number** | ✅ Added & Registered | +91 79043 03876 (Phone Number ID: 1055485577637232) |
+| **WABA** | ✅ Created | WhatsApp Business Account ID: YOUR_WABA_ID |
+| **Phone Number** | ✅ Added & Registered | +91 84386 29975 (Phone Number ID: YOUR_PHONE_NUMBER_ID) |
 | **Phone Registration** | ✅ Registered | Via Cloud API `/register` endpoint with PIN 123456 |
 | **Business Verification** | ❌ Not Done | "Leather Shop" portfolio not yet verified by Meta |
 | **Payment Method** | ❌ Not Added | Required for sending messages beyond free tier |
@@ -26,18 +26,19 @@ Complete record of the WhatsApp Business setup for the Leather Shop API, includi
 
 ```json
 "WhatsApp": {
-    "PhoneNumberId": "1055485577637232",
-    "BusinessAccountId": "2151682048973965",
-    "AccessToken": "EAARZC7ZC7MkN0BQ3jXm9DO4pIFH2evMZAwWZBRzpmsSvB1DeS3nhiOHXhit45UpvIF6ZCZANvdGLdDkFn4lGbuoMUsZAHOBl2MZA9cV5e4ZBLbF6rlBoBLoKcR2ggxVKMZCHNNinlQ7jMZBqqsiRHWp4P4TZC6TfLiqTfEg8CKYEdccHXZB5YyVrTVZBhe1TDeiV0FcVOpRAZDZD",
+    "PhoneNumberId": "YOUR_PHONE_NUMBER_ID",
+    "BusinessAccountId": "YOUR_WABA_ID",
+    "AccessToken": "<SECRET — stored in appsettings.Local.json / Railway env vars>",
     "VerifyToken": "REDACTED_VERIFY_TOKEN",
+    "AppSecret": "<SECRET — stored in appsettings.Local.json / Railway env vars>",
     "ApiVersion": "v22.0"
 }
 ```
 
 | Field | Value | Source |
 |-------|-------|--------|
-| `PhoneNumberId` | 1055485577637232 | Meta Developer Console → WhatsApp → API Setup |
-| `BusinessAccountId` | 2151682048973965 | WABA ID from Meta Business Suite |
+| `PhoneNumberId` | YOUR_PHONE_NUMBER_ID | Meta Developer Console → WhatsApp → API Setup |
+| `BusinessAccountId` | YOUR_WABA_ID | WABA ID from Meta Business Suite |
 | `AccessToken` | Permanent System User token | Generated from "Leathershop" system user |
 | `VerifyToken` | `REDACTED_VERIFY_TOKEN` | Custom string — must match webhook configuration |
 | `ApiVersion` | `v22.0` | WhatsApp Cloud API version |
@@ -58,7 +59,7 @@ Complete record of the WhatsApp Business setup for the Leather Shop API, includi
 ### Template Notes
 
 - **All custom templates are PENDING Meta approval** — cannot send broadcasts until approved
-- `hello_world` returns error `"Hello World templates can only be sent from the Public Test Numbers"` when used with real phone +91 79043 03876
+- `hello_world` returns error `"Hello World templates can only be sent from the Public Test Numbers"` when used with real phone +91 84386 29975
 - `shop_deals` replaces a deleted `shop_offer` template that had duplicated body text
 - `store_notification` (UTILITY) was created as a fallback — UTILITY templates typically get approved faster than MARKETING
 - Once approved, the broadcast page's Quick Message and Template message features will work
@@ -97,7 +98,7 @@ Admin Panel ──→ BroadcastController ──→ BroadcastService (enqueue) �
 - Token stored in `appsettings.json` → `WhatsApp:AccessToken`
 
 ### 2. Phone Number Registration
-- Added phone +91 79043 03876 to WABA 2151682048973965
+- Added phone +91 84386 29975 to WABA YOUR_WABA_ID
 - Registered the phone number via WhatsApp Cloud API `/register` endpoint with PIN 123456
 - Phone status: **Connected**
 
@@ -151,7 +152,7 @@ Admin Panel ──→ BroadcastController ──→ BroadcastService (enqueue) �
    - Verify token: `REDACTED_VERIFY_TOKEN`
 6. Click **Verify and Save**
 7. Under Webhook fields → subscribe to **messages**
-8. Test by sending "Hi" to +91 79043 03876 from any WhatsApp
+8. Test by sending "Hi" to +91 84386 29975 from any WhatsApp
 
 ### For Production
 
@@ -181,7 +182,7 @@ Admin Panel ──→ BroadcastController ──→ BroadcastService (enqueue) �
 | Portfolio | ID | Verified | Notes |
 |-----------|-----|----------|-------|
 | Bovino | (original) | ✅ Verified (May 2024) | Original portfolio — 7-day system user age restriction |
-| Leather Shop | 1270862431810807 | ❌ Not verified | New portfolio with WABA + WhatsApp setup. Needs verification |
+| Leathershop | YOUR_PORTFOLIO_ID | ❌ Not verified | New portfolio with WABA + WhatsApp setup. Needs verification |
 
 ---
 

@@ -52,7 +52,7 @@ public class InvoicePdfService : IInvoicePdfService
             {
                 row.RelativeItem().Column(left =>
                 {
-                    left.Item().Text("Leather Shop").FontSize(22).Bold().FontColor("#1e293b");
+                    left.Item().Text("Cuir Galerie").FontSize(22).Bold().FontColor("#1e293b");
                     left.Item().Text("Premium Handcrafted Leather Products").FontSize(9).FontColor("#64748b");
                 });
 
@@ -160,7 +160,7 @@ public class InvoicePdfService : IInvoicePdfService
         container.AlignCenter().Text(text =>
         {
             text.Span("Thank you for your purchase! ").FontSize(9).FontColor("#64748b");
-            text.Span("• Leather Shop").FontSize(9).FontColor("#94a3b8");
+            text.Span("• Cuir Galerie").FontSize(9).FontColor("#94a3b8");
         });
     }
 

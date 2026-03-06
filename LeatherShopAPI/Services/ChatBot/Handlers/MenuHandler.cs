@@ -24,7 +24,7 @@ public class MenuHandler
 
         await _bot.SendList(
             to,
-            headerText: "🛍️ Leather Shop",
+            headerText: "🛍️ Cuir Galerie",
             bodyText: $"{greeting}\n\nWe offer premium handcrafted leather products.\n\nWhat would you like to do?",
             buttonText: "📋 View Menu",
             sections: new List<ListSection>
