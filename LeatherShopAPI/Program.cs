@@ -16,7 +16,7 @@ QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load optional local secrets file (gitignored â€” never committed to source control)
+// Load optional local secrets file (gitignored - never committed to source control)
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 // --- DataProtection: use ephemeral keys in containers (we use JWT, not cookies) ---
@@ -150,7 +150,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Swagger â€” only exposed in Development for security
+// Swagger - only exposed in Development for security
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
