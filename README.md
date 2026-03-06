@@ -1,4 +1,4 @@
-# Leather Shop — WhatsApp Business Ordering System
+# Cuir Galerie — WhatsApp Business Ordering System
 
 A complete WhatsApp Business ordering system for a leather goods seller. Customers browse products, add to cart, and pay — all inside WhatsApp. The shop owner manages everything from an Angular admin panel.
 

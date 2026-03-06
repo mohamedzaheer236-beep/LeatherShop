@@ -1,6 +1,6 @@
-# WhatsApp Business Setup — Leather Shop
+# WhatsApp Business Setup — Cuir Galerie
 
-Complete record of the WhatsApp Business setup for the Leather Shop API, including what was done, current status, and what's pending.
+Complete record of the WhatsApp Business setup for the Cuir Galerie API, including what was done, current status, and what's pending.
 
 ---
 
@@ -9,13 +9,13 @@ Complete record of the WhatsApp Business setup for the Leather Shop API, includi
 | Component | Status | Details |
 |-----------|--------|---------|
 | **Business Portfolio** | ✅ Created | "Leathershop" (ID: YOUR_PORTFOLIO_ID) |
-| **Meta App** | ✅ Created | "Leather Shop" (ID: YOUR_META_APP_ID) |
-| **System User** | ✅ Created | "Leathershop" (Admin, ID: YOUR_SYSTEM_USER_ID) under Leather Shop portfolio |
+| **Meta App** | ✅ Created | "Cuir Galerie" (ID: YOUR_META_APP_ID) |
+| **System User** | ✅ Created | "Leathershop" (Admin, ID: YOUR_SYSTEM_USER_ID) under Cuir Galerie portfolio |
 | **Permanent Token** | ✅ Generated | Never-expiring token with `whatsapp_business_messaging` + `whatsapp_business_management` permissions |
 | **WABA** | ✅ Created | WhatsApp Business Account ID: YOUR_WABA_ID |
 | **Phone Number** | ✅ Added & Registered | +91 84386 29975 (Phone Number ID: YOUR_PHONE_NUMBER_ID) |
 | **Phone Registration** | ✅ Registered | Via Cloud API `/register` endpoint with PIN 123456 |
-| **Business Verification** | ❌ Not Done | "Leather Shop" portfolio not yet verified by Meta |
+| **Business Verification** | ❌ Not Done | "Cuir Galerie" portfolio not yet verified by Meta |
 | **Payment Method** | ❌ Not Added | Required for sending messages beyond free tier |
 | **Webhook** | ❌ Not Configured | Needs to be set up once API is deployed or using ngrok |
 | **Template Approval** | ⏳ Pending | All 3 custom templates awaiting Meta review |
@@ -51,7 +51,7 @@ Complete record of the WhatsApp Business setup for the Leather Shop API, includi
 
 | Template Name | Category | Template ID | Status | Body |
 |---------------|----------|-------------|--------|------|
-| `shop_deals` | MARKETING | 2107912596695779 | ⏳ PENDING | `🛍️ New deals at Leather Shop! {{1}} Check out our latest collection. Shop now!` |
+| `shop_deals` | MARKETING | 2107912596695779 | ⏳ PENDING | `🛍️ New deals at Cuir Galerie! {{1}} Check out our latest collection. Shop now!` |
 | `order_update` | UTILITY | 1636258954059739 | ⏳ PENDING | `📦 Order Update: Your order {{1}} status is now: {{2}}. Thank you for shopping with us!` |
 | `store_notification` | UTILITY | 2317291185767700 | ⏳ PENDING | `📢 {{1}}` |
 | `hello_world` | UTILITY | 1132494892234892 | ✅ APPROVED | Default Meta template (⚠️ only works with test phone numbers, NOT real numbers) |
@@ -91,7 +91,7 @@ Admin Panel ──→ BroadcastController ──→ BroadcastService (enqueue) �
 ## What's Done
 
 ### 1. System User & Permanent Token
-- Created Admin System User "Leathershop" under "Leather Shop" Business Portfolio
+- Created Admin System User "Leathershop" under "Cuir Galerie" Business Portfolio
 - Generated permanent (non-expiring) access token with permissions:
   - `whatsapp_business_messaging` — send/receive messages
   - `whatsapp_business_management` — manage templates, phone numbers
@@ -123,7 +123,7 @@ Admin Panel ──→ BroadcastController ──→ BroadcastService (enqueue) �
 |---|------|---------|
 | 1 | **Wait for template approval** | All 3 custom templates need Meta approval before broadcasts work. Check status at: Meta Business Suite → WhatsApp Manager → Message Templates |
 | 2 | **Add payment method** | Go to Meta Business Suite → Payment Settings → add credit card. Required to send messages beyond the free conversation tier (1,000 free service conversations/month) |
-| 3 | **Verify "Leather Shop" business** | Business verification required for: higher messaging limits, payment configuration access, green/blue tick. Go to: Meta Business Suite → Settings → Business Info → Start Verification |
+| 3 | **Verify "Cuir Galerie" business** | Business verification required for: higher messaging limits, payment configuration access, green/blue tick. Go to: Meta Business Suite → Settings → Business Info → Start Verification |
 | 4 | **Configure webhook** | Meta Developer Console → WhatsApp → Configuration → set Callback URL to your API endpoint + Verify Token. Subscribe to `messages` field |
 | 5 | **Webhook signature validation** | Validate `X-Hub-Signature-256` header on incoming webhook POSTs to prevent spoofed payloads |
 | 6 | **Move secrets to environment variables** | WhatsApp token, DB password, JWT key should NOT be in `appsettings.json`. Use User Secrets (dev) or env vars (prod) |
@@ -172,7 +172,7 @@ Admin Panel ──→ BroadcastController ──→ BroadcastService (enqueue) �
 | 401 from Meta API | Token invalid or expired | Regenerate from System User settings (should be permanent) |
 | Webhook verification fails | Verify token mismatch | Check `WhatsApp:VerifyToken` in appsettings.json matches Meta Configuration |
 | Messages not received | Webhook not configured or `messages` field not subscribed | Check Meta Developer Console → Configuration |
-| Can't access payment configs | Business not verified | Complete business verification for "Leather Shop" portfolio |
+| Can't access payment configs | Business not verified | Complete business verification for "Cuir Galerie" portfolio |
 | Low messaging limits | Need to verify business or add payment method | Complete verification + add payment method for higher tiers |
 
 ---
