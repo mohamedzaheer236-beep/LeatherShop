@@ -8,13 +8,13 @@ Complete record of the WhatsApp Business setup for the Cuir Galerie API, includi
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| **Business Portfolio** | ✅ Created | "Leathershop" (ID: YOUR_PORTFOLIO_ID) |
-| **Meta App** | ✅ Created | "Cuir Galerie" (ID: YOUR_META_APP_ID) |
-| **System User** | ✅ Created | "Leathershop" (Admin, ID: YOUR_SYSTEM_USER_ID) under Cuir Galerie portfolio |
+| **Business Portfolio** | ✅ Created | "Leathershop" (ID: `YOUR_PORTFOLIO_ID`) |
+| **Meta App** | ✅ Created | "Cuir Galerie" (ID: `YOUR_APP_ID`) |
+| **System User** | ✅ Created | "Leathershop" (Admin, ID: `YOUR_SYSTEM_USER_ID`) under Cuir Galerie portfolio |
 | **Permanent Token** | ✅ Generated | Never-expiring token with `whatsapp_business_messaging` + `whatsapp_business_management` permissions |
-| **WABA** | ✅ Created | WhatsApp Business Account ID: YOUR_WABA_ID |
-| **Phone Number** | ✅ Added & Registered | +91 84386 29975 (Phone Number ID: YOUR_PHONE_NUMBER_ID) |
-| **Phone Registration** | ✅ Registered | Via Cloud API `/register` endpoint with PIN 123456 |
+| **WABA** | ✅ Created | WhatsApp Business Account ID: `YOUR_WABA_ID` |
+| **Phone Number** | ✅ Added & Registered | +XX XXXXX XXXXX (Phone Number ID: `YOUR_PHONE_NUMBER_ID`) |
+| **Phone Registration** | ✅ Registered | Via Cloud API `/register` endpoint | |
 | **Business Verification** | ❌ Not Done | "Cuir Galerie" portfolio not yet verified by Meta |
 | **Payment Method** | ❌ Not Added | Required for sending messages beyond free tier |
 | **Webhook** | ❌ Not Configured | Needs to be set up once API is deployed or using ngrok |
@@ -29,7 +29,7 @@ Complete record of the WhatsApp Business setup for the Cuir Galerie API, includi
     "PhoneNumberId": "YOUR_PHONE_NUMBER_ID",
     "BusinessAccountId": "YOUR_WABA_ID",
     "AccessToken": "<SECRET — stored in appsettings.Local.json / Railway env vars>",
-    "VerifyToken": "REDACTED_VERIFY_TOKEN",
+    "VerifyToken": "<YOUR_VERIFY_TOKEN>",
     "AppSecret": "<SECRET — stored in appsettings.Local.json / Railway env vars>",
     "ApiVersion": "v22.0"
 }
@@ -40,7 +40,7 @@ Complete record of the WhatsApp Business setup for the Cuir Galerie API, includi
 | `PhoneNumberId` | YOUR_PHONE_NUMBER_ID | Meta Developer Console → WhatsApp → API Setup |
 | `BusinessAccountId` | YOUR_WABA_ID | WABA ID from Meta Business Suite |
 | `AccessToken` | Permanent System User token | Generated from "Leathershop" system user |
-| `VerifyToken` | `REDACTED_VERIFY_TOKEN` | Custom string — must match webhook configuration |
+| `VerifyToken` | `<YOUR_VERIFY_TOKEN>` | Custom string — must match webhook configuration |
 | `ApiVersion` | `v22.0` | WhatsApp Cloud API version |
 
 ---
@@ -51,15 +51,15 @@ Complete record of the WhatsApp Business setup for the Cuir Galerie API, includi
 
 | Template Name | Category | Template ID | Status | Body |
 |---------------|----------|-------------|--------|------|
-| `shop_deals` | MARKETING | 2107912596695779 | ⏳ PENDING | `🛍️ New deals at Cuir Galerie! {{1}} Check out our latest collection. Shop now!` |
-| `order_update` | UTILITY | 1636258954059739 | ⏳ PENDING | `📦 Order Update: Your order {{1}} status is now: {{2}}. Thank you for shopping with us!` |
-| `store_notification` | UTILITY | 2317291185767700 | ⏳ PENDING | `📢 {{1}}` |
-| `hello_world` | UTILITY | 1132494892234892 | ✅ APPROVED | Default Meta template (⚠️ only works with test phone numbers, NOT real numbers) |
+| `shop_deals` | MARKETING | `TEMPLATE_ID` | ⏳ PENDING | `🛍️ New deals at Cuir Galerie! {{1}} Check out our latest collection. Shop now!` |
+| `order_update` | UTILITY | `TEMPLATE_ID` | ⏳ PENDING | `📦 Order Update: Your order {{1}} status is now: {{2}}. Thank you for shopping with us!` |
+| `store_notification` | UTILITY | `TEMPLATE_ID` | ⏳ PENDING | `📢 {{1}}` |
+| `hello_world` | UTILITY | `TEMPLATE_ID` | ✅ APPROVED | Default Meta template (⚠️ only works with test phone numbers, NOT real numbers) |
 
 ### Template Notes
 
 - **All custom templates are PENDING Meta approval** — cannot send broadcasts until approved
-- `hello_world` returns error `"Hello World templates can only be sent from the Public Test Numbers"` when used with real phone +91 84386 29975
+- `hello_world` returns error `"Hello World templates can only be sent from the Public Test Numbers"` when used with real phone numbers
 - `shop_deals` replaces a deleted `shop_offer` template that had duplicated body text
 - `store_notification` (UTILITY) was created as a fallback — UTILITY templates typically get approved faster than MARKETING
 - Once approved, the broadcast page's Quick Message and Template message features will work
@@ -98,8 +98,8 @@ Admin Panel ──→ BroadcastController ──→ BroadcastService (enqueue) �
 - Token stored in `appsettings.json` → `WhatsApp:AccessToken`
 
 ### 2. Phone Number Registration
-- Added phone +91 84386 29975 to WABA YOUR_WABA_ID
-- Registered the phone number via WhatsApp Cloud API `/register` endpoint with PIN 123456
+- Added phone number to WABA
+- Registered the phone number via WhatsApp Cloud API `/register` endpoint
 - Phone status: **Connected**
 
 ### 3. Message Templates
@@ -149,10 +149,10 @@ Admin Panel ──→ BroadcastController ──→ BroadcastService (enqueue) �
 4. Go to [developers.facebook.com](https://developers.facebook.com/) → your app → WhatsApp → Configuration
 5. Click **Edit** under Webhook:
    - Callback URL: `https://abc123.ngrok-free.app/api/whatsapp/webhook`
-   - Verify token: `REDACTED_VERIFY_TOKEN`
+   - Verify token: `<YOUR_VERIFY_TOKEN>`
 6. Click **Verify and Save**
 7. Under Webhook fields → subscribe to **messages**
-8. Test by sending "Hi" to +91 84386 29975 from any WhatsApp
+8. Test by sending "Hi" to your WhatsApp Business number from any WhatsApp
 
 ### For Production
 
@@ -182,7 +182,7 @@ Admin Panel ──→ BroadcastController ──→ BroadcastService (enqueue) �
 | Portfolio | ID | Verified | Notes |
 |-----------|-----|----------|-------|
 | Bovino | (original) | ✅ Verified (May 2024) | Original portfolio — 7-day system user age restriction |
-| Leathershop | YOUR_PORTFOLIO_ID | ❌ Not verified | New portfolio with WABA + WhatsApp setup. Needs verification |
+| Leathershop | `YOUR_PORTFOLIO_ID` | ❌ Not verified | New portfolio with WABA + WhatsApp setup. Needs verification |
 
 ---
 

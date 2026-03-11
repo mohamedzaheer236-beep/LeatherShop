@@ -592,10 +592,10 @@ cd LeatherShop
 
 | Field | Value | Notes |
 |-------|-------|-------|
-| **Business Portfolio** | Cuir Galerie (ID: `YOUR_PORTFOLIO_ID`) | Meta Business Settings — **Meta Business Verified** (May 20, 2024) |
+| **Business Portfolio** | Cuir Galerie (ID: `YOUR_PORTFOLIO_ID`) | Meta Business Settings — **Meta Business Verified** |
 | **WABA ID** | `YOUR_WABA_ID` | WhatsApp Business Account |
 | **Phone Number ID** | `YOUR_PHONE_NUMBER_ID` | Used in `WhatsApp:PhoneNumberId` config |
-| **Phone Number** | +91 84386 29975 | The bot's WhatsApp number customers message |
+| **Phone Number** | +XX XXXXX XXXXX | The bot's WhatsApp number customers message |
 | **Display Name** | Cuir Galerie | Approved by Meta — shows in WhatsApp conversations |
 | **System User** | Cuir Galerie API (Admin type) | Permanent token holder (never expires, `SYSTEM_USER` type) |
 | **App Name** | Cuir Galerie Business (ID: `YOUR_APP_ID`) | Meta Developer App with WhatsApp product |
@@ -608,15 +608,15 @@ cd LeatherShop
 
 #### WhatsApp Message Templates
 
-| Template Name | Type | Template ID | Status |
-|---------------|------|-------------|--------|
-| `shop_deals` | MARKETING | `1397507995029622` | ✅ **APPROVED** |
-| `order_update` | UTILITY | `1581160269802924` | ✅ **APPROVED** |
-| `store_notification` | UTILITY | `931711936172545` | ✅ **APPROVED** |
-| `hello_world` | UTILITY | `913690618033991` | ✅ **APPROVED** |
-| `product_gallery` | MARKETING (Carousel) | `942125944918980` | ✅ **APPROVED** |
-| `product_gallery_3` | MARKETING (Carousel) | `2477121732757676` | ✅ **APPROVED** |
-| `product_gallery` (alt) | MARKETING (Carousel) | `1468850041432532` | ✅ **APPROVED** |
+| Template Name | Type | Status |
+|---------------|------|--------|
+| `shop_deals` | MARKETING | ✅ **APPROVED** |
+| `order_update` | UTILITY | ✅ **APPROVED** |
+| `store_notification` | UTILITY | ✅ **APPROVED** |
+| `hello_world` | UTILITY | ✅ **APPROVED** |
+| `product_gallery` | MARKETING (Carousel) | ✅ **APPROVED** |
+| `product_gallery_3` | MARKETING (Carousel) | ✅ **APPROVED** |
+| `product_gallery` (alt) | MARKETING (Carousel) | ✅ **APPROVED** |
 
 #### Database
 
@@ -684,7 +684,7 @@ cd LeatherShop
 | `Paytm:MerchantId` | No* | Paytm Merchant ID (MID) — unique identifier for your Paytm business account | [business.paytm.com](https://business.paytm.com/) → Dashboard → Developer Settings → API Keys | Payment page won't load |
 | `Paytm:MerchantKey` | No* | Paytm Merchant Key — secret key for checksum generation | Same as above — shown in Developer Settings | Payment verification rejected |
 | `Paytm:Environment` | No | `staging` (test mode) or `production` (live). Defaults to `production` | Choose based on your deployment stage | Defaults to production |
-| `App:OwnerPhone` | No* | Shop owner's WhatsApp number with country code, no `+` (e.g., `YOUR_PHONE_NUMBER`) | Your phone number in international format without `+` | Owner won't receive order notification WhatsApp messages |
+| `App:OwnerPhone` | No* | Shop owner's WhatsApp number with country code, no `+` (e.g., `91XXXXXXXXXX`) | Your phone number in international format without `+` | Owner won't receive order notification WhatsApp messages |
 
 > \* These are only needed for WhatsApp chatbot and payment features. The **admin panel, products, orders, customers, and dashboard** all work without them.
 
@@ -822,7 +822,7 @@ Temporary tokens expire every 24 hours. For production, use a **permanent System
 > **Note:** ngrok is only needed for local development. In production, Railway provides a permanent public URL.
 
 #### 5. Test the Chatbot
-1. Send **"Hi"** to **+91 84386 29975** from your personal WhatsApp
+1. Send **"Hi"** to **+XX XXXXX XXXXX** from your personal WhatsApp
 2. You should receive the interactive main menu with product categories
 3. ✅ **VERIFIED WORKING** (March 6, 2026) — Full end-to-end chatbot flow confirmed
 
@@ -1109,8 +1109,8 @@ These features are not built yet and would need to be added for production:
 | ~~**Customer Address Collection**~~ | ✅ **IMPLEMENTED** — Bot asks for shipping address at checkout if not set. If address exists, shows Confirm/Change buttons before placing order. Address stored on `Customer.Address` and copied to `Order.ShippingAddress`. Admin UI requires address on create/edit (min 10 chars). |
 | **Order Cancellation by Customer** | No WhatsApp flow for customers to cancel orders. |
 | ~~**HTTPS in Production**~~ | ✅ **DEPLOYED** — Railway provides HTTPS automatically via Metal Edge. API accessible at `https://leathershop-production.up.railway.app`. |
-| ~~**Permanent WhatsApp Access Token**~~ | ✅ **IMPLEMENTED** — System User token (type: `SYSTEM_USER`, never expires) created under "Cuir Galerie" Business Portfolio (ID: `YOUR_PORTFOLIO_ID`). Scopes: `whatsapp_business_management`, `whatsapp_business_messaging`. App: "Cuir Galerie Business" (ID: `YOUR_APP_ID`). WABA ID: YOUR_WABA_ID, Phone Number ID: YOUR_PHONE_NUMBER_ID, Phone: +91 84386 29975. Deployed to Railway as `WhatsApp__AccessToken` environment variable. Token validity confirmed via `debug_token` API — `is_valid: true`, `expires_at: 0`. |
-| ~~**WhatsApp Message Templates**~~ | ✅ **APPROVED** — All 7 templates approved by Meta: `shop_deals` (MARKETING, ID: 1397507995029622), `order_update` (UTILITY, ID: 1581160269802924), `store_notification` (UTILITY, ID: 931711936172545), `hello_world` (UTILITY, ID: 913690618033991), `product_gallery` (MARKETING carousel, ID: 942125944918980), `product_gallery_3` (MARKETING carousel, ID: 2477121732757676), `product_gallery` alt (MARKETING carousel, ID: 1468850041432532). All templates are live and available for broadcast messaging. |
+| ~~**Permanent WhatsApp Access Token**~~ | ✅ **IMPLEMENTED** — System User token (type: `SYSTEM_USER`, never expires) created under "Cuir Galerie" Business Portfolio (ID: `YOUR_PORTFOLIO_ID`). Scopes: `whatsapp_business_management`, `whatsapp_business_messaging`. App: "Cuir Galerie Business" (ID: `YOUR_APP_ID`). WABA ID: YOUR_WABA_ID, Phone Number ID: YOUR_PHONE_NUMBER_ID, Phone: +XX XXXXX XXXXX. Deployed to Railway as `WhatsApp__AccessToken` environment variable. Token validity confirmed via `debug_token` API — `is_valid: true`, `expires_at: 0`. |
+| ~~**WhatsApp Message Templates**~~ | ✅ **APPROVED** — All 7 templates approved by Meta: `shop_deals` (MARKETING), `order_update` (UTILITY), `store_notification` (UTILITY), `hello_world` (UTILITY), `product_gallery` (MARKETING carousel ×3). All templates are live and available for broadcast messaging. |
 | ~~**Production Deployment**~~ | ✅ **DEPLOYED** — Backend API on **Railway** (`leathershop-production.up.railway.app`), PostgreSQL on **Railway** (managed instance with persistent volume), Frontend on **Vercel** (static Angular build). WhatsApp webhook URL updated to Railway. All environment variables configured via Railway dashboard. See [Deployment Guide](#deployment-guide) below. |
 
 ---
@@ -1415,7 +1415,7 @@ restartPolicyMaxRetries = 10
 | `Jwt__Key` | Strong random secret key (min 32 chars) for JWT signing |
 | `Jwt__Issuer` | `LeatherShopAPI` |
 | `Jwt__Audience` | `LeatherShopAdmin` |
-| `WhatsApp__PhoneNumberId` | Meta phone number ID (`YOUR_PHONE_NUMBER_ID`) |
+| `WhatsApp__PhoneNumberId` | Meta phone number ID |
 | `WhatsApp__BusinessAccountId` | Meta business account ID |
 | `WhatsApp__AccessToken` | **Permanent** System User token (never expires) |
 | `WhatsApp__VerifyToken` | Webhook verification token |
@@ -1423,7 +1423,7 @@ restartPolicyMaxRetries = 10
 | `Paytm__MerchantKey` | Paytm Merchant Key — secret key for checksum generation. **Required for payment verification.** |
 | `Paytm__Environment` | `production` (live payments) or `staging` (test mode). Defaults to `production` if not set. |
 | `App__BaseUrl` | `https://leathershop-production.up.railway.app` (used for payment links; WhatsApp images use `RAILWAY_PUBLIC_DOMAIN` as fallback) |
-| `App__OwnerPhone` | Shop owner's WhatsApp number with country code, no `+` (e.g., `YOUR_PHONE_NUMBER`) — receives order notifications via WhatsApp |
+| `App__OwnerPhone` | Shop owner's WhatsApp number with country code, no `+` (e.g., `91XXXXXXXXXX`) — receives order notifications via WhatsApp |
 | `Admin__SeedPassword` | Admin user seed password (only used on first startup when `AdminUsers` table is empty) |
 | `FRONTEND_URL` | Vercel frontend URL (for CORS) |
 | `RAILWAY_PUBLIC_DOMAIN` | Auto-provided by Railway (e.g., `leathershop-production.up.railway.app`) — used as fallback for constructing public image URLs when `App__BaseUrl` is not configured |
@@ -1656,7 +1656,7 @@ git push
 | **Code Quality Audit Fixes** | ✅ 10 fixes applied from comprehensive codebase audit: (1) Error interceptor skips toast for login 401s (prevents double notification). (2) Auth interceptor removed unused `Router` import, fixed doc comment. (3) Login component removed unused `PasswordModule`. (4) Login HTML changed from "Protected by JWT Authentication" to "Secure Admin Access" (info leakage). (5) App component fixed type narrowing for `NavigationEnd`, removed empty `styleUrl`. (6) Product model `Description` MaxLength aligned to 2000 (matching DTO). (7) Product form categories fetched dynamically from API instead of hardcoded. (8) Product list added error handlers on `toggleActive`, `deleteProduct`, `getCategories`, `getBrands`. (9) Orders component added error handler on `updateStatus` with status revert on failure. (10) AuthController extracted `TokenExpiryHours = 24` constant. |
 | **Broadcast Status Polling** | ✅ Added `GET /api/broadcast/{id}/status` endpoint. Frontend polls every 1s for up to 30s after sending. Shows real-time results: all-failed (red error banner), partial (warning), all-success (green). Custom styled status banners with gradient backgrounds, icons, slideDown animation, and dismissible close button. Dark styled toast notifications positioned 60px from top. |
 | **Performance Audit & Fixes (5000+ Scale)** | ✅ Comprehensive deep audit of frontend (26 issues) and backend (30 issues). Fixes applied: (1) Customer table pagination — 25/50/100 rows per page with page report (client-side, correct for selection use-case). (2) Orders server-side pagination — `PaginatedResult<T>` model, `GET /api/orders?page=1&pageSize=25` (clamped 1–100), PrimeNG `p-paginator` on frontend. (3) `selectedCount` getter replaced with cached `_selectedCount` counter — O(1) instead of O(n) on every change detection. (4) `getTotalSent()` method in template replaced with cached `totalSent` property. (5) `setInterval` memory leak fixed — `ngOnDestroy` clears polling interval. (6) Orders `*ngFor` now has `trackBy: trackByOrderId`. (7) BulkImport N+1 fixed — single query loads all phone numbers into HashSet, then O(1) lookups. (8) Dashboard uses sequential awaits with `AsNoTracking()` — EF Core DbContext is NOT thread-safe so `Task.WhenAll` is incorrect. (9) SemaphoreSlim in BroadcastBackgroundService now properly disposed with `using`. (10) WhatsApp notifications in OrderService and PaymentService wrapped in try/catch — prevents 500 errors on successful DB operations. (11) Payment signature verification implemented — originally Razorpay HMAC-SHA256, migrated to Paytm server-to-server verification in Phase 23. (12) XSS in PaymentController fully fixed — `WebUtility.HtmlEncode()` on all user-controlled values. (13) DB indexes added: `IsSubscribed`, `CreatedAt` (customers), `Status`, `CreatedAt`, `IsPaid` (orders), `IsActive` (products). |
-| **WhatsApp Business Setup** | ✅ Permanent System User token under "Cuir Galerie" Business Portfolio (ID: YOUR_PORTFOLIO_ID, **Meta Business Verified** May 2024). WABA ID: YOUR_WABA_ID, Phone Number ID: YOUR_PHONE_NUMBER_ID, Phone: +91 84386 29975. Display name "Cuir Galerie" approved by Meta. All 7 templates APPROVED (`shop_deals`, `order_update`, `store_notification`, `hello_world`, `product_gallery` ×3). Phone quality GREEN, TIER_1K, LIVE. End-to-end chatbot flow verified working (March 6, 2026). |
+| **WhatsApp Business Setup** | ✅ Permanent System User token under "Cuir Galerie" Business Portfolio (ID: `YOUR_PORTFOLIO_ID`, **Meta Business Verified**). WABA ID: YOUR_WABA_ID, Phone Number ID: YOUR_PHONE_NUMBER_ID, Phone: +XX XXXXX XXXXX. Display name "Cuir Galerie" approved by Meta. All 7 templates APPROVED (`shop_deals`, `order_update`, `store_notification`, `hello_world`, `product_gallery` ×3). Phone quality GREEN, TIER_1K, LIVE. End-to-end chatbot flow verified working. |
 | **Railway Deployment** | ✅ Full cloud deployment: (1) `Dockerfile` — multi-stage build (SDK 8.0 → ASP.NET 8.0 runtime). (2) `railway.toml` — build config with `watchPatterns`, health check on `/health`, restart-on-failure policy. (3) `ServiceCollectionExtensions.cs` — `AddDatabase()` auto-parses Railway `DATABASE_URL` URI format to Npgsql connection string with `QuerySplittingBehavior.SplitQuery`, `AddCorsPolicies()` reads `FRONTEND_URL` env var. (4) `Program.cs` — reads `PORT` env var, Swagger in Development only, `/health` endpoint for production. `UseEphemeralDataProtectionProvider()` for containerized JWT-only deployment. (5) `appsettings.Production.json` — placeholder values, actual secrets in Railway env vars. (6) `environment.prod.ts` — API URL set to `https://leathershop-production.up.railway.app/api`. (7) PostgreSQL on Railway with persistent volume. Public URL: `leathershop-production.up.railway.app`. |
 | **Vercel Frontend Deployment** | ✅ Angular admin panel deployed to Vercel: Root directory `LeatherShopAdmin`, framework preset Angular, build command `ng build --configuration production`, output `dist/leather-shop-admin/browser`. Auto-deploys from GitHub `main` branch. |
 | **Image Upload** | ✅ Server-side file upload: `POST /api/products/upload-image` accepts multipart file, validates type (JPG/PNG/WebP/GIF) and size (< 20 MB server-side), saves to `wwwroot/uploads/` with GUID filename, returns relative path. `app.UseStaticFiles()` serves uploaded images. Frontend enforces 5 MB client-side limit with auto-compression to ~300 KB. Frontend: clickable browse dropzone replaces URL text input, instant local preview via `FileReader`, remove button (×) to clear. `[Url]` DTO validators removed since images are now server-relative paths. |
