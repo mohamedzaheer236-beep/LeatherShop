@@ -51,8 +51,17 @@ export class NavbarComponent implements OnInit {
       },
     ];
 
-    // Start SignalR and listen for order notifications
-    this.signalR.start();
+    // Reactively start/stop SignalR based on auth state
+    // Handles both fresh login AND page refresh (session restore)
+    this.auth.isAuthenticated$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(authenticated => {
+      if (authenticated) {
+        this.username = this.auth.getUsername() || 'Admin';
+        this.signalR.start();
+      } else {
+        this.signalR.stop();
+      }
+    });
+
     this.signalR.newOrder$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(order => {
       this.notifications = [order, ...this.notifications.slice(0, 19)];
       this.notification.success(`New paid order: #${order.orderNumber} — ₹${order.amount}`);
@@ -81,9 +90,9 @@ export class NavbarComponent implements OnInit {
   }
 
   logout(): void {
-    this.router.navigate(['/login'], { state: { fromLogout: true } }).then(async navigated => {
+    this.router.navigate(['/login'], { state: { fromLogout: true } }).then(navigated => {
       if (navigated) {
-        await this.signalR.stop();
+        // clearSession() emits isAuthenticated$=false → subscription stops SignalR
         this.auth.serverLogout();
         this.auth.clearSession();
       }

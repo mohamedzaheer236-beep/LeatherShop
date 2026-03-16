@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, tap, firstValueFrom } from 'rxjs';
+import { Observable, BehaviorSubject, tap, firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
 import { LoginData } from '../../features/auth/models/auth.model';
@@ -17,15 +17,17 @@ export class AuthService {
   private accessToken: string | null = null;
   private accessTokenExpiry: Date | null = null;
 
+  /** Reactive auth state — components subscribe to react to login/logout/session restore */
+  private readonly _isAuthenticated$ = new BehaviorSubject<boolean>(false);
+  readonly isAuthenticated$ = this._isAuthenticated$.asObservable();
+
   login(username: string, password: string): Observable<ApiResponse<LoginData>> {
     return this.http
       .post<ApiResponse<LoginData>>(`${environment.apiUrl}/auth/login`, { username, password }, { withCredentials: true })
       .pipe(
         tap(res => {
           if (res.success && res.data) {
-            this.accessToken = res.data.token;
-            this.accessTokenExpiry = new Date(res.data.expiresAt);
-            localStorage.setItem(this.USER_KEY, res.data.username);
+            this.setSession(res.data);
           }
         }),
       );
@@ -39,9 +41,7 @@ export class AuthService {
     return this.http.post<ApiResponse<LoginData>>(`${environment.apiUrl}/auth/refresh`, {}, { withCredentials: true }).pipe(
       tap(res => {
         if (res.success && res.data) {
-          this.accessToken = res.data.token;
-          this.accessTokenExpiry = new Date(res.data.expiresAt);
-          localStorage.setItem(this.USER_KEY, res.data.username);
+          this.setSession(res.data);
         }
       }),
     );
@@ -71,6 +71,7 @@ export class AuthService {
     this.accessToken = null;
     this.accessTokenExpiry = null;
     localStorage.removeItem(this.USER_KEY);
+    this._isAuthenticated$.next(false);
   }
 
   /** Immediate logout — revokes token, clears session, navigates to login */
@@ -95,5 +96,13 @@ export class AuthService {
   /** Returns true if there was a previous session that might be restorable via refresh token */
   hasPriorSession(): boolean {
     return !!localStorage.getItem(this.USER_KEY);
+  }
+
+  /** Centralizes token + localStorage writes and emits auth state change */
+  private setSession(data: LoginData): void {
+    this.accessToken = data.token;
+    this.accessTokenExpiry = new Date(data.expiresAt);
+    localStorage.setItem(this.USER_KEY, data.username);
+    this._isAuthenticated$.next(true);
   }
 }
