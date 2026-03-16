@@ -77,6 +77,7 @@
         var paytmTxnToken = '{{TXN_TOKEN}}';
         var orderNumber = '{{ORDER_NUMBER}}';
         var orderAmount = '{{TOTAL_AMOUNT}}';
+        var sdkReady = false;
 
         function startCountdown() {
             if (!expiresAt) return;
@@ -103,17 +104,21 @@
         }
         startCountdown();
 
-        function pay() {
-            if (expired) {
-                document.getElementById('expiredOverlay').style.display = 'flex';
-                return;
+        // Wait for Paytm SDK to fully load (it bootstraps async sub-bundles)
+        function waitForPaytmSDK() {
+            if (window.Paytm && window.Paytm.CheckoutJS && window.Paytm.CheckoutJS.onLoad) {
+                window.Paytm.CheckoutJS.onLoad(function() {
+                    sdkReady = true;
+                    console.log('Paytm CheckoutJS SDK ready');
+                });
+            } else {
+                setTimeout(waitForPaytmSDK, 200);
             }
-            if (!paytmMid || !paytmTxnToken) {
-                alert('Payment gateway is not configured. Please contact the shop owner.');
-                return;
-            }
+        }
+        waitForPaytmSDK();
 
-            var config = {
+        function getPaytmConfig() {
+            return {
                 'root': '',
                 'flow': 'DEFAULT',
                 'data': {
@@ -152,16 +157,45 @@
                     }
                 }
             };
+        }
 
-            if (window.Paytm && window.Paytm.CheckoutJs) {
-                window.Paytm.CheckoutJs.init(config).then(function onSuccess() {
-                    window.Paytm.CheckoutJs.invoke();
-                }).catch(function onError(error) {
-                    console.error('Paytm Checkout init error:', error);
-                    alert('Could not initialize payment. Please try again.');
+        function invokePaytm(config) {
+            window.Paytm.CheckoutJS.init(config).then(function() {
+                window.Paytm.CheckoutJS.invoke();
+            }).catch(function(error) {
+                console.error('Paytm Checkout init error:', error);
+                document.getElementById('payBtn').textContent = 'Pay \u20B9' + orderAmount;
+                document.getElementById('payBtn').disabled = false;
+                alert('Could not initialize payment. Please try again.');
+            });
+        }
+
+        function pay() {
+            if (expired) {
+                document.getElementById('expiredOverlay').style.display = 'flex';
+                return;
+            }
+            if (!paytmMid || !paytmTxnToken) {
+                alert('Payment gateway is not configured. Please contact the shop owner.');
+                return;
+            }
+
+            var config = getPaytmConfig();
+
+            if (sdkReady) {
+                invokePaytm(config);
+            } else if (window.Paytm && window.Paytm.CheckoutJS && window.Paytm.CheckoutJS.onLoad) {
+                // SDK still loading — show loading state and auto-invoke when ready
+                document.getElementById('payBtn').textContent = 'Loading...';
+                document.getElementById('payBtn').disabled = true;
+                window.Paytm.CheckoutJS.onLoad(function() {
+                    sdkReady = true;
+                    document.getElementById('payBtn').textContent = 'Pay \u20B9' + orderAmount;
+                    document.getElementById('payBtn').disabled = false;
+                    invokePaytm(config);
                 });
             } else {
-                alert('Payment gateway is loading. Please try again in a moment.');
+                alert('Payment gateway failed to load. Please refresh the page.');
             }
         }
     </script>
