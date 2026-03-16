@@ -17,17 +17,19 @@ public class PaymentController : ControllerBase
     private readonly IPaymentService _paymentService;
     private readonly IConfiguration _config;
     private readonly IWebHostEnvironment _env;
+    private readonly ILogger<PaymentController> _logger;
 
     // Thread-safe cache for HTML templates (loaded once on first request)
     private static volatile string? _paymentPageTemplate;
     private static volatile string? _messagePageTemplate;
     private static readonly SemaphoreSlim _templateLock = new(1, 1);
 
-    public PaymentController(IPaymentService paymentService, IConfiguration config, IWebHostEnvironment env)
+    public PaymentController(IPaymentService paymentService, IConfiguration config, IWebHostEnvironment env, ILogger<PaymentController> logger)
     {
         _paymentService = paymentService;
         _config = config;
         _env = env;
+        _logger = logger;
     }
 
     [HttpGet("pay/{orderNumber}")]
@@ -98,7 +100,10 @@ public class PaymentController : ControllerBase
     {
         var orderId = form["ORDERID"].FirstOrDefault() ?? "";
         var txnId = form["TXNID"].FirstOrDefault() ?? "";
+        var status = form["STATUS"].FirstOrDefault() ?? "";
 
+        _logger.LogWarning("Paytm callback received: ORDERID={OrderId}, TXNID={TxnId}, STATUS={Status}, AllKeys={Keys}",
+            orderId, txnId, status, string.Join(",", form.Keys));
         if (string.IsNullOrEmpty(orderId))
             return Content(await BuildMessagePageAsync("Payment Error",
                 "Missing order information. Please contact the shop owner.",
