@@ -107,7 +107,7 @@ public class PaymentService : IPaymentService
             websiteName = paytmEnv.Equals("staging", StringComparison.OrdinalIgnoreCase) ? "WEBSTAGING" : "DEFAULT",
             orderId = orderId,
             txnAmount = new { value = amount.ToString("F2"), currency = "INR" },
-            userInfo = new { custId = customerPhone },
+            userInfo = new { custId = customerPhone.TrimStart('+') },
             callbackUrl = $"{_config["App:BaseUrl"]}/api/payment/verify"
         };
 
@@ -128,8 +128,8 @@ public class PaymentService : IPaymentService
 
         var url = $"{baseUrl}/theia/api/v1/initiateTransaction?mid={merchantId}&orderId={orderId}";
 
-        _logger.LogWarning("Paytm Initiate Transaction request for {OrderId}: URL={Url}, MID={MID}, Website={Website}, Amount={Amount}, Env={Env}, Body={Body}",
-            orderId, url, merchantId, body.websiteName, amount.ToString("F2"), paytmEnv, bodyJson);
+        _logger.LogWarning("Paytm Initiate Transaction request for {OrderId}: URL={Url}, MID={MID}, Website={Website}, Amount={Amount}, Env={Env}, KeyLen={KeyLen}, Body={Body}, Checksum={Checksum}",
+            orderId, url, merchantId, body.websiteName, amount.ToString("F2"), paytmEnv, merchantKey.Length, bodyJson, checksum);
 
         var httpClient = _httpClientFactory.CreateClient("Paytm");
         var content = new StringContent(JsonSerializer.Serialize(requestPayload, PaytmJsonOptions), Encoding.UTF8, "application/json");
