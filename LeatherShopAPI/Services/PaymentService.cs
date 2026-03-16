@@ -128,17 +128,17 @@ public class PaymentService : IPaymentService
 
         var url = $"{baseUrl}/theia/api/v1/initiateTransaction?mid={merchantId}&orderId={orderId}";
 
-        _logger.LogWarning("Paytm Initiate Transaction request for {OrderId}: URL={Url}, MID={MID}, Website={Website}, Amount={Amount}, Env={Env}, KeyLen={KeyLen}, Body={Body}, Checksum={Checksum}",
-            orderId, url, merchantId, body.websiteName, amount.ToString("F2"), paytmEnv, merchantKey.Length, bodyJson, checksum);
+        _logger.LogDebug("Paytm Initiate Transaction request for {OrderId}: URL={Url}, MID={MID}, Website={Website}, Amount={Amount}, Env={Env}",
+            orderId, url, merchantId, body.websiteName, amount.ToString("F2"), paytmEnv);
 
         var httpClient = _httpClientFactory.CreateClient("Paytm");
         var content = new StringContent(JsonSerializer.Serialize(requestPayload, PaytmJsonOptions), Encoding.UTF8, "application/json");
         var response = await httpClient.PostAsync(url, content, ct);
         var responseJson = await response.Content.ReadAsStringAsync(ct);
 
-        _logger.LogWarning("Paytm Initiate Transaction response for {OrderId}: HTTP {StatusCode}, ContentType={ContentType}, Length={Length}, Body={Response}",
+        _logger.LogDebug("Paytm Initiate Transaction response for {OrderId}: HTTP {StatusCode}, ContentType={ContentType}, Length={Length}",
             orderId, (int)response.StatusCode, response.Content.Headers.ContentType?.ToString() ?? "null",
-            responseJson.Length, responseJson);
+            responseJson.Length);
 
         if (string.IsNullOrWhiteSpace(responseJson))
         {
@@ -261,6 +261,28 @@ public class PaymentService : IPaymentService
             return null;
         }
 
+        // Atomic guard: claim this order for processing using a database-level WHERE clause.
+        // This prevents duplicate processing when Paytm sends concurrent callbacks (retry policy).
+        var claimedRows = await _db.Orders
+            .Where(o => o.Id == order.Id && !o.IsPaid)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(o => o.IsPaid, true)
+                .SetProperty(o => o.PaymentId, txnStatus.TxnId ?? dto.TransactionId)
+                .SetProperty(o => o.Status, OrderStatus.Confirmed)
+                .SetProperty(o => o.UpdatedAt, DateTime.UtcNow), ct);
+
+        if (claimedRows == 0)
+        {
+            // Another concurrent request already confirmed this order — return idempotent success
+            _logger.LogInformation("Payment verification: order {OrderId} ({OrderNumber}) was already claimed by a concurrent request",
+                order.Id, order.OrderNumber);
+            return new PaymentVerifyResultDto
+            {
+                Message = "Payment already verified",
+                OrderNumber = order.OrderNumber
+            };
+        }
+
         // Paytm payment is verified via server-to-server API - proceed to confirm.
         // If the order was auto-cancelled due to expiry while the customer
         // was completing payment in the Paytm form, we must honor the payment (money is already charged).
@@ -313,13 +335,9 @@ public class PaymentService : IPaymentService
                     restoredCartItems.Remove(cartItem);
                 }
             }
-        }
 
-        order.PaymentId = txnStatus.TxnId ?? dto.TransactionId;
-        order.IsPaid = true;
-        order.Status = OrderStatus.Confirmed;
-        order.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync(ct);
+            await _db.SaveChangesAsync(ct);
+        }
 
         // Notify customer via WhatsApp (best-effort - don't fail the payment)
         try
@@ -412,8 +430,7 @@ public class PaymentService : IPaymentService
             var response = await httpClient.PostAsync(url, content, ct);
             var responseJson = await response.Content.ReadAsStringAsync(ct);
 
-            _logger.LogWarning("Paytm Transaction Status for {OrderId}: HTTP {StatusCode}, Response={Response}",
-                orderId, (int)response.StatusCode, responseJson);
+            _logger.LogDebug("Paytm Transaction Status for {OrderId}: HTTP {StatusCode}", orderId, (int)response.StatusCode);
 
             var result = JsonSerializer.Deserialize<PaytmStatusApiResponse>(responseJson);
             if (result?.Body == null)

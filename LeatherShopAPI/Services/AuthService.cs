@@ -52,8 +52,14 @@ public class AuthService : IAuthService
         if (stored == null || stored.IsRevoked || stored.ExpiresAt <= DateTime.UtcNow)
             return null;
 
-        // Revoke the old refresh token (token rotation - prevents reuse)
-        stored.IsRevoked = true;
+        // Atomic revocation: use ExecuteUpdateAsync with WHERE IsRevoked = false
+        // to prevent race conditions when two concurrent refresh requests use the same token.
+        var revokedCount = await _db.RefreshTokens
+            .Where(rt => rt.Id == stored.Id && !rt.IsRevoked)
+            .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.IsRevoked, true), ct);
+
+        if (revokedCount == 0)
+            return null; // Another concurrent request already consumed this token
 
         var result = await GenerateTokenPairAsync(stored.AdminUser, ct);
         await _db.SaveChangesAsync(ct);

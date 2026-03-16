@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map, interval, concatMap, takeWhile, last, take } from 'rxjs';
+import { Observable, map, interval, concatMap, takeWhile, last, take, EMPTY, catchError } from 'rxjs';
 import { BroadcastRequest, BroadcastResult, BroadcastHistory, WhatsAppTemplate } from '../models/broadcast.model';
 import { PaginatedResult } from '../../../core/models/paginated-result.model';
 import { ApiResponse } from '../../../core/models/api-response.model';
@@ -56,7 +56,7 @@ export class BroadcastService {
     const maxAttempts = 30;
     return interval(1000).pipe(
       take(maxAttempts),
-      concatMap(() => this.getBroadcastStatus(broadcastId)),
+      concatMap(() => this.getBroadcastStatus(broadcastId).pipe(catchError(() => EMPTY))),
       takeWhile(status => status.sentCount + status.failedCount < totalRecipients, true),
       last(),
     );

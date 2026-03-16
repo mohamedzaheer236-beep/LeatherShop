@@ -273,8 +273,17 @@ public class ProductService : IProductService
         var fileName = $"{Guid.NewGuid()}{ext}";
         var filePath = Path.Combine(uploadsDir, fileName);
 
-        using var stream = new FileStream(filePath, FileMode.Create);
-        await file.CopyToAsync(stream, ct);
+        try
+        {
+            using var stream = new FileStream(filePath, FileMode.Create);
+            await file.CopyToAsync(stream, ct);
+        }
+        catch
+        {
+            // Clean up partial file on failure (client disconnect, stream error, etc.)
+            if (File.Exists(filePath)) File.Delete(filePath);
+            throw;
+        }
 
         return $"/uploads/{fileName}";
     }

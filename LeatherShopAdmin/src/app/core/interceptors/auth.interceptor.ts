@@ -49,7 +49,12 @@ function handle401(req: HttpRequest<unknown>, next: HttpHandlerFn, auth: AuthSer
     return auth.refreshAccessToken().pipe(
       switchMap(res => {
         isRefreshing = false;
-        const newToken = res.data.token;
+        const newToken = res.data?.token;
+        if (!newToken) {
+          refreshResult$.next('');
+          auth.logout();
+          return throwError(() => new Error('Refresh returned no token'));
+        }
         refreshResult$.next(newToken);
         return next(addToken(req, newToken));
       }),

@@ -186,6 +186,7 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.selectedConversation = conv;
     this.messages = [];
     this.currentPage = 1;
+    this.sending = false;
 
     // Join SignalR group for this customer
     this.signalR.joinCustomerChat(conv.customerId);
@@ -238,11 +239,17 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (!this.selectedCustomerId || !this.messageText.trim() || this.sending) return;
 
     const text = this.messageText.trim();
+    const targetCustomerId = this.selectedCustomerId;
     this.messageText = '';
     this.sending = true;
 
-    this.chatService.sendMessage(this.selectedCustomerId, text).subscribe({
+    this.chatService.sendMessage(targetCustomerId, text).subscribe({
       next: msg => {
+        // Guard: discard if user switched conversations while send was in-flight
+        if (this.selectedCustomerId !== targetCustomerId) {
+          this.sending = false;
+          return;
+        }
         // Add the sent message to the UI
         this.messages = [...this.messages, msg];
         this.shouldScrollToBottom = true;
@@ -255,7 +262,10 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.cdr.markForCheck();
       },
       error: () => {
-        this.messageText = text; // Restore on error
+        // Only restore text if still on same conversation
+        if (this.selectedCustomerId === targetCustomerId) {
+          this.messageText = text;
+        }
         this.sending = false;
         this.cdr.markForCheck();
       },

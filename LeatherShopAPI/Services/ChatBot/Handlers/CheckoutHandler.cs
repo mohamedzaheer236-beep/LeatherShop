@@ -42,12 +42,17 @@ public class CheckoutHandler
             return;
         }
 
-        // Check stock availability
-        foreach (var item in cartItems)
+        // Check stock availability (aggregate per product to handle multi-image-selection carts)
+        var stockNeeded = cartItems
+            .GroupBy(ci => ci.ProductId)
+            .ToDictionary(g => g.Key, g => g.Sum(ci => ci.Quantity));
+
+        foreach (var (productId, totalNeeded) in stockNeeded)
         {
-            if (item.Product.StockQuantity < item.Quantity)
+            var product = cartItems.First(ci => ci.ProductId == productId).Product;
+            if (product.StockQuantity < totalNeeded)
             {
-                await _bot.SendText(to, $"❌ Sorry, *{item.Product.Name}* only has {item.Product.StockQuantity} left in stock. Please update your cart.", ct);
+                await _bot.SendText(to, $"❌ Sorry, *{product.Name}* only has {product.StockQuantity} left in stock. Please update your cart.", ct);
                 return;
             }
         }
@@ -101,12 +106,17 @@ public class CheckoutHandler
             return;
         }
 
-        // Re-check stock
-        foreach (var item in cartItems)
+        // Re-check stock (aggregate per product to handle multi-image-selection carts)
+        var stockNeeded = cartItems
+            .GroupBy(ci => ci.ProductId)
+            .ToDictionary(g => g.Key, g => g.Sum(ci => ci.Quantity));
+
+        foreach (var (productId, totalNeeded) in stockNeeded)
         {
-            if (item.Product.StockQuantity < item.Quantity)
+            var product = cartItems.First(ci => ci.ProductId == productId).Product;
+            if (product.StockQuantity < totalNeeded)
             {
-                await _bot.SendText(to, $"❌ Sorry, *{item.Product.Name}* only has {item.Product.StockQuantity} left in stock. Please update your cart.", ct);
+                await _bot.SendText(to, $"❌ Sorry, *{product.Name}* only has {product.StockQuantity} left in stock (you need {totalNeeded}). Please update your cart.", ct);
                 return;
             }
         }
@@ -162,13 +172,16 @@ public class CheckoutHandler
                            $"If it expires, just say *checkout* to get a new link.\n\n" +
                            $"We'll confirm once payment is received.";
 
-        // Transactional Outbox: write the WhatsApp message to the DB in the SAME transaction
+        // Transactional Outbox: write the WhatsApp message to the DB in the SAME transaction.
+        // Set NextRetryAt to 30s from now so the background processor doesn't pick it up
+        // while we attempt the immediate inline send below.
         var outboxMessage = new WhatsAppOutboxMessage
         {
             To = to,
             Content = orderSummary,
             Context = $"Order confirmation for {order.OrderNumber}",
-            Status = OutboxMessageStatus.Pending
+            Status = OutboxMessageStatus.Pending,
+            NextRetryAt = DateTime.UtcNow.AddSeconds(30)
         };
         _db.WhatsAppOutboxMessages.Add(outboxMessage);
 
