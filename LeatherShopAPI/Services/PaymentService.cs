@@ -97,8 +97,8 @@ public class PaymentService : IPaymentService
     {
         var paytmEnv = _config["Paytm:Environment"] ?? "production";
         var baseUrl = paytmEnv.Equals("staging", StringComparison.OrdinalIgnoreCase)
-            ? "https://securegw-stage.paytm.in"
-            : "https://securegw.paytm.in";
+            ? "https://securegw-stage.paytmpayments.com"
+            : "https://securegw.paytmpayments.com";
 
         var body = new
         {
@@ -353,8 +353,8 @@ public class PaymentService : IPaymentService
         {
             var paytmEnv = _config["Paytm:Environment"] ?? "production";
             var baseUrl = paytmEnv.Equals("staging", StringComparison.OrdinalIgnoreCase)
-                ? "https://securegw-stage.paytm.in"
-                : "https://securegw.paytm.in";
+                ? "https://securegw-stage.paytmpayments.com"
+                : "https://securegw.paytmpayments.com";
 
             var body = new { mid = merchantId, orderId = orderId };
             var bodyJson = JsonSerializer.Serialize(body);
