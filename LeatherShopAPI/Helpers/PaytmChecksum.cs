@@ -73,7 +73,7 @@ public static class PaytmChecksum
     /// <summary>AES-128-CBC encrypt with Key = IV = first 16 bytes of merchantKey.</summary>
     private static byte[] AesEncrypt(string plainText, string merchantKey)
     {
-        var keyBytes = Encoding.UTF8.GetBytes(merchantKey[..16]);
+        var keyBytes = Encoding.UTF8.GetBytes(merchantKey.PadRight(16, '\0')[..16]);
         using var aes = Aes.Create();
         aes.Mode = CipherMode.CBC;
         aes.Padding = PaddingMode.PKCS7;
@@ -87,7 +87,7 @@ public static class PaytmChecksum
     /// <summary>AES-128-CBC decrypt with Key = IV = first 16 bytes of merchantKey.</summary>
     private static string AesDecrypt(byte[] cipherBytes, string merchantKey)
     {
-        var keyBytes = Encoding.UTF8.GetBytes(merchantKey[..16]);
+        var keyBytes = Encoding.UTF8.GetBytes(merchantKey.PadRight(16, '\0')[..16]);
         using var aes = Aes.Create();
         aes.Mode = CipherMode.CBC;
         aes.Padding = PaddingMode.PKCS7;
