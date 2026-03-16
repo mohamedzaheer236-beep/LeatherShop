@@ -1,5 +1,5 @@
 import { Injectable, OnDestroy, inject } from '@angular/core';
-import { Subject } from 'rxjs';
+import { Subject, firstValueFrom } from 'rxjs';
 import * as signalR from '@microsoft/signalr';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
@@ -10,6 +10,7 @@ export interface OrderNotification {
   customerName: string;
   amount: number;
   timestamp: string;
+  status: string;
 }
 
 export interface ChatMessageEvent {
@@ -57,7 +58,20 @@ export class SignalRService implements OnDestroy {
     if (!this.auth.getToken()) return;
 
     this.hubConnection = new signalR.HubConnectionBuilder()
-      .withUrl(environment.hubUrl, { accessTokenFactory: () => this.auth.getToken()! })
+      .withUrl(environment.hubUrl, {
+        accessTokenFactory: async () => {
+          // If the current token is expired, refresh it before reconnecting
+          if (!this.auth.isLoggedIn()) {
+            try {
+              const res = await firstValueFrom(this.auth.refreshAccessToken());
+              if (!res.success) return '';
+            } catch {
+              return '';
+            }
+          }
+          return this.auth.getToken() ?? '';
+        },
+      })
       .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
       .configureLogging(signalR.LogLevel.Warning)
       .build();

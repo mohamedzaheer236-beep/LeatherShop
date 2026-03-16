@@ -43,6 +43,8 @@ public class OrderNotificationDto
     public string CustomerName { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public DateTime Timestamp { get; set; }
+    /// <summary>"Pending", "Confirmed", "Cancelled" — tells the frontend what kind of notification to show.</summary>
+    public string Status { get; set; } = "Confirmed";
 }
 
 /// <summary>A failed outbox message shown to the admin for manual follow-up.</summary>

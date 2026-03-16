@@ -98,7 +98,8 @@ public sealed class ExpiredOrderCleanupService : BackgroundService
                         OrderNumber = order.OrderNumber,
                         CustomerName = "System",
                         Amount = order.TotalAmount,
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTime.UtcNow,
+                        Status = "Cancelled"
                     }, ct);
                 }
                 catch (Exception hubEx)

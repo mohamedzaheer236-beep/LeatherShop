@@ -215,7 +215,8 @@ public class CheckoutHandler
                 OrderNumber = order.OrderNumber,
                 CustomerName = string.IsNullOrEmpty(customer.Name) ? customer.PhoneNumber : customer.Name,
                 Amount = order.TotalAmount,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow,
+                Status = "Pending"
             }, ct);
         }
         catch (Exception ex)

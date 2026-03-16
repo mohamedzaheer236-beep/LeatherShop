@@ -64,7 +64,13 @@ export class NavbarComponent implements OnInit {
 
     this.signalR.newOrder$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(order => {
       this.notifications = [order, ...this.notifications.slice(0, 19)];
-      this.notification.success(`New paid order: #${order.orderNumber} — ₹${order.amount}`);
+      if (order.status === 'Cancelled') {
+        this.notification.warning(`Order cancelled: #${order.orderNumber}`);
+      } else if (order.status === 'Pending') {
+        this.notification.info(`New order: #${order.orderNumber} — ₹${order.amount}`);
+      } else {
+        this.notification.success(`Order paid: #${order.orderNumber} — ₹${order.amount}`);
+      }
       this.cdr.markForCheck();
     });
     this.signalR.outboxFailed$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(event => {

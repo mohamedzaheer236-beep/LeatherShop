@@ -201,6 +201,14 @@ public class InvoicePdfService : IInvoicePdfService
             }
 
             var filePath = Path.Combine(_env.WebRootPath, imageUrl.TrimStart('/'));
+
+            // Defense-in-depth: ensure resolved path stays within WebRootPath
+            if (!Path.GetFullPath(filePath).StartsWith(Path.GetFullPath(_env.WebRootPath), StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("Image path traversal blocked for OrderItem {OrderItemId}: {Path}", item.Id, imageUrl);
+                return null;
+            }
+
             if (!File.Exists(filePath))
             {
                 _logger.LogDebug("Image file not found for PDF: {Path}", filePath);

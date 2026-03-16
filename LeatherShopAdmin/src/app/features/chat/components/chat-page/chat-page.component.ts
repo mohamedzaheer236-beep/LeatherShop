@@ -202,7 +202,11 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.chatService.getMessages(this.selectedCustomerId, this.currentPage).subscribe({
       next: result => {
         // F78 fix: discard response if user switched conversations while loading
-        if (this.selectedCustomerId !== requestedCustomerId) return;
+        if (this.selectedCustomerId !== requestedCustomerId) {
+          this.loadingMessages = false;
+          this.cdr.markForCheck();
+          return;
+        }
 
         if (this.currentPage === 1) {
           this.messages = result.items;

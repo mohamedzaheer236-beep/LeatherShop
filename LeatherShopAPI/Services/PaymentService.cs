@@ -336,7 +336,19 @@ public class PaymentService : IPaymentService
                 }
             }
 
-            await _db.SaveChangesAsync(ct);
+            try
+            {
+                await _db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                // Stock was modified by another concurrent operation (e.g., another order being placed).
+                // The payment is already confirmed (ExecuteUpdateAsync above). Log and let admin resolve.
+                _logger.LogError(ex,
+                    "Concurrency conflict re-deducting stock for re-confirmed order {OrderNumber} (paid {TxnId}). " +
+                    "Payment is confirmed but stock may be incorrect — admin must verify.",
+                    order.OrderNumber, txnStatus.TxnId);
+            }
         }
 
         // Notify customer via WhatsApp (best-effort - don't fail the payment)

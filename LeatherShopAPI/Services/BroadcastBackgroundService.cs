@@ -225,6 +225,13 @@ public sealed class BroadcastBackgroundService : BackgroundService
                     return;
                 }
             }
+            else
+            {
+                // Carousel JSON is present but couldn't be deserialized — abort to avoid sending wrong format
+                _logger.LogError("Broadcast {BroadcastId}: failed to deserialize carousel cards JSON, aborting", broadcastId);
+                await MarkCompletedAsync(broadcastId, 0, broadcast.TotalRecipients, alreadyProcessed);
+                return;
+            }
         }
         // Process in chunks of BatchSize
         var batches = remaining.Chunk(BatchSize);

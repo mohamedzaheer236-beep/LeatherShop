@@ -98,6 +98,12 @@ public class OrderService : IOrderService
         {
             foreach (var item in order.OrderItems)
             {
+                if (item.Product == null)
+                {
+                    _logger.LogError("OrderItem {OrderItemId} has null Product — cannot restore stock for Order {OrderId}",
+                        item.Id, order.Id);
+                    continue;
+                }
                 item.Product.StockQuantity += item.Quantity;
             }
         }

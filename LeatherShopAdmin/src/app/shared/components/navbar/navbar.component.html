@@ -38,9 +38,23 @@
           }
           @for (n of notifications; track n.orderNumber) {
             <div class="notification-item" (click)="onNotificationClick(n); op.hide()">
-              <div class="notification-icon"><i class="pi pi-shopping-cart"></i></div>
+              <div class="notification-icon">
+                @if (n.status === 'Cancelled') {
+                  <i class="pi pi-times-circle" style="color: #e53935"></i>
+                } @else if (n.status === 'Pending') {
+                  <i class="pi pi-shopping-cart" style="color: #fb8c00"></i>
+                } @else {
+                  <i class="pi pi-check-circle" style="color: #43a047"></i>
+                }
+              </div>
               <div class="notification-content">
-                <div class="notification-title">New Order #{{ n.orderNumber }}</div>
+                @if (n.status === 'Cancelled') {
+                  <div class="notification-title" style="color: #e53935">Order Cancelled #{{ n.orderNumber }}</div>
+                } @else if (n.status === 'Pending') {
+                  <div class="notification-title" style="color: #fb8c00">New Order #{{ n.orderNumber }}</div>
+                } @else {
+                  <div class="notification-title" style="color: #43a047">Order Paid #{{ n.orderNumber }}</div>
+                }
                 <div class="notification-detail">{{ n.customerName }} — ₹{{ n.amount }}</div>
                 <div class="notification-time">{{ n.timestamp | timeAgo:timeAgoTick }}</div>
               </div>
