@@ -97,8 +97,8 @@ public class PaymentService : IPaymentService
     {
         var paytmEnv = _config["Paytm:Environment"] ?? "production";
         var baseUrl = paytmEnv.Equals("staging", StringComparison.OrdinalIgnoreCase)
-            ? "https://securegw-stage.paytmpayments.com"
-            : "https://securegw.paytmpayments.com";
+            ? "https://securegw-stage.paytm.in"
+            : "https://securegw.paytm.in";
 
         var body = new
         {
@@ -136,9 +136,31 @@ public class PaymentService : IPaymentService
         var response = await httpClient.PostAsync(url, content, ct);
         var responseJson = await response.Content.ReadAsStringAsync(ct);
 
-        _logger.LogWarning("Paytm Initiate Transaction response for {OrderId}: {Response}", orderId, responseJson);
+        _logger.LogWarning("Paytm Initiate Transaction response for {OrderId}: HTTP {StatusCode}, ContentType={ContentType}, Length={Length}, Body={Response}",
+            orderId, (int)response.StatusCode, response.Content.Headers.ContentType?.ToString() ?? "null",
+            responseJson.Length, responseJson);
 
-        var result = JsonSerializer.Deserialize<PaytmInitiateResponse>(responseJson);
+        if (string.IsNullOrWhiteSpace(responseJson))
+        {
+            _logger.LogError("Paytm returned empty response for {OrderId}. HTTP Status: {StatusCode}, Headers: {Headers}",
+                orderId, (int)response.StatusCode,
+                string.Join("; ", response.Headers.Select(h => $"{h.Key}={string.Join(",", h.Value)}")));
+            throw new InvalidOperationException(
+                $"Paytm returned empty response (HTTP {(int)response.StatusCode}). The Paytm API may be temporarily unavailable.");
+        }
+
+        PaytmInitiateResponse? result;
+        try
+        {
+            result = JsonSerializer.Deserialize<PaytmInitiateResponse>(responseJson);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Paytm returned non-JSON response for {OrderId}. HTTP {StatusCode}, Body (first 500 chars): {Body}",
+                orderId, (int)response.StatusCode, responseJson.Length > 500 ? responseJson[..500] : responseJson);
+            throw new InvalidOperationException(
+                $"Paytm returned invalid response (HTTP {(int)response.StatusCode}). Response is not JSON.");
+        }
 
         if (result?.Body?.ResultInfo?.ResultStatus != "S")
         {
@@ -353,8 +375,8 @@ public class PaymentService : IPaymentService
         {
             var paytmEnv = _config["Paytm:Environment"] ?? "production";
             var baseUrl = paytmEnv.Equals("staging", StringComparison.OrdinalIgnoreCase)
-                ? "https://securegw-stage.paytmpayments.com"
-                : "https://securegw.paytmpayments.com";
+                ? "https://securegw-stage.paytm.in"
+                : "https://securegw.paytm.in";
 
             var body = new { mid = merchantId, orderId = orderId };
             var bodyJson = JsonSerializer.Serialize(body);
