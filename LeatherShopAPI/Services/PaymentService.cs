@@ -127,7 +127,7 @@ public class PaymentService : IPaymentService
 
         var result = JsonSerializer.Deserialize<PaytmInitiateResponse>(responseJson);
 
-        if (result?.Body?.ResultInfo?.ResultCode != "S")
+        if (result?.Body?.ResultInfo?.ResultStatus != "S")
         {
             var errorMsg = result?.Body?.ResultInfo?.ResultMsg ?? "Unknown error";
             var errorCode = result?.Body?.ResultInfo?.ResultCode ?? "N/A";
