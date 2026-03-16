@@ -110,7 +110,13 @@ public class PaymentService : IPaymentService
         var requestPayload = new
         {
             body = body,
-            head = new { signature = checksum }
+            head = new
+            {
+                version = "v1",
+                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(),
+                channelId = "WEB",
+                signature = checksum
+            }
         };
 
         var url = $"{baseUrl}/theia/api/v1/initiateTransaction?mid={merchantId}&orderId={orderId}";
