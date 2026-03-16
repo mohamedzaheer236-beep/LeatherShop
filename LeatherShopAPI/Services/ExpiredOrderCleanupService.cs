@@ -1,6 +1,9 @@
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
+using LeatherShopAPI.DTOs.Chat;
 using LeatherShopAPI.Helpers;
+using LeatherShopAPI.Hubs;
 using LeatherShopAPI.Models;
 
 namespace LeatherShopAPI.Services;
@@ -84,6 +87,24 @@ public sealed class ExpiredOrderCleanupService : BackgroundService
 
                 await OrderExpiryHelper.CancelAndRestoreCartAsync(db, order, _logger);
                 await db.SaveChangesAsync(ct);
+
+                // Notify admin dashboard via SignalR so the orders list refreshes in real-time
+                try
+                {
+                    var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<NotificationHub>>();
+                    await hubContext.Clients.Group("admins").SendAsync("NewOrder", new OrderNotificationDto
+                    {
+                        OrderId = order.Id,
+                        OrderNumber = order.OrderNumber,
+                        CustomerName = "System",
+                        Amount = order.TotalAmount,
+                        Timestamp = DateTime.UtcNow
+                    }, ct);
+                }
+                catch (Exception hubEx)
+                {
+                    _logger.LogWarning(hubEx, "Failed to push SignalR notification for expired order {OrderId}", orderId);
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

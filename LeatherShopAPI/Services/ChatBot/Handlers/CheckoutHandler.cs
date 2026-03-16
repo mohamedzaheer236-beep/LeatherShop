@@ -1,7 +1,10 @@
 using LeatherShopAPI.Data;
+using LeatherShopAPI.DTOs.Chat;
+using LeatherShopAPI.Hubs;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Models.WhatsApp;
 using LeatherShopAPI.Services;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace LeatherShopAPI.Services.ChatBot.Handlers;
@@ -14,14 +17,17 @@ public class CheckoutHandler
     private readonly AppDbContext _db;
     private readonly BotMessageSender _bot;
     private readonly ConversationStateService _convState;
+    private readonly IHubContext<NotificationHub> _hubContext;
     private readonly IConfiguration _config;
     private readonly ILogger<CheckoutHandler> _logger;
 
-    public CheckoutHandler(AppDbContext db, BotMessageSender bot, ConversationStateService convState, IConfiguration config, ILogger<CheckoutHandler> logger)
+    public CheckoutHandler(AppDbContext db, BotMessageSender bot, ConversationStateService convState,
+        IHubContext<NotificationHub> hubContext, IConfiguration config, ILogger<CheckoutHandler> logger)
     {
         _db = db;
         _bot = bot;
         _convState = convState;
+        _hubContext = hubContext;
         _config = config;
         _logger = logger;
     }
@@ -198,6 +204,23 @@ public class CheckoutHandler
             }
             await _bot.SendText(to, "⚠️ Sorry, another order was placed at the same time for the same product. Please try placing your order again - your cart is still intact.", ct);
             return;
+        }
+
+        // Notify admin dashboard in real-time via SignalR (new pending order)
+        try
+        {
+            await _hubContext.Clients.Group("admins").SendAsync("NewOrder", new OrderNotificationDto
+            {
+                OrderId = order.Id,
+                OrderNumber = order.OrderNumber,
+                CustomerName = string.IsNullOrEmpty(customer.Name) ? customer.PhoneNumber : customer.Name,
+                Amount = order.TotalAmount,
+                Timestamp = DateTime.UtcNow
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to push SignalR new order notification for {OrderNumber}", order.OrderNumber);
         }
 
         // Try to send immediately (fast path)

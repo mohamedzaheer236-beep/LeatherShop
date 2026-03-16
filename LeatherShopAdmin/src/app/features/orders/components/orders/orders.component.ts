@@ -70,9 +70,9 @@ export class OrdersComponent implements OnInit {
     });
     this.loadOrders();
 
-    // Auto-refresh when a new paid order comes in via SignalR
+    // Auto-refresh when an order changes via SignalR (new order, payment, cancellation)
     this.signalR.newOrder$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(order => {
-      this.notification.success(`New paid order: ${order.orderNumber} — ₹${order.amount}`);
+      this.notification.success(`Order update: ${order.orderNumber}`);
       this.loadOrders();
     });
   }
