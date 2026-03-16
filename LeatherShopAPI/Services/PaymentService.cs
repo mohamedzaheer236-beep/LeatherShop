@@ -108,7 +108,7 @@ public class PaymentService : IPaymentService
             orderId = orderId,
             txnAmount = new { value = amount.ToString("F2"), currency = "INR" },
             userInfo = new { custId = customerPhone.TrimStart('+') },
-            callbackUrl = $"{_config["App:BaseUrl"]}/api/payment/verify"
+            callbackUrl = $"{_config["App:BaseUrl"]}/api/payment/callback"
         };
 
         var bodyJson = JsonSerializer.Serialize(body, PaytmJsonOptions);

@@ -88,6 +88,40 @@ public class PaymentController : ControllerBase
         return Ok(ApiResponse<PaymentVerifyResultDto>.Ok(result, "Payment verified successfully."));
     }
 
+    /// <summary>
+    /// Paytm redirects the browser here after payment with form-encoded POST data.
+    /// Extracts ORDERID/TXNID, runs server-side verification, and shows result HTML page.
+    /// </summary>
+    [HttpPost("callback")]
+    [Consumes("application/x-www-form-urlencoded")]
+    public async Task<IActionResult> PaytmCallback([FromForm] IFormCollection form, CancellationToken ct)
+    {
+        var orderId = form["ORDERID"].FirstOrDefault() ?? "";
+        var txnId = form["TXNID"].FirstOrDefault() ?? "";
+
+        if (string.IsNullOrEmpty(orderId))
+            return Content(await BuildMessagePageAsync("Payment Error",
+                "Missing order information. Please contact the shop owner.",
+                "&#9888;&#65039;", "#e65100", ct), "text/html");
+
+        var dto = new PaymentVerifyDto { OrderId = orderId, TransactionId = txnId };
+        var result = await _paymentService.VerifyPaymentAsync(dto, ct);
+
+        if (result != null)
+        {
+            return Content(await BuildMessagePageAsync("Payment Successful!",
+                $"Thank you for your order.<br><br>" +
+                $"&#128230; Order: <strong>{WebUtility.HtmlEncode(result.OrderNumber)}</strong><br>" +
+                $"Check WhatsApp for your confirmation. &#128242;",
+                "&#9989;", "#2e7d32", ct), "text/html");
+        }
+
+        return Content(await BuildMessagePageAsync("Payment Verification Failed",
+            "We could not verify your payment. If money was deducted, please contact us — your payment is safe.<br><br>" +
+            $"Order: <strong>{WebUtility.HtmlEncode(orderId)}</strong>",
+            "&#9888;&#65039;", "#e65100", ct), "text/html");
+    }
+
     /// <summary>Loads the payment page HTML template from wwwroot/templates, with thread-safe in-memory caching.</summary>
     private async Task<string> LoadPaymentPageTemplate(CancellationToken ct)
     {
