@@ -51,8 +51,8 @@ public class PaymentController : ControllerBase
 
         var paytmEnv = _config["Paytm:Environment"] ?? "production";
         var paytmHost = paytmEnv.Equals("staging", StringComparison.OrdinalIgnoreCase)
-            ? "securegw-stage.paytmpayments.com"
-            : "securegw.paytmpayments.com";
+            ? "securegw-stage.paytm.in"
+            : "secure.paytmpayments.com";
 
         var itemsHtml = string.Join("", data.Items.Select(i =>
             $@"<div class='item'>
