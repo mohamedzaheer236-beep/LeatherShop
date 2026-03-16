@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.SignalR;
@@ -22,6 +23,12 @@ public class PaymentService : IPaymentService
     private readonly IConfiguration _config;
     private readonly ILogger<PaymentService> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
+
+    /// <summary>Relaxed JSON encoding so phone numbers (+91...) aren't escaped as \u002B91 — Paytm checksums break if body JSON encoding differs.</summary>
+    private static readonly JsonSerializerOptions PaytmJsonOptions = new()
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
 
     public PaymentService(AppDbContext db, IWhatsAppService whatsApp, IHubContext<NotificationHub> hubContext,
         IConfiguration config, ILogger<PaymentService> logger, IHttpClientFactory httpClientFactory)
@@ -104,7 +111,7 @@ public class PaymentService : IPaymentService
             callbackUrl = $"{_config["App:BaseUrl"]}/api/payment/verify"
         };
 
-        var bodyJson = JsonSerializer.Serialize(body);
+        var bodyJson = JsonSerializer.Serialize(body, PaytmJsonOptions);
         var checksum = PaytmChecksum.GenerateSignature(bodyJson, merchantKey);
 
         var requestPayload = new
@@ -121,11 +128,11 @@ public class PaymentService : IPaymentService
 
         var url = $"{baseUrl}/theia/api/v1/initiateTransaction?mid={merchantId}&orderId={orderId}";
 
-        _logger.LogWarning("Paytm Initiate Transaction request for {OrderId}: URL={Url}, MID={MID}, Website={Website}, Amount={Amount}, Env={Env}",
-            orderId, url, merchantId, body.websiteName, amount.ToString("F2"), paytmEnv);
+        _logger.LogWarning("Paytm Initiate Transaction request for {OrderId}: URL={Url}, MID={MID}, Website={Website}, Amount={Amount}, Env={Env}, Body={Body}",
+            orderId, url, merchantId, body.websiteName, amount.ToString("F2"), paytmEnv, bodyJson);
 
         var httpClient = _httpClientFactory.CreateClient("Paytm");
-        var content = new StringContent(JsonSerializer.Serialize(requestPayload), Encoding.UTF8, "application/json");
+        var content = new StringContent(JsonSerializer.Serialize(requestPayload, PaytmJsonOptions), Encoding.UTF8, "application/json");
         var response = await httpClient.PostAsync(url, content, ct);
         var responseJson = await response.Content.ReadAsStringAsync(ct);
 
