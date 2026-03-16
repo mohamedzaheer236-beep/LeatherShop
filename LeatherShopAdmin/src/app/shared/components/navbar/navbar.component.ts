@@ -55,6 +55,7 @@ export class NavbarComponent implements OnInit {
     this.signalR.start();
     this.signalR.newOrder$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(order => {
       this.notifications = [order, ...this.notifications.slice(0, 19)];
+      this.notification.success(`New paid order: #${order.orderNumber} — ₹${order.amount}`);
       this.cdr.markForCheck();
     });
     this.signalR.outboxFailed$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(event => {

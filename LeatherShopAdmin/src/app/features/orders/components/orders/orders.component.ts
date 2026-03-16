@@ -1,10 +1,12 @@
-﻿import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+﻿import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { PaginatorState } from 'primeng/paginator';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { OrderService } from '../../services/order.service';
 import { Order, OrderStatus } from '../../models/order.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
+import { SignalRService } from '../../../../core/services/signalr.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { getStatusSeverity, TagSeverity } from '../../../../shared/utils/severity.utils';
 import { TableModule } from 'primeng/table';
@@ -39,7 +41,9 @@ export class OrdersComponent implements OnInit {
   private fb = inject(FormBuilder);
   private orderService = inject(OrderService);
   private notification = inject(NotificationService);
+  private signalR = inject(SignalRService);
   private cdr = inject(ChangeDetectorRef);
+  private destroyRef = inject(DestroyRef);
 
   orders: Order[] = [];
   loading = true;
@@ -65,6 +69,12 @@ export class OrdersComponent implements OnInit {
       filterStatus: [''],
     });
     this.loadOrders();
+
+    // Auto-refresh when a new paid order comes in via SignalR
+    this.signalR.newOrder$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(order => {
+      this.notification.success(`New paid order: ${order.orderNumber} — ₹${order.amount}`);
+      this.loadOrders();
+    });
   }
 
   loadOrders(): void {
