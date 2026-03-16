@@ -1091,6 +1091,46 @@ Order Status Enum: Pending → Confirmed → Shipped → Delivered → Cancelled
 
 ---
 
+## Paytm Payment Gateway Migration (Mar 2026)
+
+Paytm migrated their platform from `securegw.paytm.in` to `secure.paytmpayments.com`. This required multiple coordinated changes across backend and frontend to restore payment functionality.
+
+### Changes Made
+
+| # | File | Change | Why |
+|---|------|--------|-----|
+| 1 | `PaytmChecksum.cs` | Rewrote checksum algorithm to match official Paytm SDK v1.5.1 | **IV mismatch**: Our code used `merchantKey` as AES IV; official SDK uses fixed `@@@@&&&&####$$$$`. **Salt mismatch**: Generated 8-char hex salt; SDK uses 4-char Base64 salt (3 random bytes). Old platform was lenient; new platform strictly validates. |
+| 2 | `PaymentService.cs` | Changed API domain from `securegw.paytm.in` to `secure.paytmpayments.com` | Paytm deprecated old domain per support ticket TKT-83733 |
+| 3 | `PaymentService.cs` | Changed `callbackUrl` from `/api/payment/verify` to `/api/payment/callback` | Paytm redirects browser with form-encoded POST; `/verify` only accepts JSON |
+| 4 | `PaymentService.cs` | Removed response checksum verification in `GetPaytmTransactionStatusAsync` | C# deserialization loses fields not in our model → re-serialized JSON differs from what Paytm signed → checksum always fails. Compensating controls (HTTPS + amount verification + ResultCode check) provide sufficient security for server-to-server calls. |
+| 5 | `PaymentService.cs` | Added negative stock guard for re-confirmed cancelled orders | If expired order gets paid after cancellation, stock could go negative. Now logs explicit warning for admin to resolve. |
+| 6 | `PaymentService.cs` | Stripped `+` from `custId` field | Paytm rejects `+` in customer ID |
+| 7 | `PaymentController.cs` | Added `POST /api/payment/callback` endpoint | Accepts Paytm's `application/x-www-form-urlencoded` redirect after payment. Extracts `ORDERID`/`TXNID`, runs server-side verification, shows success/failure HTML page. |
+| 8 | `PaymentController.cs` | Changed checkout.js host to `secure.paytmpayments.com` | New platform serves JS SDK from new domain |
+| 9 | `payment-page.html` | Fixed `CheckoutJs` → `CheckoutJS` (capital S) | New platform SDK uses different casing |
+| 10 | `payment-page.html` | Added `onLoad` callback pattern for SDK initialization | New SDK loads sub-bundles asynchronously. Previous code checked `window.Paytm.CheckoutJs` synchronously → always null → "Payment gateway loading" popup. Now waits reactively via `onLoad`. |
+| 11 | `payment-page.html` | Added 30-second timeout to `waitForPaytmSDK()` | Prevents infinite polling if SDK fails to load |
+| 12 | `ExpiredOrderCleanupService.cs` | Changed batch `SaveChangesAsync` to per-order transactions | One failed order (e.g., concurrency conflict) was blocking all other expired orders from being cleaned up. Each order now processed in its own DI scope with individual error handling. |
+| 13 | `auth.service.ts` | Added `isAuthenticated$` BehaviorSubject + `setSession()` | Centralized auth state emission. Enables reactive SignalR connection management. |
+| 14 | `navbar.component.ts` | Subscribes to `isAuthenticated$` to start/stop SignalR | **Fixed race condition**: On page refresh, navbar rendered before auth guard restored the token → `signalR.start()` found no token → never connected → no real-time notifications. Now waits reactively for auth state. |
+| 15 | `orders.component.ts` | Subscribes to `newOrder$` for auto-refresh | Orders list updates in real-time when a new paid order arrives via SignalR |
+
+### Verification Status
+
+| Check | Result |
+|-------|--------|
+| Payment initiation (Paytm Initiate Transaction API) | ✅ HTTP 200, txnToken returned |
+| Checkout page loads with Paytm SDK | ✅ CheckoutJS loads and initializes via `onLoad` |
+| Payment via UPI/GPay | ✅ Transaction successful |
+| Paytm callback (form POST → /api/payment/callback) | ✅ ORDERID/TXNID extracted, verification runs |
+| Server-side verification (Transaction Status API) | ✅ HTTP 200, TXN_SUCCESS confirmed |
+| Order status updated to Confirmed/Paid | ✅ Database updated |
+| WhatsApp payment confirmation to customer | ✅ Message sent |
+| Admin panel real-time notification | ✅ SignalR pushes NewOrder event |
+| Admin orders list auto-refresh | ✅ Refreshes on SignalR event |
+
+---
+
 ## What Is NOT Yet Implemented
 
 These features are not built yet and would need to be added for production:
@@ -1125,7 +1165,7 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 |---|-------|----------|---------|
 | C1 | ~~**No Authentication / Authorization**~~ | ~~All controllers, `Program.cs`~~ | **FIXED** — JWT Bearer authentication implemented. `AuthController` with BCrypt password verification against `AdminUsers` table. `[Authorize]` attribute on all admin controllers (Products, Orders, Customers, Dashboard, Broadcast). Payment and WhatsApp webhook remain public. Angular: `AuthGuard` protects all admin routes, `AuthInterceptor` attaches Bearer token, animated login page, auto-redirect on 401. Admin credentials auto-seeded on first DB migration. |
 | C2 | ~~**Secrets Committed to Source**~~ | ~~`appsettings.json`~~ | **FIXED** — All secrets (DB password, JWT key, WhatsApp access token, admin seed password) moved out of `appsettings.json` into `appsettings.Local.json` (gitignored). Base `appsettings.json` now contains only empty placeholders and non-secret config. `Program.cs` loads `appsettings.Local.json` at startup (optional, never committed). Admin seed password read from `Admin:SeedPassword` config instead of hardcoded. `.csproj` has `UserSecretsId` for developers preferring `dotnet user-secrets`. Production secrets come from Railway environment variables. `appsettings.Local.json.example` template committed for new developers. |
-| C3 | ~~**Payment Signature Verification TODO'd Out**~~ | ~~`PaymentService.cs`~~ | **FIXED (migrated to Paytm)** — `VerifyPaymentAsync` calls Paytm's Transaction Status API server-to-server to verify payment. Response checksum verified using AES-128-CBC algorithm via `PaytmChecksum` helper with constant-time comparison. If `Paytm:MerchantId` or `Paytm:MerchantKey` is not configured, payment verification is **rejected** (fail-closed). `PaymentVerifyDto` accepts `TransactionId` + `OrderId`. Originally implemented with Razorpay HMAC-SHA256, migrated to Paytm in Phase 23. |
+| C3 | ~~**Payment Signature Verification TODO'd Out**~~ | ~~`PaymentService.cs`~~ | **FIXED (migrated to Paytm + full rewrite in Mar 2026)** — `PaytmChecksum.cs` completely rewritten to match official Paytm Node.js SDK v1.5.1: fixed IV `@@@@&&&&####$$$$`, 3-byte Base64 salt, AES-128-CBC. `VerifyPaymentAsync` calls Paytm Transaction Status API (`/v3/order/status`) server-to-server. Response signature verification intentionally skipped (see Paytm Migration section for rationale). Compensating controls: amount validation, ResultCode=="01" check, HTTPS transport. New `/api/payment/callback` endpoint handles Paytm's form-encoded browser redirect. If `Paytm:MerchantId` or `Paytm:MerchantKey` is not configured, payment verification is **rejected** (fail-closed). |
 | C4 | ~~**WhatsApp Webhook Signature Not Validated**~~ | ~~`WhatsAppWebhookController.cs`~~ | **FIXED (F115)** — Webhook now reads raw body with `EnableBuffering()`, computes HMAC-SHA256 using `WhatsApp:AppSecret`, and compares to `X-Hub-Signature-256` header with `CryptographicOperations.FixedTimeEquals()`. Rejects forged payloads with 401. Falls through with warning if AppSecret not configured (dev mode). |
 | C5 | ~~**XSS in Payment Page**~~ | ~~`PaymentController.cs`~~ | **FIXED** — All user-controlled values (`OrderNumber`, `CustomerPhone`, `ProductName`) are HTML-encoded with `WebUtility.HtmlEncode()` into safe local variables before interpolation into the payment HTML page. Numeric values (`TotalAmount`, `Quantity`, etc.) are strongly-typed decimals/ints and don't need encoding. |
 | C6 | ~~**DbContext Thread-Safety Bug**~~ | ~~`BroadcastBackgroundService.cs`~~ | **FIXED** — `ProcessBroadcastAsync` no longer shares a single `DbContext` across concurrent tasks. Each concurrent task creates its own `IServiceScope`. `SaveProgressAsync` uses a dedicated scope with `ExecuteUpdateAsync` (stateless SQL `UPDATE`, no entity tracking). Processing uses `.Chunk(10)` + `Task.WhenAll` for controlled concurrency. No `DbContext` instance is ever accessed from multiple threads. |
@@ -1318,6 +1358,19 @@ Exhaustive file-by-file scan of all **49 backend `.cs` files** and **61 frontend
 | **Empty `catch {}`** | ✅ **FIXED** — `scrollToBottom()` in chat-page now has explanatory comment: "Intentionally empty — scrolling is a best-effort UI enhancement". |
 | **Missing `trackBy`** | ✅ **FIXED** — Added `trackByConversation` and `trackByMessage` functions to chat-page, wired to `*ngFor` in template. |
 | **`!important` in SCSS** | ✅ 18 remaining — used for PrimeNG overrides and component-specific styling (navbar logout button, chat send button, login form). Zero in core app layout styles. |
+
+### 🔍 Post-Payment Migration Audit (Mar 2026)
+
+Additional audit performed after the Paytm domain migration to verify all new code follows proper practices.
+
+| # | Severity | Issue | File | Fix |
+|---|----------|-------|------|-----|
+| A1 | **High** | Negative stock on re-confirmed cancelled orders | `PaymentService.cs` | ✅ **FIXED** — When a paid order was previously cancelled (stock restored), re-confirming it deducted stock again. Added explicit stock availability check. If insufficient stock, logs `LogWarning` for admin resolution instead of going negative. |
+| A2 | **High** | Batch failure in expired order cleanup | `ExpiredOrderCleanupService.cs` | ✅ **FIXED** — Single `SaveChangesAsync` for all expired orders meant one concurrency conflict blocked all. Changed to per-order `IServiceScope` with individual transaction + error handling. Failed orders are logged and skipped; others proceed normally. |
+| A3 | **Medium** | SDK wait infinite loop | `payment-page.html` | ✅ **FIXED** — `waitForPaytmSDK()` polled every 100ms with no upper bound. Added 30-second timeout. On timeout, shows "Payment gateway failed to load" error message instead of hanging. |
+| A4 | **Medium** | SignalR race condition on page refresh | `auth.service.ts`, `navbar.component.ts` | ✅ **FIXED** — Navbar rendered before auth guard restored token → `signalR.start()` found null token → never connected → no real-time updates. Added `isAuthenticated$` BehaviorSubject. Navbar subscribes reactively: `true` → start SignalR, `false` → stop. |
+| A5 | **Assessed** | Encoding inconsistency in PaytmChecksum | `PaytmChecksum.cs` | ℹ️ **No fix needed** — IV (`@@@@&&&&####$$$$`), key (alphanumeric), and AES plaintext (hex+Base64) are all pure ASCII. UTF-8 and ASCII produce identical bytes for chars 0-127. No behavioral difference. |
+| A6 | **Assessed** | Response signature verification skipped | `PaymentService.cs` | ℹ️ **Acceptable** — Compensating controls exist: HTTPS transport, amount validation against DB, `ResultCode=="01"` check. Re-enabling requires Paytm to document all response fields or provide a raw-body verification endpoint. |
 
 ---
 

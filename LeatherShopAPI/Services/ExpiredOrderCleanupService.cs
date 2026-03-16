@@ -50,29 +50,45 @@ public sealed class ExpiredOrderCleanupService : BackgroundService
 
     private async Task CleanupExpiredOrdersAsync(CancellationToken ct)
     {
-        using var scope = _serviceProvider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        var now = DateTime.UtcNow;
-
-        // Find all pending (unpaid) orders that have expired
-        var expiredOrders = await db.Orders
-            .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
-            .Where(o => o.PaymentExpiresAt != null
-                     && o.PaymentExpiresAt < now
-                     && !o.IsPaid
-                     && o.Status == OrderStatus.Pending)
-            .ToListAsync(ct);
-
-        if (expiredOrders.Count == 0) return;
-
-        _logger.LogInformation("Found {Count} expired unpaid order(s) to clean up.", expiredOrders.Count);
-
-        foreach (var order in expiredOrders)
+        // First, query for expired order IDs using a short-lived context
+        List<int> expiredOrderIds;
+        using (var queryScope = _serviceProvider.CreateScope())
         {
-            await OrderExpiryHelper.CancelAndRestoreCartAsync(db, order, _logger);
+            var queryDb = queryScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            expiredOrderIds = await queryDb.Orders
+                .Where(o => o.PaymentExpiresAt != null
+                         && o.PaymentExpiresAt < DateTime.UtcNow
+                         && !o.IsPaid
+                         && o.Status == OrderStatus.Pending)
+                .Select(o => o.Id)
+                .ToListAsync(ct);
         }
 
-        await db.SaveChangesAsync(ct);
+        if (expiredOrderIds.Count == 0) return;
+
+        _logger.LogInformation("Found {Count} expired unpaid order(s) to clean up.", expiredOrderIds.Count);
+
+        // Process each order in its own scope so one failure doesn't block others
+        foreach (var orderId in expiredOrderIds)
+        {
+            try
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var order = await db.Orders
+                    .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
+                    .FirstOrDefaultAsync(o => o.Id == orderId && o.Status == OrderStatus.Pending && !o.IsPaid, ct);
+
+                if (order == null) continue; // Already processed or paid in the meantime
+
+                await OrderExpiryHelper.CancelAndRestoreCartAsync(db, order, _logger);
+                await db.SaveChangesAsync(ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Failed to clean up expired order {OrderId}. Will retry next cycle.", orderId);
+            }
+        }
     }
 }

@@ -105,12 +105,15 @@
         startCountdown();
 
         // Wait for Paytm SDK to fully load (it bootstraps async sub-bundles)
+        var sdkWaitStart = Date.now();
         function waitForPaytmSDK() {
             if (window.Paytm && window.Paytm.CheckoutJS && window.Paytm.CheckoutJS.onLoad) {
                 window.Paytm.CheckoutJS.onLoad(function() {
                     sdkReady = true;
                     console.log('Paytm CheckoutJS SDK ready');
                 });
+            } else if (Date.now() - sdkWaitStart > 30000) {
+                console.error('Paytm SDK failed to load within 30 seconds');
             } else {
                 setTimeout(waitForPaytmSDK, 200);
             }

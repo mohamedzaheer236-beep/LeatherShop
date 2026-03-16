@@ -276,6 +276,20 @@ public class PaymentService : IPaymentService
                 .Where(oi => oi.OrderId == order.Id)
                 .ToListAsync(ct);
 
+            // Verify sufficient stock before re-deducting
+            var insufficientStock = orderItems
+                .Where(i => i.Product.StockQuantity < i.Quantity)
+                .Select(i => $"{i.Product.Name} (need {i.Quantity}, have {i.Product.StockQuantity})")
+                .ToList();
+
+            if (insufficientStock.Any())
+            {
+                _logger.LogError(
+                    "INSUFFICIENT STOCK for re-confirmed order {OrderNumber} (paid {TxnId}). Items: {Items}. " +
+                    "Accepting order with negative stock — admin must resolve manually (restock or partial refund).",
+                    order.OrderNumber, txnStatus.TxnId, string.Join("; ", insufficientStock));
+            }
+
             foreach (var item in orderItems)
             {
                 item.Product.StockQuantity -= item.Quantity;
