@@ -115,20 +115,25 @@ public class PaymentService : IPaymentService
 
         var url = $"{baseUrl}/theia/api/v1/initiateTransaction?mid={merchantId}&orderId={orderId}";
 
+        _logger.LogWarning("Paytm Initiate Transaction request for {OrderId}: URL={Url}, MID={MID}, Website={Website}, Amount={Amount}, Env={Env}",
+            orderId, url, merchantId, body.websiteName, amount.ToString("F2"), paytmEnv);
+
         var httpClient = _httpClientFactory.CreateClient("Paytm");
         var content = new StringContent(JsonSerializer.Serialize(requestPayload), Encoding.UTF8, "application/json");
         var response = await httpClient.PostAsync(url, content, ct);
         var responseJson = await response.Content.ReadAsStringAsync(ct);
 
-        _logger.LogDebug("Paytm Initiate Transaction response for {OrderId}: {Response}", orderId, responseJson);
+        _logger.LogWarning("Paytm Initiate Transaction response for {OrderId}: {Response}", orderId, responseJson);
 
         var result = JsonSerializer.Deserialize<PaytmInitiateResponse>(responseJson);
 
         if (result?.Body?.ResultInfo?.ResultCode != "S")
         {
             var errorMsg = result?.Body?.ResultInfo?.ResultMsg ?? "Unknown error";
-            _logger.LogError("Paytm Initiate Transaction failed for {OrderId}: {Error}", orderId, errorMsg);
-            throw new InvalidOperationException($"Paytm transaction initiation failed: {errorMsg}");
+            var errorCode = result?.Body?.ResultInfo?.ResultCode ?? "N/A";
+            _logger.LogError("Paytm Initiate Transaction failed for {OrderId}. Code: {Code}, Error: {Error}, Full response: {Response}",
+                orderId, errorCode, errorMsg, responseJson);
+            throw new InvalidOperationException($"Paytm transaction initiation failed: {errorMsg} (Code: {errorCode})");
         }
 
         return result.Body.TxnToken ?? throw new InvalidOperationException("Paytm returned success but no txnToken.");
