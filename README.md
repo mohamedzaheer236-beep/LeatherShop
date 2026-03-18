@@ -1327,6 +1327,13 @@ Comprehensive line-by-line audit of the entire codebase. These remain to be fixe
 | 56 | **String literal union types** — Frontend models use `OrderStatus = 'Pending' | 'Confirmed' | ...` and `direction: 'Incoming' | 'Outgoing'` instead of loose `string` types. Compile-time safety on status values. |
 | 57 | **Efficient token cleanup** — `AuthService.CleanupExpiredTokens` uses `ExecuteDeleteAsync` (server-side DELETE) instead of fetching entities into memory. |
 | 58 | **Lazy-load only what's needed** — `CustomerService.UpdateAsync`/`DeleteAsync` use `CountAsync`/`AnyAsync` instead of eager-loading `Include(c => c.Orders)` just to check counts. |
+| 59 | **Atomic database-level guards** — Payment verification (`ExecuteUpdateAsync WHERE IsPaid=false`) and refresh token rotation (`ExecuteUpdateAsync WHERE IsRevoked=false`) use database-level compare-and-swap instead of non-atomic read-then-write. Zero race condition window. |
+| 60 | **Aggregate stock validation** — Cart items are `(ProductId, SelectedImageId)` tuples. Stock check groups by `ProductId` and sums quantities before comparing to `StockQuantity`. Prevents overselling when same product is selected with different images. |
+| 61 | **SignalR token auto-refresh** — `accessTokenFactory` is async: checks `isLoggedIn()` before each reconnect. If token expired during network drop, calls `refreshAccessToken()` automatically. No stale-token infinite retry loops. |
+| 62 | **Status-aware order notifications** — `OrderNotificationDto` carries `Status` field (Pending/Confirmed/Cancelled). Frontend shows distinct icon + color + toast severity per status. Navbar bell panel, toast messages, and orders list all react correctly to all order lifecycle events. |
+| 63 | **Real-time order lifecycle** — SignalR `NewOrder` event fires at 3 lifecycle points: order placed (CheckoutHandler), payment confirmed (PaymentService), and order auto-cancelled (ExpiredOrderCleanupService). Admin dashboard updates instantly without polling or refresh. |
+| 64 | **Path traversal defense** — `InvoicePdfService` validates `Path.GetFullPath(resolved)` starts with `Path.GetFullPath(WebRootPath)` before reading any file. Blocks directory traversal attacks via crafted image URLs in database. |
+| 65 | **Resilient background services** — Each background service (broadcast, outbox, cleanup) wraps individual item processing in isolated try/catch. One failure doesn't block other items. Hub notification failures never prevent primary operations. |
 
 ### 🔍 Deep Verification Audit (Feb 2026 — Full Anti-Pattern Scan)
 
@@ -1371,6 +1378,66 @@ Additional audit performed after the Paytm domain migration to verify all new co
 | A4 | **Medium** | SignalR race condition on page refresh | `auth.service.ts`, `navbar.component.ts` | ✅ **FIXED** — Navbar rendered before auth guard restored token → `signalR.start()` found null token → never connected → no real-time updates. Added `isAuthenticated$` BehaviorSubject. Navbar subscribes reactively: `true` → start SignalR, `false` → stop. |
 | A5 | **Assessed** | Encoding inconsistency in PaytmChecksum | `PaytmChecksum.cs` | ℹ️ **No fix needed** — IV (`@@@@&&&&####$$$$`), key (alphanumeric), and AES plaintext (hex+Base64) are all pure ASCII. UTF-8 and ASCII produce identical bytes for chars 0-127. No behavioral difference. |
 | A6 | **Assessed** | Response signature verification skipped | `PaymentService.cs` | ℹ️ **Acceptable** — Compensating controls exist: HTTPS transport, amount validation against DB, `ResultCode=="01"` check. Re-enabling requires Paytm to document all response fields or provide a raw-body verification endpoint. |
+
+### 🔍 Deep Code Audit — Round 1 (Mar 16, 2026)
+
+Full parallel audit of all backend services, controllers, chatbot handlers, helpers, and all frontend components/services/interceptors. 7 parallel code-review agents scanned the entire codebase. Found and fixed 9 genuine issues.
+
+#### Backend Fixes
+
+| # | Severity | Issue | File | Fix |
+|---|----------|-------|------|-----|
+| D1 | **High** | Paytm PII logged at Warning level — phone numbers, amounts, transaction IDs visible in standard logs | `PaymentService.cs` | ✅ **FIXED** — Downgraded 3 `LogWarning` calls to `LogDebug` for Paytm initiation/verification payloads. PII only appears at Debug log level. |
+| D2 | **High** | Payment verification race condition — concurrent Paytm callbacks (retry policy) could double-confirm an order | `PaymentService.cs` | ✅ **FIXED** — Replaced non-atomic read-then-write pattern with atomic `ExecuteUpdateAsync` with `WHERE IsPaid = false`. Returns affected row count. If 0, another concurrent request already claimed it → returns idempotent success. Database-level compare-and-swap. |
+| D3 | **Critical** | Stock check didn't aggregate per ProductId — same product with different image selections counted separately | `CheckoutHandler.cs` | ✅ **FIXED** — Cart model is `(CustomerId, ProductId, SelectedImageId)`. Same product with different images = separate cart items. Stock tracked at product level. Added `GroupBy(ProductId).Sum(Quantity)` before comparing to `StockQuantity`. Applied to both `ProcessCheckout` and `PlaceOrder`. |
+| D4 | **High** | Outbox duplicate delivery — background processor could pick up a message during the inline send window | `CheckoutHandler.cs` | ✅ **FIXED** — Set `NextRetryAt = DateTime.UtcNow.AddSeconds(30)` before first `SaveChangesAsync`. Background processor queries `NextRetryAt == null \|\| NextRetryAt <= now`, so the 30s lockout prevents pickup during inline send. |
+| D5 | **High** | Refresh token rotation race — concurrent requests could both read `IsRevoked=false`, both succeed | `AuthService.cs` | ✅ **FIXED** — Replaced fetch-modify-save with atomic `ExecuteUpdateAsync` with `WHERE IsRevoked = false`. Same database-level CAS pattern as payment verification. |
+| D6 | **Medium** | Video upload orphaned partial file — if `CopyToAsync` failed (client disconnect), temp file left on disk | `ProductService.cs` | ✅ **FIXED** — Added try/catch around file write. On failure, `File.Delete` cleans up the partial file before re-throwing. |
+
+#### Frontend Fixes
+
+| # | Severity | Issue | File | Fix |
+|---|----------|-------|------|-----|
+| D7 | **High** | Chat sendMessage() race — if user switched conversations during send, response could go to wrong conversation | `chat-page.component.ts` | ✅ **FIXED** — Capture `targetCustomerId` at call time, guard response arrival against `selectedCustomerId`. Reset `sending` flag on conversation switch. |
+| D8 | **Medium** | Auth interceptor null dereference on refresh — if refresh response had no data, `res.data.token` crashed | `auth.interceptor.ts` | ✅ **FIXED** — Added optional chaining `res.data?.token` + explicit check before retrying the original request. |
+| D9 | **Medium** | Broadcast poll killed by single transient error — `pollBroadcastStatus` used `interval` without error isolation | `broadcast.service.ts` | ✅ **FIXED** — Added `catchError` inside `concatMap` so a single HTTP failure doesn't kill the polling observable. Returns `EMPTY` on error, poll continues. |
+
+### 🔍 Deep Code Audit — Round 2 (Mar 16, 2026)
+
+Second comprehensive parallel audit with 7 code-review agents, each covering a different area. This audit found 6 additional genuine issues plus 2 real-time notification gaps.
+
+#### Backend Fixes
+
+| # | Severity | Issue | File | Fix |
+|---|----------|-------|------|-----|
+| E1 | **Security** | Path traversal in PDF image loading — `Path.Combine` with crafted image URL could read files outside WebRootPath | `InvoicePdfService.cs` | ✅ **FIXED** — Added `Path.GetFullPath` validation: resolved path must start with `Path.GetFullPath(_env.WebRootPath)`. Blocks `../../appsettings.json` style attacks. |
+| E2 | **Medium** | Null product reference during cancellation stock restore — if product was deleted but order items still reference it | `OrderService.cs` | ✅ **FIXED** — Added null guard `if (item.Product == null)` with `LogError` + `continue`. Prevents `NullReferenceException`, logs the data inconsistency for admin investigation. |
+| E3 | **Medium** | Re-confirmed expired order stock re-deduction had no concurrency handling — `DbUpdateConcurrencyException` could crash | `PaymentService.cs` | ✅ **FIXED** — Wrapped `SaveChangesAsync` in try/catch for `DbUpdateConcurrencyException`. Payment is already confirmed atomically (via `ExecuteUpdateAsync`), so stock conflict is logged for admin resolution without failing the payment. |
+| E4 | **Medium** | Carousel broadcast — failed JSON deserialization silently fell through, sending carousel as wrong template format | `BroadcastBackgroundService.cs` | ✅ **FIXED** — Added explicit abort when `JsonSerializer.Deserialize` returns null. Logs error and marks broadcast as completed with 0 sent / all failed. Prevents sending wrong message format to all recipients. |
+| E5 | **High** | Expired order cleanup didn't push SignalR notification — admin panel didn't update in real-time when orders auto-cancelled | `ExpiredOrderCleanupService.cs` | ✅ **FIXED** — Injected `IHubContext<NotificationHub>` from DI scope. After each order cancellation, pushes `NewOrder` SignalR event with `Status = "Cancelled"`. Hub failure wrapped in isolated try/catch. |
+
+#### Frontend Fixes
+
+| # | Severity | Issue | File | Fix |
+|---|----------|-------|------|-----|
+| E6 | **High** | Chat loading spinner stuck forever — quick conversation switching discarded stale response but didn't reset `loadingMessages` flag | `chat-page.component.ts` | ✅ **FIXED** — Added `this.loadingMessages = false; this.cdr.markForCheck();` before the early return in the stale response guard. |
+| E7 | **High** | SignalR reconnect used expired access token — after network drop > token lifetime, reconnect failed indefinitely with stale token | `signalr.service.ts` | ✅ **FIXED** — Changed `accessTokenFactory` from sync `() => this.auth.getToken()!` to async factory that checks `this.auth.isLoggedIn()` and calls `this.auth.refreshAccessToken()` if expired. Uses `firstValueFrom` for Observable→Promise conversion. |
+| E8 | **Medium** | Notification panel always showed "New Order" for all events (new, paid, cancelled) — no visual distinction | `navbar.component.html/ts`, `signalr.service.ts` | ✅ **FIXED** — Added `status` field to `OrderNotificationDto` and `OrderNotification` interface. Notification panel now shows: 🛒 orange "New Order" for Pending, ✅ green "Order Paid" for Confirmed, ❌ red "Order Cancelled" for Cancelled. Toast messages differentiated: `info` / `success` / `warning`. Removed duplicate toast from orders component. |
+
+### Verified Non-Issues (False Alarms Dismissed)
+
+Issues flagged by auditors but verified as NOT bugs:
+
+| Flagged Issue | Why It's NOT a Bug |
+|---------------|-------------------|
+| SemaphoreSlim leak in PaymentController (`WaitAsync` outside try) | Not a C# bug — `await` returning is synchronous with entering the try block. No window for semaphore leak. |
+| SQL LIKE escape order in `SqlHelper.EscapeLikePattern` | Correct — backslash-first is the standard approach. `\%` → `\\%` is correct PostgreSQL escaping. |
+| `AuthService.RevokeAsync` non-atomic | Idempotent outcome — two concurrent revocations both set `IsRevoked=true`. No data corruption. Low priority. |
+| `WhatsAppOutboxProcessor` duplicate send risk | Standard at-least-once delivery pattern. WhatsApp messages are inherently idempotent (customer sees a duplicate text). Acceptable tradeoff vs. message loss. |
+| `ServerLogout` fire-and-forget | Standard SPA pattern. HttpOnly cookies expire naturally (7 days). Server-side token cleanup runs automatically. |
+| `FileStream` not in `using` block (ProductService) | Already fixed in Round 1 audit (D6) — `using var stream` is in place. |
+| PaytmChecksum fixed IV | Required for Paytm API compatibility — documented in code comments. Not a general-purpose crypto issue. |
+| Cart stock check race condition (CartHandler) | Acceptable — stock is re-validated at checkout time with optimistic concurrency. Cart is a "soft reservation" by design. |
 
 ---
 
