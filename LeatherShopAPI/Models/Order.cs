@@ -42,6 +42,10 @@ public class Order
     /// <summary>When the payment link expires. Null = no expiration (legacy orders).</summary>
     public DateTime? PaymentExpiresAt { get; set; }
 
+    /// <summary>Cached Paytm txnToken to avoid "Repeat Request Inconsistent" on payment page retries.</summary>
+    [MaxLength(500)]
+    public string? PaytmTxnToken { get; set; }
+
     // Navigation
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 }

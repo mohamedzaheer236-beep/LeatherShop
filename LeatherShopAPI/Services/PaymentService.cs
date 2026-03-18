@@ -62,9 +62,22 @@ public class PaymentService : IPaymentService
                 "Paytm:MerchantId and Paytm:MerchantKey must be configured. " +
                 "Set them in appsettings or environment variables (Paytm__MerchantId, Paytm__MerchantKey).");
 
-        // Call Paytm Initiate Transaction API to get a txnToken
-        var txnToken = await InitiatePaytmTransactionAsync(
-            merchantId, merchantKey, order.OrderNumber, order.TotalAmount, order.Customer.PhoneNumber, ct);
+        // Reuse cached txnToken if available (avoids Paytm "Repeat Request Inconsistent" error on retry)
+        string txnToken;
+        if (!string.IsNullOrEmpty(order.PaytmTxnToken))
+        {
+            _logger.LogDebug("Reusing cached Paytm txnToken for order {OrderNumber}", order.OrderNumber);
+            txnToken = order.PaytmTxnToken;
+        }
+        else
+        {
+            txnToken = await InitiatePaytmTransactionAsync(
+                merchantId, merchantKey, order.OrderNumber, order.TotalAmount, order.Customer.PhoneNumber, ct);
+
+            // Cache token on the order for subsequent visits
+            order.PaytmTxnToken = txnToken;
+            await _db.SaveChangesAsync(ct);
+        }
 
         return (PaymentPageResult.Ok, new PaymentPageDto
         {
