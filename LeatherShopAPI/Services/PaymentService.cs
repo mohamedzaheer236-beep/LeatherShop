@@ -193,6 +193,18 @@ public class PaymentService : IPaymentService
     {
         await OrderExpiryHelper.CancelAndRestoreCartAsync(_db, order, _logger);
         await _db.SaveChangesAsync(ct);
+
+        // Persist "Cancelled" notification so admin sees it even if offline
+        try
+        {
+            await _adminNotifications.CreateAndPushAsync(
+                order.Id, order.OrderNumber, order.Customer?.Name ?? "Unknown",
+                order.TotalAmount, "Cancelled", ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to create cancelled notification for order {OrderId}", order.Id);
+        }
     }
 
     public async Task<PaymentVerifyResultDto?> VerifyPaymentAsync(PaymentVerifyDto dto, CancellationToken ct = default)
