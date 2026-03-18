@@ -33,8 +33,8 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 |-------|---------|--------------|
 | **Middleware** | `Middleware/ExceptionHandlingMiddleware.cs` | Global exception handling — catches all unhandled exceptions, logs them, returns consistent `ApiResponse` JSON. Maps exception types to HTTP status codes (404, 400, 409, 401, 500). Prevents stack trace leaks. |
 | **API Response Model** | `Models/ApiResponse.cs` | Unified response envelope `ApiResponse<T>` with `success`, `message`, `data`, `errors` fields. Generic and non-generic versions. All controllers return this shape. |
-| **Controllers (thin)** | `AuthController.cs`, `ProductsController.cs`, `OrdersController.cs`, `CustomersController.cs`, `DashboardController.cs`, `BroadcastController.cs`, `PaymentController.cs`, `WhatsAppWebhookController.cs`, `ChatController.cs` | HTTP routing only — delegates all logic to service interfaces. Wraps responses in `ApiResponse<T>`. `[Authorize]` on all admin controllers; Auth/Payment/Webhook are public. |
-| **Service Interfaces** | `Services/Interfaces/IProductService.cs`, `IOrderService.cs`, `ICustomerService.cs`, `IDashboardService.cs`, `IBroadcastService.cs`, `IPaymentService.cs`, `IWhatsAppService.cs`, `IChatBotService.cs`, `IChatService.cs` | Contracts for all business logic |
+| **Controllers (thin)** | `AuthController.cs`, `ProductsController.cs`, `OrdersController.cs`, `CustomersController.cs`, `DashboardController.cs`, `BroadcastController.cs`, `PaymentController.cs`, `WhatsAppWebhookController.cs`, `ChatController.cs`, `NotificationsController.cs` | HTTP routing only — delegates all logic to service interfaces. Wraps responses in `ApiResponse<T>`. `[Authorize]` on all admin controllers; Auth/Payment/Webhook are public. |
+| **Service Interfaces** | `Services/Interfaces/IProductService.cs`, `IOrderService.cs`, `ICustomerService.cs`, `IDashboardService.cs`, `IBroadcastService.cs`, `IPaymentService.cs`, `IWhatsAppService.cs`, `IChatBotService.cs`, `IChatService.cs`, `IAdminNotificationService.cs` | Contracts for all business logic |
 | **Service Implementations** | `Services/ProductService.cs`, `OrderService.cs`, `CustomerService.cs`, `DashboardService.cs`, `BroadcastService.cs`, `PaymentService.cs`, `WhatsAppService.cs`, `ChatBotService.cs`, `ChatService.cs`, `ConversationStateService.cs` | All business logic lives here — DB queries, WhatsApp API calls, chatbot state machine, admin chat, ephemeral conversation state (IMemoryCache) |
 | **Real-time (SignalR)** | `Hubs/NotificationHub.cs` | SignalR hub for real-time push notifications. Pushes `NewOrder` (order notifications to admin dashboard bell), `NewMessage` (incoming WhatsApp messages to chat page), `MessageSent` (outgoing message confirmations), `OutboxMessageFailed` (permanently failed outbox messages → admin toast + chat page badge). JWT-authenticated via query string token. |
 | **Chat System** | `Controllers/ChatController.cs`, `Services/ChatService.cs`, `Models/ChatMessage.cs`, `DTOs/Chat/ChatDtos.cs`, `Data/Configurations/ChatMessageConfiguration.cs` | Full 2-way admin ↔ customer chat. Admin sends messages via dashboard → API → WhatsApp. Customer replies arrive via webhook → saved to DB → pushed to admin via SignalR. Bot auto-pauses when admin takes over, resumes after timeout. |
@@ -47,7 +47,7 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 | **Authentication** | `Controllers/AuthController.cs`, `Models/AdminUser.cs`, `DTOs/Auth/AuthDtos.cs`, `Data/Configurations/AdminUserConfiguration.cs` | JWT Bearer authentication — `POST /api/auth/login` validates credentials against `AdminUsers` table (BCrypt hash, case-sensitive). Returns JWT token (24h expiry). `[Authorize]` attribute on all admin controllers. Admin user auto-seeded on first startup. |
 | **Config** | `appsettings.json`, `appsettings.Development.json`, `appsettings.Production.json` | Environment-specific configuration files |
 | **Data Models** | `Models/Product.cs`, `Customer.cs`, `CartItem.cs`, `Order.cs`, `OrderItem.cs`, `BroadcastMessage.cs`, `AdminUser.cs`, `ChatMessage.cs` | Entity classes with navigation properties |
-| **Database** | `AppDbContext.cs` | EF Core DbContext — uses `ApplyConfigurationsFromAssembly()` for auto-discovering entity configs. 8 DbSets including AdminUsers and ChatMessages. |
+| **Database** | `AppDbContext.cs` | EF Core DbContext — uses `ApplyConfigurationsFromAssembly()` for auto-discovering entity configs. 12 DbSets including AdminUsers, ChatMessages, RefreshTokens, AdminNotifications. |
 
 ### Frontend Admin Panel (Angular 18) — `LeatherShopAdmin/`
 
@@ -1003,7 +1003,7 @@ POST /api/payment/verify  (with transactionId + orderId)
 ### SignalR Hub
 | Hub URL | Event | Payload | Description |
 |---------|-------|---------|-------------|
-| `/hubs/notifications` | `NewOrder` | `{ orderNumber, customerName, amount, timestamp }` | Pushed when customer completes payment |
+| `/hubs/notifications` | `NewOrder` | `{ id, orderId, orderNumber, customerName, amount, timestamp, status }` | Pushed on order placement (Pending), payment (Confirmed), or expiry (Cancelled). Persisted to DB. |
 | `/hubs/notifications` | `NewMessage` | `{ customerId, customerName, content, timestamp, ... }` | Pushed when customer sends a WhatsApp message |
 | `/hubs/notifications` | `MessageSent` | `{ customerId, content, timestamp, ... }` | Pushed when admin/bot message is delivered |
 
@@ -1020,6 +1020,13 @@ POST /api/payment/verify  (with transactionId + orderId)
 |--------|----------|-------------|
 | GET | `/api/payment/pay/{orderId}` | Serve Paytm payment HTML page |
 | POST | `/api/payment/verify` | Verify payment and confirm order |
+
+### Notifications (Admin)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/notifications/unread` | Get unread admin notifications (max 50, most recent first) |
+| POST | `/api/notifications/{id}/read` | Mark a single notification as read |
+| POST | `/api/notifications/read-all` | Mark all unread notifications as read |
 
 ---
 
@@ -1076,6 +1083,19 @@ POST /api/payment/verify  (with transactionId + orderId)
                                              └──────────────┘  (CustomerId+Timestamp)
 
 Order Status Enum: Pending → Confirmed → Shipped → Delivered → Cancelled
+
+┌───────────────────┐
+│ AdminNotifications │
+├───────────────────┤
+│ Id (PK)           │
+│ OrderId           │
+│ OrderNumber       │
+│ CustomerName      │
+│ Amount            │
+│ Status            │  (Pending/Confirmed/Cancelled)
+│ CreatedAt    ◄────│─ composite index (IsRead+CreatedAt)
+│ IsRead            │
+└───────────────────┘
 ```
 
 **Seed Data (auto-inserted on first run):**
@@ -2775,5 +2795,70 @@ Implemented proper idempotency guards for webhook processing and payment verific
 | F45 | HIGH | Payment re-verification without IsPaid guard | ✅ Early return for already-paid orders with idempotent success response |
 
 **Deployment Note:** Railway builds failed due to corrupted Unicode em-dash characters (`â€"`) in 34 `.cs` files. These worked on Windows but caused `CS1525`/`CS1056` errors on Linux Docker. Fixed by batch-replacing with ASCII dashes. See [Deployment Troubleshooting](#railway-docker-build-fails-with-cs1525cs1056-unicode-encoding-issues) for prevention.
+
+**Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
+
+### Phase 38 — Persistent Server-Side Admin Notifications (March 18, 2026)
+
+Previously, admin notifications were **transient** — stored only in memory via SignalR. If the admin was logged out, refreshed the page, or the server restarted, all notifications were lost. This phase makes notifications **persistent** by storing them in the database and serving them via a REST API, while keeping SignalR for real-time push.
+
+**Architecture:**
+
+```
+Order Event (Pending/Confirmed/Cancelled)
+    │
+    ▼
+AdminNotificationService.CreateAndPushAsync()
+    │
+    ├── 1. INSERT into AdminNotifications table (DB = source of truth)
+    │
+    └── 2. SignalR push to connected admins (best-effort, for real-time UX)
+
+Admin Login / Page Refresh
+    │
+    ▼
+GET /api/notifications/unread → fetch missed notifications from DB
+    │
+    ▼
+Merge with real-time SignalR stream (dedup by notification ID)
+```
+
+**Backend Changes:**
+
+| # | Type | Change | File(s) |
+|---|------|--------|----------|
+| 1 | **Model** | New `AdminNotification` entity — Id, OrderId, OrderNumber, CustomerName, Amount, Status, CreatedAt, IsRead | `Models/AdminNotification.cs` |
+| 2 | **Config** | Fluent API config with composite index on (IsRead, CreatedAt) for fast unread queries | `Data/Configurations/AdminNotificationConfiguration.cs` |
+| 3 | **DbContext** | Added `DbSet<AdminNotification>` | `Data/AppDbContext.cs` |
+| 4 | **Migration** | EF Core migration `AddAdminNotifications` — auto-applied at startup | `Migrations/` |
+| 5 | **Interface** | `IAdminNotificationService` — CreateAndPush, GetUnread, MarkAsRead, MarkAllAsRead | `Services/Interfaces/IAdminNotificationService.cs` |
+| 6 | **Service** | `AdminNotificationService` — persists to DB, then pushes via SignalR. Single centralized source replaces 3 scattered direct pushes | `Services/AdminNotificationService.cs` |
+| 7 | **Controller** | `NotificationsController` — GET unread (max 50), POST {id}/read, POST read-all | `Controllers/NotificationsController.cs` |
+| 8 | **DI** | Registered `IAdminNotificationService` as scoped service | `Extensions/ServiceCollectionExtensions.cs` |
+| 9 | **Refactor** | CheckoutHandler — replaced direct `IHubContext` SignalR push with `IAdminNotificationService.CreateAndPushAsync()` | `Services/ChatBot/Handlers/CheckoutHandler.cs` |
+| 10 | **Refactor** | PaymentService — replaced direct SignalR push with `IAdminNotificationService.CreateAndPushAsync()` | `Services/PaymentService.cs` |
+| 11 | **Refactor** | ExpiredOrderCleanupService — replaced direct SignalR push with `IAdminNotificationService.CreateAndPushAsync()` | `Services/ExpiredOrderCleanupService.cs` |
+| 12 | **DTO** | Added `Id` field to `OrderNotificationDto` (DB-generated ID for mark-as-read tracking) | `DTOs/Chat/ChatDtos.cs` |
+| 13 | **Cleanup** | Extended `ChatCleanupBackgroundService` to delete read notifications older than 30 days | `Services/ChatCleanupBackgroundService.cs` |
+
+**Frontend Changes:**
+
+| # | Type | Change | File(s) |
+|---|------|--------|----------|
+| 1 | **Service** | New `NotificationApiService` — getUnread(), markAsRead(id), markAllAsRead() HTTP calls | `core/services/notification-api.service.ts` |
+| 2 | **Interface** | Added `id` field to `OrderNotification` interface | `core/services/signalr.service.ts` |
+| 3 | **Navbar** | On login: fetch unread from API (catch-up for missed notifications) | `shared/components/navbar/navbar.component.ts` |
+| 4 | **Navbar** | Real-time SignalR events merge into persisted list with deduplication by ID | `shared/components/navbar/navbar.component.ts` |
+| 5 | **Navbar** | "Clear all" calls `markAllAsRead()` API; click calls `markAsRead(id)` API | `shared/components/navbar/navbar.component.ts` |
+| 6 | **Navbar** | On logout: clear notification array | `shared/components/navbar/navbar.component.ts` |
+| 7 | **Template** | Changed `@for` tracking from `n.orderNumber` to `n.id` for stable rendering | `shared/components/navbar/navbar.component.html` |
+
+**Key Design Decisions:**
+
+- **DB is source of truth** — SignalR push is best-effort. If admin is disconnected, notifications are still persisted and fetched on next login.
+- **Single admin system** — No per-admin notification tracking (single `AdminNotifications` table). Matches existing single-admin architecture.
+- **Unread cap: 50** — API returns max 50 unread notifications. Older ones are still in DB but not fetched.
+- **30-day auto-cleanup** — Read notifications older than 30 days are auto-deleted by the existing `ChatCleanupBackgroundService`.
+- **Centralized notification creation** — All 3 event sources (CheckoutHandler, PaymentService, ExpiredOrderCleanupService) now go through `AdminNotificationService` instead of direct `IHubContext` calls. Single responsibility, DRY.
 
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
