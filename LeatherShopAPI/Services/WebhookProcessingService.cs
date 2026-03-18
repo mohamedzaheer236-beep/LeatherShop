@@ -125,6 +125,13 @@ public class WebhookProcessingService : IWebhookProcessingService
             customer = await HandleNewCustomerFirstMessageAsync(phone, incomingContent, contactName, message.Type, ct);
         }
 
+        // Skip chatbot for unsupported message types (reactions, stickers, images, etc.)
+        if (textBody == null && interactiveId == null)
+        {
+            _logger.LogDebug("Skipping chatbot for unsupported message type '{Type}' from {From}", message.Type, from);
+            return;
+        }
+
         // Delegate to chatbot for automated response - pass tracked customer to avoid duplicate lookup
         await _chatBot.ProcessMessage(customer, message.Type, textBody, interactiveId, interactiveTitle, ct);
     }
@@ -152,7 +159,8 @@ public class WebhookProcessingService : IWebhookProcessingService
                 interactiveTitle = message.Button?.Text;
                 break;
             default:
-                textBody = "menu";
+                // Unknown message types (reaction, sticker, image, system, etc.)
+                // Leave textBody null — chatbot will skip processing
                 break;
         }
 
