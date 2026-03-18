@@ -331,12 +331,14 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │
 ├── Extensions/
 │   ├── ServiceCollectionExtensions.cs   # Grouped DI registration
-│   └── MappingExtensions.cs             # Entity → DTO extension methods
-│                                        #   Product.ToDto(), Order.ToDto(), OrderItem.ToDto()
-│                                        #   Eliminates duplicate mapping across services
-│                                        #   - AddDatabase() — PostgreSQL context
-│                                        #   - AddApplicationServices() — all 9 services
-│                                        #   - AddCorsPolicies() — CORS for Angular (AllowCredentials for SignalR)
+│   │                                    #   - AddDatabase() — PostgreSQL context
+│   │                                    #   - AddApplicationServices() — all 13+ services
+│   │                                    #   - AddCorsPolicies() — CORS for Angular (AllowCredentials for SignalR)
+│   ├── MappingExtensions.cs             # Entity → DTO extension methods
+│   │                                    #   Product.ToDto(), Order.ToDto(), OrderItem.ToDto()
+│   │                                    #   Eliminates duplicate mapping across services
+│   ├── PhoneNumberHelper.cs             # Phone number normalization (E.164 format)
+│   └── SqlHelper.cs                     # SQL helper utilities
 │
 ├── Middleware/
 │   └── ExceptionHandlingMiddleware.cs   # Global exception handler
@@ -350,13 +352,15 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   │                                    #   - ApiResponse<T> (with data)
 │   │                                    #   - ApiResponse (without data)
 │   │                                    #   - Static Ok() and Fail() factory methods
+│   ├── PaginatedResult.cs               # Generic paginated result wrapper (Items, Total, Page, PageSize)
 │   ├── Product.cs                       # Id, Name, Description, Brand, Category,
 │   │                                    #   Price, StockQuantity, ImageUrl, VideoUrl, IsActive
+│   ├── ProductImage.cs                  # Id, ProductId (FK), ImageUrl, DisplayOrder
 │   ├── Customer.cs                      # Id, PhoneNumber (unique), Name, Address,
 │   │                                    #   IsSubscribed, IsBotPaused, BotPausedUntil
 │   │                                    #   → has Orders, CartItems
-│   ├── CartItem.cs                      # Id, CustomerId, ProductId, Quantity
-│   │                                    #   (unique constraint: customer + product)
+│   ├── CartItem.cs                      # Id, CustomerId, ProductId, SelectedImageId, Quantity
+│   │                                    #   (unique constraint: customer + product + image)
 │   ├── Order.cs                         # Id, OrderNumber (unique), CustomerId,
 │   │                                    #   TotalAmount, Status, PaymentId, IsPaid
 │   │                                    # OrderItem: OrderId, ProductId, Qty, UnitPrice
@@ -365,8 +369,15 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   ├── ChatMessage.cs                   # Id, CustomerId, Direction (Incoming/Outgoing),
 │   │                                    #   MessageType, Content, SenderName, IsFromBot,
 │   │                                    #   Timestamp — stores all WhatsApp chat history
-│   └── AdminUser.cs                     # Id, Username (unique), PasswordHash (BCrypt),
-│                                        #   CreatedAt, LastLoginAt
+│   ├── AdminUser.cs                     # Id, Username (unique), PasswordHash (BCrypt),
+│   │                                    #   CreatedAt, LastLoginAt
+│   ├── RefreshToken.cs                  # Id, AdminUserId, Token (unique), ExpiresAt, IsRevoked
+│   ├── AdminNotification.cs             # Id, OrderId, OrderNumber, CustomerName, Amount,
+│   │                                    #   Status, CreatedAt, IsRead — persistent admin notifications
+│   └── WhatsApp/
+│       ├── WhatsAppOutboxMessage.cs     # Transactional outbox for order confirmations
+│       │                                #   RetryCount, NextRetryAt, Status (Pending/Sent/Failed)
+│       └── WhatsAppApiException.cs      # Custom exception for WhatsApp API errors
 │
 ├── Hubs/
 │   └── NotificationHub.cs               # SignalR hub for real-time notifications
@@ -375,18 +386,21 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │                                        #   - MessageSent: pushed when admin message is delivered
 │
 ├── Controllers/                         # THIN — wraps responses in ApiResponse<T>
-│   ├── AuthController.cs                # JWT login — POST /api/auth/login
-│   │                                    #   Validates credentials vs AdminUsers table
-│   │                                    #   BCrypt password verification (case-sensitive)
-│   │                                    #   Returns JWT token (24h expiry)
+│   ├── AuthController.cs                # JWT login, refresh, logout, verify
+│   │                                    #   POST login → JWT + HttpOnly refresh cookie
+│   │                                    #   POST refresh → new JWT from cookie
+│   │                                    #   POST logout → revoke token + clear cookie
+│   │                                    #   GET verify → check token validity
 │   ├── ProductsController.cs            # [Authorize] — Injects IProductService
-│   ├── OrdersController.cs              # [Authorize] — Injects IOrderService
+│   ├── OrdersController.cs              # [Authorize] — Injects IOrderService (+ invoice PDF)
 │   ├── CustomersController.cs           # [Authorize] — Injects ICustomerService
 │   ├── DashboardController.cs           # [Authorize] — Injects IDashboardService
 │   ├── BroadcastController.cs           # [Authorize] — Injects IBroadcastService
 │   ├── ChatController.cs                # [Authorize] — Injects IChatService
 │   │                                    #   GET conversations, GET messages, POST send,
-│   │                                    #   POST pause bot, POST resume bot
+│   │                                    #   POST toggle bot, failed messages, outbox retry
+│   ├── NotificationsController.cs       # [Authorize] — Injects IAdminNotificationService
+│   │                                    #   GET unread, POST mark-read, POST mark-all-read
 │   ├── PaymentController.cs             # Public (customer-facing) — Injects IPaymentService
 │   └── WhatsAppWebhookController.cs     # Public (Meta webhook) — Injects IChatBotService
 │                                        #   Saves incoming messages to ChatMessages table,
@@ -394,18 +408,25 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │                                        #   pushes NewMessage to admin via SignalR
 │
 ├── Services/
-│   ├── Interfaces/                      # Service contracts
+│   ├── Interfaces/                      # Service contracts (13 interfaces)
+│   │   ├── IAuthService.cs              # Login, refresh token, logout
 │   │   ├── IWhatsAppService.cs          # SendText, SendList, SendButton, SendTemplate
 │   │   ├── IChatBotService.cs           # ProcessMessage()
-│   │   ├── IProductService.cs           # CRUD + categories/brands
+│   │   ├── IWebhookProcessingService.cs # ProcessWebhook() — message dedup + dispatch
+│   │   ├── IProductService.cs           # CRUD + categories/brands + image/video upload
 │   │   ├── IOrderService.cs             # List + status update
 │   │   ├── ICustomerService.cs          # List + create + import + subscribe
 │   │   ├── IDashboardService.cs         # GetDashboard()
 │   │   ├── IBroadcastService.cs         # Send + history + templates
 │   │   ├── IChatService.cs              # Conversations, messages, send, bot pause/resume
-│   │   └── IPaymentService.cs           # Payment page + verify
+│   │   ├── IPaymentService.cs           # Payment page + verify
+│   │   ├── IInvoicePdfService.cs        # Generate invoice PDF for orders
+│   │   └── IAdminNotificationService.cs # Create + push, get unread, mark read
 │   │
+│   ├── AuthService.cs                   # Implements IAuthService — JWT + refresh tokens
 │   ├── WhatsAppService.cs               # Implements IWhatsAppService
+│   ├── WebhookProcessingService.cs      # Implements IWebhookProcessingService
+│   │                                    #   Message deduplication via IMemoryCache (10-min TTL)
 │   ├── ChatBotService.cs                # Implements IChatBotService (state machine)
 │   │                                    #   BotSend* wrappers save all outgoing messages
 │   │                                    #   to ChatMessages + push via SignalR
@@ -420,22 +441,56 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   ├── ChatService.cs                   # Implements IChatService — conversations list,
 │   │                                    #   paginated messages, send message via WhatsApp,
 │   │                                    #   bot pause/resume with auto-expiry
-│   └── PaymentService.cs                # Implements IPaymentService
-│                                        #   Pushes NewOrder via SignalR on successful payment
-│                                        #   Sends WhatsApp notification to shop owner
+│   ├── PaymentService.cs                # Implements IPaymentService
+│   │                                    #   Atomic payment verification (ExecuteUpdateAsync WHERE IsPaid=false)
+│   │                                    #   Sends WhatsApp notification to shop owner
+│   ├── InvoicePdfService.cs             # Implements IInvoicePdfService — generates PDF invoices
+│   │                                    #   Path traversal defense via Path.GetFullPath()
+│   ├── AdminNotificationService.cs      # Implements IAdminNotificationService
+│   │                                    #   Persists to DB + pushes SignalR (centralized)
+│   ├── WhatsAppOutboxProcessor.cs       # Hosted BackgroundService — transactional outbox
+│   │                                    #   Polls every 10s, exponential backoff (30s→10m),
+│   │                                    #   Failed after 5 attempts → SignalR OutboxMessageFailed
+│   ├── ExpiredOrderCleanupService.cs    # Hosted BackgroundService — polls every 60s
+│   │                                    #   Cancels unpaid orders past PaymentExpiresAt,
+│   │                                    #   restores stock + cart, pushes Cancelled notification
+│   ├── ChatCleanupBackgroundService.cs  # Hosted BackgroundService — runs daily
+│   │                                    #   Deletes chat messages + read notifications older than 30 days
+│   ├── ConversationStateService.cs      # IMemoryCache-based ephemeral chatbot state
+│   │
+│   └── ChatBot/                         # Chatbot domain handlers
+│       ├── BotMessageSender.cs          # Wrapper — sends WhatsApp + saves to ChatMessages + SignalR
+│       ├── ChatBotHelpers.cs            # Format helpers for bot messages
+│       └── Handlers/
+│           ├── MenuHandler.cs           # Main menu, greeting, help
+│           ├── ProductHandler.cs        # Product browsing, categories, search
+│           ├── CartHandler.cs           # Cart operations — add, view, remove, update qty
+│           ├── CheckoutHandler.cs       # Address flow, order placement, stock check
+│           │                            #   Aggregate stock validation (GroupBy ProductId)
+│           │                            #   Pushes Pending notification via IAdminNotificationService
+│           └── OrderHistoryHandler.cs   # View past orders
+
+├── Helpers/
+│   ├── OrderExpiryHelper.cs             # Cancel order + restore stock + restore cart
+│   └── PaytmChecksum.cs                # HMAC-SHA256 checksum for Paytm API
 │
 ├── Data/
-│   ├── AppDbContext.cs                  # 8 DbSets, uses ApplyConfigurationsFromAssembly()
-│   └── Configurations/                  # Fluent API entity configurations
-│       ├── ProductConfiguration.cs      # Indexes on Category/Brand, seed data
+│   ├── AppDbContext.cs                  # 12 DbSets, uses ApplyConfigurationsFromAssembly()
+│   ├── DataSeeder.cs                    # Idempotent startup seeder — admin user + sample products
+│   └── Configurations/                  # Fluent API entity configurations (12 files)
+│       ├── ProductConfiguration.cs      # Indexes on Category/Brand
+│       ├── ProductImageConfiguration.cs # FK to Product, DisplayOrder
 │       ├── CustomerConfiguration.cs     # Unique PhoneNumber, 1:N → Orders, 1:N → CartItems
-│       ├── CartItemConfiguration.cs     # Unique (CustomerId+ProductId), M:1 relationships
+│       ├── CartItemConfiguration.cs     # Unique (CustomerId+ProductId+SelectedImageId), M:1
 │       ├── OrderConfiguration.cs        # Unique OrderNumber, M:1 → Customer, 1:N → OrderItems
 │       ├── OrderItemConfiguration.cs    # M:1 → Order, M:1 → Product (Restrict delete)
 │       ├── BroadcastMessageConfiguration.cs
 │       ├── ChatMessageConfiguration.cs  # CustomerId+Timestamp composite index,
-│       │                                    #   Direction stored as string, FK cascade delete
-│       └── AdminUserConfiguration.cs    # Unique Username, max lengths
+│       │                                #   Direction stored as string, FK cascade delete
+│       ├── AdminUserConfiguration.cs    # Unique Username, max lengths
+│       ├── RefreshTokenConfiguration.cs # Unique Token, FK to AdminUser
+│       ├── WhatsAppOutboxMessageConfiguration.cs # Indexes for polling queries
+│       └── AdminNotificationConfiguration.cs     # Composite index (IsRead+CreatedAt)
 │
 ├── DTOs/                                # Split per feature, with validation attributes
 │   ├── Auth/AuthDtos.cs                 # LoginRequest (Username, Password), LoginResponse (Token, Expiry, Username)
@@ -483,24 +538,35 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 │       │   └── services/
 │       │       ├── auth.service.ts      # login(), logout(), isLoggedIn(), getUsername()
 │       │       │                        #   JWT token management via localStorage
-│       │       └── signalr.service.ts   # SignalR hub connection manager
-│       │                                #   Connects to /hubs/notifications with JWT auth
-│       │                                #   Exposes newOrder$ and newMessage$ observables
-│       │                                #   Auto-reconnects on disconnect
+│       │       │                        #   Refresh token rotation via HttpOnly cookie
+│       │       │                        #   isAuthenticated$ BehaviorSubject for reactive auth state
+│       │       ├── signalr.service.ts   # SignalR hub connection manager
+│       │       │                        #   Connects to /hubs/notifications with JWT auth
+│       │       │                        #   Exposes newOrder$, chatMessage$, newChatMessage$, outboxFailed$
+│       │       │                        #   Async accessTokenFactory with token refresh on reconnect
+│       │       │                        #   Auto-reconnects with retry backoff
+│       │       └── notification-api.service.ts  # Admin notification API client
+│       │                                #   getUnread(), markAsRead(id), markAllAsRead()
 │       │
 │       ├── shared/
 │       │   ├── utils/
-│       │   │   └── severity.utils.ts         # Shared getStatusSeverity() + getStatusButtonSeverity()
-│       │   │                                 #   Used by dashboard + orders components
+│       │   │   ├── severity.utils.ts         # Shared getStatusSeverity() + getStatusButtonSeverity()
+│       │   │   │                             #   Used by dashboard + orders components
+│       │   │   └── form.utils.ts             # Shared form utility functions
+│       │   ├── pipes/
+│       │   │   ├── time.pipes.ts             # TimeAgoPipe — relative timestamps (e.g., "2 min ago")
+│       │   │   └── format-message.pipe.ts    # Format WhatsApp message content for display
 │       │   ├── services/
 │       │   │   ├── notification.service.ts    # Centralized toast notification service
 │       │   │   └── template-loader.service.ts # Shared WhatsApp template loading + validation
 │       │   │                                  #   Used by broadcast + customers components
 │       │   └── components/
 │       │       ├── navbar/              # Navigation bar (ts, html, scss)
-│       │       │                        #   Includes notification bell with badge count
-│       │       │                        #   OverlayPanel shows real-time order alerts
-│       │       │                        #   Powered by SignalR (starts on init, stops on logout)
+│       │       │                        #   Notification bell with badge count
+│       │       │                        #   Fetches unread from API on login (catch-up)
+│       │       │                        #   Merges real-time SignalR events (dedup by ID)
+│       │       │                        #   Status-aware icons: Pending/Confirmed/Cancelled
+│       │       │                        #   Click → markAsRead API, Clear all → markAllAsRead API
 │       │       ├── toast/               # Toast notification component (auto-dismiss)
 │       │       └── loading-spinner/     # Reusable loading spinner component
 │       │
@@ -938,67 +1004,84 @@ POST /api/payment/verify  (with transactionId + orderId)
 
 ## API Endpoints Reference
 
+> All versioned endpoints use the `/api/v1/` prefix (API versioning via URL segment). Payment and WhatsApp Webhook use `/api/` without versioning.
+
 ### Authentication
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/auth/login` | Login with username + password. Returns JWT token (24h expiry). |
+| POST | `/api/v1/auth/login` | Login with username + password. Returns JWT token (24h expiry) + sets HttpOnly refresh token cookie. |
+| POST | `/api/v1/auth/refresh` | Refresh access token using HttpOnly cookie. Returns new JWT. |
+| POST | `/api/v1/auth/logout` | Revoke refresh token and clear cookie. |
+| GET | `/api/v1/auth/verify` | Verify if current access token is valid. |
 
 > All endpoints below (except Payment and WhatsApp Webhook) require `Authorization: Bearer <token>` header.
 
 ### Products
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/products` | List products (paginated). Query params: `?category=Wallet&brand=Royal Leather&search=classic&page=1&pageSize=25` |
-| GET | `/api/products/{id}` | Get single product by ID |
-| POST | `/api/products` | Create product (JSON body: name, description, brand, category, price, stockQuantity, imageUrl, videoUrl) |
-| PUT | `/api/products/{id}` | Update product (partial update — send only fields to change) |
-| DELETE | `/api/products/{id}` | Delete product |
-| GET | `/api/products/categories` | List distinct active product categories |
-| GET | `/api/products/brands` | List distinct active product brands |
-| GET | `/api/products/check-name` | Check if product name exists. Query: `?name=Classic Wallet&excludeId=5` |
-| POST | `/api/products/upload-images` | Upload up to 4 product images (multipart form, auto-compressed to ~300KB JPEG) |
-| POST | `/api/products/upload-video` | Upload product video (MP4/3GP, max 16 MB for WhatsApp compatibility) |
+| GET | `/api/v1/products` | List products (paginated). Query params: `?category=Wallet&brand=Royal Leather&search=classic&page=1&pageSize=25` |
+| GET | `/api/v1/products/{id}` | Get single product by ID |
+| POST | `/api/v1/products` | Create product (JSON body: name, description, brand, category, price, stockQuantity, imageUrl, videoUrl) |
+| PUT | `/api/v1/products/{id}` | Update product (partial update — send only fields to change) |
+| DELETE | `/api/v1/products/{id}` | Delete product |
+| GET | `/api/v1/products/categories` | List distinct active product categories |
+| GET | `/api/v1/products/brands` | List distinct active product brands |
+| GET | `/api/v1/products/check-name` | Check if product name exists. Query: `?name=Classic Wallet&excludeId=5` |
+| POST | `/api/v1/products/upload-image` | Upload single product image (multipart form) |
+| POST | `/api/v1/products/upload-images` | Upload up to 4 product images (multipart form, auto-compressed to ~300KB JPEG) |
+| POST | `/api/v1/products/upload-video` | Upload product video (MP4/3GP, max 16 MB for WhatsApp compatibility) |
 
 ### Orders
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/orders` | List orders (paginated). Query params: `?status=Pending&page=1&pageSize=25` |
-| PUT | `/api/orders/{id}/status` | Update status (JSON body: `"Confirmed"`). Sends WhatsApp notification. |
+| GET | `/api/v1/orders` | List orders (paginated). Query params: `?status=Pending&page=1&pageSize=25` |
+| PUT | `/api/v1/orders/{id}/status` | Update status (JSON body: `"Confirmed"`). Sends WhatsApp notification. |
+| GET | `/api/v1/orders/{id}/invoice` | Download order invoice as PDF |
 
 ### Customers
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/customers` | List customers (paginated). Query params: `?subscribedOnly=true&search=phone_or_name&page=1&pageSize=25` |
-| GET | `/api/customers/count` | Get subscriber count and total count |
-| POST | `/api/customers` | Create a single customer (sends WhatsApp welcome message) |
-| POST | `/api/customers/import` | Bulk import customers from list |
-| PUT | `/api/customers/{id}` | Update customer name, address, subscription. **No WhatsApp message sent on edit.** |
-| DELETE | `/api/customers/{id}` | Delete customer + cascade delete all orders, cart, chat messages |
-| PUT | `/api/customers/{id}/subscribe` | Toggle subscription status |
+| GET | `/api/v1/customers` | List customers (paginated). Query params: `?subscribedOnly=true&search=phone_or_name&page=1&pageSize=25` |
+| GET | `/api/v1/customers/count` | Get subscriber count and total count |
+| POST | `/api/v1/customers` | Create a single customer (sends WhatsApp welcome message) |
+| POST | `/api/v1/customers/import` | Bulk import customers from list |
+| PUT | `/api/v1/customers/{id}` | Update customer name, address, subscription. **No WhatsApp message sent on edit.** |
+| DELETE | `/api/v1/customers/{id}` | Delete customer + cascade delete all orders, cart, chat messages |
+| PUT | `/api/v1/customers/{id}/subscribe` | Toggle subscription status |
 
 ### Dashboard
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/dashboard` | Dashboard stats + 10 recent orders |
+| GET | `/api/v1/dashboard` | Dashboard stats + 10 recent orders |
 
 ### Broadcast
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/broadcast/send` | Send template message to all subscribers (standard + carousel) |
-| GET | `/api/broadcast/history` | Broadcast history (paginated). Query params: `?page=1&pageSize=10` |
-| GET | `/api/broadcast/{id}/status` | Poll broadcast delivery status |
-| GET | `/api/broadcast/templates` | List approved WhatsApp templates from Meta (detects carousel) |
-| GET | `/api/broadcast/stats` | Get total sent message count across all broadcasts |
-| POST | `/api/broadcast/upload-image` | Upload image file for broadcast header/carousel cards |
+| POST | `/api/v1/broadcast/send` | Send template message to all subscribers (standard + carousel) |
+| GET | `/api/v1/broadcast/history` | Broadcast history (paginated). Query params: `?page=1&pageSize=10` |
+| GET | `/api/v1/broadcast/{id}/status` | Poll broadcast delivery status |
+| GET | `/api/v1/broadcast/templates` | List approved WhatsApp templates from Meta (detects carousel) |
+| GET | `/api/v1/broadcast/stats` | Get total sent message count across all broadcasts |
+| POST | `/api/v1/broadcast/upload-image` | Upload image file for broadcast header/carousel cards |
 
 ### Chat (2-Way Admin ↔ Customer)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/chat/conversations` | List all conversations (customers with chat history). Query: `?search=name` |
-| GET | `/api/chat/{customerId}/messages` | Paginated message history. Query: `?page=1&pageSize=50` |
-| POST | `/api/chat/{customerId}/send` | Send message to customer via WhatsApp. Body: `{ message }`. Auto-pauses bot 30min. |
-| POST | `/api/chat/{customerId}/toggle-bot` | Toggle chatbot pause/resume for a customer |
-| DELETE | `/api/chat/{customerId}/messages` | Delete all chat messages for a customer conversation |
+| GET | `/api/v1/chat/conversations` | List all conversations (customers with chat history). Query: `?search=name` |
+| GET | `/api/v1/chat/{customerId}/messages` | Paginated message history. Query: `?page=1&pageSize=50` |
+| POST | `/api/v1/chat/{customerId}/send` | Send message to customer via WhatsApp. Body: `{ message }`. Auto-pauses bot 30min. |
+| POST | `/api/v1/chat/{customerId}/toggle-bot` | Toggle chatbot pause/resume for a customer |
+| DELETE | `/api/v1/chat/{customerId}/messages` | Delete all chat messages for a customer conversation |
+| GET | `/api/v1/chat/failed-messages` | List permanently failed outbox messages |
+| POST | `/api/v1/chat/outbox/{id}/retry` | Retry a failed outbox message |
+| GET | `/api/v1/chat/failed-messages/count` | Get count of failed outbox messages |
+
+### Notifications (Admin)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/notifications/unread` | Get unread admin notifications (max 50, most recent first) |
+| POST | `/api/v1/notifications/{id}/read` | Mark a single notification as read |
+| POST | `/api/v1/notifications/read-all` | Mark all unread notifications as read |
 
 ### SignalR Hub
 | Hub URL | Event | Payload | Description |
@@ -1006,27 +1089,22 @@ POST /api/payment/verify  (with transactionId + orderId)
 | `/hubs/notifications` | `NewOrder` | `{ id, orderId, orderNumber, customerName, amount, timestamp, status }` | Pushed on order placement (Pending), payment (Confirmed), or expiry (Cancelled). Persisted to DB. |
 | `/hubs/notifications` | `NewMessage` | `{ customerId, customerName, content, timestamp, ... }` | Pushed when customer sends a WhatsApp message |
 | `/hubs/notifications` | `MessageSent` | `{ customerId, content, timestamp, ... }` | Pushed when admin/bot message is delivered |
+| `/hubs/notifications` | `OutboxMessageFailed` | `{ outboxMessageId, customerName, context, lastError, failedAt }` | Pushed when an outbox message permanently fails after 5 retries |
 
 > SignalR hub requires JWT authentication via `?access_token=<token>` query string.
 
-### WhatsApp Webhook
+### WhatsApp Webhook (Public — no auth)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/whatsapp/webhook` | Meta webhook URL verification |
 | POST | `/api/whatsapp/webhook` | Receive incoming WhatsApp messages |
 
-### Payment
+### Payment (Public — customer-facing)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/payment/pay/{orderId}` | Serve Paytm payment HTML page |
+| GET | `/api/payment/pay/{orderNumber}` | Serve Paytm payment HTML page |
 | POST | `/api/payment/verify` | Verify payment and confirm order |
-
-### Notifications (Admin)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/notifications/unread` | Get unread admin notifications (max 50, most recent first) |
-| POST | `/api/notifications/{id}/read` | Mark a single notification as read |
-| POST | `/api/notifications/read-all` | Mark all unread notifications as read |
+| POST | `/api/payment/callback` | Paytm server-to-server payment callback |
 
 ---
 
@@ -1044,58 +1122,63 @@ POST /api/payment/verify  (with transactionId + orderId)
 │ Price       │       │ IsBotPaused  │       │ FailedCount  │
 │ StockQty    │       │ BotPausedUntl│       │ SentAt       │
 │ ImageUrl    │       │ CreatedAt    │       └──────────────┘
-│ IsActive    │       │ UpdatedAt    │
-│ CreatedAt   │       └──────┬───────┘
-│ UpdatedAt   │              │
-└──────┬──────┘              │ 1:N               ┌──────────────┐
-       │              ┌──────▼───────┐           │  AdminUsers  │
-       │              │  CartItems   │           ├──────────────┤
-       │              ├──────────────┤           │ Id (PK)      │
-       │   ┌──────────│ Id (PK)      │           │ Username  ◄──│─unique
-       │   │          │ CustomerId(FK)│          │ PasswordHash │
-       │   │          │ ProductId(FK)│◄─unique   │ CreatedAt    │
-       │   │          │ Quantity     │(Cust+Prod)│ LastLoginAt  │
-       │   │          │ AddedAt      │           └──────────────┘
-       │   │          └──────────────┘
-       │   │
-       │   │          ┌──────────────┐       ┌──────────────┐
-       │   │          │  Orders      │       │  OrderItems  │
-       │   │          ├──────────────┤       ├──────────────┤
-       │   │          │ Id (PK)      │──1:N──│ Id (PK)      │
-       │   │          │ OrderNumber ◄│unique  │ OrderId (FK) │
-       │   └─────────►│ CustomerId(FK│       │ ProductId(FK)│
-       │              │ TotalAmount  │       │ Quantity     │
-       └─────────────►│ Status (enum)│       │ UnitPrice    │
-                      │ PaymentId    │       └──────────────┘
-                      │ IsPaid       │
-                      │ ShippingAddr │       ┌──────────────┐
-                      │ PaymentExpAt │       │ ChatMessages │
-                      │ CreatedAt    │       ├──────────────┤
-                      │ UpdatedAt    │
-                      └──────────────┘       │ Id (PK)      │
-                                             │ CustomerId(FK│◄─cascade
-                                             │ Direction    │ (Incoming/Outgoing)
-                                             │ MessageType  │ (text/interactive/image)
-                                             │ Content      │
-                                             │ SenderName   │
-                                             │ IsFromBot    │ (true=bot, false=admin)
-                                             │ Timestamp ◄──│─composite index
-                                             └──────────────┘  (CustomerId+Timestamp)
+│ VideoUrl    │       │ UpdatedAt    │
+│ IsActive    │       └──────┬───────┘
+│ CreatedAt   │              │
+│ UpdatedAt   │              │ 1:N               ┌──────────────┐
+└──────┬──────┘        ┌─────▼────────┐          │  AdminUsers  │
+       │               │  CartItems   │          ├──────────────┤
+       │ 1:N           ├──────────────┤          │ Id (PK)      │
+       │       ┌───────│ Id (PK)      │          │ Username  ◄──│─unique
+       │       │       │ CustomerId(FK)│         │ PasswordHash │
+       │       │       │ ProductId(FK)│◄─unique  │ CreatedAt    │
+       │       │       │ SelectedImgId│(C+P+Img) │ LastLoginAt  │
+       │       │       │ Quantity     │          └──────────────┘
+       │       │       │ AddedAt      │
+       │       │       └──────────────┘          ┌──────────────┐
+       │       │                                 │ RefreshTokens│
+       │       │       ┌──────────────┐          ├──────────────┤
+       │       │       │  Orders      │          │ Id (PK)      │
+       │       │       ├──────────────┤          │ AdminUserId  │
+       │       │       │ Id (PK)      │──1:N─┐   │ Token     ◄──│─unique
+       │       │       │ OrderNumber ◄│unique │   │ ExpiresAt    │
+       │       └──────►│ CustomerId(FK│      │   │ IsRevoked    │
+       │               │ TotalAmount  │      │   │ CreatedAt    │
+       └──────────────►│ Status (enum)│      │   └──────────────┘
+                       │ PaymentId    │      │
+                       │ IsPaid       │      │   ┌──────────────┐
+                       │ ShippingAddr │      │   │  OrderItems  │
+                       │ PaymentExpAt │      │   ├──────────────┤
+                       │ CreatedAt    │      └──►│ Id (PK)      │
+                       │ UpdatedAt    │          │ OrderId (FK) │
+                       └──────────────┘          │ ProductId(FK)│
+                                                 │ Quantity     │
+┌────────────────┐     ┌──────────────┐          │ UnitPrice    │
+│ ProductImages  │     │ ChatMessages │          └──────────────┘
+├────────────────┤     ├──────────────┤
+│ Id (PK)        │     │ Id (PK)      │          ┌───────────────────┐
+│ ProductId (FK) │     │ CustomerId(FK│◄─cascade  │ AdminNotifications│
+│ ImageUrl       │     │ Direction    │ (In/Out)  ├───────────────────┤
+│ DisplayOrder   │     │ MessageType  │ (text/..) │ Id (PK)           │
+│ CreatedAt      │     │ Content      │          │ OrderId            │
+└────────────────┘     │ SenderName   │          │ OrderNumber        │
+                       │ IsFromBot    │          │ CustomerName       │
+┌──────────────────┐   │ Timestamp ◄──│─index    │ Amount             │
+│ WhatsAppOutbox   │   └──────────────┘(C+T)     │ Status             │ (Pending/Confirmed/Cancelled)
+├──────────────────┤                             │ CreatedAt     ◄────│─index (IsRead+CreatedAt)
+│ Id (PK)          │                             │ IsRead             │
+│ OrderId (FK)     │                             └───────────────────┘
+│ CustomerId (FK)  │
+│ MessageContent   │
+│ RetryCount       │
+│ NextRetryAt      │
+│ Status           │  (Pending/Sent/Failed)
+│ LastError        │
+│ CreatedAt        │
+└──────────────────┘
 
 Order Status Enum: Pending → Confirmed → Shipped → Delivered → Cancelled
-
-┌───────────────────┐
-│ AdminNotifications │
-├───────────────────┤
-│ Id (PK)           │
-│ OrderId           │
-│ OrderNumber       │
-│ CustomerName      │
-│ Amount            │
-│ Status            │  (Pending/Confirmed/Cancelled)
-│ CreatedAt    ◄────│─ composite index (IsRead+CreatedAt)
-│ IsRead            │
-└───────────────────┘
+Total: 12 tables (12 DbSets in AppDbContext)
 ```
 
 **Seed Data (auto-inserted on first run):**
