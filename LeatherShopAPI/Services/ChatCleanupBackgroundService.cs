@@ -13,6 +13,7 @@ public class ChatCleanupBackgroundService : BackgroundService
     private readonly ILogger<ChatCleanupBackgroundService> _logger;
     private static readonly TimeSpan Interval = TimeSpan.FromHours(24);
     private static readonly TimeSpan MessageRetention = TimeSpan.FromDays(30);
+    private static readonly TimeSpan NotificationRetention = TimeSpan.FromDays(30);
 
     public ChatCleanupBackgroundService(IServiceProvider serviceProvider, ILogger<ChatCleanupBackgroundService> logger)
     {
@@ -33,6 +34,7 @@ public class ChatCleanupBackgroundService : BackgroundService
             try
             {
                 await CleanupOldMessages(stoppingToken);
+                await CleanupOldNotifications(stoppingToken);
             }
             catch (Exception ex)
             {
@@ -57,6 +59,24 @@ public class ChatCleanupBackgroundService : BackgroundService
         if (deletedCount > 0)
         {
             _logger.LogInformation("ChatCleanup: Deleted {Count} messages older than {Date:yyyy-MM-dd}",
+                deletedCount, cutoff);
+        }
+    }
+
+    private async Task CleanupOldNotifications(CancellationToken ct)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var cutoff = DateTime.UtcNow - NotificationRetention;
+
+        var deletedCount = await db.AdminNotifications
+            .Where(n => n.IsRead && n.CreatedAt < cutoff)
+            .ExecuteDeleteAsync(ct);
+
+        if (deletedCount > 0)
+        {
+            _logger.LogInformation("NotificationCleanup: Deleted {Count} read notifications older than {Date:yyyy-MM-dd}",
                 deletedCount, cutoff);
         }
     }

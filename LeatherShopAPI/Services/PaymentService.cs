@@ -3,13 +3,11 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Chat;
 using LeatherShopAPI.DTOs.Payment;
 using LeatherShopAPI.Helpers;
-using LeatherShopAPI.Hubs;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 
@@ -19,7 +17,7 @@ public class PaymentService : IPaymentService
 {
     private readonly AppDbContext _db;
     private readonly IWhatsAppService _whatsApp;
-    private readonly IHubContext<NotificationHub> _hubContext;
+    private readonly IAdminNotificationService _adminNotifications;
     private readonly IConfiguration _config;
     private readonly ILogger<PaymentService> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -30,12 +28,12 @@ public class PaymentService : IPaymentService
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
-    public PaymentService(AppDbContext db, IWhatsAppService whatsApp, IHubContext<NotificationHub> hubContext,
+    public PaymentService(AppDbContext db, IWhatsAppService whatsApp, IAdminNotificationService adminNotifications,
         IConfiguration config, ILogger<PaymentService> logger, IHttpClientFactory httpClientFactory)
     {
         _db = db;
         _whatsApp = whatsApp;
-        _hubContext = hubContext;
+        _adminNotifications = adminNotifications;
         _config = config;
         _logger = logger;
         _httpClientFactory = httpClientFactory;
@@ -388,21 +386,17 @@ public class PaymentService : IPaymentService
             _logger.LogWarning(ex, "Failed to send owner WhatsApp notification for order {OrderId}", order.Id);
         }
 
-        // Push real-time notification to admin dashboard via SignalR
+        // Persist notification + push to connected admins via SignalR
         try
         {
-            await _hubContext.Clients.Group("admins").SendAsync("NewOrder", new OrderNotificationDto
-            {
-                OrderId = order.Id,
-                OrderNumber = order.OrderNumber,
-                CustomerName = string.IsNullOrEmpty(order.Customer.Name) ? order.Customer.PhoneNumber : order.Customer.Name,
-                Amount = order.TotalAmount,
-                Timestamp = DateTime.UtcNow
-            });
+            await _adminNotifications.CreateAndPushAsync(
+                order.Id, order.OrderNumber,
+                string.IsNullOrEmpty(order.Customer.Name) ? order.Customer.PhoneNumber : order.Customer.Name,
+                order.TotalAmount, "Confirmed");
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to push SignalR order notification for order {OrderId}", order.Id);
+            _logger.LogWarning(ex, "Failed to create notification for order {OrderId}", order.Id);
         }
 
         return new PaymentVerifyResultDto

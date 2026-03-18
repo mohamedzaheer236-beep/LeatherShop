@@ -1,10 +1,8 @@
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
-using LeatherShopAPI.DTOs.Chat;
 using LeatherShopAPI.Helpers;
-using LeatherShopAPI.Hubs;
 using LeatherShopAPI.Models;
+using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Services;
 
@@ -88,23 +86,17 @@ public sealed class ExpiredOrderCleanupService : BackgroundService
                 await OrderExpiryHelper.CancelAndRestoreCartAsync(db, order, _logger);
                 await db.SaveChangesAsync(ct);
 
-                // Notify admin dashboard via SignalR so the orders list refreshes in real-time
+                // Persist notification + push to connected admins
                 try
                 {
-                    var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<NotificationHub>>();
-                    await hubContext.Clients.Group("admins").SendAsync("NewOrder", new OrderNotificationDto
-                    {
-                        OrderId = order.Id,
-                        OrderNumber = order.OrderNumber,
-                        CustomerName = "System",
-                        Amount = order.TotalAmount,
-                        Timestamp = DateTime.UtcNow,
-                        Status = "Cancelled"
-                    }, ct);
+                    var adminNotifications = scope.ServiceProvider.GetRequiredService<IAdminNotificationService>();
+                    await adminNotifications.CreateAndPushAsync(
+                        order.Id, order.OrderNumber, "System",
+                        order.TotalAmount, "Cancelled", ct);
                 }
                 catch (Exception hubEx)
                 {
-                    _logger.LogWarning(hubEx, "Failed to push SignalR notification for expired order {OrderId}", orderId);
+                    _logger.LogWarning(hubEx, "Failed to create notification for expired order {OrderId}", orderId);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

@@ -11,6 +11,7 @@ import { Router } from '@angular/router';
 import { interval } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { SignalRService, OrderNotification } from '../../../core/services/signalr.service';
+import { NotificationApiService } from '../../../core/services/notification-api.service';
 import { NotificationService } from '../../services/notification.service';
 import { TimeAgoPipe } from '../../pipes/time.pipes';
 
@@ -25,6 +26,7 @@ import { TimeAgoPipe } from '../../pipes/time.pipes';
 export class NavbarComponent implements OnInit {
   private auth = inject(AuthService);
   private signalR = inject(SignalRService);
+  private notificationApi = inject(NotificationApiService);
   private notification = inject(NotificationService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
@@ -51,19 +53,24 @@ export class NavbarComponent implements OnInit {
       },
     ];
 
-    // Reactively start/stop SignalR based on auth state
-    // Handles both fresh login AND page refresh (session restore)
+    // Reactively start/stop SignalR based on auth state + fetch persisted notifications
     this.auth.isAuthenticated$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(authenticated => {
       if (authenticated) {
         this.username = this.auth.getUsername() || 'Admin';
         this.signalR.start();
+        this.fetchUnreadNotifications();
       } else {
         this.signalR.stop();
+        this.notifications = [];
       }
     });
 
+    // Real-time: merge incoming SignalR events into the persisted list
     this.signalR.newOrder$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(order => {
-      this.notifications = [order, ...this.notifications.slice(0, 19)];
+      // Avoid duplicates (same id already fetched from API)
+      if (!this.notifications.some(n => n.id === order.id)) {
+        this.notifications = [order, ...this.notifications.slice(0, 49)];
+      }
       if (order.status === 'Cancelled') {
         this.notification.warning(`Order cancelled: #${order.orderNumber}`);
       } else if (order.status === 'Pending') {
@@ -86,12 +93,29 @@ export class NavbarComponent implements OnInit {
     });
   }
 
+  /** Fetch persisted unread notifications from the API (login + page refresh catch-up). */
+  private fetchUnreadNotifications(): void {
+    this.notificationApi.getUnread().subscribe({
+      next: items => {
+        this.notifications = items;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        // Silently fail — real-time SignalR still works even if API fetch fails
+      },
+    });
+  }
+
   clearNotifications(): void {
+    this.notificationApi.markAllAsRead().subscribe();
     this.notifications = [];
   }
 
   onNotificationClick(n: OrderNotification): void {
-    this.notifications = this.notifications.filter(x => x !== n);
+    if (n.id) {
+      this.notificationApi.markAsRead(n.id).subscribe();
+    }
+    this.notifications = this.notifications.filter(x => x.id !== n.id);
     this.router.navigate(['/orders']);
   }
 

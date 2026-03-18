@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
 
 export interface OrderNotification {
+  id: number;
   orderId: number;
   orderNumber: string;
   customerName: string;

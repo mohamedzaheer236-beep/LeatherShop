@@ -36,7 +36,7 @@
               <span>No new notifications</span>
             </div>
           }
-          @for (n of notifications; track n.orderNumber) {
+          @for (n of notifications; track n.id) {
             <div class="notification-item" (click)="onNotificationClick(n); op.hide()">
               <div class="notification-icon">
                 @if (n.status === 'Cancelled') {

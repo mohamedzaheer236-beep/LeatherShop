@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<WhatsAppOutboxMessage> WhatsAppOutboxMessages => Set<WhatsAppOutboxMessage>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<AdminNotification> AdminNotifications => Set<AdminNotification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
