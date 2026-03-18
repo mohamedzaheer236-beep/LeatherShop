@@ -13,9 +13,9 @@
         tabindex="0"
         aria-label="Notifications"
         [attr.aria-expanded]="op.overlayVisible || false"
-        (click)="op.toggle($event)"
-        (keydown.enter)="op.toggle($event)"
-        (keydown.space)="$event.preventDefault(); op.toggle($event)">
+        (click)="onBellClick(op, $event)"
+        (keydown.enter)="onBellClick(op, $event)"
+        (keydown.space)="$event.preventDefault(); onBellClick(op, $event)">
         <i class="pi pi-bell notification-bell" [class.has-notifications]="notifications.length > 0"></i>
         @if (notifications.length > 0) {
           <span class="notification-badge">{{ notifications.length }}</span>

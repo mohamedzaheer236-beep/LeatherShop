@@ -112,6 +112,14 @@ export class NavbarComponent implements OnInit {
     this.notifications = [];
   }
 
+  /** Re-fetch unread from API when the bell overlay is opened (catches missed SignalR pushes). */
+  onBellClick(op: any, event: Event): void {
+    if (!op.overlayVisible) {
+      this.fetchUnreadNotifications();
+    }
+    op.toggle(event);
+  }
+
   onNotificationClick(n: OrderNotification): void {
     if (n.id) {
       this.notificationApi.markAsRead(n.id).subscribe();
