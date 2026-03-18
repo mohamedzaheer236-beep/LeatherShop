@@ -44,6 +44,8 @@ public class AdminNotificationService : IAdminNotificationService
 
         _db.AdminNotifications.Add(notification);
         await _db.SaveChangesAsync(ct);
+        _logger.LogInformation("Admin notification persisted: Id={NotifId}, Order={OrderNumber}, Status={Status}",
+            notification.Id, orderNumber, status);
 
         // 2. Push to connected admins via SignalR (best-effort — DB is source of truth)
         try
@@ -68,7 +70,7 @@ public class AdminNotificationService : IAdminNotificationService
     /// <inheritdoc />
     public async Task<List<OrderNotificationDto>> GetUnreadAsync(CancellationToken ct = default)
     {
-        return await _db.AdminNotifications
+        var results = await _db.AdminNotifications
             .Where(n => !n.IsRead)
             .OrderByDescending(n => n.CreatedAt)
             .Take(MaxUnread)
@@ -84,6 +86,9 @@ public class AdminNotificationService : IAdminNotificationService
             })
             .AsNoTracking()
             .ToListAsync(ct);
+
+        _logger.LogInformation("GetUnreadAsync returning {Count} unread notification(s)", results.Count);
+        return results;
     }
 
     /// <inheritdoc />
