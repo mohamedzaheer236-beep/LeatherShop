@@ -302,8 +302,9 @@ Admin opens http://localhost:4200
 🔔 NOTIFICATION BELL (navbar, all pages)
    • Bell icon in top-right with red badge count
    • Overlay panel shows recent order notifications
-   • Real-time via SignalR WebSocket (no polling)
+   • Real-time via SignalR WebSocket + re-fetches from API on bell click
    • Click notification → navigates to Orders page
+   • Persistent: survives logout/login, page refresh, server restart
 ```
 
 ---
@@ -443,6 +444,8 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   │                                    #   bot pause/resume with auto-expiry
 │   ├── PaymentService.cs                # Implements IPaymentService
 │   │                                    #   Atomic payment verification (ExecuteUpdateAsync WHERE IsPaid=false)
+│   │                                    #   Caches Paytm txnToken on Order to prevent duplicate initiation
+│   │                                    #   Creates Cancelled notification when expired link is visited
 │   │                                    #   Sends WhatsApp notification to shop owner
 │   ├── InvoicePdfService.cs             # Implements IInvoicePdfService — generates PDF invoices
 │   │                                    #   Path traversal defense via Path.GetFullPath()
@@ -1149,6 +1152,7 @@ POST /api/payment/verify  (with transactionId + orderId)
                        │ IsPaid       │      │   ┌──────────────┐
                        │ ShippingAddr │      │   │  OrderItems  │
                        │ PaymentExpAt │      │   ├──────────────┤
+                       │ PaytmTxnToken│      │   │ (cached tkn) │
                        │ CreatedAt    │      └──►│ Id (PK)      │
                        │ UpdatedAt    │          │ OrderId (FK) │
                        └──────────────┘          │ ProductId(FK)│
@@ -1315,7 +1319,7 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 | L6 | ~~**60+ `!important` in Styles**~~ | `styles.scss` | **FIXED** — All 60+ `!important` removed. PrimeNG overrides now use `body .p-*` prefix for natural specificity. |
 | L7 | ~~**No CSS Variables**~~ | `styles.scss` | **FIXED** — Added 75+ `--ls-*` CSS custom properties in `:root` (brand, accent, text, surface, border, radius, shadow, font tokens). Full theming support. |
 | L8 | ~~**Code Duplication**~~ | Multiple files | **FIXED** — `getSeverity()` extracted to `shared/utils/severity.utils.ts` (used by dashboard + orders). Template loading extracted to `shared/services/template-loader.service.ts` (used by broadcast + customers). DTO mapping extracted to `Extensions/MappingExtensions.cs` with `Product.ToDto()`, `Order.ToDto()`, `OrderItem.ToDto()` (used by ProductService, OrderService, DashboardService). |
-| L9 | ~~**Accessibility Gaps**~~ | Multiple templates | **FIXED** — Products `<p-tag>` (Active/Inactive toggle) has `role="button"`, `tabindex="0"`, `keydown.enter`/`keydown.space`, `aria-label`. Order expand `<div>` has `role="button"`, `tabindex="0"`, `aria-expanded`, keyboard handlers. Loading spinner has `role="status"` + `aria-live="polite"`. Skip-to-content link added to app shell with focus-visible styling. Customers tag kept click-only (dedicated `<p-button>` already provides keyboard access). |
+| L9 | ~~**Accessibility Gaps**~~ | Multiple templates | **FIXED** — Products `<p-tag>` (Active/Inactive toggle) has `role="button"`, `tabindex="0"`, `keydown.enter`/`keydown.space`, `aria-label`. Order expand `<div>` has `role="button"`, `tabindex="0"`, `aria-expanded`, keyboard handlers. Loading spinner has `role="status"` + `aria-live="polite"`. Skip-to-content link added to app shell with focus-visible styling (positioned off-screen with `left: -9999px`, visible on focus). Customers tag kept click-only (dedicated `<p-button>` already provides keyboard access). |
 | L10 | ~~**No Form Validation Messages**~~ | `product-form.component.html` | **FIXED** — Inline `<small class="p-error">` error messages on all 5 required fields (name, brand, category, price, stock). `ng-invalid`/`ng-dirty` classes applied for red border feedback. `submitted` flag prevents errors before first submit. Toast notification per specific validation failure. |
 | L11 | ~~**No Unsaved Changes Guard**~~ | `product-form.component.ts` | **FIXED** — `CanDeactivateFn` guard (`unsaved-changes.guard.ts`) with `confirm()` dialog. `window:beforeunload` handler for browser tab close. JSON snapshot comparison for dirty detection. `savedSuccessfully` flag bypasses guard after save. Wired to `/products/new` and `/products/edit/:id` routes. |
 | L12 | **UI State Mixed into Data Model** | `customer.model.ts` | `selected?: boolean` belongs in component state, not in the data model interface. |
@@ -2945,3 +2949,72 @@ Merge with real-time SignalR stream (dedup by notification ID)
 - **Centralized notification creation** — All 3 event sources (CheckoutHandler, PaymentService, ExpiredOrderCleanupService) now go through `AdminNotificationService` instead of direct `IHubContext` calls. Single responsibility, DRY.
 
 **Build verified:** Backend 0 errors, 0 warnings. Frontend 0 errors, 0 warnings.
+
+### Phase 39 — Bug Fixes: WhatsApp, Notifications, Payment Retry & Skip-to-Content (March 18, 2026)
+
+Five targeted bug fixes discovered during live testing after Phase 38.
+
+#### Fix 1: WhatsApp "Add to Cart" Triggering Welcome Message
+
+**Problem:** Clicking the "Add to Cart" button in WhatsApp triggered the welcome/menu message instead of adding the product to cart.
+
+**Root cause:** `WebhookProcessingService.ExtractMessageContent()` had `default: textBody = "menu"` — any unrecognized message type (reaction, sticker, image, system, etc.) was silently converted to "menu", triggering the main menu flow.
+
+**Fix:**
+| # | File | Change |
+|---|------|--------|
+| 1 | `Services/WebhookProcessingService.cs` | Changed `default` case to leave `textBody = null` instead of `"menu"` |
+| 2 | `Services/WebhookProcessingService.cs` | Added early return guard before `ProcessMessage()` — if both `textBody` and `interactiveId` are null, skip processing entirely |
+
+#### Fix 2: Missing Notifications After Login
+
+**Problem:** Admin logged out, orders happened, admin logged back in — notification bell showed 0 notifications.
+
+**Root cause:** Notifications were fetched on login, but the bell overlay didn't re-fetch when opened. If the fetch completed before notifications were created (timing), the bell showed stale data.
+
+**Fix:**
+| # | File | Change |
+|---|------|--------|
+| 1 | `shared/components/navbar/navbar.component.ts` | Added `onBellClick()` method that calls `fetchUnreadNotifications()` every time the bell overlay is opened |
+| 2 | `shared/components/navbar/navbar.component.html` | Updated bell click handler to call `onBellClick(op, $event)` instead of directly toggling the overlay |
+
+#### Fix 3: "Skip to Content" Link Visible on Login Page
+
+**Problem:** A "Skip to content" accessibility link was visually visible on the login page instead of being hidden off-screen.
+
+**Root cause:** CSS used `top: -100%` which didn't reliably hide the element in all viewport sizes.
+
+**Fix:**
+| # | File | Change |
+|---|------|--------|
+| 1 | `src/styles.scss` | Changed skip-to-content positioning from `top: -100%` to `left: -9999px` (reliably off-screen, visible only on `:focus`) |
+
+#### Fix 4: Paytm "Repeat Request Inconsistent" (Error 2023) on Payment Retry
+
+**Problem:** When a customer navigated back from the Paytm payment page and re-opened the payment link, they got error "Repeat Request Inconsistent" (Code 2023). The payment link was unusable until it expired.
+
+**Root cause:** Every visit to the payment page called `InitiatePaytmTransactionAsync()` with the same orderId. Paytm rejects duplicate initiation requests for the same order.
+
+**Fix:**
+| # | File | Change |
+|---|------|--------|
+| 1 | `Models/Order.cs` | Added `PaytmTxnToken` nullable string property to cache the transaction token |
+| 2 | `Services/PaymentService.cs` | After first successful initiation, stores `txnToken` on the Order. Subsequent visits reuse the cached token instead of calling Paytm again |
+| 3 | `Migrations/` | EF Core migration `AddPaytmTxnTokenToOrder` — adds column to Orders table (auto-applied at startup) |
+
+#### Fix 5: Missing "Cancelled" Notification After Order Expiry
+
+**Problem:** After an order expired (5-min payment timeout), only the "New Order" notification appeared — no "Cancelled" notification was created.
+
+**Root cause:** Two code paths cancel expired orders:
+1. **`PaymentService.ExpireOrderAndRestoreCartAsync()`** — triggered when user visits an expired payment link. Did NOT create a notification.
+2. **`ExpiredOrderCleanupService`** — background job every 60s. Creates "Cancelled" notification but only processes orders with `Status == Pending`.
+
+If the customer visited the expired link (path 1 ran first), the cleanup service (path 2) found the order already cancelled and skipped it — resulting in no "Cancelled" notification ever being created.
+
+**Fix:**
+| # | File | Change |
+|---|------|--------|
+| 1 | `Services/PaymentService.cs` | Added `IAdminNotificationService.CreateAndPushAsync()` call after `ExpireOrderAndRestoreCartAsync()` — creates "Cancelled" notification with order details |
+
+**Build verified:** Backend 0 errors, 0 warnings. All 5 fixes committed and deployed via Railway auto-deploy.
