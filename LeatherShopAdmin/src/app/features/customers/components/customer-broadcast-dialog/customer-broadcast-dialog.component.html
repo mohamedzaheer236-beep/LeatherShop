@@ -17,6 +17,14 @@
             (onChange)="onTemplateSelect()"
             placeholder="Select an approved template" [style]="{'width': '100%'}"
             [filter]="true" filterPlaceholder="Search templates..." ariaFilterLabel="Search templates" appendTo="body">
+            <ng-template pTemplate="filter" let-options="options">
+              <div class="p-dropdown-filter-container">
+                <input type="text" id="bcTemplate-filter" name="bcTemplate-filter" role="searchbox" autocomplete="off"
+                  class="p-dropdown-filter p-inputtext p-component" placeholder="Search templates..."
+                  aria-label="Search templates" (input)="options.filter($event)" />
+                <i class="p-dropdown-filter-icon pi pi-search"></i>
+              </div>
+            </ng-template>
           </p-dropdown>
         }
         @if (!helper.templateLoader.getState().templatesLoaded || helper.templateLoader.getState().templates.length === 0) {
@@ -100,6 +108,14 @@
                   [showClear]="true" [filter]="true" filterPlaceholder="Search products..."
                   appendTo="body"
                   [ariaLabelledBy]="'bcCardProductLabel_' + i">
+                  <ng-template pTemplate="filter" let-options="options">
+                    <div class="p-dropdown-filter-container">
+                      <input type="text" [id]="'bcCardProduct_' + i + '-filter'" [name]="'bcCardProduct_' + i + '-filter'" role="searchbox" autocomplete="off"
+                        class="p-dropdown-filter p-inputtext p-component" placeholder="Search products..."
+                        aria-label="Search products" (input)="options.filter($event)" />
+                      <i class="p-dropdown-filter-icon pi pi-search"></i>
+                    </div>
+                  </ng-template>
                 </p-dropdown>
                 @if (!card.selectedProductId) {
                   <small class="hint">

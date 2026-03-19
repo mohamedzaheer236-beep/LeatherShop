@@ -25,8 +25,13 @@
       [resetFilterOnHide]="true"
       emptyFilterMessage="No results found"
       (onShow)="onDropdownShow(catDropdown, 'categoryFilter')">
-      <ng-template pTemplate="filtericon">
-        <i class="pi pi-times filter-clear-icon" (click)="clearDropdownFilter(catDropdown)"></i>
+      <ng-template pTemplate="filter" let-options="options">
+        <div class="p-dropdown-filter-container">
+          <input type="text" id="filterCategory-filter" name="filterCategory-filter" role="searchbox" autocomplete="off"
+            class="p-dropdown-filter p-inputtext p-component" placeholder="Search categories..."
+            aria-label="Search categories" (input)="options.filter($event)" />
+          <i class="pi pi-times filter-clear-icon" (click)="clearDropdownFilter(catDropdown)"></i>
+        </div>
       </ng-template>
     </p-dropdown>
     <p-dropdown #brandDropdown [options]="brandOptions" formControlName="filterBrand"
@@ -36,8 +41,13 @@
       [resetFilterOnHide]="true"
       emptyFilterMessage="No results found"
       (onShow)="onDropdownShow(brandDropdown, 'brandFilter')">
-      <ng-template pTemplate="filtericon">
-        <i class="pi pi-times filter-clear-icon" (click)="clearDropdownFilter(brandDropdown)"></i>
+      <ng-template pTemplate="filter" let-options="options">
+        <div class="p-dropdown-filter-container">
+          <input type="text" id="filterBrand-filter" name="filterBrand-filter" role="searchbox" autocomplete="off"
+            class="p-dropdown-filter p-inputtext p-component" placeholder="Search brands..."
+            aria-label="Search brands" (input)="options.filter($event)" />
+          <i class="pi pi-times filter-clear-icon" (click)="clearDropdownFilter(brandDropdown)"></i>
+        </div>
       </ng-template>
     </p-dropdown>
     <button pButton type="button" icon="pi pi-search"
