@@ -166,8 +166,10 @@ export class BroadcastFormHelperService {
     const product = this.products.find(p => p.id === this.linkedProductId);
     if (!product) return;
 
-    // Store params as array to avoid comma-splitting issues with descriptions
-    const desc = product.description || 'Premium handcrafted leather product';
+    // Store params as array to avoid comma-splitting issues with descriptions.
+    // Strip newlines/tabs — WhatsApp rejects params with these characters.
+    const desc = (product.description || 'Premium handcrafted leather product')
+      .replace(/[\r\n\t]+/g, ' ').replace(/\s{4,}/g, ' ').trim();
     this.linkedProductParams = [product.name, String(product.price), desc];
     onParamsFilled(this.linkedProductParams.join(', '));
 

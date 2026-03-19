@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Models.WhatsApp;
@@ -18,6 +19,7 @@ public class WhatsAppService : IWhatsAppService
     private const int RateLimitMaxRetries = 2;
     private static readonly int[] RateLimitRetryDelaysMs = [2000, 5000];
     private const string RateLimitErrorCode = "131056"; // Meta error: (Business, Consumer) pair rate limit hit
+    private static readonly Regex ConsecutiveSpaces = new(@"\s{4,}", RegexOptions.Compiled);
 
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _config;
@@ -182,7 +184,7 @@ public class WhatsAppService : IWhatsAppService
             components.Add(new
             {
                 type = "body",
-                parameters = parameters.Select(p => new { type = "text", text = p })
+                parameters = parameters.Select(p => new { type = "text", text = SanitizeParam(p) })
             });
         }
 
@@ -216,7 +218,7 @@ public class WhatsAppService : IWhatsAppService
             ["components"] = new object[]
             {
                 new { type = "header", parameters = new[] { new { type = "image", image = new { link = card.ImageUrl } } } },
-                new { type = "body", parameters = new[] { new { type = "text", text = card.BodyParam } } },
+                new { type = "body", parameters = new[] { new { type = "text", text = SanitizeParam(card.BodyParam) } } },
                 new { type = "button", sub_type = "quick_reply", index = 0, parameters = new[] { new { type = "payload", payload = card.ButtonPayload } } }
             }
         }).ToList<object>();
@@ -355,6 +357,20 @@ public class WhatsAppService : IWhatsAppService
         }
 
         return templates;
+    }
+
+    /// <summary>
+    /// Sanitize a template body parameter for WhatsApp compliance.
+    /// Meta rejects params with newline/tab characters or 4+ consecutive spaces.
+    /// </summary>
+    private static string SanitizeParam(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+        // Replace newlines and tabs with a single space
+        var clean = text.Replace("\r\n", " ").Replace("\n", " ").Replace("\r", " ").Replace("\t", " ");
+        // Collapse 4+ consecutive whitespace chars to a single space
+        clean = ConsecutiveSpaces.Replace(clean, " ");
+        return clean.Trim();
     }
 
     private async Task SendRequest(object payload, CancellationToken ct = default)
