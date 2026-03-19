@@ -131,6 +131,53 @@
 
       <!-- ═══ Standard Template Fields (hidden when carousel) ═══ -->
       @if (!helper.isCarousel) {
+        <!-- Link to Product (when template has image header) -->
+        @if (helper.hasImageHeader) {
+          <div class="form-field">
+            <span id="linkedProductLabel">Link to Product</span>
+            <p-dropdown [inputId]="'linkedProduct'"
+              [options]="helper.productOptions"
+              [(ngModel)]="helper.linkedProductId" [ngModelOptions]="{standalone: true}"
+              (onChange)="onLinkedProductSelect()"
+              placeholder="Select a product (auto-fills details)"
+              [style]="{'width': '100%'}"
+              [showClear]="true"
+              [filter]="true"
+              filterPlaceholder="Search products..."
+              appendTo="body"
+              ariaLabelledBy="linkedProductLabel">
+              <ng-template pTemplate="filter" let-options="options">
+                <div class="p-dropdown-filter-container">
+                  <input type="text" id="linkedProduct-filter" name="linkedProduct-filter" role="searchbox" autocomplete="off"
+                    class="p-dropdown-filter p-inputtext p-component" placeholder="Search products..."
+                    aria-label="Search products" (input)="options.filter($event)" />
+                  <i class="p-dropdown-filter-icon pi pi-search"></i>
+                </div>
+              </ng-template>
+            </p-dropdown>
+            <small class="hint">
+              <i class="pi pi-info-circle"></i> Select a product to auto-fill name, price, description &amp; image
+            </small>
+          </div>
+          <!-- Product Image Picker -->
+          @if (helper.linkedProductId && helper.getLinkedProductImages().length > 0) {
+            <div class="form-field">
+              <span class="field-label">Select Header Image</span>
+              <div class="product-image-picker">
+                @for (img of helper.getLinkedProductImages(); track img) {
+                  <div class="picker-thumb"
+                    [class.selected]="helper.linkedImageId === img.id"
+                    (click)="onLinkedImageSelect(img)">
+                    <img [src]="helper.resolveImageUrl(img.url)" [alt]="'Product image'" />
+                    @if (helper.linkedImageId === img.id) {
+                      <i class="pi pi-check-circle selected-badge"></i>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        }
         @if (helper.bodyParamCount > 0) {
           <div class="form-field">
             <label for="parameters">Template Parameters (comma separated)</label>

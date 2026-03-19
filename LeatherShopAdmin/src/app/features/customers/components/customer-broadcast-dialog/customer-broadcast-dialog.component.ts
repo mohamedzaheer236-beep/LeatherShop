@@ -12,6 +12,7 @@ import {
 import { BroadcastService } from '../../../broadcast/services/broadcast.service';
 import { BroadcastFormHelperService } from '../../../broadcast/services/broadcast-form-helper.service';
 import { CarouselCard } from '../../../broadcast/models/broadcast.model';
+import { ProductImageItem } from '../../../products/models/product.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { isFieldInvalid as checkFieldInvalid } from '../../../../shared/utils/form.utils';
 
@@ -86,6 +87,23 @@ export class CustomerBroadcastDialogComponent implements OnInit {
   removeHeaderImage(): void {
     this.helper.clearHeaderImage();
     this.broadcastForm.patchValue({ imageUrl: '' });
+  }
+
+  // ─── Linked Product (standard template) ───
+
+  onLinkedProductSelect(): void {
+    this.helper.onLinkedProductSelect(
+      params => this.broadcastForm.patchValue({ params }),
+      path => this.broadcastForm.patchValue({ imageUrl: path })
+    );
+    this.cdr.markForCheck();
+  }
+
+  onLinkedImageSelect(img: ProductImageItem): void {
+    this.helper.selectLinkedProductImage(img, path => {
+      this.broadcastForm.patchValue({ imageUrl: path });
+    });
+    this.cdr.markForCheck();
   }
 
   // ─── Computed ───

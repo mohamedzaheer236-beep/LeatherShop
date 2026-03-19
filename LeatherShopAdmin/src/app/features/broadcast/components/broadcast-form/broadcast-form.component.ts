@@ -13,6 +13,7 @@ import { Subscription } from 'rxjs';
 import { BroadcastService } from '../../services/broadcast.service';
 import { BroadcastFormHelperService } from '../../services/broadcast-form-helper.service';
 import { CarouselCard } from '../../models/broadcast.model';
+import { ProductImageItem } from '../../../products/models/product.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { isFieldInvalid as checkFieldInvalid } from '../../../../shared/utils/form.utils';
 
@@ -115,6 +116,23 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
   removeHeaderImage(): void {
     this.helper.clearHeaderImage();
     this.broadcastForm.patchValue({ imageUrl: '' });
+  }
+
+  // ─── Linked Product (standard template) ───
+
+  onLinkedProductSelect(): void {
+    this.helper.onLinkedProductSelect(
+      params => this.broadcastForm.patchValue({ parameters: params }),
+      path => this.broadcastForm.patchValue({ imageUrl: path })
+    );
+    this.cdr.markForCheck();
+  }
+
+  onLinkedImageSelect(img: ProductImageItem): void {
+    this.helper.selectLinkedProductImage(img, path => {
+      this.broadcastForm.patchValue({ imageUrl: path });
+    });
+    this.cdr.markForCheck();
   }
 
   // ─── Send Broadcast ───

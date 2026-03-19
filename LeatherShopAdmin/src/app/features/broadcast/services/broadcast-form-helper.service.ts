@@ -35,6 +35,10 @@ export class BroadcastFormHelperService {
   headerImagePreview: string | null = null;
   headerImageUploading = false;
 
+  // ─── Linked Product (standard template) ───
+  linkedProductId: number | null = null;
+  linkedImageId: number | null = null;
+
   // ─── Product List ───
   products: Product[] = [];
   productOptions: { label: string; value: number }[] = [];
@@ -139,6 +143,49 @@ export class BroadcastFormHelperService {
     this.headerImagePreview = null;
   }
 
+  // ─── Linked Product Selection (standard template) ───
+
+  /**
+   * When a product is selected for a standard image-header template:
+   * - Auto-fill parameters (name, price, description)
+   * - Show product images for selection
+   * - Set header image from first product image
+   * @param onParamsFilled callback with auto-filled parameters string
+   * @param onImageSet callback with uploaded image path
+   */
+  onLinkedProductSelect(
+    onParamsFilled: (params: string) => void,
+    onImageSet: (path: string) => void
+  ): void {
+    if (!this.linkedProductId) {
+      this.linkedImageId = null;
+      return;
+    }
+    const product = this.products.find(p => p.id === this.linkedProductId);
+    if (!product) return;
+
+    // Auto-fill parameters: name, price, description
+    const desc = product.description || 'Premium handcrafted leather product';
+    const params = `${product.name}, ${product.price}, ${desc}`;
+    onParamsFilled(params);
+
+    // Auto-select first image
+    if (product.imageItems?.length) {
+      this.selectLinkedProductImage(product.imageItems[0], onImageSet);
+    }
+  }
+
+  selectLinkedProductImage(img: ProductImageItem, onImageSet: (path: string) => void): void {
+    this.linkedImageId = img.id;
+    this.headerImagePreview = this.resolveImageUrl(img.url);
+    onImageSet(img.url);
+  }
+
+  getLinkedProductImages(): ProductImageItem[] {
+    if (!this.linkedProductId) return [];
+    return this.products.find(p => p.id === this.linkedProductId)?.imageItems ?? [];
+  }
+
   // ─── Carousel Card Image Upload ───
 
   handleCardImageUpload(event: Event, index: number): void {
@@ -233,6 +280,8 @@ export class BroadcastFormHelperService {
     this.cardBodyMaxLength = 120;
     this.headerImagePreview = null;
     this.headerImageUploading = false;
+    this.linkedProductId = null;
+    this.linkedImageId = null;
   }
 
   // ─── Private ───
