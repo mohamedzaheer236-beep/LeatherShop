@@ -30,9 +30,10 @@
         }
       </div>
       <div class="form-field">
-        <label for="addCategory">Category *</label>
+        <span id="addCategoryLabel">Category *</span>
         <p-dropdown inputId="addCategory" formControlName="category" [options]="categoryOptions"
-          placeholder="Select category" [style]="{'width': '100%'}" appendTo="body"></p-dropdown>
+          placeholder="Select category" [style]="{'width': '100%'}" appendTo="body"
+          ariaLabelledBy="addCategoryLabel"></p-dropdown>
         @if (isFieldInvalid('category') && form.get('category')?.errors?.['required']) {
           <small class="p-error">Category is required.</small>
         }
