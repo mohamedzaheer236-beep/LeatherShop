@@ -230,4 +230,10 @@ public class CustomerService : ICustomerService
         await _db.SaveChangesAsync(ct);
         return true;
     }
+
+    public async Task<bool> PhoneExistsAsync(string phone, CancellationToken ct = default)
+    {
+        var normalized = PhoneNumberHelper.Normalize(phone);
+        return await _db.Customers.AnyAsync(c => c.PhoneNumber == normalized, ct);
+    }
 }

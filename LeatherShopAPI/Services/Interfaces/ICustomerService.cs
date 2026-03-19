@@ -13,4 +13,5 @@ public interface ICustomerService
     Task<DeleteCustomerResponse> DeleteAsync(int id, CancellationToken ct = default);
     Task<BulkImportResultDto> BulkImportAsync(BulkImportDto dto, CancellationToken ct = default);
     Task<bool> ToggleSubscriptionAsync(int id, bool isSubscribed, CancellationToken ct = default);
+    Task<bool> PhoneExistsAsync(string phone, CancellationToken ct = default);
 }

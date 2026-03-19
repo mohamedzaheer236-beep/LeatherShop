@@ -44,6 +44,13 @@ public class CustomersController : ControllerBase
         return Ok(ApiResponse<CustomerCountDto>.Ok(counts));
     }
 
+    [HttpGet("check-phone")]
+    public async Task<IActionResult> CheckPhone([FromQuery] string phone, CancellationToken ct)
+    {
+        var exists = await _customerService.PhoneExistsAsync(phone, ct);
+        return Ok(new { exists });
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateCustomerDto dto, CancellationToken ct)
     {

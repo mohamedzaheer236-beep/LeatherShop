@@ -11,6 +11,9 @@
         @if (isFieldInvalid('phoneNumber') && form.get('phoneNumber')?.errors?.['pattern']) {
           <small class="p-error">Enter a valid phone number (10-15 digits).</small>
         }
+        @if (form.get('phoneNumber')?.errors?.['phoneExists']) {
+          <small class="p-error"><i class="pi pi-exclamation-circle"></i> A customer with this phone number already exists.</small>
+        }
       </div>
       <div class="form-field">
         <label for="addName">Name</label>
@@ -38,6 +41,6 @@
   </form>
   <ng-template pTemplate="footer">
     <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="close()" icon="pi pi-times"></p-button>
-    <p-button label="Add Customer" (onClick)="submit()" [disabled]="submitting" [loading]="submitting" icon="pi pi-check"></p-button>
+    <p-button label="Add Customer" (onClick)="submit()" [disabled]="submitting || !isFormValid" [loading]="submitting" icon="pi pi-check"></p-button>
   </ng-template>
 </p-dialog>

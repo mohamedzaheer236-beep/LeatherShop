@@ -52,6 +52,12 @@ export class CustomerService {
     });
   }
 
+  checkPhoneExists(phone: string): Observable<boolean> {
+    return this.http
+      .get<{ exists: boolean }>(`${this.baseUrl}/check-phone`, { params: { phone } })
+      .pipe(map(res => res.exists));
+  }
+
   getSubscriberCount(): Observable<{ subscriberCount: number; totalCount: number }> {
     return this.http
       .get<ApiResponse<{ subscriberCount: number; totalCount: number }>>(`${this.baseUrl}/count`)
