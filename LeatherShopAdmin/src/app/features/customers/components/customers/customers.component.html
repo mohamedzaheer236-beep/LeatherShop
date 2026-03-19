@@ -53,16 +53,16 @@
   <div class="filters-bar" [formGroup]="filterForm">
     <span class="p-input-icon-left">
       <i class="pi pi-search"></i>
-      <input type="text" pInputText formControlName="searchTerm" placeholder="Search by phone or name..." (keyup.enter)="onSearch()" aria-label="Search customers" />
+      <input type="text" pInputText formControlName="searchTerm" id="customerSearch" name="customerSearch" placeholder="Search by phone or name..." (keyup.enter)="onSearch()" aria-label="Search customers" />
     </span>
     <p-button label="Search" icon="pi pi-search" size="small" (onClick)="onSearch()"></p-button>
     @if (searchTerm) {
       <p-button label="Clear" icon="pi pi-times" severity="secondary" [outlined]="true" size="small" (onClick)="clearSearch()"></p-button>
     }
-    <label class="toggle-filter">
+    <span class="toggle-filter">
       <p-checkbox formControlName="subscribedOnly" [binary]="true" (onChange)="onFilterChange()" inputId="subscribedOnly" aria-label="Show only subscribed customers"></p-checkbox>
-      <span class="selection-note"><label for="subscribedOnly">Subscribers only</label></span>
-    </label>
+      <label for="subscribedOnly" class="selection-note">Subscribers only</label>
+    </span>
     <p-dropdown formControlName="category" [options]="categoryOptions" placeholder="All Categories"
       [showClear]="true" (onChange)="onFilterChange()" [style]="{'min-width': '220px'}" aria-label="Filter by category"
       inputId="categoryFilter">
