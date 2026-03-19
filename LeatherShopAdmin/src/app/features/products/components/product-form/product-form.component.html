@@ -109,7 +109,7 @@
 
           <!-- Image Upload — full width, multi-image -->
           <div class="form-field">
-            <label>Product Images <span class="req-star">*</span> <span class="upload-count">({{ images.length }}/{{ maxImages }})</span></label>
+            <span class="field-label">Product Images <span class="req-star">*</span> <span class="upload-count">({{ images.length }}/{{ maxImages }})</span></span>
 
             <!-- Required validation message -->
             @if (submitted && images.length === 0) {
@@ -169,7 +169,7 @@
 
           <!-- Video Upload — optional, single video -->
           <div class="form-field">
-            <label>Product Video <span class="upload-count">(optional — shown on WhatsApp)</span></label>
+            <span class="field-label">Product Video <span class="upload-count">(optional — shown on WhatsApp)</span></span>
 
             @if (video) {
               <div class="video-card">
