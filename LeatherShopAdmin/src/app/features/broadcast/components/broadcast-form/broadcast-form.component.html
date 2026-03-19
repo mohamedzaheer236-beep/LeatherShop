@@ -252,38 +252,13 @@
                       }
                     </div>
                   }
-                  <!-- 2b. File Upload fallback -->
-                  @if (!card.selectedProductId || helper.getCardProductImages(i).length === 0) {
+                  <!-- 2b. No product selected hint -->
+                  @if (!card.selectedProductId) {
                     <div class="form-field">
                       <label>Card Image <span class="req-star">*</span></label>
-                      @if (!card.imagePreview) {
-                        <div class="image-upload-zone">
-                          <label class="upload-dropzone" [for]="'cardImage_' + i">
-                            <i class="pi pi-cloud-upload"></i>
-                            <span>{{ card.selectedProductId ? 'No product images — upload one' : 'Select a product first, or upload' }}</span>
-                            <small>JPG, PNG — auto-compressed</small>
-                          </label>
-                          <input type="file" [id]="'cardImage_' + i" accept="image/*"
-                            (change)="helper.handleCardImageUpload($event, i)" hidden />
-                          </div>
-                        }
-                        @if (card.imagePreview && (!card.selectedProductId || helper.getCardProductImages(i).length === 0)) {
-                          <div class="image-preview-wrap">
-                            <img [src]="card.imagePreview" alt="Card {{ i + 1 }} preview" class="image-preview" />
-                            @if (card.uploading) {
-                              <div class="image-preview-overlay">
-                                <i class="pi pi-spin pi-spinner"></i> Uploading...
-                              </div>
-                            }
-                            @if (!card.uploading) {
-                              <button type="button" class="remove-image-btn" (click)="helper.removeCardImage(i)">
-                                <i class="pi pi-times"></i>
-                              </button>
-                            }
-                          </div>
-                        }
-                      </div>
-                    }
+                      <small class="hint"><i class="pi pi-info-circle"></i> Select a product above to choose an image</small>
+                    </div>
+                  }
                     <!-- 3. Card Body Param -->
                     <div class="form-field">
                       <label [for]="'cardBody_' + i">Body Parameter</label>

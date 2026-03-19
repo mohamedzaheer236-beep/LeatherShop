@@ -157,32 +157,10 @@
                   </div>
                 </div>
               }
-              @if (!card.selectedProductId || helper.getCardProductImages(i).length === 0) {
+              @if (!card.selectedProductId) {
                 <div class="form-field">
                   <label>Card Image *</label>
-                  @if (!card.imagePreview) {
-                    <div class="image-upload-zone">
-                      <label class="upload-dropzone" [for]="'bcCardImage_' + i">
-                        <i class="pi pi-cloud-upload"></i>
-                        <span>{{ card.selectedProductId ? 'No product images — upload' : 'Select product or upload' }}</span>
-                        <small>JPG, PNG — auto-compressed</small>
-                      </label>
-                      <input type="file" [id]="'bcCardImage_' + i" accept="image/*" (change)="helper.handleCardImageUpload($event, i)" hidden />
-                    </div>
-                  }
-                  @if (card.imagePreview && (!card.selectedProductId || helper.getCardProductImages(i).length === 0)) {
-                    <div class="image-preview-wrap">
-                      <img [src]="card.imagePreview" alt="Card preview" class="image-preview" />
-                      @if (card.uploading) {
-                        <div class="image-preview-overlay"><i class="pi pi-spin pi-spinner"></i> Uploading...</div>
-                      }
-                      @if (!card.uploading) {
-                        <button type="button" class="remove-image-btn" (click)="helper.removeCardImage(i)">
-                          <i class="pi pi-times"></i>
-                        </button>
-                      }
-                    </div>
-                  }
+                  <small class="hint"><i class="pi pi-info-circle"></i> Select a product above to choose an image</small>
                 </div>
               }
               <div class="form-field">
