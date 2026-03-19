@@ -98,41 +98,11 @@
             </div>
           }
         }
-        @if (helper.bodyParamCount > 0 && !helper.linkedProductId) {
+        @if (helper.bodyParamCount > 0 && !helper.hasImageHeader) {
           <div class="form-field">
             <label for="bcParams">Parameters (comma separated)</label>
             <input type="text" pInputText id="bcParams" formControlName="params" placeholder="param1, param2" class="w-full" />
             <small class="hint"><i class="pi pi-info-circle"></i> This template requires {{ helper.bodyParamCount }} parameter(s)</small>
-          </div>
-        }
-        @if (helper.hasImageHeader && !helper.linkedProductId) {
-          <div class="form-field">
-            <label>Header Image (optional)</label>
-            @if (!helper.headerImagePreview) {
-              <div class="image-upload-zone">
-                <label class="upload-dropzone" for="bcHeaderImageInput">
-                  <i class="pi pi-cloud-upload"></i>
-                  <span>Click to choose image</span>
-                  <small>JPG, PNG — auto-compressed</small>
-                </label>
-                <input type="file" id="bcHeaderImageInput" accept="image/*" (change)="onHeaderImageSelect($event)" hidden />
-              </div>
-            }
-            @if (helper.headerImagePreview) {
-              <div class="image-preview-wrap">
-                <img [src]="helper.headerImagePreview" alt="Header preview" class="image-preview" />
-                @if (helper.headerImageUploading) {
-                  <div class="image-preview-overlay">
-                    <i class="pi pi-spin pi-spinner"></i> Uploading...
-                  </div>
-                }
-                @if (!helper.headerImageUploading) {
-                  <button type="button" class="remove-image-btn" (click)="removeHeaderImage()">
-                    <i class="pi pi-times"></i>
-                  </button>
-                }
-              </div>
-            }
           </div>
         }
       }
