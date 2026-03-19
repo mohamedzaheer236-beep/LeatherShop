@@ -1121,9 +1121,9 @@ POST /api/payment/verify  (with transactionId + orderId)
 │ Name        │       │ PhoneNumber ◄│─unique │ MsgTemplate  │
 │ Description │       │ Name         │       │ MessageBody  │
 │ Brand    ◄──│─index │ Address      │       │ TotalRecip   │
-│ Category ◄──│─index │ IsSubscribed │       │ SentCount    │
-│ Price       │       │ IsBotPaused  │       │ FailedCount  │
-│ StockQty    │       │ BotPausedUntl│       │ SentAt       │
+│ Category ◄──│─index │ Category  ◄──│─index │ SentCount    │
+│ Price       │       │ IsSubscribed │       │ FailedCount  │
+│ StockQty    │       │ IsBotPaused  │       │ SentAt       │
 │ ImageUrl    │       │ CreatedAt    │       └──────────────┘
 │ VideoUrl    │       │ UpdatedAt    │
 │ IsActive    │       └──────┬───────┘
@@ -3018,3 +3018,40 @@ If the customer visited the expired link (path 1 ran first), the cleanup service
 | 1 | `Services/PaymentService.cs` | Added `IAdminNotificationService.CreateAndPushAsync()` call after `ExpireOrderAndRestoreCartAsync()` — creates "Cancelled" notification with order details |
 
 **Build verified:** Backend 0 errors, 0 warnings. All 5 fixes committed and deployed via Railway auto-deploy.
+
+### Phase 40 — Customer Category Feature (March 19, 2026)
+
+Added customer classification system with 3 categories: **Reseller**, **Direct Corporate**, **Friends And Family**. Enables targeted broadcast messaging and customer segmentation.
+
+#### Backend Changes
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `Models/CustomerCategory.cs` | New enum: `Reseller`, `DirectCorporate`, `FriendsAndFamily` |
+| 2 | `Models/Customer.cs` | Added `Category` property (default: `FriendsAndFamily`) |
+| 3 | `Data/Configurations/CustomerConfiguration.cs` | String conversion, max 30 chars, DB index `IX_Customers_Category` |
+| 4 | `Migrations/AddCustomerCategory.cs` | Adds `Category` column with default `"FriendsAndFamily"` for existing rows |
+| 5 | `DTOs/Customer/CustomerDtos.cs` | Added `Category` to Create (required), Update (optional), List, BulkImport DTOs |
+| 6 | `Services/CustomerService.cs` | Category filter in `GetAllAsync`, set in Create/Update/BulkImport, included in projection |
+| 7 | `Controllers/CustomersController.cs` | Added `[FromQuery] string? category` filter parameter to `GetAll` |
+| 8 | `DTOs/Broadcast/BroadcastDtos.cs` | Added optional `Category` field to `BroadcastRequestDto` |
+| 9 | `Services/BroadcastService.cs` | Category-based recipient filtering when `PhoneNumbers` is empty |
+
+#### Frontend Changes
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `customers/models/customer.model.ts` | Added `CUSTOMER_CATEGORIES` const, `category` to all interfaces |
+| 2 | `customers/services/customer.service.ts` | Added `category` filter param to `getCustomers()` |
+| 3 | `customers/components/customers/` | Category column with colored `p-tag` (Reseller=blue, DirectCorporate=gray, FriendsAndFamily=orange), filter dropdown |
+| 4 | `customers/components/customer-add-dialog/` | Required category `p-dropdown` in add form |
+| 5 | `customers/components/customer-edit-dialog/` | Pre-filled category `p-dropdown` in edit form |
+| 6 | `customers/components/customer-import-dialog/` | Optional 3rd CSV column `phone,name,category` (defaults to FriendsAndFamily) |
+| 7 | `broadcast/models/broadcast.model.ts` | Added `category?: string` to `BroadcastRequest` |
+| 8 | `broadcast/components/broadcast-form/` | "Send To" category dropdown for targeted broadcasting |
+
+#### Design Decisions
+- **Enum stored as string** — DB values are human-readable (`"Reseller"` not `0`), indexed for filter queries
+- **Existing customers default to FriendsAndFamily** — Applied via migration default value
+- **New customers must select category** — Required field in create form, no default
+- **Broadcast dual-path targeting** — Category dropdown on broadcast page filters all subscribers by category; manual checkbox selection on customer list also works with category filter
