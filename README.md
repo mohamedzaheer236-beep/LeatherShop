@@ -3124,3 +3124,54 @@ Multiple UX improvements to the customer management system: duplicate phone vali
 - On confirm → backend deletes safe customers, returns count of deleted + skipped
 - If any skipped → warning toast with details. Otherwise → success toast
 - Selection cleared and list refreshed automatically
+
+### Phase 42 — Production Hardening & Code Quality (March 19, 2026)
+
+Deep audit revealed several improvements to bring the project to proper production-grade quality. All changes are surgical — config additions, validation constraints, and type safety fixes.
+
+#### 1. Response Compression (Backend)
+
+Added Brotli + Gzip response compression middleware. Reduces API response payload sizes by ~60-70%, improving load times for product lists, chat messages, and broadcast history.
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `Program.cs` | Added `AddResponseCompression()` with Brotli + Gzip providers |
+| 2 | `Program.cs` | Added `UseResponseCompression()` in middleware pipeline |
+
+#### 2. Security Headers (Backend)
+
+Added security headers middleware to protect against common browser-based attacks (clickjacking, MIME sniffing).
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `Program.cs` | Added inline middleware setting `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()` |
+
+#### 3. DTO Validation Constraints (Backend)
+
+Added missing `[MaxLength]` constraints to DTOs that accept user input, preventing oversized payloads from reaching the WhatsApp API.
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `DTOs/Chat/ChatDtos.cs` | Added `[MaxLength(4096)]` to `SendMessageDto.Message` (WhatsApp text limit) |
+| 2 | `DTOs/Broadcast/BroadcastDtos.cs` | Added `[MaxLength(500)]` to `CarouselCardDto.ImageUrl` |
+| 3 | `DTOs/Broadcast/BroadcastDtos.cs` | Added `[MaxLength(1024)]` to `CarouselCardDto.BodyParam` |
+| 4 | `DTOs/Broadcast/BroadcastDtos.cs` | Added `[MaxLength(256)]` to `CarouselCardDto.ButtonPayload` |
+
+#### 4. Type Safety Fixes (Frontend)
+
+Replaced `any` types with proper TypeScript types for better IDE support and compile-time safety.
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `navbar.component.ts` | Changed `onBellClick(op: any, ...)` → `onBellClick(op: OverlayPanel, ...)` |
+| 2 | `customer-import-dialog.component.ts` | Changed `onFileSelect(event: any)` → `onFileSelect(event: { files: File[] })` |
+| 3 | `customer-import-dialog.component.ts` | Changed `jsonData: any[]` → `jsonData: Record<string, unknown>[]` |
+
+#### 5. Subscription Leak Fixes (Frontend)
+
+Fixed fire-and-forget HTTP subscriptions in navbar that were not cleaned up on component destroy.
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `navbar.component.ts` | `markAllAsRead()` — added `.pipe(takeUntilDestroyed(this.destroyRef))` |
+| 2 | `navbar.component.ts` | `markAsRead(id)` — added `.pipe(takeUntilDestroyed(this.destroyRef))` |

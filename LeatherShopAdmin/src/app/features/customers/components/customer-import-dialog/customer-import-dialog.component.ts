@@ -107,8 +107,8 @@ export class CustomerImportDialogComponent {
     }
   }
 
-  onFileSelect(event: any): void {
-    const file: File = event.files?.[0] || event.target?.files?.[0];
+  onFileSelect(event: { files: File[] }): void {
+    const file: File | undefined = event.files?.[0];
     if (!file) return;
 
     this.reset();
@@ -146,7 +146,7 @@ export class CustomerImportDialogComponent {
         }
 
         const sheet = workbook.Sheets[sheetName];
-        const jsonData: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        const jsonData: Record<string, unknown>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
         if (jsonData.length === 0) {
           this.fileError = 'Excel file has no data rows. Please add at least one customer.';

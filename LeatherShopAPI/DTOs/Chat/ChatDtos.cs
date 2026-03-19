@@ -32,6 +32,7 @@ public class SendMessageDto
 {
     [Required(ErrorMessage = "Message is required.")]
     [MinLength(1, ErrorMessage = "Message cannot be empty.")]
+    [MaxLength(4096, ErrorMessage = "Message cannot exceed 4096 characters.")]
     public string Message { get; set; } = string.Empty;
 }
 

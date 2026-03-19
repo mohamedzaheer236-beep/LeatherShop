@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Text;
 using System.Threading.RateLimiting;
 using LeatherShopAPI.Data;
@@ -7,6 +8,7 @@ using LeatherShopAPI.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using QuestPDF.Infrastructure;
@@ -90,6 +92,18 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// --- Response Compression (Brotli + Gzip) ---
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+    options.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+    options.Level = CompressionLevel.Fastest);
+
 // --- Rate Limiting (per-IP) ---
 builder.Services.AddRateLimiter(options =>
 {
@@ -136,6 +150,19 @@ using (var scope = app.Services.CreateScope())
 
 // --- Global exception handling (must be first in pipeline) ---
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// --- Security headers ---
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    await next();
+});
+
+// --- Response Compression ---
+app.UseResponseCompression();
 
 // --- HTTPS forwarding headers (Railway terminates TLS at the proxy) ---
 app.UseForwardedHeaders(new ForwardedHeadersOptions

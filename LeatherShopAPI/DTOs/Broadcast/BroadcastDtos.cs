@@ -34,13 +34,16 @@ public class CarouselCardDto
 {
     /// <summary>Server-relative image path (e.g., /uploads/abc.jpg) - will be resolved to full URL.</summary>
     [Required]
+    [MaxLength(500)]
     public string ImageUrl { get; set; } = string.Empty;
 
     /// <summary>Body text parameter for this card.</summary>
     [Required]
+    [MaxLength(1024)]
     public string BodyParam { get; set; } = string.Empty;
 
     /// <summary>Quick-reply button payload for this card.</summary>
+    [MaxLength(256)]
     public string ButtonPayload { get; set; } = string.Empty;
 }
 

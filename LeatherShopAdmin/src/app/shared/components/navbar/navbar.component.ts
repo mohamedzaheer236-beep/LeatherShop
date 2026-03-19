@@ -6,7 +6,7 @@ import { MenubarModule } from 'primeng/menubar';
 import { ButtonModule } from 'primeng/button';
 import { TooltipModule } from 'primeng/tooltip';
 import { BadgeModule } from 'primeng/badge';
-import { OverlayPanelModule } from 'primeng/overlaypanel';
+import { OverlayPanelModule, OverlayPanel } from 'primeng/overlaypanel';
 import { Router } from '@angular/router';
 import { interval } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
@@ -105,12 +105,12 @@ export class NavbarComponent implements OnInit {
   }
 
   clearNotifications(): void {
-    this.notificationApi.markAllAsRead().subscribe();
+    this.notificationApi.markAllAsRead().pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
     this.notifications = [];
   }
 
   /** Re-fetch unread from API when the bell overlay is opened (catches missed SignalR pushes). */
-  onBellClick(op: any, event: Event): void {
+  onBellClick(op: OverlayPanel, event: Event): void {
     if (!op.overlayVisible) {
       this.fetchUnreadNotifications();
     }
@@ -119,7 +119,7 @@ export class NavbarComponent implements OnInit {
 
   onNotificationClick(n: OrderNotification): void {
     if (n.id) {
-      this.notificationApi.markAsRead(n.id).subscribe();
+      this.notificationApi.markAsRead(n.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
     }
     this.notifications = this.notifications.filter(x => x.id !== n.id);
     this.router.navigate(['/orders']);
