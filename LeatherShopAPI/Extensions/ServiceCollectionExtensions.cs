@@ -30,9 +30,18 @@ public static class ServiceCollectionExtensions
             connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
         }
 
+        // Ensure explicit connection pool settings for predictable behavior under load
+        if (!string.IsNullOrEmpty(connectionString) && !connectionString.Contains("Maximum Pool Size"))
+        {
+            connectionString += ";Maximum Pool Size=50;Minimum Pool Size=5;Connection Idle Lifetime=60";
+        }
+
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString, npgsqlOpts =>
-                npgsqlOpts.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
+            {
+                npgsqlOpts.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+                npgsqlOpts.CommandTimeout(30);
+            }));
 
         return services;
     }

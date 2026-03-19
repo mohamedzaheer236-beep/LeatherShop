@@ -3175,3 +3175,22 @@ Fixed fire-and-forget HTTP subscriptions in navbar that were not cleaned up on c
 |---|------|--------|
 | 1 | `navbar.component.ts` | `markAllAsRead()` — added `.pipe(takeUntilDestroyed(this.destroyRef))` |
 | 2 | `navbar.component.ts` | `markAsRead(id)` — added `.pipe(takeUntilDestroyed(this.destroyRef))` |
+
+#### 6. Database Connection Pool Tuning (Backend)
+
+Configured explicit Npgsql connection pool parameters instead of relying on defaults. Ensures predictable behavior under load (e.g., 5000+ customers browsing simultaneously).
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `Extensions/ServiceCollectionExtensions.cs` | Added `Maximum Pool Size=50`, `Minimum Pool Size=5`, `Connection Idle Lifetime=60` to connection string |
+| 2 | `Extensions/ServiceCollectionExtensions.cs` | Added `CommandTimeout(30)` to Npgsql options |
+
+#### 7. Kestrel Request Limits (Backend)
+
+Added explicit Kestrel server limits to prevent resource exhaustion from oversized requests or stale connections.
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `Program.cs` | `MaxRequestBodySize = 20 MB` (accommodates image + video uploads) |
+| 2 | `Program.cs` | `RequestHeadersTimeout = 30s` (drops slow/malicious header sends) |
+| 3 | `Program.cs` | `KeepAliveTimeout = 2 min` (releases idle connections) |

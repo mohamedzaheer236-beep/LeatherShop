@@ -138,6 +138,14 @@ builder.Services.AddRateLimiter(options =>
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://+:{port}");
 
+// --- Kestrel request limits ---
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 20 * 1024 * 1024; // 20 MB (images + video uploads)
+    options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(30);
+    options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
+});
+
 var app = builder.Build();
 
 // --- Auto-migrate database + seed data on startup ---
