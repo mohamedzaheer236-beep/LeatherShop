@@ -178,7 +178,7 @@
             </div>
           }
         }
-        @if (helper.bodyParamCount > 0) {
+        @if (helper.bodyParamCount > 0 && !helper.linkedProductId) {
           <div class="form-field">
             <label for="parameters">Template Parameters (comma separated)</label>
             <input pInputText id="parameters"
@@ -190,7 +190,7 @@
               </small>
             </div>
           }
-          @if (helper.hasImageHeader) {
+          @if (helper.hasImageHeader && !helper.linkedProductId) {
             <div class="form-field">
               <label>Header Image (optional)</label>
               @if (!helper.headerImagePreview) {
