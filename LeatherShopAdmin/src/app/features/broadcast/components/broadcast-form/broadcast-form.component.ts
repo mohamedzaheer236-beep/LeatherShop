@@ -194,7 +194,10 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
           },
         });
     } else {
-      const params = parameters && parameters.trim() ? parameters.split(',').map((p: string) => p.trim()) : [];
+      // Use pre-split array when product is linked (descriptions may contain commas)
+      const params = this.helper.linkedProductParams.length > 0
+        ? this.helper.linkedProductParams
+        : (parameters && parameters.trim() ? parameters.split(',').map((p: string) => p.trim()) : []);
       const imageUrl = this.broadcastForm.value.imageUrl;
 
       this.broadcastService

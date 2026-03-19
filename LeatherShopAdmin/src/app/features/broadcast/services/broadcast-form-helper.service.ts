@@ -38,6 +38,7 @@ export class BroadcastFormHelperService {
   // ─── Linked Product (standard template) ───
   linkedProductId: number | null = null;
   linkedImageId: number | null = null;
+  linkedProductParams: string[] = [];
 
   // ─── Product List ───
   products: Product[] = [];
@@ -159,15 +160,16 @@ export class BroadcastFormHelperService {
   ): void {
     if (!this.linkedProductId) {
       this.linkedImageId = null;
+      this.linkedProductParams = [];
       return;
     }
     const product = this.products.find(p => p.id === this.linkedProductId);
     if (!product) return;
 
-    // Auto-fill parameters: name, price, description
+    // Store params as array to avoid comma-splitting issues with descriptions
     const desc = product.description || 'Premium handcrafted leather product';
-    const params = `${product.name}, ${product.price}, ${desc}`;
-    onParamsFilled(params);
+    this.linkedProductParams = [product.name, String(product.price), desc];
+    onParamsFilled(this.linkedProductParams.join(', '));
 
     // Auto-select first image
     if (product.imageItems?.length) {
@@ -282,6 +284,7 @@ export class BroadcastFormHelperService {
     this.headerImageUploading = false;
     this.linkedProductId = null;
     this.linkedImageId = null;
+    this.linkedProductParams = [];
   }
 
   // ─── Private ───
