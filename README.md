@@ -3263,3 +3263,57 @@ Added CSP header in `vercel.json` to protect against XSS while allowing required
 | 4 | `media-src` | `'self' https://leathershop-production.up.railway.app` | Product videos stored on Railway |
 | 5 | `connect-src` | `'self' https://...railway.app wss://...railway.app` | API calls + SignalR WebSocket |
 | 6 | `frame-src` | `'none'` | No iframes needed |
+
+### Phase 44 — Broadcast Form Enhancements & Single Product Template (March 19, 2026)
+
+Added a single-product WhatsApp template, "Link to Product" selectors for standard broadcast templates, and a complete step-based card layout redesign for both broadcast forms.
+
+#### 1. Single Product WhatsApp Template
+
+Created `single_product` carousel template via WhatsApp Business API for sending one product at a time (WhatsApp carousels require minimum 2 cards, so single product uses standard IMAGE header template instead).
+
+#### 2. Link to Product for Standard Templates
+
+| # | Change | Description | File(s) |
+|---|--------|-------------|---------|
+| 1 | **Helper state** | Added `linkedProductId`, `linkedImageId` to `BroadcastFormHelperService` with `onLinkedProductSelect()`, `selectLinkedProductImage()`, `getLinkedProductImages()` methods | `broadcast-form-helper.service.ts` |
+| 2 | **Product dropdown** | Product selector dropdown + image picker for standard image-header templates — auto-fills parameters (name, price, description) from selected product | `broadcast-form.component.html`, `customer-broadcast-dialog.component.html` |
+| 3 | **Component methods** | Added `onLinkedProductSelect()`, `onLinkedImageSelect()` to both form components | `broadcast-form.component.ts`, `customer-broadcast-dialog.component.ts` |
+
+#### 3. Remove Redundant Manual Fields
+
+| # | Change | Description | File(s) |
+|---|--------|-------------|---------|
+| 1 | **Manual params removed** | Removed "Parameters (comma separated)" input for image-header templates — product selection auto-fills parameters | Both form HTML files |
+| 2 | **Header image upload removed** | Removed manual header image upload section for image-header templates — product image is used instead | Both form HTML files |
+| 3 | **Carousel file upload removed** | Removed local file upload from carousel cards — only product image picker remains | Both form HTML files |
+
+#### 4. Step-Based Card Layout Redesign
+
+Complete visual overhaul of broadcast form card sections using numbered step indicators and status badges.
+
+| # | Element | Design |
+|---|---------|--------|
+| 1 | **Card header** | Numbered badge (1, 2, 3...) + "Ready ✓" / "Setup needed" status pill |
+| 2 | **Step layout** | Three steps per card: Choose Product (box icon), Card Image (image icon), Display Text (pencil icon) |
+| 3 | **Step separators** | Dashed dividers between steps for visual clarity |
+| 4 | **Standard template** | Same step-based card for "Link to Product" section (link icon badge) |
+| 5 | **SCSS rewrite** | Complete rewrite of `_carousel.scss` with new step-based classes |
+
+**Files changed:** `broadcast-form.component.html`, `customer-broadcast-dialog.component.html`, `broadcast-form.component.ts`, `customer-broadcast-dialog.component.ts`, `broadcast-form-helper.service.ts`, `_carousel.scss`
+
+### Phase 45 — Customers Page Monochromatic Redesign (March 19, 2026)
+
+Eliminated "Power Ranger" color overload on the Customers page — every row previously had 5 competing bright colors (orange category badge, green subscribed badge, coral unsubscribe button, blue edit icon, red trash icon). Replaced with a clean monochromatic admin design using indigo accent only.
+
+| # | Element | Before | After |
+|---|---------|--------|-------|
+| 1 | **Category badges** | PrimeNG `<p-tag severity="warning">` (bright orange) | Custom `.category-pill` — soft gray background (#f1f5f9), subtle border |
+| 2 | **Subscription status** | PrimeNG `<p-tag severity="success">` (bright green) | Custom `.sub-status` — small green/gray dot indicator + "Active"/"Inactive" text. Clickable toggle with hover state |
+| 3 | **Actions column** | Edit (blue) + Delete (red) + Unsubscribe (coral outlined) — 3 bright colors | Edit + Delete only, both muted gray (`severity="secondary"`). Color appears on hover only. Unsubscribe removed (status dot handles toggle) |
+| 4 | **Toolbar stats** | PrimeNG `<p-tag>` with blue/green severity | Custom `.stat-pill` — soft neutral pills with icons. Subscriber count uses subtle indigo accent |
+| 5 | **Selection bar** | Green "Send Broadcast" + Red "Delete Selected" | Indigo primary "Send Broadcast" + secondary outlined "Delete Selected" — consistent, calm |
+
+**Design tokens used:** `--ls-accent-light` (indigo tint), `--ls-accent-dark`, `--ls-accent-ring-solid` — all defined in global `styles.scss`.
+
+**Files changed:** `customers.component.html`, `customers.component.scss`
