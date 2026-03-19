@@ -58,6 +58,12 @@ export class CustomerService {
       .pipe(map(res => res.exists));
   }
 
+  checkPhonesExist(phones: string[]): Observable<string[]> {
+    return this.http
+      .post<{ existing: string[] }>(`${this.baseUrl}/check-phones`, { phones })
+      .pipe(map(res => res.existing));
+  }
+
   getSubscriberCount(): Observable<{ subscriberCount: number; totalCount: number }> {
     return this.http
       .get<ApiResponse<{ subscriberCount: number; totalCount: number }>>(`${this.baseUrl}/count`)

@@ -1,12 +1,98 @@
-<p-dialog header="Bulk Import Customers" [(visible)]="visible" (visibleChange)="visibleChange.emit($event)"
-  (onShow)="onShow()" [modal]="true" [style]="{'width': '500px'}">
-  <p class="dialog-hint-text">Paste one customer per line. Format: <code>phone,name</code> (name is optional)</p>
-  <form [formGroup]="form">
-    <textarea pInputTextarea formControlName="importText" rows="8" class="w-full font-mono"
-    placeholder="919876543210,John&#10;919876543211,Jane&#10;919876543212"></textarea>
-  </form>
+<p-dialog header="Import Customers from Excel" [(visible)]="visible" (visibleChange)="visibleChange.emit($event)"
+  (onShow)="onShow()" [modal]="true" [style]="{'width': '720px', 'max-height': '85vh'}">
+
+  <!-- Upload Zone -->
+  @if (!validated && !validating) {
+    <div class="upload-section">
+      <div class="upload-zone" (click)="fileInput.click()"
+        (dragover)="$event.preventDefault()" (drop)="$event.preventDefault(); onFileDrop($event)">
+        <input #fileInput type="file" accept=".xlsx,.xls" (change)="onFileChange($event)" hidden />
+        <i class="pi pi-file-excel upload-icon"></i>
+        <p class="upload-title">Click to browse or drag & drop</p>
+        <p class="upload-hint">Accepts .xlsx or .xls — max 1000 rows, 5 MB</p>
+        <p class="upload-columns">Required columns: <strong>PhoneNumber</strong>, <strong>Name</strong>, <strong>Address</strong>, <strong>Category</strong></p>
+        <p class="upload-categories">Categories: Reseller, DirectCorporate, FriendsAndFamily</p>
+      </div>
+    </div>
+  }
+
+  <!-- Validating spinner -->
+  @if (validating) {
+    <div class="validating-section">
+      <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: var(--primary-color)"></i>
+      <p>Validating <strong>{{ fileName }}</strong>...</p>
+    </div>
+  }
+
+  <!-- File-level error -->
+  @if (fileError) {
+    <div class="file-error">
+      <i class="pi pi-exclamation-triangle"></i>
+      <span>{{ fileError }}</span>
+    </div>
+    <div class="retry-section">
+      <p-button label="Choose Another File" icon="pi pi-refresh" severity="secondary" [outlined]="true" (onClick)="reset(); cdr.markForCheck()"></p-button>
+    </div>
+  }
+
+  <!-- Validation errors -->
+  @if (validated && errors.length > 0) {
+    <div class="result-section">
+      <div class="error-header">
+        <i class="pi pi-times-circle"></i>
+        <span><strong>{{ errors.length }}</strong> error(s) found in <strong>{{ fileName }}</strong>. Please fix and re-upload.</span>
+      </div>
+      <div class="error-list">
+        @for (err of errors; track err.row + err.field) {
+          <div class="error-item">
+            <span class="error-row">Row {{ err.row }}</span>
+            <span class="error-field">{{ err.field }}</span>
+            <span class="error-msg">{{ err.message }}</span>
+          </div>
+        }
+      </div>
+      <div class="retry-section">
+        <p-button label="Upload Fixed File" icon="pi pi-refresh" severity="secondary" [outlined]="true" (onClick)="reset(); cdr.markForCheck()"></p-button>
+      </div>
+    </div>
+  }
+
+  <!-- Preview table (all valid) -->
+  @if (validated && errors.length === 0 && parsedRows.length > 0) {
+    <div class="result-section">
+      <div class="success-header">
+        <i class="pi pi-check-circle"></i>
+        <span><strong>{{ parsedRows.length }}</strong> customer(s) ready to import from <strong>{{ fileName }}</strong></span>
+      </div>
+      <div class="preview-table">
+        <p-table [value]="parsedRows" [scrollable]="true" scrollHeight="300px" [tableStyle]="{'min-width': '100%'}">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width:50px">#</th>
+              <th>Phone Number</th>
+              <th>Name</th>
+              <th>Address</th>
+              <th>Category</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-row>
+            <tr>
+              <td>{{ row.row }}</td>
+              <td>{{ row.phoneNumber }}</td>
+              <td>{{ row.name || '-' }}</td>
+              <td>{{ row.address || '-' }}</td>
+              <td>
+                <p-tag [value]="getCategoryLabel(row.category)" [severity]="getCategorySeverity(row.category)"></p-tag>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </div>
+  }
+
   <ng-template pTemplate="footer">
     <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="close()" icon="pi pi-times"></p-button>
-    <p-button label="Import Customers" (onClick)="submit()" [disabled]="importing" [loading]="importing" icon="pi pi-upload"></p-button>
+    <p-button label="Import Customers" (onClick)="submit()" [disabled]="!canImport" [loading]="importing" icon="pi pi-upload"></p-button>
   </ng-template>
 </p-dialog>

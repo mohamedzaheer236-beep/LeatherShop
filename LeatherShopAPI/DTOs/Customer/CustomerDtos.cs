@@ -32,6 +32,11 @@ public class BulkImportCustomerItem
     public string? Category { get; set; }
 }
 
+public class CheckPhonesRequestDto
+{
+    public List<string> Phones { get; set; } = new();
+}
+
 public class BulkImportDto
 {
     [Required(ErrorMessage = "Customer list is required.")]

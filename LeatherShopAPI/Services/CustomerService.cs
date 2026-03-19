@@ -236,4 +236,18 @@ public class CustomerService : ICustomerService
         var normalized = PhoneNumberHelper.Normalize(phone);
         return await _db.Customers.AnyAsync(c => c.PhoneNumber == normalized, ct);
     }
+
+    public async Task<List<string>> CheckPhonesAsync(List<string> phones, CancellationToken ct = default)
+    {
+        var normalized = phones
+            .Select(p => PhoneNumberHelper.Normalize(p))
+            .Where(p => !string.IsNullOrEmpty(p))
+            .Distinct()
+            .ToList();
+
+        return await _db.Customers
+            .Where(c => normalized.Contains(c.PhoneNumber))
+            .Select(c => c.PhoneNumber)
+            .ToListAsync(ct);
+    }
 }

@@ -51,6 +51,16 @@ public class CustomersController : ControllerBase
         return Ok(new { exists });
     }
 
+    [HttpPost("check-phones")]
+    public async Task<IActionResult> CheckPhones([FromBody] CheckPhonesRequestDto dto, CancellationToken ct)
+    {
+        if (dto.Phones == null || dto.Phones.Count == 0)
+            return Ok(new { existing = Array.Empty<string>() });
+
+        var existing = await _customerService.CheckPhonesAsync(dto.Phones, ct);
+        return Ok(new { existing });
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateCustomerDto dto, CancellationToken ct)
     {
