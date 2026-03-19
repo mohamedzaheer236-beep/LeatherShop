@@ -64,7 +64,8 @@
       <span class="selection-note"><label for="subscribedOnly">Subscribers only</label></span>
     </label>
     <p-dropdown formControlName="category" [options]="categoryOptions" placeholder="All Categories"
-      [showClear]="true" (onChange)="onFilterChange()" [style]="{'min-width': '220px'}" aria-label="Filter by category">
+      [showClear]="true" (onChange)="onFilterChange()" [style]="{'min-width': '220px'}" aria-label="Filter by category"
+      inputId="categoryFilter">
     </p-dropdown>
   </div>
 

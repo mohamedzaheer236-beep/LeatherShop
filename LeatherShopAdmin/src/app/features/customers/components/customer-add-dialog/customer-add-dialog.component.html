@@ -31,7 +31,7 @@
       </div>
       <div class="form-field">
         <label for="addCategory">Category *</label>
-        <p-dropdown id="addCategory" formControlName="category" [options]="categoryOptions"
+        <p-dropdown inputId="addCategory" formControlName="category" [options]="categoryOptions"
           placeholder="Select category" [style]="{'width': '100%'}" appendTo="body"></p-dropdown>
         @if (isFieldInvalid('category') && form.get('category')?.errors?.['required']) {
           <small class="p-error">Category is required.</small>
