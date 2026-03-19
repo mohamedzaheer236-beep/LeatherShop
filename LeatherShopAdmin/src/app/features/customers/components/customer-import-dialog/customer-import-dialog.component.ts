@@ -76,12 +76,7 @@ export class CustomerImportDialogComponent {
   }
 
   downloadTemplate(): void {
-    const templateData = [
-      { PhoneNumber: '919876543210', Name: 'John Doe', Address: '123 Main Street, City', Category: 'Reseller' },
-      { PhoneNumber: '919876543211', Name: 'Jane Smith', Address: '456 Park Avenue, Town', Category: 'DirectCorporate' },
-      { PhoneNumber: '919876543212', Name: 'Ali Khan', Address: '789 Lake Road, Village', Category: 'FriendsAndFamily' },
-    ];
-    const ws = XLSX.utils.json_to_sheet(templateData);
+    const ws = XLSX.utils.aoa_to_sheet([['PhoneNumber', 'Name', 'Address', 'Category']]);
     ws['!cols'] = [{ wch: 18 }, { wch: 20 }, { wch: 35 }, { wch: 20 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Customers');

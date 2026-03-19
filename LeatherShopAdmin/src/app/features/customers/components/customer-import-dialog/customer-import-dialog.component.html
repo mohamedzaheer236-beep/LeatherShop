@@ -95,7 +95,9 @@
   }
 
   <ng-template pTemplate="footer">
-    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="close()" icon="pi pi-times"></p-button>
-    <p-button label="Import Customers" (onClick)="submit()" [disabled]="!canImport" [loading]="importing" icon="pi pi-upload"></p-button>
+    <div class="dialog-footer">
+      <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="close()" icon="pi pi-times"></p-button>
+      <p-button label="Import Customers" (onClick)="submit()" [disabled]="!canImport" [loading]="importing" icon="pi pi-upload"></p-button>
+    </div>
   </ng-template>
 </p-dialog>
