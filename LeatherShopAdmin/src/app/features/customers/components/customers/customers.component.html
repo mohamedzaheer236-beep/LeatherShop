@@ -91,7 +91,7 @@
       <ng-template pTemplate="header">
         <tr>
           <th class="col-checkbox">
-            <p-checkbox [binary]="true" [(ngModel)]="allSelected" (onChange)="toggleSelectAll()" aria-label="Select all customers"></p-checkbox>
+            <p-checkbox inputId="selectAll" name="selectAll" [binary]="true" [(ngModel)]="allSelected" (onChange)="toggleSelectAll()" aria-label="Select all customers"></p-checkbox>
           </th>
           <th>Phone Number</th>
           <th>Name</th>
@@ -106,7 +106,7 @@
       <ng-template pTemplate="body" let-customer>
         <tr [class.row-selected]="customer.selected">
           <td>
-            <p-checkbox [binary]="true" [(ngModel)]="customer.selected" (onChange)="onRowSelect(customer)" [attr.aria-label]="'Select customer ' + (customer.name || customer.phoneNumber)"></p-checkbox>
+            <p-checkbox [inputId]="'selectCustomer_' + customer.id" [name]="'selectCustomer_' + customer.id" [binary]="true" [(ngModel)]="customer.selected" (onChange)="onRowSelect(customer)" [attr.aria-label]="'Select customer ' + (customer.name || customer.phoneNumber)"></p-checkbox>
           </td>
           <td><strong class="phone-number">{{ customer.phoneNumber }}</strong></td>
           <td>{{ customer.name || '-' }}</td>

@@ -17,10 +17,11 @@
         }
       </div>
       <div class="form-field">
-        <label>Subscription</label>
+        <span id="editSubscriptionLabel">Subscription</span>
         <div class="inline-row">
-          <p-checkbox formControlName="isSubscribed" [binary]="true"></p-checkbox>
-          <span>Subscribed to broadcasts</span>
+          <p-checkbox inputId="editSubscribed" name="editSubscribed" formControlName="isSubscribed" [binary]="true"
+            ariaLabelledBy="editSubscriptionLabel"></p-checkbox>
+          <label for="editSubscribed">Subscribed to broadcasts</label>
         </div>
       </div>
       <div class="form-field">
