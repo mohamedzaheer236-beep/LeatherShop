@@ -205,6 +205,7 @@ export class CustomerImportDialogComponent {
     const result: Record<string, string> = {};
     const requiredFields = ['phonenumber', 'name', 'address', 'category'];
     const missing: string[] = [];
+    const allKnownAliases = new Set(Object.values(COLUMN_ALIASES).flat());
 
     for (const field of requiredFields) {
       const aliases = COLUMN_ALIASES[field];
@@ -220,6 +221,18 @@ export class CustomerImportDialogComponent {
       this.fileError = `Missing required column(s): ${missing.join(', ')}. ` +
         `Your file has columns: ${headers.join(', ')}. ` +
         `Expected: PhoneNumber, Name, Address, Category.`;
+      return null;
+    }
+
+    // Check for unexpected extra columns
+    const extraColumns = normalized
+      .filter(h => !allKnownAliases.has(h.lower))
+      .map(h => h.original);
+
+    if (extraColumns.length > 0) {
+      this.fileError = `Unexpected column(s): ${extraColumns.join(', ')}. ` +
+        `Only these columns are allowed: PhoneNumber, Name, Address, Category. ` +
+        `Please remove the extra column(s) and re-upload.`;
       return null;
     }
 
