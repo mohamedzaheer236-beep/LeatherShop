@@ -39,8 +39,8 @@
     <ng-template pTemplate="left">
       <h1 class="page-title">Customers</h1>
       <div class="customer-stats">
-        <p-tag [value]="totalCount !== null ? 'Total: ' + totalCount : 'Total: N/A'" severity="info"></p-tag>
-        <p-tag [value]="subscriberCount !== null ? 'Subscribers: ' + subscriberCount : 'Subscribers: N/A'" severity="success"></p-tag>
+        <span class="stat-pill"><i class="pi pi-users"></i> {{ totalCount ?? '—' }} total</span>
+        <span class="stat-pill accent"><i class="pi pi-check-circle"></i> {{ subscriberCount ?? '—' }} subscribed</span>
       </div>
     </ng-template>
     <ng-template pTemplate="right">
@@ -76,9 +76,11 @@
       @if (selectedCount > customers.length) {
         <span class="selection-note">(across multiple pages)</span>
       }
-      <p-button label="Send Broadcast to Selected" icon="pi pi-send" size="small" (onClick)="showBroadcastDialog = true"></p-button>
-      <p-button label="Delete Selected" icon="pi pi-trash" severity="danger" size="small" (onClick)="confirmBulkDelete()"></p-button>
-      <p-button label="Clear Selection" icon="pi pi-times" severity="secondary" [outlined]="true" size="small" (onClick)="clearSelection()"></p-button>
+      <div class="selection-actions">
+        <p-button label="Send Broadcast" icon="pi pi-send" size="small" (onClick)="showBroadcastDialog = true"></p-button>
+        <p-button label="Delete Selected" icon="pi pi-trash" severity="secondary" [outlined]="true" size="small" (onClick)="confirmBulkDelete()"></p-button>
+        <p-button label="Clear" icon="pi pi-times" severity="secondary" [text]="true" size="small" (onClick)="clearSelection()"></p-button>
+      </div>
     </div>
   }
 
@@ -112,31 +114,27 @@
           <td>{{ customer.name || '-' }}</td>
           <td>{{ customer.address || '-' }}</td>
           <td>
-            <p-tag [value]="getCategoryLabel(customer.category)"
-              [severity]="getCategorySeverity(customer.category)"></p-tag>
+            <span class="category-pill">{{ getCategoryLabel(customer.category) }}</span>
           </td>
           <td>
-            <p-tag [value]="customer.isSubscribed ? 'Subscribed' : 'Unsubscribed'"
-              [severity]="customer.isSubscribed ? 'success' : 'secondary'"
-              [style]="{'cursor': 'pointer'}"
+            <span class="sub-status" [class.active]="customer.isSubscribed"
               role="button" tabindex="0"
               [attr.aria-label]="(customer.isSubscribed ? 'Unsubscribe' : 'Subscribe') + ' ' + (customer.name || customer.phoneNumber)"
               (click)="toggleSubscription(customer)"
               (keydown.enter)="toggleSubscription(customer)"
-            (keydown.space)="$event.preventDefault(); toggleSubscription(customer)"></p-tag>
+              (keydown.space)="$event.preventDefault(); toggleSubscription(customer)">
+              <span class="sub-dot"></span>
+              {{ customer.isSubscribed ? 'Active' : 'Inactive' }}
+            </span>
           </td>
           <td>{{ customer.orderCount }}</td>
           <td>{{ customer.createdAt | date:'dd MMM yyyy' }}</td>
           <td>
             <div class="action-buttons">
-              <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="info"
+              <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="secondary"
               pTooltip="Edit" tooltipPosition="top" (onClick)="openEditDialog(customer)"></p-button>
-              <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
+              <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="secondary"
               pTooltip="Delete" tooltipPosition="top" (onClick)="confirmDelete(customer)"></p-button>
-              <p-button [label]="customer.isSubscribed ? 'Unsubscribe' : 'Subscribe'"
-                [severity]="customer.isSubscribed ? 'danger' : 'success'"
-                [outlined]="true" size="small"
-              (onClick)="toggleSubscription(customer)"></p-button>
             </div>
           </td>
         </tr>

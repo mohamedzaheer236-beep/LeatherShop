@@ -4,12 +4,35 @@
   h1 { margin: 0; }
 }
 
+/* ─── Stat Pills (toolbar) ─── */
 .customer-stats {
   display: flex;
   gap: 8px;
   margin-left: 16px;
 }
 
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+
+  i { font-size: 13px; }
+
+  &.accent {
+    background: var(--ls-accent-light, #eef2ff);
+    color: var(--ls-accent-dark, #4338ca);
+    border-color: var(--ls-accent-ring-solid, #c7d2fe);
+  }
+}
+
+/* ─── Filter bar ─── */
 .toggle-filter {
   display: flex;
   align-items: center;
@@ -17,6 +40,7 @@
   white-space: nowrap;
 }
 
+/* ─── Selection Bar ─── */
 .selection-bar {
   display: flex;
   align-items: center;
@@ -28,14 +52,88 @@
   margin-bottom: 16px;
 }
 
+.selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .row-selected {
   background: var(--ls-accent-light) !important;
 }
 
+/* ─── Category Pill ─── */
+.category-pill {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+/* ─── Subscription Status ─── */
+.sub-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #94a3b8;
+  background: transparent;
+  border: 1px solid transparent;
+
+  &:hover {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ls-accent);
+    outline-offset: 2px;
+  }
+
+  &.active {
+    color: #475569;
+  }
+}
+
+.sub-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  flex-shrink: 0;
+  transition: background 0.2s;
+
+  .active > & {
+    background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+  }
+}
+
+/* ─── Action Buttons ─── */
 .action-buttons {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+
+  ::ng-deep .p-button.p-button-text {
+    color: #94a3b8 !important;
+    transition: color 0.2s, background 0.2s;
+
+    &:hover {
+      color: var(--ls-accent) !important;
+      background: var(--ls-accent-light) !important;
+    }
+  }
 }
 
 /* ─── Carousel / Image Upload — from shared partial ─── */
