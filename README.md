@@ -3194,3 +3194,72 @@ Added explicit Kestrel server limits to prevent resource exhaustion from oversiz
 | 1 | `Program.cs` | `MaxRequestBodySize = 20 MB` (accommodates image + video uploads) |
 | 2 | `Program.cs` | `RequestHeadersTimeout = 30s` (drops slow/malicious header sends) |
 | 3 | `Program.cs` | `KeepAliveTimeout = 2 min` (releases idle connections) |
+
+### Phase 43 — Accessibility & CSP Hardening (March 19, 2026)
+
+Comprehensive accessibility audit across all pages — fixed every Chrome DevTools "Issues" warning related to form fields, labels, and CSP. All fixes use PrimeNG's official public APIs (`ariaLabelledBy`, `inputId`, `pTemplate="filter"`).
+
+#### 1. PrimeNG Dropdown Label Accessibility
+
+PrimeNG `p-dropdown` renders a wrapper `<div>` — not a native `<select>` — so `<label for="...">` can't link to the internal element. Fixed by replacing `<label for>` with `<span id>` + `ariaLabelledBy` attribute (PrimeNG's official pattern).
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `customer-add-dialog.component.html` | Category dropdown: `<label for>` → `<span id>` + `ariaLabelledBy` |
+| 2 | `customer-edit-dialog.component.html` | Category dropdown: same fix |
+| 3 | `broadcast-form.component.html` | "Send To" category dropdown: same fix |
+| 4 | `customer-broadcast-dialog.component.html` | Template + carousel product dropdowns: same fix |
+
+#### 2. PrimeNG Dropdown Filter Input Accessibility
+
+PrimeNG's internal filter `<input>` inside dropdown panels lacks `id`/`name` attributes. Fixed using PrimeNG's `pTemplate="filter"` to provide a custom filter input with proper `id`, `name`, `role="searchbox"`, and `aria-label`.
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `broadcast-form.component.html` | Template + carousel product dropdown filters: custom `pTemplate="filter"` |
+| 2 | `customer-broadcast-dialog.component.html` | Template + carousel product dropdown filters: same fix |
+| 3 | `product-list.component.html` | Category + Brand filter dropdowns: custom `pTemplate="filter"` (replaces `pTemplate="filtericon"`) |
+
+#### 3. PrimeNG InputNumber Label Accessibility
+
+Same issue as dropdown — `p-inputNumber` wraps the native `<input>`, so `<label for>` doesn't link. Fixed with `<span id>` + `ariaLabelledBy`.
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `product-form.component.html` | Price field: `<label for="price">` → `<span id="price-label">` + `ariaLabelledBy` |
+| 2 | `product-form.component.html` | Stock field: `<label for="stock">` → `<span id="stock-label">` + `ariaLabelledBy` |
+
+#### 4. Section Labels Misused as `<label>`
+
+`<label>` elements used as section headings (not associated with any input) trigger "no label associated" warnings. Changed to `<span>` with matching CSS class.
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `product-form.component.html` | "Product Images" section: `<label>` → `<span class="field-label">` |
+| 2 | `product-form.component.html` | "Product Video" section: `<label>` → `<span class="field-label">` |
+| 3 | `customer-edit-dialog.component.html` | "Subscription" section: `<label>` → `<span id>` |
+
+#### 5. Checkbox & Input Missing id/name
+
+Form fields without `id`/`name` trigger browser autofill warnings. Added proper attributes.
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `customer-edit-dialog.component.html` | Subscription checkbox: added `inputId`, `name`, `ariaLabelledBy` |
+| 2 | `customers.component.html` | Select-all checkbox: added `inputId="selectAll"`, `name` |
+| 3 | `customers.component.html` | Per-row checkboxes: added dynamic `[inputId]`, `[name]` |
+| 4 | `chat-page.component.html` | Search input: added `id="chatSearch"`, `name` |
+| 5 | `chat-page.component.html` | Message input: added `id="chatMessage"`, `name` |
+
+#### 6. Content Security Policy (CSP) — Vercel Headers
+
+Added CSP header in `vercel.json` to protect against XSS while allowing required resources.
+
+| # | Directive | Value | Why |
+|---|-----------|-------|-----|
+| 1 | `script-src` | `'self' 'unsafe-eval' 'unsafe-inline'` | SheetJS requires `eval()`, Angular/PrimeNG uses inline scripts |
+| 2 | `style-src` | `'self' 'unsafe-inline'` | PrimeNG component styles |
+| 3 | `img-src` | `'self' https: data:` | Product images from Railway, base64 previews |
+| 4 | `media-src` | `'self' https://leathershop-production.up.railway.app` | Product videos stored on Railway |
+| 5 | `connect-src` | `'self' https://...railway.app wss://...railway.app` | API calls + SignalR WebSocket |
+| 6 | `frame-src` | `'none'` | No iframes needed |
