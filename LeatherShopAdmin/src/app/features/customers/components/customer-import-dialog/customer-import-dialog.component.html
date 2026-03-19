@@ -12,6 +12,9 @@
         <p class="upload-hint">Accepts .xlsx or .xls — max 1000 rows, 5 MB</p>
         <p class="upload-columns">Required columns: <strong>PhoneNumber</strong>, <strong>Name</strong>, <strong>Address</strong>, <strong>Category</strong></p>
         <p class="upload-categories">Categories: Reseller, DirectCorporate, FriendsAndFamily</p>
+        <div class="template-download">
+          <p-button label="Download Template" icon="pi pi-download" severity="info" [outlined]="true" size="small" (onClick)="downloadTemplate(); $event.stopPropagation()"></p-button>
+        </div>
       </div>
     </div>
   }
