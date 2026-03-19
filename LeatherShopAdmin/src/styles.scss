@@ -471,6 +471,17 @@ body .p-button:not(.p-button-rounded):not(.p-button-text):not(.p-button-outlined
   box-shadow: var(--ls-shadow-button);
 }
 
+/* ----- CUSTOMER ACTION BUTTONS (muted, accent on hover) ----- */
+body .action-buttons .p-button.p-button-text {
+  color: #94a3b8;
+  transition: color 0.2s, background 0.2s;
+
+  &:hover {
+    color: var(--ls-accent);
+    background: var(--ls-accent-light);
+  }
+}
+
 /* ----- DROPDOWN ----- */
 body .p-dropdown {
   border-radius: var(--ls-radius-md);

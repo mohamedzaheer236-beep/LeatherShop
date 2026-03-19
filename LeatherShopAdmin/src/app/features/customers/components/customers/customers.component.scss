@@ -124,16 +124,6 @@
   display: flex;
   align-items: center;
   gap: 2px;
-
-  ::ng-deep .p-button.p-button-text {
-    color: #94a3b8 !important;
-    transition: color 0.2s, background 0.2s;
-
-    &:hover {
-      color: var(--ls-accent) !important;
-      background: var(--ls-accent-light) !important;
-    }
-  }
 }
 
 /* ─── Carousel / Image Upload — from shared partial ─── */
