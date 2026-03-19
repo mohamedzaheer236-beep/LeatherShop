@@ -49,134 +49,167 @@
         }
       </div>
 
-      <!-- Standard Template Fields -->
-      @if (!helper.isCarousel) {
-        <!-- Link to Product (when template has image header) -->
-        @if (helper.hasImageHeader) {
-          <div class="form-field">
-            <span id="bcLinkedProductLabel">Link to Product</span>
-            <p-dropdown [inputId]="'bcLinkedProduct'"
-              [options]="helper.productOptions"
-              [(ngModel)]="helper.linkedProductId" [ngModelOptions]="{standalone: true}"
-              (onChange)="onLinkedProductSelect()"
-              placeholder="Select a product (auto-fills details)"
-              [style]="{'width': '100%'}"
-              [showClear]="true"
-              [filter]="true"
-              filterPlaceholder="Search products..."
-              appendTo="body"
-              ariaLabelledBy="bcLinkedProductLabel">
-              <ng-template pTemplate="filter" let-options="options">
-                <div class="p-dropdown-filter-container">
-                  <input type="text" id="bcLinkedProduct-filter" name="bcLinkedProduct-filter" role="searchbox" autocomplete="off"
-                    class="p-dropdown-filter p-inputtext p-component" placeholder="Search products..."
-                    aria-label="Search products" (input)="options.filter($event)" />
-                  <i class="p-dropdown-filter-icon pi pi-search"></i>
-                </div>
-              </ng-template>
-            </p-dropdown>
-            <small class="hint">
-              <i class="pi pi-info-circle"></i> Select a product to auto-fill name, price, description &amp; image
-            </small>
-          </div>
-          <!-- Product Image Picker -->
-          @if (helper.linkedProductId && helper.getLinkedProductImages().length > 0) {
-            <div class="form-field">
-              <span class="field-label">Select Header Image</span>
-              <div class="product-image-picker">
-                @for (img of helper.getLinkedProductImages(); track img) {
-                  <div class="picker-thumb"
-                    [class.selected]="helper.linkedImageId === img.id"
-                    (click)="onLinkedImageSelect(img)">
-                    <img [src]="helper.resolveImageUrl(img.url)" [alt]="'Product image'" />
-                    @if (helper.linkedImageId === img.id) {
-                      <i class="pi pi-check-circle selected-badge"></i>
-                    }
-                  </div>
-                }
-              </div>
+      <!-- ═══ Standard Template: Link to Product ═══ -->
+      @if (!helper.isCarousel && helper.hasImageHeader) {
+        <div class="carousel-card-item">
+          <div class="carousel-card-header">
+            <div class="card-number-badge"><i class="pi pi-link" style="font-size: 14px"></i></div>
+            <div class="card-header-text">
+              <span class="card-title">Product Details</span>
+              @if (helper.linkedProductId && helper.linkedImageId) {
+                <span class="card-status ready"><i class="pi pi-check-circle"></i> Ready</span>
+              } @else {
+                <span class="card-status pending"><i class="pi pi-ellipsis-h"></i> Select a product</span>
+              }
             </div>
-          }
-        }
-        @if (helper.bodyParamCount > 0 && !helper.hasImageHeader) {
-          <div class="form-field">
-            <label for="bcParams">Parameters (comma separated)</label>
-            <input type="text" pInputText id="bcParams" formControlName="params" placeholder="param1, param2" class="w-full" />
-            <small class="hint"><i class="pi pi-info-circle"></i> This template requires {{ helper.bodyParamCount }} parameter(s)</small>
           </div>
-        }
-      }
-
-      <!-- Carousel Card Fields -->
-      @if (helper.isCarousel) {
-        <div class="carousel-cards-section">
-          @for (card of helper.carouselCards; track card; let i = $index) {
-            <div class="carousel-card-item">
-              <div class="carousel-card-header">
-                <span class="card-number">Card {{ i + 1 }} of {{ helper.carouselCards.length }}</span>
-              </div>
-              <div class="form-field">
-                <span [id]="'bcCardProductLabel_' + i">Link to Product *</span>
-                <p-dropdown [inputId]="'bcCardProduct_' + i"
+          <div class="card-body-content">
+            <div class="card-step">
+              <div class="step-icon"><i class="pi pi-box"></i></div>
+              <div class="step-content">
+                <span id="bcLinkedProductLabel" class="step-label">Choose Product</span>
+                <p-dropdown [inputId]="'bcLinkedProduct'"
                   [options]="helper.productOptions"
-                    [(ngModel)]="card.selectedProductId" [ngModelOptions]="{standalone: true}"
-                    (onChange)="helper.onCardProductSelect(i)"
-                  placeholder="Select a product" [style]="{'width': '100%'}"
-                  [showClear]="true" [filter]="true" filterPlaceholder="Search products..."
+                  [(ngModel)]="helper.linkedProductId" [ngModelOptions]="{standalone: true}"
+                  (onChange)="onLinkedProductSelect()"
+                  placeholder="Search and select a product..."
+                  [style]="{'width': '100%'}"
+                  [showClear]="true"
+                  [filter]="true"
+                  filterPlaceholder="Search products..."
                   appendTo="body"
-                  [ariaLabelledBy]="'bcCardProductLabel_' + i">
+                  ariaLabelledBy="bcLinkedProductLabel">
                   <ng-template pTemplate="filter" let-options="options">
                     <div class="p-dropdown-filter-container">
-                      <input type="text" [id]="'bcCardProduct_' + i + '-filter'" [name]="'bcCardProduct_' + i + '-filter'" role="searchbox" autocomplete="off"
+                      <input type="text" id="bcLinkedProduct-filter" name="bcLinkedProduct-filter" role="searchbox" autocomplete="off"
                         class="p-dropdown-filter p-inputtext p-component" placeholder="Search products..."
                         aria-label="Search products" (input)="options.filter($event)" />
                       <i class="p-dropdown-filter-icon pi pi-search"></i>
                     </div>
                   </ng-template>
                 </p-dropdown>
-                @if (!card.selectedProductId) {
-                  <small class="hint">
-                    <i class="pi pi-info-circle"></i> Select product for "View Details"
-                  </small>
-                }
               </div>
-              @if (card.selectedProductId && helper.getCardProductImages(i).length > 0) {
-                <div class="form-field">
-                  <label>Select Image for Card *</label>
+            </div>
+            <div class="card-step">
+              <div class="step-icon"><i class="pi pi-image"></i></div>
+              <div class="step-content">
+                <span class="step-label">Header Image</span>
+                @if (helper.linkedProductId && helper.getLinkedProductImages().length > 0) {
                   <div class="product-image-picker">
-                    @for (img of helper.getCardProductImages(i); track img) {
+                    @for (img of helper.getLinkedProductImages(); track img) {
                       <div class="picker-thumb"
-                        [class.selected]="card.selectedImageId === img.id"
-                        (click)="helper.selectCardImage(i, img)">
-                        <img [src]="helper.resolveImageUrl(img.url)" alt="Product image" />
-                        @if (card.selectedImageId === img.id) {
+                        [class.selected]="helper.linkedImageId === img.id"
+                        (click)="onLinkedImageSelect(img)">
+                        <img [src]="helper.resolveImageUrl(img.url)" [alt]="'Product image'" />
+                        @if (helper.linkedImageId === img.id) {
                           <i class="pi pi-check-circle selected-badge"></i>
                         }
                       </div>
                     }
                   </div>
-                </div>
-              }
-              @if (!card.selectedProductId) {
-                <div class="form-field">
-                  <label>Card Image *</label>
-                  <small class="hint"><i class="pi pi-info-circle"></i> Select a product above to choose an image</small>
-                </div>
-              }
-              <div class="form-field">
-                <label [for]="'bcCardBody_' + i">Body Parameter</label>
-                <input pInputText [id]="'bcCardBody_' + i"
-                   [(ngModel)]="card.bodyParam" [ngModelOptions]="{standalone: true}"
-                  placeholder="e.g. Premium Leather Wallet"
-                  [maxlength]="helper.cardBodyMaxLength" class="w-full" />
-                  <small class="hint">{{ card.bodyParam.length }}/{{ helper.cardBodyMaxLength }} characters</small>
+                } @else {
+                  <div class="empty-step-hint">
+                    <i class="pi pi-arrow-up"></i> Select a product first
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- ═══ Standard Template: Manual Parameters (non-image templates) ═══ -->
+      @if (!helper.isCarousel && helper.bodyParamCount > 0 && !helper.hasImageHeader) {
+        <div class="form-field">
+          <label for="bcParams">Parameters (comma separated)</label>
+          <input type="text" pInputText id="bcParams" formControlName="params" placeholder="param1, param2" class="w-full" />
+          <small class="hint"><i class="pi pi-info-circle"></i> This template requires {{ helper.bodyParamCount }} parameter(s)</small>
+        </div>
+      }
+
+      <!-- ═══ Carousel Card Fields ═══ -->
+      @if (helper.isCarousel) {
+        <div class="carousel-cards-section">
+          @for (card of helper.carouselCards; track card; let i = $index) {
+            <div class="carousel-card-item" [class.card-complete]="card.selectedProductId && card.imageUrl">
+              <div class="carousel-card-header">
+                <div class="card-number-badge">{{ i + 1 }}</div>
+                <div class="card-header-text">
+                  <span class="card-title">Card {{ i + 1 }} of {{ helper.carouselCards.length }}</span>
+                  @if (card.selectedProductId && card.imageUrl) {
+                    <span class="card-status ready"><i class="pi pi-check-circle"></i> Ready</span>
+                  } @else {
+                    <span class="card-status pending"><i class="pi pi-ellipsis-h"></i> Setup required</span>
+                  }
                 </div>
               </div>
-            }
-          </div>
-        }
-      </div>
-    </form>
+              <div class="card-body-content">
+                <div class="card-step">
+                  <div class="step-icon"><i class="pi pi-box"></i></div>
+                  <div class="step-content">
+                    <span [id]="'bcCardProductLabel_' + i" class="step-label">Choose Product</span>
+                    <p-dropdown [inputId]="'bcCardProduct_' + i"
+                      [options]="helper.productOptions"
+                      [(ngModel)]="card.selectedProductId" [ngModelOptions]="{standalone: true}"
+                      (onChange)="helper.onCardProductSelect(i)"
+                      placeholder="Search and select a product..."
+                      [style]="{'width': '100%'}"
+                      [showClear]="true" [filter]="true" filterPlaceholder="Search products..."
+                      appendTo="body"
+                      [ariaLabelledBy]="'bcCardProductLabel_' + i">
+                      <ng-template pTemplate="filter" let-options="options">
+                        <div class="p-dropdown-filter-container">
+                          <input type="text" [id]="'bcCardProduct_' + i + '-filter'" [name]="'bcCardProduct_' + i + '-filter'" role="searchbox" autocomplete="off"
+                            class="p-dropdown-filter p-inputtext p-component" placeholder="Search products..."
+                            aria-label="Search products" (input)="options.filter($event)" />
+                          <i class="p-dropdown-filter-icon pi pi-search"></i>
+                        </div>
+                      </ng-template>
+                    </p-dropdown>
+                  </div>
+                </div>
+                <div class="card-step">
+                  <div class="step-icon"><i class="pi pi-image"></i></div>
+                  <div class="step-content">
+                    <span class="step-label">Card Image</span>
+                    @if (card.selectedProductId && helper.getCardProductImages(i).length > 0) {
+                      <div class="product-image-picker">
+                        @for (img of helper.getCardProductImages(i); track img) {
+                          <div class="picker-thumb"
+                            [class.selected]="card.selectedImageId === img.id"
+                            (click)="helper.selectCardImage(i, img)">
+                            <img [src]="helper.resolveImageUrl(img.url)" alt="Product image" />
+                            @if (card.selectedImageId === img.id) {
+                              <i class="pi pi-check-circle selected-badge"></i>
+                            }
+                          </div>
+                        }
+                      </div>
+                    } @else {
+                      <div class="empty-step-hint">
+                        <i class="pi pi-arrow-up"></i> Select a product first
+                      </div>
+                    }
+                  </div>
+                </div>
+                <div class="card-step">
+                  <div class="step-icon"><i class="pi pi-pencil"></i></div>
+                  <div class="step-content">
+                    <label [for]="'bcCardBody_' + i" class="step-label">Display Text</label>
+                    <input pInputText [id]="'bcCardBody_' + i"
+                      [(ngModel)]="card.bodyParam" [ngModelOptions]="{standalone: true}"
+                      placeholder="e.g. Premium Leather Wallet"
+                      [maxlength]="helper.cardBodyMaxLength" class="w-full" />
+                    <small class="char-count">{{ card.bodyParam.length }}/{{ helper.cardBodyMaxLength }}</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </form>
     <ng-template pTemplate="footer">
       <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="close()" icon="pi pi-times"></p-button>
       <p-button [label]="'Send to ' + phoneNumbers.length + ' Customers'" (onClick)="send()"
