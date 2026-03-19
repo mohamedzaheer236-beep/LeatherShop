@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { CustomerService } from '../../services/customer.service';
-import { CreateCustomer } from '../../models/customer.model';
+import { CreateCustomer, CUSTOMER_CATEGORIES } from '../../models/customer.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { isFieldInvalid } from '../../../../shared/utils/form.utils';
 
@@ -9,11 +9,12 @@ import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputTextareaModule } from 'primeng/inputtextarea';
 import { ButtonModule } from 'primeng/button';
+import { DropdownModule } from 'primeng/dropdown';
 
 @Component({
   selector: 'app-customer-add-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogModule, InputTextModule, InputTextareaModule, ButtonModule],
+  imports: [ReactiveFormsModule, DialogModule, InputTextModule, InputTextareaModule, ButtonModule, DropdownModule],
   templateUrl: './customer-add-dialog.component.html',
   styleUrl: './customer-add-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,14 +33,16 @@ export class CustomerAddDialogComponent {
     phoneNumber: ['', [Validators.required, Validators.pattern(/^\d{10,15}$/)]],
     name: [''],
     address: ['', [Validators.required, Validators.minLength(10)]],
+    category: [null as string | null, [Validators.required]],
   });
 
+  categoryOptions = CUSTOMER_CATEGORIES;
   submitting = false;
   submitted = false;
 
   onShow(): void {
     this.submitted = false;
-    this.form.reset({ phoneNumber: '', name: '', address: '' });
+    this.form.reset({ phoneNumber: '', name: '', address: '', category: null });
   }
 
   submit(): void {
@@ -47,7 +50,7 @@ export class CustomerAddDialogComponent {
     this.form.markAllAsTouched();
 
     if (this.form.invalid) {
-      this.notification.error('Phone number is required (10-15 digits)');
+      this.notification.error('Please fill all required fields');
       return;
     }
 
@@ -56,6 +59,7 @@ export class CustomerAddDialogComponent {
       phoneNumber: this.form.value.phoneNumber!,
       name: this.form.value.name || undefined,
       address: this.form.value.address || undefined,
+      category: this.form.value.category!,
     };
     this.customerService.createCustomer(dto).subscribe({
       next: () => {

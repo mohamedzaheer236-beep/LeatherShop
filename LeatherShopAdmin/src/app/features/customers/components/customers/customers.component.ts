@@ -4,6 +4,7 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angul
 import { PaginatorState } from 'primeng/paginator';
 import { CustomerService } from '../../services/customer.service';
 import { Customer, CustomerWithSelection } from '../../models/customer.model';
+import { CUSTOMER_CATEGORIES } from '../../models/customer.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { CustomerAddDialogComponent } from '../customer-add-dialog/customer-add-dialog.component';
@@ -22,6 +23,7 @@ import { MessageModule } from 'primeng/message';
 import { TableModule } from 'primeng/table';
 import { TooltipModule } from 'primeng/tooltip';
 import { PaginatorModule } from 'primeng/paginator';
+import { DropdownModule } from 'primeng/dropdown';
 
 @Component({
   selector: 'app-customers',
@@ -47,6 +49,7 @@ import { PaginatorModule } from 'primeng/paginator';
     MessageModule,
     TooltipModule,
     PaginatorModule,
+    DropdownModule,
   ],
   templateUrl: './customers.component.html',
   styleUrl: './customers.component.scss',
@@ -62,6 +65,7 @@ export class CustomersComponent implements OnInit {
   loading = true;
   subscriberCount: number | null = 0;
   totalCount: number | null = 0;
+  categoryOptions = CUSTOMER_CATEGORIES;
 
   filterForm!: FormGroup;
 
@@ -89,6 +93,7 @@ export class CustomersComponent implements OnInit {
     this.filterForm = this.fb.group({
       searchTerm: [''],
       subscribedOnly: [false],
+      category: [null],
     });
     this.loadCustomers();
     this.loadCounts();
@@ -125,9 +130,9 @@ export class CustomersComponent implements OnInit {
 
   loadCustomers(): void {
     this.loading = true;
-    const { searchTerm, subscribedOnly } = this.filterForm.value;
+    const { searchTerm, subscribedOnly, category } = this.filterForm.value;
     this.customerService
-      .getCustomers(subscribedOnly, searchTerm || undefined, this.currentPage, this.pageSize)
+      .getCustomers(subscribedOnly, searchTerm || undefined, category || undefined, this.currentPage, this.pageSize)
       .subscribe({
         next: result => {
           this.customers = result.items.map(c => ({ ...c, selected: this._selectedMap.has(c.id) }));
@@ -159,6 +164,19 @@ export class CustomersComponent implements OnInit {
     this.filterForm.patchValue({ searchTerm: '' });
     this.currentPage = 1;
     this.loadCustomers();
+  }
+
+  getCategoryLabel(value: string): string {
+    return CUSTOMER_CATEGORIES.find(c => c.value === value)?.label ?? value;
+  }
+
+  getCategorySeverity(value: string): 'info' | 'warning' | 'secondary' {
+    switch (value) {
+      case 'Reseller': return 'info';
+      case 'DirectCorporate': return 'secondary';
+      case 'FriendsAndFamily': return 'warning';
+      default: return 'secondary';
+    }
   }
 
   onPageChange(event: PaginatorState): void {

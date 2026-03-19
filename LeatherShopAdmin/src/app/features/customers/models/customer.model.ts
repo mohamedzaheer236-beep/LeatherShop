@@ -1,9 +1,16 @@
+export const CUSTOMER_CATEGORIES = [
+  { label: 'Reseller', value: 'Reseller' },
+  { label: 'Direct Corporate', value: 'DirectCorporate' },
+  { label: 'Friends And Family', value: 'FriendsAndFamily' },
+];
+
 export interface Customer {
   id: number;
   phoneNumber: string;
   name: string;
   address: string;
   isSubscribed: boolean;
+  category: string;
   createdAt: string;
   orderCount: number;
 }
@@ -17,12 +24,14 @@ export interface CreateCustomer {
   phoneNumber: string;
   name?: string;
   address?: string;
+  category: string;
 }
 
 export interface UpdateCustomer {
   name?: string;
   address?: string;
   isSubscribed?: boolean;
+  category?: string;
 }
 
 export interface BulkImportResult {

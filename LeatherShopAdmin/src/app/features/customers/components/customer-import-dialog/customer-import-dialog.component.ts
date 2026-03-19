@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { CustomerService } from '../../services/customer.service';
-import { CreateCustomer } from '../../models/customer.model';
+import { CreateCustomer, CUSTOMER_CATEGORIES } from '../../models/customer.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 
 import { DialogModule } from 'primeng/dialog';
@@ -53,6 +53,7 @@ export class CustomerImportDialogComponent {
     }
 
     const phonePattern = /^\d{10,15}$/;
+    const validCategoryValues = new Set(CUSTOMER_CATEGORIES.map(c => c.value.toLowerCase()));
     const validCustomers: CreateCustomer[] = [];
     const invalidLines: number[] = [];
 
@@ -60,7 +61,13 @@ export class CustomerImportDialogComponent {
       const parts = line.split(',').map((p: string) => p.trim());
       const phone = parts[0];
       if (phonePattern.test(phone)) {
-        validCustomers.push({ phoneNumber: phone, name: parts[1] || '' });
+        // Parse optional category (3rd column): phone,name,category
+        let category = 'FriendsAndFamily';
+        if (parts[2]) {
+          const matched = CUSTOMER_CATEGORIES.find(c => c.value.toLowerCase() === parts[2].toLowerCase());
+          if (matched) category = matched.value;
+        }
+        validCustomers.push({ phoneNumber: phone, name: parts[1] || '', category });
       } else {
         invalidLines.push(index + 1);
       }

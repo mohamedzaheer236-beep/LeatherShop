@@ -20,6 +20,9 @@ public class BroadcastRequestDto
 
     public List<string>? PhoneNumbers { get; set; }
 
+    /// <summary>Optional category filter — when set (and PhoneNumbers is empty), only subscribers of this category receive the broadcast.</summary>
+    public string? Category { get; set; }
+
     /// <summary>True if the selected template is a carousel type.</summary>
     public bool IsCarousel { get; set; }
 

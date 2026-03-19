@@ -21,6 +21,8 @@ import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
 
+import { CUSTOMER_CATEGORIES } from '../../../customers/models/customer.model';
+
 @Component({
   selector: 'app-broadcast-form',
   standalone: true,
@@ -45,6 +47,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
   resultMessage = '';
   resultType: 'success' | 'error' | '' = '';
   submitted = false;
+  categoryOptions = [{ label: 'All Subscribers', value: '' }, ...CUSTOMER_CATEGORIES];
 
   private pollingSubs = new Map<number, Subscription>();
 
@@ -65,6 +68,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
       templateName: [null, [Validators.required, this.templateValidator.bind(this)]],
       parameters: [''],
       imageUrl: [''],
+      category: [''],
     });
   }
 
@@ -136,6 +140,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
 
     const { templateName, parameters } = this.broadcastForm.value;
     const languageCode = this.helper.getLanguageCode(templateName);
+    const category = this.broadcastForm.value.category || undefined;
 
     if (this.helper.isCarousel) {
       const cards: CarouselCard[] = this.helper.carouselCards.map(c => ({
@@ -151,6 +156,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
           parameters: [],
           isCarousel: true,
           carouselCards: cards,
+          category,
         })
         .subscribe({
           next: res => {
@@ -179,6 +185,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
           languageCode,
           parameters: params,
           imageUrl: imageUrl || undefined,
+          category,
         })
         .subscribe({
           next: res => {

@@ -36,8 +36,11 @@ public class BroadcastService : IBroadcastService
         }
         else
         {
-            recipients = await _db.Customers
-                .Where(c => c.IsSubscribed)
+            var query = _db.Customers.Where(c => c.IsSubscribed);
+            if (!string.IsNullOrEmpty(dto.Category) && Enum.TryParse<CustomerCategory>(dto.Category, ignoreCase: true, out var cat))
+                query = query.Where(c => c.Category == cat);
+
+            recipients = await query
                 .Select(c => c.PhoneNumber)
                 .ToListAsync(ct);
         }

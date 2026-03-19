@@ -18,6 +18,8 @@ public class Customer
 
     public bool IsSubscribed { get; set; } = true; // For broadcast messages
 
+    public CustomerCategory Category { get; set; } = CustomerCategory.FriendsAndFamily;
+
     /// <summary>When true, the chatbot won't auto-respond. Admin is chatting manually.</summary>
     public bool IsBotPaused { get; set; } = false;
 

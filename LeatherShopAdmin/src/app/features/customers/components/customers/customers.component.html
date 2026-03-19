@@ -60,6 +60,9 @@
       <p-checkbox formControlName="subscribedOnly" [binary]="true" (onChange)="onFilterChange()" inputId="subscribedOnly" aria-label="Show only subscribed customers"></p-checkbox>
       <span class="selection-note"><label for="subscribedOnly">Subscribers only</label></span>
     </label>
+    <p-dropdown formControlName="category" [options]="categoryOptions" placeholder="All Categories"
+      [showClear]="true" (onChange)="onFilterChange()" [style]="{'min-width': '180px'}" aria-label="Filter by category">
+    </p-dropdown>
   </div>
 
   <!-- Selection Action Bar -->
@@ -88,6 +91,7 @@
           <th>Phone Number</th>
           <th>Name</th>
           <th>Address</th>
+          <th>Category</th>
           <th>Subscribed</th>
           <th>Orders</th>
           <th>Joined</th>
@@ -102,6 +106,10 @@
           <td><strong class="phone-number">{{ customer.phoneNumber }}</strong></td>
           <td>{{ customer.name || '-' }}</td>
           <td>{{ customer.address || '-' }}</td>
+          <td>
+            <p-tag [value]="getCategoryLabel(customer.category)"
+              [severity]="getCategorySeverity(customer.category)"></p-tag>
+          </td>
           <td>
             <p-tag [value]="customer.isSubscribed ? 'Subscribed' : 'Unsubscribed'"
               [severity]="customer.isSubscribed ? 'success' : 'secondary'"
@@ -129,7 +137,7 @@
         </tr>
       </ng-template>
       <ng-template pTemplate="emptymessage">
-        <tr><td colspan="8" class="empty-row">No customers found.</td></tr>
+        <tr><td colspan="9" class="empty-row">No customers found.</td></tr>
       </ng-template>
     </p-table>
   }

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { CustomerService } from '../../services/customer.service';
-import { Customer, UpdateCustomer } from '../../models/customer.model';
+import { Customer, UpdateCustomer, CUSTOMER_CATEGORIES } from '../../models/customer.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { isFieldInvalid } from '../../../../shared/utils/form.utils';
 
@@ -10,11 +10,12 @@ import { InputTextModule } from 'primeng/inputtext';
 import { InputTextareaModule } from 'primeng/inputtextarea';
 import { CheckboxModule } from 'primeng/checkbox';
 import { ButtonModule } from 'primeng/button';
+import { DropdownModule } from 'primeng/dropdown';
 
 @Component({
   selector: 'app-customer-edit-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogModule, InputTextModule, InputTextareaModule, CheckboxModule, ButtonModule],
+  imports: [ReactiveFormsModule, DialogModule, InputTextModule, InputTextareaModule, CheckboxModule, ButtonModule, DropdownModule],
   templateUrl: './customer-edit-dialog.component.html',
   styleUrl: './customer-edit-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -34,8 +35,10 @@ export class CustomerEditDialogComponent {
     name: [''],
     address: ['', [Validators.required, Validators.minLength(10)]],
     isSubscribed: [true],
+    category: [null as string | null, [Validators.required]],
   });
 
+  categoryOptions = CUSTOMER_CATEGORIES;
   submitting = false;
   submitted = false;
 
@@ -45,6 +48,7 @@ export class CustomerEditDialogComponent {
       name: this.customer?.name || '',
       address: this.customer?.address || '',
       isSubscribed: this.customer?.isSubscribed ?? true,
+      category: this.customer?.category || null,
     });
   }
 
@@ -62,6 +66,7 @@ export class CustomerEditDialogComponent {
       name: this.form.value.name || undefined,
       address: this.form.value.address || undefined,
       isSubscribed: this.form.value.isSubscribed ?? undefined,
+      category: this.form.value.category || undefined,
     };
     this.customerService.updateCustomer(this.customer.id, dto).subscribe({
       next: () => {

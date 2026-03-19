@@ -13,6 +13,9 @@ public class CreateCustomerDto
 
     [MaxLength(500, ErrorMessage = "Address cannot exceed 500 characters.")]
     public string? Address { get; set; }
+
+    [Required(ErrorMessage = "Category is required.")]
+    public string Category { get; set; } = string.Empty;
 }
 
 public class BulkImportCustomerItem
@@ -25,6 +28,8 @@ public class BulkImportCustomerItem
 
     [MaxLength(500)]
     public string? Address { get; set; }
+
+    public string? Category { get; set; }
 }
 
 public class BulkImportDto
@@ -41,6 +46,7 @@ public class CustomerListDto
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
     public bool IsSubscribed { get; set; }
+    public string Category { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public int OrderCount { get; set; }
 }
@@ -74,6 +80,8 @@ public class UpdateCustomerDto
     public string? Address { get; set; }
 
     public bool? IsSubscribed { get; set; }
+
+    public string? Category { get; set; }
 }
 
 /// <summary>Result of a customer delete operation.</summary>

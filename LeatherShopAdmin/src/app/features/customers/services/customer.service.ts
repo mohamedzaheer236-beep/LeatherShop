@@ -17,12 +17,14 @@ export class CustomerService {
   getCustomers(
     subscribedOnly?: boolean,
     search?: string,
+    category?: string,
     page = 1,
     pageSize = 25,
   ): Observable<PaginatedResult<Customer>> {
     let params = new HttpParams().set('page', page.toString()).set('pageSize', pageSize.toString());
     if (subscribedOnly) params = params.set('subscribedOnly', 'true');
     if (search) params = params.set('search', search);
+    if (category) params = params.set('category', category);
     return this.http.get<ApiResponse<PaginatedResult<Customer>>>(this.baseUrl, { params }).pipe(map(res => res.data));
   }
 

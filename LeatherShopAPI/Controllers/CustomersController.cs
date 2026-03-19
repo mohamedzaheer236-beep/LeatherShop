@@ -24,6 +24,7 @@ public class CustomersController : ControllerBase
     public async Task<IActionResult> GetAll(
         [FromQuery] bool? subscribedOnly,
         [FromQuery] string? search,
+        [FromQuery] string? category,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
         CancellationToken ct = default)
@@ -32,7 +33,7 @@ public class CustomersController : ControllerBase
         if (pageSize < 1) pageSize = 25;
         if (pageSize > 100) pageSize = 100;
 
-        var result = await _customerService.GetAllAsync(subscribedOnly, search, page, pageSize, ct);
+        var result = await _customerService.GetAllAsync(subscribedOnly, search, category, page, pageSize, ct);
         return Ok(ApiResponse<PaginatedResult<CustomerListDto>>.Ok(result));
     }
 

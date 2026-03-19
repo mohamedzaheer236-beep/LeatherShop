@@ -21,12 +21,15 @@ public class CustomerService : ICustomerService
         _logger = logger;
     }
 
-    public async Task<PaginatedResult<CustomerListDto>> GetAllAsync(bool? subscribedOnly, string? search, int page = 1, int pageSize = 25, CancellationToken ct = default)
+    public async Task<PaginatedResult<CustomerListDto>> GetAllAsync(bool? subscribedOnly, string? search, string? category, int page = 1, int pageSize = 25, CancellationToken ct = default)
     {
         var query = _db.Customers.AsNoTracking().AsQueryable();
 
         if (subscribedOnly == true)
             query = query.Where(c => c.IsSubscribed);
+
+        if (!string.IsNullOrEmpty(category) && Enum.TryParse<CustomerCategory>(category, ignoreCase: true, out var parsedCategory))
+            query = query.Where(c => c.Category == parsedCategory);
 
         if (!string.IsNullOrEmpty(search))
         {
@@ -46,6 +49,7 @@ public class CustomerService : ICustomerService
                 Name = c.Name,
                 Address = c.Address,
                 IsSubscribed = c.IsSubscribed,
+                Category = c.Category.ToString(),
                 CreatedAt = c.CreatedAt,
                 OrderCount = c.Orders.Count
             }).ToListAsync(ct);
@@ -83,7 +87,9 @@ public class CustomerService : ICustomerService
             PhoneNumber = phone,
             Name = dto.Name?.Trim() ?? "",
             Address = dto.Address?.Trim() ?? "",
-            IsSubscribed = true
+            IsSubscribed = true,
+            Category = Enum.TryParse<CustomerCategory>(dto.Category, ignoreCase: true, out var cat)
+                ? cat : throw new ArgumentException($"Invalid category: {dto.Category}. Valid values: Reseller, DirectCorporate, FriendsAndFamily")
         };
         _db.Customers.Add(customer);
         await _db.SaveChangesAsync(ct);
@@ -140,12 +146,17 @@ public class CustomerService : ICustomerService
             if (existingPhones.Contains(phone)) { skipped++; continue; }
 
             existingPhones.Add(phone); // prevent duplicates within the same import batch
+            var importCategory = CustomerCategory.FriendsAndFamily;
+            if (!string.IsNullOrEmpty(item.Category) && Enum.TryParse<CustomerCategory>(item.Category, ignoreCase: true, out var parsedCat))
+                importCategory = parsedCat;
+
             _db.Customers.Add(new Customer
             {
                 PhoneNumber = phone,
                 Name = item.Name?.Trim() ?? "",
                 Address = item.Address?.Trim() ?? "",
-                IsSubscribed = true
+                IsSubscribed = true,
+                Category = importCategory
             });
             added++;
         }
@@ -168,6 +179,8 @@ public class CustomerService : ICustomerService
         if (dto.Name != null) customer.Name = dto.Name.Trim();
         if (dto.Address != null) customer.Address = dto.Address.Trim();
         if (dto.IsSubscribed.HasValue) customer.IsSubscribed = dto.IsSubscribed.Value;
+        if (dto.Category != null && Enum.TryParse<CustomerCategory>(dto.Category, ignoreCase: true, out var updatedCat))
+            customer.Category = updatedCat;
         customer.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
@@ -180,6 +193,7 @@ public class CustomerService : ICustomerService
             Name = customer.Name,
             Address = customer.Address,
             IsSubscribed = customer.IsSubscribed,
+            Category = customer.Category.ToString(),
             CreatedAt = customer.CreatedAt,
             OrderCount = await _db.Orders.CountAsync(o => o.CustomerId == id, ct)
         };

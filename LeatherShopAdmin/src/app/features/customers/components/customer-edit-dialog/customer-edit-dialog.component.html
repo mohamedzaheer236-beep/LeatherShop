@@ -23,6 +23,14 @@
           <span>Subscribed to broadcasts</span>
         </div>
       </div>
+      <div class="form-field">
+        <label for="editCategory">Category *</label>
+        <p-dropdown id="editCategory" formControlName="category" [options]="categoryOptions"
+          placeholder="Select category" [style]="{'width': '100%'}" appendTo="body"></p-dropdown>
+        @if (isFieldInvalid('category') && form.get('category')?.errors?.['required']) {
+          <small class="p-error">Category is required.</small>
+        }
+      </div>
     </div>
   </form>
   <ng-template pTemplate="footer">

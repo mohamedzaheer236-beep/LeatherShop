@@ -4,6 +4,7 @@ export interface BroadcastRequest {
   parameters: string[];
   imageUrl?: string;
   phoneNumbers?: string[];
+  category?: string;
   isCarousel?: boolean;
   carouselCards?: CarouselCard[];
 }

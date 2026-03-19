@@ -34,6 +34,15 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         // Performance index: sort by creation date
         builder.HasIndex(c => c.CreatedAt);
 
+        // Category stored as string for readability
+        builder.Property(c => c.Category)
+            .IsRequired()
+            .HasMaxLength(30)
+            .HasConversion<string>();
+
+        // Performance index: filter by category
+        builder.HasIndex(c => c.Category);
+
         // One-to-many: Customer → Orders (Restrict: preserve order history for accounting)
         builder.HasMany(c => c.Orders)
             .WithOne(o => o.Customer)

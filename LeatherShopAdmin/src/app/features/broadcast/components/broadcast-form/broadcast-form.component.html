@@ -107,6 +107,18 @@
         }
       </div>
 
+      <!-- ═══ Target Audience ═══ -->
+      <div class="form-field">
+        <label for="categoryFilter">Send To</label>
+        <p-dropdown inputId="categoryFilter" formControlName="category"
+          [options]="categoryOptions" placeholder="All Subscribers"
+          [style]="{'width': '100%'}" appendTo="body">
+        </p-dropdown>
+        <small class="hint">
+          <i class="pi pi-info-circle"></i> Filter recipients by customer category
+        </small>
+      </div>
+
       <!-- ═══ Standard Template Fields (hidden when carousel) ═══ -->
       @if (!helper.isCarousel) {
         @if (helper.bodyParamCount > 0) {
@@ -265,7 +277,7 @@
                 </small>
               }
               <p-button type="submit"
-                label="Send to All Subscribers"
+                label="Send Broadcast"
                 icon="pi pi-send"
                 [loading]="sending"
                 [disabled]="sending || broadcastForm.invalid || helper.anyUploading || (helper.isCarousel && !helper.carouselCardsValid)"
