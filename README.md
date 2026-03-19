@@ -3055,3 +3055,69 @@ Added customer classification system with 3 categories: **Reseller**, **Direct C
 - **Existing customers default to FriendsAndFamily** — Applied via migration default value
 - **New customers must select category** — Required field in create form, no default
 - **Broadcast dual-path targeting** — Category dropdown on broadcast page filters all subscribers by category; manual checkbox selection on customer list also works with category filter
+
+### Phase 41 — Customer Management Enhancements (March 19, 2026)
+
+Multiple UX improvements to the customer management system: duplicate phone validation, Excel file import (replacing text paste), and bulk delete.
+
+#### 1. Duplicate Phone Validation on Add Customer
+
+**Problem:** The Add Customer form allowed submitting duplicate phone numbers — the backend rejected it, but there was no inline feedback like the Product form has.
+
+**Fix:**
+| # | File | Change |
+|---|------|--------|
+| 1 | `Controllers/CustomersController.cs` | Added `GET /api/customers/check-phone?phone=...` endpoint |
+| 2 | `Services/Interfaces/ICustomerService.cs` | Added `PhoneExistsAsync()` |
+| 3 | `Services/CustomerService.cs` | Implemented `PhoneExistsAsync()` — normalizes phone, checks DB |
+| 4 | `customer-add-dialog.component.ts` | Added async validator with 400ms debounce on phone field |
+| 5 | `customer-add-dialog.component.html` | Shows inline error: "A customer with this phone number already exists." |
+| 6 | `customer-add-dialog.component.html` | "Add Customer" button disabled until all fields valid and no async errors |
+
+#### 2. Excel File Upload for Bulk Import
+
+**Problem:** The old import dialog required manually typing/pasting CSV text. The client wanted to upload an Excel file with customer data.
+
+**Solution:** Replaced the textarea with a full Excel file upload system using SheetJS (`xlsx` package) for client-side parsing.
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `package.json` | Added `xlsx` (SheetJS) dependency |
+| 2 | `Controllers/CustomersController.cs` | Added `POST /api/customers/check-phones` bulk phone verification endpoint |
+| 3 | `Services/CustomerService.cs` | Added `CheckPhonesAsync()` — normalizes and checks multiple phones in one query |
+| 4 | `customers/services/customer.service.ts` | Added `checkPhonesExist()` and `bulkDeleteCustomers()` methods |
+| 5 | `customer-import-dialog.component.ts` | Complete rewrite — file upload, Excel parsing, full validation pipeline |
+| 6 | `customer-import-dialog.component.html` | Upload zone with drag-drop, error list, data preview table |
+| 7 | `customer-import-dialog.component.scss` | Styles for upload zone, error list, preview table |
+
+**Excel Import Features:**
+- **File format** — Accepts `.xlsx` and `.xls` only (max 5 MB, max 1000 rows)
+- **Download Template** — Button generates blank template Excel with correct column headers (PhoneNumber, Name, Address, Category)
+- **Column validation** — Must have exactly 4 columns. Missing columns → error listing which ones. Extra columns → error naming the unexpected column(s)
+- **Phone validation** — 10-15 digits, no duplicates within file, no duplicates against DB (bulk check via single API call)
+- **Category validation** — Must be Reseller, DirectCorporate, or FriendsAndFamily (case-insensitive)
+- **Error display** — Scrollable error list with row number, field name, and specific error message
+- **No partial imports** — All rows must pass validation before Import button is enabled
+- **Preview table** — Shows all parsed rows with colored category tags before importing
+
+#### 3. Bulk Delete Selected Customers
+
+**Problem:** No way to delete multiple customers at once. Had to delete one by one.
+
+**Solution:** Added bulk delete with confirmation dialog. Customers with orders are automatically skipped (preserved for accounting).
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `Controllers/CustomersController.cs` | Added `POST /api/customers/bulk-delete` endpoint |
+| 2 | `DTOs/Customer/CustomerDtos.cs` | Added `BulkDeleteRequestDto` and `BulkDeleteResultDto` |
+| 3 | `Services/Interfaces/ICustomerService.cs` | Added `BulkDeleteAsync()` |
+| 4 | `Services/CustomerService.cs` | Implemented `BulkDeleteAsync()` — checks orders, deletes safe ones, reports skipped |
+| 5 | `customers.component.ts` | Added `confirmBulkDelete()`, ConfirmDialogModule, ConfirmationService |
+| 6 | `customers.component.html` | "Delete Selected" button (red, trash icon) in selection bar + `<p-confirmDialog>` |
+
+**Bulk Delete Flow:**
+- Select customers via checkboxes → "Delete Selected" button appears (red) between "Send Broadcast" and "Clear Selection"
+- Click → PrimeNG confirmation dialog: "Are you sure you want to delete N selected customer(s)? Customers with orders will be skipped."
+- On confirm → backend deletes safe customers, returns count of deleted + skipped
+- If any skipped → warning toast with details. Otherwise → success toast
+- Selection cleared and list refreshed automatically
