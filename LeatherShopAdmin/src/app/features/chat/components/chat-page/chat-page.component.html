@@ -7,6 +7,7 @@
         <span class="p-input-icon-left w-full">
           <i class="pi pi-search"></i>
           <input pInputText type="text" placeholder="Search customers..."
+            id="chatSearch" name="chatSearch" aria-label="Search customers"
             [(ngModel)]="searchTerm" (input)="onSearch()" class="w-full" />
           </span>
         </div>
@@ -131,6 +132,7 @@
         <!-- Message Input -->
         <div class="chat-input">
           <input pInputText type="text" placeholder="Type a message..."
+            id="chatMessage" name="chatMessage"
             aria-label="Type a message"
             [(ngModel)]="messageText"
             (keyup.enter)="sendMessage()"
