@@ -22,11 +22,12 @@ import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
 
 import { CUSTOMER_CATEGORIES } from '../../../customers/models/customer.model';
+import { DropdownAccessibilityDirective } from '../../../../shared/directives/dropdown-accessibility.directive';
 
 @Component({
   selector: 'app-broadcast-form',
   standalone: true,
-  imports: [ReactiveFormsModule, FormsModule, CardModule, DropdownModule, InputTextModule, ButtonModule],
+  imports: [ReactiveFormsModule, FormsModule, CardModule, DropdownModule, InputTextModule, ButtonModule, DropdownAccessibilityDirective],
   templateUrl: './broadcast-form.component.html',
   styleUrl: './broadcast-form.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

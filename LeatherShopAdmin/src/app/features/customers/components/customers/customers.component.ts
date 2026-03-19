@@ -26,6 +26,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { PaginatorModule } from 'primeng/paginator';
 import { DropdownModule } from 'primeng/dropdown';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { DropdownAccessibilityDirective } from '../../../../shared/directives/dropdown-accessibility.directive';
 
 @Component({
   selector: 'app-customers',
@@ -53,6 +54,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
     PaginatorModule,
     DropdownModule,
     ConfirmDialogModule,
+    DropdownAccessibilityDirective,
   ],
   templateUrl: './customers.component.html',
   styleUrl: './customers.component.scss',

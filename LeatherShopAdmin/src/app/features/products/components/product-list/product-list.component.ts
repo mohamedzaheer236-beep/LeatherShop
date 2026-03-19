@@ -17,6 +17,7 @@ import { ConfirmationService } from 'primeng/api';
 import { ToolbarModule } from 'primeng/toolbar';
 import { TooltipModule } from 'primeng/tooltip';
 import { PaginatorModule } from 'primeng/paginator';
+import { DropdownAccessibilityDirective } from '../../../../shared/directives/dropdown-accessibility.directive';
 
 @Component({
   selector: 'app-product-list',
@@ -35,6 +36,7 @@ import { PaginatorModule } from 'primeng/paginator';
     ToolbarModule,
     TooltipModule,
     PaginatorModule,
+    DropdownAccessibilityDirective,
   ],
   templateUrl: './product-list.component.html',
   styleUrl: './product-list.component.scss',

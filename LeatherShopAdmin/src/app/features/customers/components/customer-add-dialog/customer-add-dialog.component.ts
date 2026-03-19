@@ -12,11 +12,12 @@ import { InputTextModule } from 'primeng/inputtext';
 import { InputTextareaModule } from 'primeng/inputtextarea';
 import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
+import { DropdownAccessibilityDirective } from '../../../../shared/directives/dropdown-accessibility.directive';
 
 @Component({
   selector: 'app-customer-add-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogModule, InputTextModule, InputTextareaModule, ButtonModule, DropdownModule],
+  imports: [ReactiveFormsModule, DialogModule, InputTextModule, InputTextareaModule, ButtonModule, DropdownModule, DropdownAccessibilityDirective],
   templateUrl: './customer-add-dialog.component.html',
   styleUrl: './customer-add-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
