@@ -77,9 +77,10 @@
           <!-- Price + Stock row -->
           <div class="form-row">
             <div class="form-field">
-              <label for="price">Price (INR) <span [class]="isFieldInvalid('price') ? 'req-star error' : 'req-star'">*</span></label>
+              <span id="price-label">Price (INR) <span [class]="isFieldInvalid('price') ? 'req-star error' : 'req-star'">*</span></span>
               <p-inputNumber inputId="price" formControlName="price" mode="currency" currency="INR"
                 locale="en-IN" placeholder="e.g. 899" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"
+                ariaLabelledBy="price-label"
               [class.ng-invalid]="isFieldInvalid('price')" [class.ng-dirty]="isFieldInvalid('price')"></p-inputNumber>
               @if (isFieldInvalid('price')) {
                 <small class="p-error">
@@ -88,9 +89,10 @@
               }
             </div>
             <div class="form-field">
-              <label for="stock">Stock Quantity <span [class]="isFieldInvalid('stockQuantity') ? 'req-star error' : 'req-star'">*</span></label>
+              <span id="stock-label">Stock Quantity <span [class]="isFieldInvalid('stockQuantity') ? 'req-star error' : 'req-star'">*</span></span>
               <p-inputNumber inputId="stock" formControlName="stockQuantity"
                 [min]="isEdit ? 0 : 1" [showButtons]="true" [style]="{'width': '100%'}" [inputStyle]="{'width': '100%'}"
+                ariaLabelledBy="stock-label"
               [class.ng-invalid]="isFieldInvalid('stockQuantity')" [class.ng-dirty]="isFieldInvalid('stockQuantity')"></p-inputNumber>
               @if (isFieldInvalid('stockQuantity') && productForm.get('stockQuantity')?.errors?.['required']) {
                 <small class="p-error">
