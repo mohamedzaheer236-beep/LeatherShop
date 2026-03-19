@@ -19,12 +19,11 @@ import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
-import { DropdownAccessibilityDirective } from '../../../../shared/directives/dropdown-accessibility.directive';
 
 @Component({
   selector: 'app-customer-broadcast-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, FormsModule, DialogModule, DropdownModule, InputTextModule, ButtonModule, DropdownAccessibilityDirective],
+  imports: [ReactiveFormsModule, FormsModule, DialogModule, DropdownModule, InputTextModule, ButtonModule],
   templateUrl: './customer-broadcast-dialog.component.html',
   styleUrl: './customer-broadcast-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

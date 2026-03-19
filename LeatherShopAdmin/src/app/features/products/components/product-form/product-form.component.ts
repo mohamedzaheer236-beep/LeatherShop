@@ -25,7 +25,6 @@ import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToolbarModule } from 'primeng/toolbar';
 import { environment } from '../../../../../environments/environment';
-import { DropdownAccessibilityDirective } from '../../../../shared/directives/dropdown-accessibility.directive';
 
 @Component({
   selector: 'app-product-form',
@@ -41,7 +40,6 @@ import { DropdownAccessibilityDirective } from '../../../../shared/directives/dr
     ButtonModule,
     ConfirmDialogModule,
     ToolbarModule,
-    DropdownAccessibilityDirective,
   ],
   templateUrl: './product-form.component.html',
   styleUrl: './product-form.component.scss',

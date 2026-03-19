@@ -11,12 +11,11 @@ import { InputTextareaModule } from 'primeng/inputtextarea';
 import { CheckboxModule } from 'primeng/checkbox';
 import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
-import { DropdownAccessibilityDirective } from '../../../../shared/directives/dropdown-accessibility.directive';
 
 @Component({
   selector: 'app-customer-edit-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogModule, InputTextModule, InputTextareaModule, CheckboxModule, ButtonModule, DropdownModule, DropdownAccessibilityDirective],
+  imports: [ReactiveFormsModule, DialogModule, InputTextModule, InputTextareaModule, CheckboxModule, ButtonModule, DropdownModule],
   templateUrl: './customer-edit-dialog.component.html',
   styleUrl: './customer-edit-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
