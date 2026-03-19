@@ -61,6 +61,7 @@
             [showClear]="true"
             [filter]="true"
             filterPlaceholder="Search templates..."
+            ariaFilterLabel="Search templates"
             appendTo="body">
           </p-dropdown>
         }
@@ -109,10 +110,11 @@
 
       <!-- ═══ Target Audience ═══ -->
       <div class="form-field">
-        <label for="categoryFilter">Send To</label>
+        <span id="categoryFilterLabel">Send To</span>
         <p-dropdown inputId="categoryFilter" formControlName="category"
           [options]="categoryOptions" placeholder="All Subscribers"
-          [style]="{'width': '100%'}" appendTo="body">
+          [style]="{'width': '100%'}" appendTo="body"
+          ariaLabelledBy="categoryFilterLabel">
         </p-dropdown>
         <small class="hint">
           <i class="pi pi-info-circle"></i> Filter recipients by customer category
@@ -176,7 +178,7 @@
                   </div>
                   <!-- 1. Product Selector -->
                   <div class="form-field">
-                    <label [for]="'cardProduct_' + i">Link to Product <span class="req-star">*</span></label>
+                    <span [id]="'cardProductLabel_' + i">Link to Product <span class="req-star">*</span></span>
                     <p-dropdown [inputId]="'cardProduct_' + i"
                       [options]="helper.productOptions"
                       [(ngModel)]="card.selectedProductId" [ngModelOptions]="{standalone: true}"
@@ -186,7 +188,8 @@
                       [showClear]="true"
                       [filter]="true"
                       filterPlaceholder="Search products..."
-                      appendTo="body">
+                      appendTo="body"
+                      [ariaLabelledBy]="'cardProductLabel_' + i">
                     </p-dropdown>
                     @if (!card.selectedProductId) {
                       <small class="hint">

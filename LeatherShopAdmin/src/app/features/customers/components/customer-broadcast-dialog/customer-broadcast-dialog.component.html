@@ -8,19 +8,21 @@
   <form [formGroup]="broadcastForm">
     <div class="dialog-form">
       <div class="form-field">
-        <label for="bcTemplate">Template Name *</label>
+        <span id="bcTemplateLabel">Template Name *</span>
         @if (helper.templateLoader.getState().templatesLoaded && helper.templateLoader.getState().templates.length > 0) {
           <p-dropdown
-            id="bcTemplate"
+            inputId="bcTemplate"
+            ariaLabelledBy="bcTemplateLabel"
             [options]="helper.templateLoader.getState().templateOptions" formControlName="template"
             (onChange)="onTemplateSelect()"
             placeholder="Select an approved template" [style]="{'width': '100%'}"
-            [filter]="true" filterPlaceholder="Search templates..." appendTo="body">
+            [filter]="true" filterPlaceholder="Search templates..." ariaFilterLabel="Search templates" appendTo="body">
           </p-dropdown>
         }
         @if (!helper.templateLoader.getState().templatesLoaded || helper.templateLoader.getState().templates.length === 0) {
-          <input
-            type="text" pInputText formControlName="template" placeholder="e.g. new_product_launch" class="w-full" />
+          <input id="bcTemplate"
+            type="text" pInputText formControlName="template" placeholder="e.g. new_product_launch" class="w-full"
+            aria-labelledby="bcTemplateLabel" />
         }
         @if (isFieldInvalid('template') && broadcastForm.get('template')?.errors?.['required']) {
           <small class="p-error">
@@ -89,14 +91,15 @@
                 <span class="card-number">Card {{ i + 1 }} of {{ helper.carouselCards.length }}</span>
               </div>
               <div class="form-field">
-                <label [for]="'bcCardProduct_' + i">Link to Product *</label>
+                <span [id]="'bcCardProductLabel_' + i">Link to Product *</span>
                 <p-dropdown [inputId]="'bcCardProduct_' + i"
                   [options]="helper.productOptions"
                     [(ngModel)]="card.selectedProductId" [ngModelOptions]="{standalone: true}"
                     (onChange)="helper.onCardProductSelect(i)"
                   placeholder="Select a product" [style]="{'width': '100%'}"
                   [showClear]="true" [filter]="true" filterPlaceholder="Search products..."
-                  appendTo="body">
+                  appendTo="body"
+                  [ariaLabelledBy]="'bcCardProductLabel_' + i">
                 </p-dropdown>
                 @if (!card.selectedProductId) {
                   <small class="hint">
