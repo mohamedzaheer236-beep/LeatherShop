@@ -1124,9 +1124,10 @@ POST /api/payment/verify  (with transactionId + orderId)
 │ Category ◄──│─index │ Category  ◄──│─index │ SentCount    │
 │ Price       │       │ IsSubscribed │       │ FailedCount  │
 │ StockQty    │       │ IsBotPaused  │       │ SentAt       │
-│ ImageUrl    │       │ CreatedAt    │       └──────────────┘
-│ VideoUrl    │       │ UpdatedAt    │
-│ IsActive    │       └──────┬───────┘
+│ ImageUrl    │       │ BotPausedUntil       └──────────────┘
+│ VideoUrl    │       │ CreatedAt    │
+│ IsActive    │       │ UpdatedAt    │
+│ CreatedAt   │       └──────┬───────┘
 │ CreatedAt   │              │
 │ UpdatedAt   │              │ 1:N               ┌──────────────┐
 └──────┬──────┘        ┌─────▼────────┐          │  AdminUsers  │
@@ -1171,14 +1172,16 @@ POST /api/payment/verify  (with transactionId + orderId)
 │ WhatsAppOutbox   │   └──────────────┘(C+T)     │ Status             │ (Pending/Confirmed/Cancelled)
 ├──────────────────┤                             │ CreatedAt     ◄────│─index (IsRead+CreatedAt)
 │ Id (PK)          │                             │ IsRead             │
-│ OrderId (FK)     │                             └───────────────────┘
-│ CustomerId (FK)  │
-│ MessageContent   │
-│ RetryCount       │
-│ NextRetryAt      │
+│ To               │                             └───────────────────┘
+│ Content          │
+│ Context          │
 │ Status           │  (Pending/Sent/Failed)
+│ RetryCount       │
+│ MaxRetries       │
+│ NextRetryAt      │
 │ LastError        │
 │ CreatedAt        │
+│ SentAt           │
 └──────────────────┘
 
 Order Status Enum: Pending → Confirmed → Shipped → Delivered → Cancelled

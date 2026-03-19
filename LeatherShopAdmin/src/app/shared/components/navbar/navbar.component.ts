@@ -97,13 +97,10 @@ export class NavbarComponent implements OnInit {
   private fetchUnreadNotifications(): void {
     this.notificationApi.getUnread().subscribe({
       next: items => {
-        console.log('[Notifications] Fetched unread:', items?.length ?? 0, 'notifications');
         this.notifications = items;
         this.cdr.markForCheck();
       },
-      error: err => {
-        console.error('[Notifications] Failed to fetch unread notifications:', err);
-      },
+      error: () => { /* silently handled — navbar retries on next SignalR reconnect */ },
     });
   }
 
