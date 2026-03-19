@@ -40,6 +40,12 @@ export class CustomerService {
     return this.http.delete<ApiResponse<void>>(`${this.baseUrl}/${id}`);
   }
 
+  bulkDeleteCustomers(ids: number[]): Observable<{ deleted: number; skippedWithOrders: number; message: string }> {
+    return this.http
+      .post<ApiResponse<{ deleted: number; skippedWithOrders: number; message: string }>>(`${this.baseUrl}/bulk-delete`, { ids })
+      .pipe(map(res => res.data));
+  }
+
   bulkImportCustomers(customers: CreateCustomer[]): Observable<BulkImportResult> {
     return this.http
       .post<ApiResponse<BulkImportResult>>(`${this.baseUrl}/import`, { customers })

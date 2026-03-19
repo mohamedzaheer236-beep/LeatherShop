@@ -250,4 +250,31 @@ public class CustomerService : ICustomerService
             .Select(c => c.PhoneNumber)
             .ToListAsync(ct);
     }
+
+    public async Task<BulkDeleteResultDto> BulkDeleteAsync(List<int> ids, CancellationToken ct = default)
+    {
+        var customers = await _db.Customers
+            .Where(c => ids.Contains(c.Id))
+            .Select(c => new { c.Id, OrderCount = c.Orders.Count })
+            .ToListAsync(ct);
+
+        var toDelete = customers.Where(c => c.OrderCount == 0).Select(c => c.Id).ToList();
+        var skipped = customers.Count(c => c.OrderCount > 0);
+
+        if (toDelete.Count > 0)
+        {
+            await _db.Customers
+                .Where(c => toDelete.Contains(c.Id))
+                .ExecuteDeleteAsync(ct);
+        }
+
+        return new BulkDeleteResultDto
+        {
+            Deleted = toDelete.Count,
+            SkippedWithOrders = skipped,
+            Message = skipped > 0
+                ? $"Deleted {toDelete.Count} customer(s). {skipped} customer(s) with orders were skipped."
+                : $"Deleted {toDelete.Count} customer(s) successfully."
+        };
+    }
 }

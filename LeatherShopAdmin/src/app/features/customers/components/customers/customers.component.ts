@@ -12,6 +12,7 @@ import { CustomerEditDialogComponent } from '../customer-edit-dialog/customer-ed
 import { CustomerDeleteDialogComponent } from '../customer-delete-dialog/customer-delete-dialog.component';
 import { CustomerImportDialogComponent } from '../customer-import-dialog/customer-import-dialog.component';
 import { CustomerBroadcastDialogComponent } from '../customer-broadcast-dialog/customer-broadcast-dialog.component';
+import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { TagModule } from 'primeng/tag';
@@ -24,6 +25,7 @@ import { TableModule } from 'primeng/table';
 import { TooltipModule } from 'primeng/tooltip';
 import { PaginatorModule } from 'primeng/paginator';
 import { DropdownModule } from 'primeng/dropdown';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 
 @Component({
   selector: 'app-customers',
@@ -50,16 +52,19 @@ import { DropdownModule } from 'primeng/dropdown';
     TooltipModule,
     PaginatorModule,
     DropdownModule,
+    ConfirmDialogModule,
   ],
   templateUrl: './customers.component.html',
   styleUrl: './customers.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [ConfirmationService],
 })
 export class CustomersComponent implements OnInit {
   private fb = inject(FormBuilder);
   private customerService = inject(CustomerService);
   private notification = inject(NotificationService);
   private cdr = inject(ChangeDetectorRef);
+  private confirmationService = inject(ConfirmationService);
 
   customers: CustomerWithSelection[] = [];
   loading = true;
@@ -101,6 +106,10 @@ export class CustomersComponent implements OnInit {
 
   get selectedPhoneNumbers(): string[] {
     return Array.from(this._selectedMap.values());
+  }
+
+  get selectedIds(): number[] {
+    return Array.from(this._selectedMap.keys());
   }
 
   get selectedCount(): number {
@@ -217,6 +226,34 @@ export class CustomersComponent implements OnInit {
   confirmDelete(customer: Customer): void {
     this.deleteTarget = customer;
     this.showDeleteConfirm = true;
+  }
+
+  confirmBulkDelete(): void {
+    const count = this.selectedCount;
+    this.confirmationService.confirm({
+      message: `Are you sure you want to delete ${count} selected customer(s)? Customers with orders will be skipped.`,
+      header: 'Confirm Bulk Delete',
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        this.customerService.bulkDeleteCustomers(this.selectedIds).subscribe({
+          next: result => {
+            if (result.skippedWithOrders > 0) {
+              this.notification.warning(result.message);
+            } else {
+              this.notification.success(result.message);
+            }
+            this.clearSelection();
+            this.loadCustomers();
+            this.loadCounts();
+            this.cdr.markForCheck();
+          },
+          error: () => {
+            this.cdr.markForCheck();
+          },
+        });
+      },
+    });
   }
 
   // ─── Dialog Callbacks (refresh data after child operations) ───

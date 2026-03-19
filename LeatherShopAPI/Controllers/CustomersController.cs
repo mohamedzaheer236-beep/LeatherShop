@@ -112,6 +112,16 @@ public class CustomersController : ControllerBase
         };
     }
 
+    [HttpPost("bulk-delete")]
+    public async Task<IActionResult> BulkDelete([FromBody] BulkDeleteRequestDto dto, CancellationToken ct)
+    {
+        if (dto.Ids == null || dto.Ids.Count == 0)
+            return BadRequest(ApiResponse.Fail("No customer IDs provided."));
+
+        var result = await _customerService.BulkDeleteAsync(dto.Ids, ct);
+        return Ok(ApiResponse<BulkDeleteResultDto>.Ok(result, result.Message));
+    }
+
     [HttpPut("{id:int}/subscribe")]
     public async Task<IActionResult> ToggleSubscription(int id, [FromBody] bool isSubscribed, CancellationToken ct)
     {

@@ -24,6 +24,9 @@
   (imported)="onCustomersImported()">
 </app-customer-import-dialog>
 
+<!-- Confirm Dialog (for bulk delete) -->
+<p-confirmDialog></p-confirmDialog>
+
 <!-- Broadcast to Selected Dialog -->
 <app-customer-broadcast-dialog
   [(visible)]="showBroadcastDialog"
@@ -73,6 +76,7 @@
         <span class="selection-note">(across multiple pages)</span>
       }
       <p-button label="Send Broadcast to Selected" icon="pi pi-send" size="small" (onClick)="showBroadcastDialog = true"></p-button>
+      <p-button label="Delete Selected" icon="pi pi-trash" severity="danger" size="small" (onClick)="confirmBulkDelete()"></p-button>
       <p-button label="Clear Selection" icon="pi pi-times" severity="secondary" [outlined]="true" size="small" (onClick)="clearSelection()"></p-button>
     </div>
   }

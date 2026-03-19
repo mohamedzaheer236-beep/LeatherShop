@@ -37,6 +37,18 @@ public class CheckPhonesRequestDto
     public List<string> Phones { get; set; } = new();
 }
 
+public class BulkDeleteRequestDto
+{
+    public List<int> Ids { get; set; } = new();
+}
+
+public class BulkDeleteResultDto
+{
+    public string Message { get; set; } = string.Empty;
+    public int Deleted { get; set; }
+    public int SkippedWithOrders { get; set; }
+}
+
 public class BulkImportDto
 {
     [Required(ErrorMessage = "Customer list is required.")]
