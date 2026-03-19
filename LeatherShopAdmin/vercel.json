@@ -10,7 +10,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self' https: data:; connect-src 'self' https://leathershop-production.up.railway.app wss://leathershop-production.up.railway.app; frame-src 'none';"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self' https: data:; media-src 'self' https://leathershop-production.up.railway.app; connect-src 'self' https://leathershop-production.up.railway.app wss://leathershop-production.up.railway.app; frame-src 'none';"
         }
       ]
     }
