@@ -56,7 +56,7 @@
             <div class="card-number-badge"><i class="pi pi-link" style="font-size: 14px"></i></div>
             <div class="card-header-text">
               <span class="card-title">Product Details</span>
-              @if (helper.linkedProductId && helper.linkedImageId) {
+              @if (helper.linkedProductId && helper.linkedImageId !== null) {
                 <span class="card-status ready"><i class="pi pi-check-circle"></i> Ready</span>
               } @else {
                 <span class="card-status pending"><i class="pi pi-ellipsis-h"></i> Select a product</span>
