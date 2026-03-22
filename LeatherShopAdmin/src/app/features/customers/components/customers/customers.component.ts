@@ -264,6 +264,10 @@ export class CustomersComponent implements OnInit {
   }
 
   onCustomerDeleted(): void {
+    // Remove deleted customer from selection map so the selection bar clears
+    if (this.deleteTarget) {
+      this._selectedMap.delete(this.deleteTarget.id);
+    }
     this.deleteTarget = null;
     this.loadCustomers();
     this.loadCounts();
