@@ -113,14 +113,17 @@ export class OrdersComponent implements OnInit {
 
   updateStatus(order: Order, newStatus: OrderStatus): void {
     const previousStatus = order.status;
+    const previousCancelledBy = order.cancelledBy;
     this.orderService.updateOrderStatus(order.id, newStatus).subscribe({
       next: () => {
         order.status = newStatus;
+        if (newStatus === 'Cancelled') order.cancelledBy = 'Admin';
         this.notification.success(`Order status updated to ${newStatus}.`);
         this.cdr.markForCheck();
       },
       error: () => {
         order.status = previousStatus;
+        order.cancelledBy = previousCancelledBy;
         this.cdr.markForCheck();
         // Toast shown by error interceptor
       },
