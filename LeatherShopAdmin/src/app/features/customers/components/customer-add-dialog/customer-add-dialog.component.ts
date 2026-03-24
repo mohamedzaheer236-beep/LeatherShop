@@ -78,10 +78,15 @@ export class CustomerAddDialogComponent {
       category: this.form.value.category!,
     };
     this.customerService.createCustomer(dto).subscribe({
-      next: () => {
+      next: result => {
         this.submitting = false;
         this.close();
-        this.notification.success('Customer added successfully!');
+        if (result.welcomeSent) {
+          this.notification.success('Customer added and welcome message sent via WhatsApp!');
+        } else {
+          this.notification.success('Customer added successfully.');
+          this.notification.warning('Welcome message could not be sent — template may be pending approval.');
+        }
         this.saved.emit();
         this.cdr.markForCheck();
       },

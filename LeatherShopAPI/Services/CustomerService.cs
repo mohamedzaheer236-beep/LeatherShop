@@ -94,25 +94,30 @@ public class CustomerService : ICustomerService
         _db.Customers.Add(customer);
         await _db.SaveChangesAsync(ct);
 
-        // Send welcome message via WhatsApp
+        // Send welcome template via WhatsApp (templates can initiate conversations)
+        var welcomeSent = false;
         try
         {
-            var welcomeMsg = $"👋 Welcome to *Cuir Galerie*{(string.IsNullOrEmpty(customer.Name) ? "" : $", {customer.Name}")}!\n\n" +
-                "We're glad to have you. You can browse our products and place orders right here on WhatsApp.\n\n" +
-                "Type *Hi* to get started!";
-            await _whatsApp.SendTextMessage(phone, welcomeMsg);
-            _logger.LogInformation("Welcome message sent to {Phone}", phone);
+            var nameParam = string.IsNullOrEmpty(customer.Name) ? "there" : customer.Name;
+            await _whatsApp.SendTemplateMessage(
+                to: phone,
+                templateName: "welcome_message",
+                languageCode: "en",
+                parameters: new List<string> { nameParam });
+            welcomeSent = true;
+            _logger.LogInformation("Welcome template sent to {Phone}", phone);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Could not send welcome message to {Phone} - customer was still added", phone);
+            _logger.LogWarning(ex, "Could not send welcome template to {Phone} — customer was still added", phone);
         }
 
         return new CustomerCreatedDto
         {
             Id = customer.Id,
             PhoneNumber = customer.PhoneNumber,
-            Name = customer.Name
+            Name = customer.Name,
+            WelcomeSent = welcomeSent
         };
     }
 

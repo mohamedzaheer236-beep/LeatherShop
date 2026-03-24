@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { Customer, CreateCustomer, UpdateCustomer, BulkImportResult } from '../models/customer.model';
+import { Customer, CreateCustomer, CustomerCreated, UpdateCustomer, BulkImportResult } from '../models/customer.model';
 import { PaginatedResult } from '../../../core/models/paginated-result.model';
 import { ApiResponse } from '../../../core/models/api-response.model';
 import { environment } from '../../../../environments/environment';
@@ -28,8 +28,8 @@ export class CustomerService {
     return this.http.get<ApiResponse<PaginatedResult<Customer>>>(this.baseUrl, { params }).pipe(map(res => res.data));
   }
 
-  createCustomer(customer: CreateCustomer): Observable<Customer> {
-    return this.http.post<ApiResponse<Customer>>(this.baseUrl, customer).pipe(map(res => res.data));
+  createCustomer(customer: CreateCustomer): Observable<CustomerCreated> {
+    return this.http.post<ApiResponse<CustomerCreated>>(this.baseUrl, customer).pipe(map(res => res.data));
   }
 
   updateCustomer(id: number, customer: UpdateCustomer): Observable<Customer> {

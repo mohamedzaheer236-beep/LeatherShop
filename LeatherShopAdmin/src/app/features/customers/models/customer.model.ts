@@ -27,6 +27,13 @@ export interface CreateCustomer {
   category: string;
 }
 
+export interface CustomerCreated {
+  id: number;
+  phoneNumber: string;
+  name: string;
+  welcomeSent: boolean;
+}
+
 export interface UpdateCustomer {
   name?: string;
   address?: string;

@@ -79,6 +79,7 @@ public class CustomerCreatedDto
     public int Id { get; set; }
     public string PhoneNumber { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public bool WelcomeSent { get; set; }
 }
 
 public class BulkImportResultDto
