@@ -35,55 +35,66 @@ public class PaymentController : ControllerBase
     [HttpGet("pay/{orderNumber}")]
     public async Task<IActionResult> PaymentPage(string orderNumber, CancellationToken ct)
     {
-        var (result, data) = await _paymentService.GetPaymentPageDataAsync(orderNumber, ct);
+        try
+        {
+            var (result, data) = await _paymentService.GetPaymentPageDataAsync(orderNumber, ct);
 
-        if (result == PaymentPageResult.NotFound)
-            return Content(await BuildMessagePageAsync("Order Not Found",
-                "This order was not found or has already been paid.",
-                "&#128269;", "#666", ct), "text/html");
+            if (result == PaymentPageResult.NotFound)
+                return Content(await BuildMessagePageAsync("Order Not Found",
+                    "This order was not found or has already been paid.",
+                    "&#128269;", "#666", ct), "text/html");
 
-        if (result == PaymentPageResult.Expired)
-            return Content(await BuildMessagePageAsync("Payment Link Expired",
-                "This payment link has expired. Your items have been restored to your cart.\n\nSay <strong>checkout</strong> on WhatsApp to get a new payment link.",
-                "&#9200;", "#e65100", ct), "text/html");
+            if (result == PaymentPageResult.Expired)
+                return Content(await BuildMessagePageAsync("Payment Link Expired",
+                    "This payment link has expired. Your items have been restored to your cart.\n\nSay <strong>checkout</strong> on WhatsApp to get a new payment link.",
+                    "&#9200;", "#e65100", ct), "text/html");
 
-        if (result == PaymentPageResult.Cancelled)
-            return Content(await BuildMessagePageAsync("Order Cancelled",
-                "This order has been cancelled and the payment link is no longer valid.",
-                "&#10060;", "#c62828", ct), "text/html");
+            if (result == PaymentPageResult.Cancelled)
+                return Content(await BuildMessagePageAsync("Order Cancelled",
+                    "This order has been cancelled and the payment link is no longer valid.",
+                    "&#10060;", "#c62828", ct), "text/html");
 
-        var safeOrderNumber = WebUtility.HtmlEncode(data!.OrderNumber);
-        var safeMerchantId = WebUtility.HtmlEncode(data.PaytmMerchantId);
-        var safeTxnToken = WebUtility.HtmlEncode(data.PaytmTxnToken);
+            var safeOrderNumber = WebUtility.HtmlEncode(data!.OrderNumber);
+            var safeMerchantId = WebUtility.HtmlEncode(data.PaytmMerchantId);
+            var safeTxnToken = WebUtility.HtmlEncode(data.PaytmTxnToken);
 
-        var paytmEnv = _config["Paytm:Environment"] ?? "production";
-        var paytmHost = paytmEnv.Equals("staging", StringComparison.OrdinalIgnoreCase)
-            ? "securegw-stage.paytm.in"
-            : "secure.paytmpayments.com";
+            var paytmEnv = _config["Paytm:Environment"] ?? "production";
+            var paytmHost = paytmEnv.Equals("staging", StringComparison.OrdinalIgnoreCase)
+                ? "securegw-stage.paytm.in"
+                : "secure.paytmpayments.com";
 
-        var itemsHtml = string.Join("", data.Items.Select(i =>
-            $@"<div class='item'>
-                <div class='item-info'>
-                    <span class='item-name'>{WebUtility.HtmlEncode(i.ProductName)}</span>
-                    <span class='item-qty'>Qty: {i.Quantity}</span>
-                </div>
-                <span class='item-price'>&#x20B9;{i.Subtotal:F2}</span>
-            </div>"
-        ));
+            var itemsHtml = string.Join("", data.Items.Select(i =>
+                $@"<div class='item'>
+                    <div class='item-info'>
+                        <span class='item-name'>{WebUtility.HtmlEncode(i.ProductName)}</span>
+                        <span class='item-qty'>Qty: {i.Quantity}</span>
+                    </div>
+                    <span class='item-price'>&#x20B9;{i.Subtotal:F2}</span>
+                </div>"
+            ));
 
-        var expiresIso = data.ExpiresAtUtc?.ToString("o") ?? "";
+            var expiresIso = data.ExpiresAtUtc?.ToString("o") ?? "";
 
-        var template = await LoadPaymentPageTemplate(ct);
-        var html = template
-            .Replace("{{ORDER_NUMBER}}", safeOrderNumber)
-            .Replace("{{MERCHANT_ID}}", safeMerchantId)
-            .Replace("{{TXN_TOKEN}}", safeTxnToken)
-            .Replace("{{PAYTM_HOST}}", paytmHost)
-            .Replace("{{ORDER_ITEMS}}", itemsHtml)
-            .Replace("{{TOTAL_AMOUNT}}", $"{data.TotalAmount:F2}")
-            .Replace("{{EXPIRES_ISO}}", expiresIso);
+            var template = await LoadPaymentPageTemplate(ct);
+            var html = template
+                .Replace("{{ORDER_NUMBER}}", safeOrderNumber)
+                .Replace("{{MERCHANT_ID}}", safeMerchantId)
+                .Replace("{{TXN_TOKEN}}", safeTxnToken)
+                .Replace("{{PAYTM_HOST}}", paytmHost)
+                .Replace("{{ORDER_ITEMS}}", itemsHtml)
+                .Replace("{{TOTAL_AMOUNT}}", $"{data.TotalAmount:F2}")
+                .Replace("{{EXPIRES_ISO}}", expiresIso);
 
-        return Content(html, "text/html");
+            return Content(html, "text/html");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Payment page error for order {OrderNumber}", orderNumber);
+            return Content(await BuildMessagePageAsync("Payment Temporarily Unavailable",
+                "We couldn't load the payment page right now. Please try again in a moment by refreshing this page, " +
+                "or say <strong>checkout</strong> on WhatsApp to get a new payment link.",
+                "&#9888;&#65039;", "#e65100", ct), "text/html");
+        }
     }
 
     [HttpPost("verify")]
