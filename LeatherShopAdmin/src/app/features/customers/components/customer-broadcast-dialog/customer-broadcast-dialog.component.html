@@ -121,9 +121,9 @@
       <!-- ═══ Standard Template: Manual Parameters (non-image templates) ═══ -->
       @if (!helper.isCarousel && helper.bodyParamCount > 0 && !helper.hasImageHeader) {
         <div class="form-field">
-          <label for="bcParams">Parameters (comma separated)</label>
-          <input type="text" pInputText id="bcParams" formControlName="params" placeholder="param1, param2" class="w-full" />
-          <small class="hint"><i class="pi pi-info-circle"></i> This template requires {{ helper.bodyParamCount }} parameter(s)</small>
+          <label for="bcParams">{{ helper.bodyParamCount <= 1 ? 'Message' : 'Parameters (comma separated)' }}</label>
+          <input type="text" pInputText id="bcParams" formControlName="params" [placeholder]="helper.bodyParamCount <= 1 ? 'Type your message...' : 'param1, param2'" class="w-full" />
+          <small class="hint"><i class="pi pi-info-circle"></i> {{ helper.bodyParamCount <= 1 ? 'Type your full message — commas are fine' : 'This template requires ' + helper.bodyParamCount + ' parameter(s)' }}</small>
         </div>
       }
 

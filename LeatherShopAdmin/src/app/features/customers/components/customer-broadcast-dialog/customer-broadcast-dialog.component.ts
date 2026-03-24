@@ -164,9 +164,17 @@ export class CustomerBroadcastDialogComponent implements OnInit {
     } else {
       const rawParams = this.broadcastForm.get('params')?.value || '';
       // Use pre-split array when product is linked (descriptions may contain commas)
-      const params = this.helper.linkedProductParams.length > 0
-        ? this.helper.linkedProductParams
-        : (rawParams.trim() ? rawParams.split(',').map((p: string) => p.trim()) : []);
+      let params: string[];
+      if (this.helper.linkedProductParams.length > 0) {
+        params = this.helper.linkedProductParams;
+      } else if (!rawParams.trim()) {
+        params = [];
+      } else if (this.helper.bodyParamCount <= 1) {
+        // Single-parameter templates: send entire text as one param (may contain commas)
+        params = [rawParams.trim()];
+      } else {
+        params = rawParams.split(',').map((p: string) => p.trim());
+      }
       const imageUrl = this.broadcastForm.get('imageUrl')?.value;
 
       this.broadcastService
