@@ -48,9 +48,13 @@ export class TemplateLoaderService {
       next: data => {
         this.state.templates = data;
         // Only show MARKETING templates in broadcast dropdown — UTILITY templates
-        // (e.g., order_update) are for transactional messages, not broadcasts
-        const marketingTemplates = data.filter(t => t.category === 'MARKETING');
-        this.state.templateOptions = marketingTemplates.map(t => ({
+        // (e.g., order_update) are for transactional messages, not broadcasts.
+        // Exclude system templates used internally (e.g., welcome_message for new customers).
+        const SYSTEM_TEMPLATES = ['welcome_message'];
+        const broadcastTemplates = data.filter(
+          t => t.category === 'MARKETING' && !SYSTEM_TEMPLATES.includes(t.name),
+        );
+        this.state.templateOptions = broadcastTemplates.map(t => ({
           label: `${t.name} (${t.language})`,
           value: t.name,
         }));
