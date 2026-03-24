@@ -48,6 +48,8 @@ public class PaymentService : IPaymentService
 
         if (order == null || order.IsPaid) return (PaymentPageResult.NotFound, null);
 
+        if (order.Status == OrderStatus.Cancelled) return (PaymentPageResult.Cancelled, null);
+
         // Check if payment link has expired
         if (order.PaymentExpiresAt.HasValue && DateTime.UtcNow > order.PaymentExpiresAt.Value)
         {

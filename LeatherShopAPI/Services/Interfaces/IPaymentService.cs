@@ -3,7 +3,7 @@ using LeatherShopAPI.DTOs.Payment;
 
 namespace LeatherShopAPI.Services.Interfaces;
 
-public enum PaymentPageResult { NotFound, Expired, Ok }
+public enum PaymentPageResult { NotFound, Expired, Cancelled, Ok }
 
 public interface IPaymentService
 {

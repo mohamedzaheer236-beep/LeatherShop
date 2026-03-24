@@ -47,6 +47,11 @@ public class PaymentController : ControllerBase
                 "This payment link has expired. Your items have been restored to your cart.\n\nSay <strong>checkout</strong> on WhatsApp to get a new payment link.",
                 "&#9200;", "#e65100", ct), "text/html");
 
+        if (result == PaymentPageResult.Cancelled)
+            return Content(await BuildMessagePageAsync("Order Cancelled",
+                "This order has been cancelled and the payment link is no longer valid.",
+                "&#10060;", "#c62828", ct), "text/html");
+
         var safeOrderNumber = WebUtility.HtmlEncode(data!.OrderNumber);
         var safeMerchantId = WebUtility.HtmlEncode(data.PaytmMerchantId);
         var safeTxnToken = WebUtility.HtmlEncode(data.PaytmTxnToken);
