@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using LeatherShopAPI.DTOs.Payment;
 using LeatherShopAPI.Models;
+using LeatherShopAPI.Services;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Controllers;
@@ -55,6 +56,7 @@ public class PaymentController : ControllerBase
                     "&#10060;", "#c62828", ct), "text/html");
 
             var safeOrderNumber = WebUtility.HtmlEncode(data!.OrderNumber);
+            var safePaytmOrderId = WebUtility.HtmlEncode(data.PaytmOrderId);
             var safeMerchantId = WebUtility.HtmlEncode(data.PaytmMerchantId);
             var safeTxnToken = WebUtility.HtmlEncode(data.PaytmTxnToken);
 
@@ -78,6 +80,7 @@ public class PaymentController : ControllerBase
             var template = await LoadPaymentPageTemplate(ct);
             var html = template
                 .Replace("{{ORDER_NUMBER}}", safeOrderNumber)
+                .Replace("{{PAYTM_ORDER_ID}}", safePaytmOrderId)
                 .Replace("{{MERCHANT_ID}}", safeMerchantId)
                 .Replace("{{TXN_TOKEN}}", safeTxnToken)
                 .Replace("{{PAYTM_HOST}}", paytmHost)
@@ -114,18 +117,21 @@ public class PaymentController : ControllerBase
     [Consumes("application/x-www-form-urlencoded")]
     public async Task<IActionResult> PaytmCallback([FromForm] IFormCollection form, CancellationToken ct)
     {
-        var orderId = form["ORDERID"].FirstOrDefault() ?? "";
+        var paytmOrderId = form["ORDERID"].FirstOrDefault() ?? "";
         var txnId = form["TXNID"].FirstOrDefault() ?? "";
         var status = form["STATUS"].FirstOrDefault() ?? "";
+        // Extract the real order number (strips retry suffix like _R1711324800)
+        var realOrderNumber = PaymentService.ExtractOrderNumber(paytmOrderId);
 
-        _logger.LogWarning("Paytm callback received: ORDERID={OrderId}, TXNID={TxnId}, STATUS={Status}, AllKeys={Keys}",
-            orderId, txnId, status, string.Join(",", form.Keys));
-        if (string.IsNullOrEmpty(orderId))
+        _logger.LogWarning("Paytm callback received: ORDERID={OrderId}, RealOrder={RealOrder}, TXNID={TxnId}, STATUS={Status}, AllKeys={Keys}",
+            paytmOrderId, realOrderNumber, txnId, status, string.Join(",", form.Keys));
+        if (string.IsNullOrEmpty(paytmOrderId))
             return Content(await BuildMessagePageAsync("Payment Error",
                 "Missing order information. Please contact the shop owner.",
                 "&#9888;&#65039;", "#e65100", ct), "text/html");
 
-        var dto = new PaymentVerifyDto { OrderId = orderId, TransactionId = txnId };
+        // Pass the full paytmOrderId (with suffix) so VerifyPaymentAsync can query Paytm with it
+        var dto = new PaymentVerifyDto { OrderId = paytmOrderId, TransactionId = txnId };
         var result = await _paymentService.VerifyPaymentAsync(dto, ct);
 
         if (result != null)
@@ -137,10 +143,11 @@ public class PaymentController : ControllerBase
                 "&#9989;", "#2e7d32", ct), "text/html");
         }
 
+        // "Try Again" link uses the REAL order number (not the suffixed one)
         return Content(await BuildMessagePageAsync("Payment Verification Failed",
             "We could not verify your payment. If money was deducted, please contact us — your payment is safe.<br><br>" +
-            $"Order: <strong>{WebUtility.HtmlEncode(orderId)}</strong><br><br>" +
-            $"<a href=\"/api/payment/pay/{WebUtility.UrlEncode(orderId)}\" style=\"color:#1976d2;font-weight:600\">&#128260; Try Again</a>",
+            $"Order: <strong>{WebUtility.HtmlEncode(realOrderNumber)}</strong><br><br>" +
+            $"<a href=\"/api/payment/pay/{WebUtility.UrlEncode(realOrderNumber)}\" style=\"color:#1976d2;font-weight:600\">&#128260; Try Again</a>",
             "&#9888;&#65039;", "#e65100", ct), "text/html");
     }
 

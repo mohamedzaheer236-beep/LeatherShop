@@ -27,6 +27,9 @@ public class PaymentPageDto
     /// <summary>Paytm transaction token - obtained from Initiate Transaction API, required by checkout.js.</summary>
     public string PaytmTxnToken { get; set; } = string.Empty;
 
+    /// <summary>The orderId sent to Paytm (may include a retry suffix like _R1711324800). Checkout JS must use this, not OrderNumber.</summary>
+    public string PaytmOrderId { get; set; } = string.Empty;
+
     public List<PaymentPageItemDto> Items { get; set; } = new();
 
     /// <summary>UTC time when this payment link expires. Null = no expiration (legacy).</summary>

@@ -39,6 +39,20 @@ public class PaymentService : IPaymentService
         _httpClientFactory = httpClientFactory;
     }
 
+    /// <summary>
+    /// Extracts the real OrderNumber from a Paytm orderId that may include a retry suffix.
+    /// E.g., "ORD-20260324-F735F4_R1711324800" → "ORD-20260324-F735F4"
+    /// </summary>
+    internal static string ExtractOrderNumber(string paytmOrderId)
+    {
+        if (string.IsNullOrEmpty(paytmOrderId)) return paytmOrderId;
+        var idx = paytmOrderId.LastIndexOf("_R", StringComparison.Ordinal);
+        if (idx <= 0) return paytmOrderId;
+        var suffix = paytmOrderId[(idx + 2)..];
+        // Only strip if the suffix is all digits (our retry timestamp format)
+        return suffix.Length > 0 && suffix.All(char.IsDigit) ? paytmOrderId[..idx] : paytmOrderId;
+    }
+
     public async Task<(PaymentPageResult Result, PaymentPageDto? Data)> GetPaymentPageDataAsync(string orderNumber, CancellationToken ct = default)
     {
         var order = await _db.Orders
@@ -64,39 +78,40 @@ public class PaymentService : IPaymentService
                 "Paytm:MerchantId and Paytm:MerchantKey must be configured. " +
                 "Set them in appsettings or environment variables (Paytm__MerchantId, Paytm__MerchantKey).");
 
-        // Token lifecycle:
-        // - Try fresh initiateTransaction first (handles case where cached token was invalidated
-        //   by user cancelling inside Paytm's checkout UI).
-        // - If Paytm returns error 2023 "Repeat Request Inconsistent" (session still alive),
-        //   fall back to the cached token which is still valid.
-        // - On payment failure (callback), we clear the cached token so next visit gets fresh.
+        // Paytm token lifecycle with retry suffix:
+        //
+        // Problem: Once a user opens Paytm checkout and cancels, Paytm kills the txnToken but
+        // blocks re-initiation for the same orderId with error 2023 "Repeat Request Inconsistent".
+        //
+        // Solution: On error 2023, retry with a suffixed orderId (e.g., ORD-xxx_R1711324800).
+        // Paytm treats this as a new order. The suffix is stripped on callback to find our real order.
+        // The suffixed paytmOrderId is passed to the frontend for the checkout JS config.
         string txnToken;
+        string paytmOrderId = order.OrderNumber;
         try
         {
             txnToken = await InitiatePaytmTransactionAsync(
-                merchantId, merchantKey, order.OrderNumber, order.TotalAmount, order.Customer.PhoneNumber, ct);
+                merchantId, merchantKey, paytmOrderId, order.TotalAmount, order.Customer.PhoneNumber, ct);
             order.PaytmTxnToken = txnToken;
             await _db.SaveChangesAsync(ct);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("2023"))
         {
-            // Error 2023: Paytm session is still active — use the cached token
-            if (!string.IsNullOrEmpty(order.PaytmTxnToken))
-            {
-                _logger.LogDebug("Paytm returned 2023 for order {OrderNumber}, reusing cached txnToken.", order.OrderNumber);
-                txnToken = order.PaytmTxnToken;
-            }
-            else
-            {
-                _logger.LogError("Paytm returned 2023 for order {OrderNumber} but no cached token exists.", order.OrderNumber);
-                throw;
-            }
+            // Error 2023: orderId already has an active/closed session. Retry with unique suffix.
+            var suffix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            paytmOrderId = $"{order.OrderNumber}_R{suffix}";
+            _logger.LogInformation("Paytm 2023 for order {OrderNumber}, retrying as {PaytmOrderId}.", order.OrderNumber, paytmOrderId);
+            txnToken = await InitiatePaytmTransactionAsync(
+                merchantId, merchantKey, paytmOrderId, order.TotalAmount, order.Customer.PhoneNumber, ct);
+            order.PaytmTxnToken = txnToken;
+            await _db.SaveChangesAsync(ct);
         }
 
         return (PaymentPageResult.Ok, new PaymentPageDto
         {
             OrderId = order.Id,
             OrderNumber = order.OrderNumber,
+            PaytmOrderId = paytmOrderId,
             CustomerPhone = order.Customer.PhoneNumber,
             TotalAmount = order.TotalAmount,
             AmountInPaise = (int)Math.Round(order.TotalAmount * 100, MidpointRounding.AwayFromZero),
@@ -223,15 +238,19 @@ public class PaymentService : IPaymentService
 
     public async Task<PaymentVerifyResultDto?> VerifyPaymentAsync(PaymentVerifyDto dto, CancellationToken ct = default)
     {
-        // Look up order by OrderNumber (the payment page sends OrderNumber as OrderId)
+        // The orderId from Paytm may include a retry suffix (e.g., ORD-xxx_R1711324800).
+        // Extract the real OrderNumber for our DB lookup, but keep the full paytmOrderId for Paytm API calls.
+        var paytmOrderId = dto.OrderId;
+        var realOrderNumber = ExtractOrderNumber(paytmOrderId);
+
         Order? order;
-        if (int.TryParse(dto.OrderId, out var orderId))
+        if (int.TryParse(realOrderNumber, out var orderId))
         {
             order = await _db.Orders.Include(o => o.Customer).FirstOrDefaultAsync(o => o.Id == orderId, ct);
         }
         else
         {
-            order = await _db.Orders.Include(o => o.Customer).FirstOrDefaultAsync(o => o.OrderNumber == dto.OrderId, ct);
+            order = await _db.Orders.Include(o => o.Customer).FirstOrDefaultAsync(o => o.OrderNumber == realOrderNumber, ct);
         }
 
         if (order == null)
@@ -264,7 +283,9 @@ public class PaymentService : IPaymentService
             return null; // REJECT - never mark as paid without server-side verification
         }
 
-        var txnStatus = await GetPaytmTransactionStatusAsync(merchantId, merchantKey, order.OrderNumber, ct);
+        // Use the paytmOrderId (may include retry suffix) for the Paytm status check,
+        // since that's the orderId Paytm knows.
+        var txnStatus = await GetPaytmTransactionStatusAsync(merchantId, merchantKey, paytmOrderId, ct);
         if (txnStatus == null)
         {
             _logger.LogWarning("Could not verify Paytm transaction status for order {OrderId}", order.Id);
