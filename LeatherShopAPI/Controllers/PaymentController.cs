@@ -139,7 +139,8 @@ public class PaymentController : ControllerBase
 
         return Content(await BuildMessagePageAsync("Payment Verification Failed",
             "We could not verify your payment. If money was deducted, please contact us — your payment is safe.<br><br>" +
-            $"Order: <strong>{WebUtility.HtmlEncode(orderId)}</strong>",
+            $"Order: <strong>{WebUtility.HtmlEncode(orderId)}</strong><br><br>" +
+            $"<a href=\"/api/payment/pay/{WebUtility.UrlEncode(orderId)}\" style=\"color:#1976d2;font-weight:600\">&#128260; Try Again</a>",
             "&#9888;&#65039;", "#e65100", ct), "text/html");
     }
 

@@ -64,21 +64,33 @@ public class PaymentService : IPaymentService
                 "Paytm:MerchantId and Paytm:MerchantKey must be configured. " +
                 "Set them in appsettings or environment variables (Paytm__MerchantId, Paytm__MerchantKey).");
 
-        // Strategy: reuse cached token if available (Paytm keeps the session alive and rejects
-        // duplicate initiateTransaction calls with error 2023 "Repeat Request Inconsistent").
-        // Only call initiateTransaction when there's no cached token (first visit).
+        // Token lifecycle:
+        // - Try fresh initiateTransaction first (handles case where cached token was invalidated
+        //   by user cancelling inside Paytm's checkout UI).
+        // - If Paytm returns error 2023 "Repeat Request Inconsistent" (session still alive),
+        //   fall back to the cached token which is still valid.
+        // - On payment failure (callback), we clear the cached token so next visit gets fresh.
         string txnToken;
-        if (!string.IsNullOrEmpty(order.PaytmTxnToken))
-        {
-            _logger.LogDebug("Reusing cached Paytm txnToken for order {OrderNumber}.", order.OrderNumber);
-            txnToken = order.PaytmTxnToken;
-        }
-        else
+        try
         {
             txnToken = await InitiatePaytmTransactionAsync(
                 merchantId, merchantKey, order.OrderNumber, order.TotalAmount, order.Customer.PhoneNumber, ct);
             order.PaytmTxnToken = txnToken;
             await _db.SaveChangesAsync(ct);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("2023"))
+        {
+            // Error 2023: Paytm session is still active — use the cached token
+            if (!string.IsNullOrEmpty(order.PaytmTxnToken))
+            {
+                _logger.LogDebug("Paytm returned 2023 for order {OrderNumber}, reusing cached txnToken.", order.OrderNumber);
+                txnToken = order.PaytmTxnToken;
+            }
+            else
+            {
+                _logger.LogError("Paytm returned 2023 for order {OrderNumber} but no cached token exists.", order.OrderNumber);
+                throw;
+            }
         }
 
         return (PaymentPageResult.Ok, new PaymentPageDto
@@ -263,6 +275,16 @@ public class PaymentService : IPaymentService
         {
             _logger.LogWarning("Paytm payment not successful for order {OrderId}. Status: {Status}, Code: {Code}, Msg: {Msg}",
                 order.Id, txnStatus.Status, txnStatus.ResultCode, txnStatus.ResultMsg);
+
+            // Clear the cached token so the next payment page visit generates a fresh one.
+            // The old token is dead after a failed/cancelled transaction attempt.
+            if (!string.IsNullOrEmpty(order.PaytmTxnToken))
+            {
+                order.PaytmTxnToken = null;
+                await _db.SaveChangesAsync(ct);
+                _logger.LogDebug("Cleared cached Paytm txnToken for order {OrderId} after failed payment.", order.Id);
+            }
+
             return null;
         }
 
