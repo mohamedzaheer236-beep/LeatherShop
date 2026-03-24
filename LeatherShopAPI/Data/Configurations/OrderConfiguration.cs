@@ -36,6 +36,14 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasMaxLength(20)
             .IsRequired(false);
 
+        builder.Property(o => o.TrackingNumber)
+            .HasMaxLength(100)
+            .IsRequired(false);
+
+        builder.Property(o => o.TrackingLink)
+            .HasMaxLength(500)
+            .IsRequired(false);
+
         // Many-to-one: Order → Customer (Restrict: preserve order history for accounting)
         builder.HasOne(o => o.Customer)
             .WithMany(c => c.Orders)

@@ -12,6 +12,10 @@ export interface Order {
   items: OrderItem[];
   /** Who cancelled this order: "Customer", "Admin", "System", or undefined for non-cancelled/legacy orders. */
   cancelledBy?: string;
+  /** Courier tracking AWB number. Present when Shipped or Delivered. */
+  trackingNumber?: string;
+  /** Courier tracking URL. Present when Shipped or Delivered. */
+  trackingLink?: string;
   /** Local UI flag – not from API */
   downloading?: boolean;
 }

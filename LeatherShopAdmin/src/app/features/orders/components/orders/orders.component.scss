@@ -102,3 +102,68 @@
     cursor: not-allowed;
   }
 }
+
+.tracking-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--ls-surface-secondary, #f8f9fa);
+  border-radius: 6px;
+  font-size: 13px;
+
+  .tracking-label {
+    font-weight: 600;
+    color: var(--ls-text-secondary);
+  }
+
+  .tracking-number {
+    font-family: monospace;
+    font-weight: 600;
+    color: var(--ls-text-primary);
+  }
+
+  .tracking-link {
+    color: var(--ls-primary, #1976d2);
+    text-decoration: none;
+    font-weight: 500;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.ship-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.ship-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--ls-text-secondary);
+  }
+
+  .required {
+    color: var(--ls-error-dark, #c62828);
+  }
+
+  .optional {
+    color: var(--ls-text-muted);
+    font-weight: 400;
+  }
+
+  .error-msg {
+    color: var(--ls-error-dark, #c62828);
+    font-size: 12px;
+  }
+}

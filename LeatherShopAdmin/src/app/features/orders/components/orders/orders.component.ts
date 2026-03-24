@@ -2,7 +2,7 @@
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { PaginatorState } from 'primeng/paginator';
-import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { OrderService } from '../../services/order.service';
 import { Order, OrderStatus } from '../../models/order.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
@@ -17,6 +17,8 @@ import { CardModule } from 'primeng/card';
 import { ToolbarModule } from 'primeng/toolbar';
 import { PaginatorModule } from 'primeng/paginator';
 import { TooltipModule } from 'primeng/tooltip';
+import { DialogModule } from 'primeng/dialog';
+import { InputTextModule } from 'primeng/inputtext';
 
 @Component({
   selector: 'app-orders',
@@ -34,6 +36,8 @@ import { TooltipModule } from 'primeng/tooltip';
     ToolbarModule,
     PaginatorModule,
     TooltipModule,
+    DialogModule,
+    InputTextModule,
   ],
   templateUrl: './orders.component.html',
   styleUrl: './orders.component.scss',
@@ -66,9 +70,18 @@ export class OrdersComponent implements OnInit {
   currentPage = 1;
   pageSize = 25;
 
+  // Shipping dialog
+  showShipDialog = false;
+  shipForm!: FormGroup;
+  private pendingShipOrder: Order | null = null;
+
   ngOnInit(): void {
     this.filterForm = this.fb.group({
       filterStatus: [''],
+    });
+    this.shipForm = this.fb.group({
+      trackingNumber: ['', [Validators.required, Validators.maxLength(100)]],
+      trackingLink:   ['', [Validators.maxLength(500)]],
     });
     this.loadOrders();
 
@@ -112,12 +125,40 @@ export class OrdersComponent implements OnInit {
   }
 
   updateStatus(order: Order, newStatus: OrderStatus): void {
+    if (newStatus === 'Shipped') {
+      this.pendingShipOrder = order;
+      this.shipForm.reset();
+      this.showShipDialog = true;
+      this.cdr.markForCheck();
+      return;
+    }
+    this.submitStatusUpdate(order, newStatus);
+  }
+
+  confirmShip(): void {
+    if (this.shipForm.invalid || !this.pendingShipOrder) return;
+    const { trackingNumber, trackingLink } = this.shipForm.value;
+    const order = this.pendingShipOrder;
+    this.showShipDialog = false;
+    this.submitStatusUpdate(order, 'Shipped', trackingNumber.trim(), trackingLink?.trim() || undefined);
+  }
+
+  cancelShipDialog(): void {
+    this.showShipDialog = false;
+    this.pendingShipOrder = null;
+  }
+
+  private submitStatusUpdate(order: Order, newStatus: OrderStatus, trackingNumber?: string, trackingLink?: string): void {
     const previousStatus = order.status;
     const previousCancelledBy = order.cancelledBy;
-    this.orderService.updateOrderStatus(order.id, newStatus).subscribe({
+    this.orderService.updateOrderStatus(order.id, newStatus, trackingNumber, trackingLink).subscribe({
       next: () => {
         order.status = newStatus;
         if (newStatus === 'Cancelled') order.cancelledBy = 'Admin';
+        if (newStatus === 'Shipped') {
+          order.trackingNumber = trackingNumber;
+          order.trackingLink = trackingLink;
+        }
         this.notification.success(`Order status updated to ${newStatus}.`);
         this.cdr.markForCheck();
       },
@@ -125,7 +166,6 @@ export class OrdersComponent implements OnInit {
         order.status = previousStatus;
         order.cancelledBy = previousCancelledBy;
         this.cdr.markForCheck();
-        // Toast shown by error interceptor
       },
     });
   }

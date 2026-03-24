@@ -53,6 +53,14 @@ public class Order
     [MaxLength(20)]
     public string? CancelledBy { get; set; }
 
+    /// <summary>Courier tracking number (AWB). Set when status transitions to Shipped.</summary>
+    [MaxLength(100)]
+    public string? TrackingNumber { get; set; }
+
+    /// <summary>Courier tracking URL. Set when status transitions to Shipped.</summary>
+    [MaxLength(500)]
+    public string? TrackingLink { get; set; }
+
     // Navigation
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 }

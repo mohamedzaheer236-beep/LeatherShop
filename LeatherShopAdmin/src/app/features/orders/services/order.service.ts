@@ -20,8 +20,8 @@ export class OrderService {
     return this.http.get<ApiResponse<PaginatedResult<Order>>>(this.baseUrl, { params }).pipe(map(res => res.data));
   }
 
-  updateOrderStatus(id: number, status: string): Observable<void> {
-    return this.http.put<void>(`${this.baseUrl}/${id}/status`, { status });
+  updateOrderStatus(id: number, status: string, trackingNumber?: string, trackingLink?: string): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/${id}/status`, { status, trackingNumber, trackingLink });
   }
 
   downloadInvoice(orderId: number): Observable<Blob> {

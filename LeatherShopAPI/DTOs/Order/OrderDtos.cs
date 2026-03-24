@@ -17,6 +17,10 @@ public class OrderDto
     public DateTime? UpdatedAt { get; set; }
     /// <summary>Who cancelled this order. "Customer", "Admin", "System", or null for non-cancelled/legacy orders.</summary>
     public string? CancelledBy { get; set; }
+    /// <summary>Courier tracking number (AWB). Present when status is Shipped or Delivered.</summary>
+    public string? TrackingNumber { get; set; }
+    /// <summary>Courier tracking URL. Present when status is Shipped or Delivered.</summary>
+    public string? TrackingLink { get; set; }
     public List<OrderItemDto> Items { get; set; } = new();
 }
 
@@ -33,4 +37,13 @@ public class UpdateOrderStatusDto
 {
     [Required]
     public string Status { get; set; } = string.Empty;
+
+    /// <summary>Required when Status = "Shipped". Courier AWB/tracking number.</summary>
+    [MaxLength(100)]
+    public string? TrackingNumber { get; set; }
+
+    /// <summary>Optional when Status = "Shipped". Direct tracking URL.</summary>
+    [MaxLength(500)]
+    [Url]
+    public string? TrackingLink { get; set; }
 }

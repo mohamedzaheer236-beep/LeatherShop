@@ -30,7 +30,7 @@ public interface IOrderService
 {
     Task<PaginatedResult<OrderDto>> GetAllAsync(string? status, int page = 1, int pageSize = 25, CancellationToken ct = default);
     Task<Order?> GetByIdWithDetailsAsync(int id, CancellationToken ct = default);
-    Task<UpdateStatusResult> UpdateStatusAsync(int id, string newStatus, CancellationToken ct = default);
+    Task<UpdateStatusResult> UpdateStatusAsync(int id, UpdateOrderStatusDto dto, CancellationToken ct = default);
 
     /// <summary>
     /// Cancels a Pending, unpaid order on behalf of the customer.

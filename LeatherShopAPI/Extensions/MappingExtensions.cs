@@ -66,6 +66,8 @@ public static class MappingExtensions
         CreatedAt = o.CreatedAt,
         UpdatedAt = o.UpdatedAt,
         CancelledBy = o.CancelledBy,
+        TrackingNumber = o.TrackingNumber,
+        TrackingLink = o.TrackingLink,
         Items = o.OrderItems.Select(oi => oi.ToDto()).ToList()
     };
 

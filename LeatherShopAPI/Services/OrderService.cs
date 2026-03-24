@@ -73,8 +73,9 @@ public class OrderService : IOrderService
             .FirstOrDefaultAsync(o => o.Id == id, ct);
     }
 
-    public async Task<UpdateStatusResult> UpdateStatusAsync(int id, string newStatus, CancellationToken ct = default)
+    public async Task<UpdateStatusResult> UpdateStatusAsync(int id, UpdateOrderStatusDto dto, CancellationToken ct = default)
     {
+        var newStatus = dto.Status;
         var order = await _db.Orders
             .Include(o => o.Customer)
             .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
@@ -95,6 +96,13 @@ public class OrderService : IOrderService
 
         order.Status = status;
         order.UpdatedAt = DateTime.UtcNow;
+
+        // Store tracking info when marking as Shipped
+        if (status == OrderStatus.Shipped)
+        {
+            order.TrackingNumber = dto.TrackingNumber?.Trim();
+            order.TrackingLink = string.IsNullOrWhiteSpace(dto.TrackingLink) ? null : dto.TrackingLink.Trim();
+        }
 
         // Restore stock when cancelling (only if not already cancelled)
         if (status == OrderStatus.Cancelled && previousStatus != OrderStatus.Cancelled)
@@ -126,19 +134,40 @@ public class OrderService : IOrderService
         // Notify customer via WhatsApp (best-effort - don't fail the update)
         try
         {
-            var statusEmoji = status switch
-            {
-                OrderStatus.Confirmed => "✅",
-                OrderStatus.Shipped => "🚚",
-                OrderStatus.Delivered => "📦",
-                OrderStatus.Cancelled => "❌",
-                _ => "ℹ️"
-            };
+            var customerName = string.IsNullOrEmpty(order.Customer.Name)
+                ? "Valued Customer"
+                : order.Customer.Name;
 
-            await _whatsApp.SendTextMessage(
-                order.Customer.PhoneNumber,
-                $"{statusEmoji} *Order Update*\n\nYour order *{order.OrderNumber}* is now: *{status}*\n\nThank you for shopping with us! 🙏"
-            );
+            string message;
+            if (status == OrderStatus.Shipped && !string.IsNullOrEmpty(order.TrackingNumber))
+            {
+                var trackingLine = !string.IsNullOrEmpty(order.TrackingLink)
+                    ? $"Tracking Number (AWB): {order.TrackingNumber}\nTracking Link: {order.TrackingLink}\n\nYou can track your shipment using the link above."
+                    : $"Tracking Number (AWB): {order.TrackingNumber}";
+
+                message =
+                    $"Hello {customerName},\n\n" +
+                    $"Greetings from Cuir Galerie.\n\n" +
+                    $"Your order *{order.OrderNumber}* has been shipped. 📦\n\n" +
+                    $"{trackingLine}\n\n" +
+                    $"It will be delivered soon to your address.\n\n" +
+                    $"If you have any questions, feel free to contact us.\n\n" +
+                    $"Thank you for shopping with Cuir Galerie. 🙏";
+            }
+            else
+            {
+                var statusEmoji = status switch
+                {
+                    OrderStatus.Confirmed => "✅",
+                    OrderStatus.Shipped   => "🚚",
+                    OrderStatus.Delivered => "📦",
+                    OrderStatus.Cancelled => "❌",
+                    _                    => "ℹ️"
+                };
+                message = $"{statusEmoji} *Order Update*\n\nYour order *{order.OrderNumber}* is now: *{status}*\n\nThank you for shopping with us! 🙏";
+            }
+
+            await _whatsApp.SendTextMessage(order.Customer.PhoneNumber, message);
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Best-effort WhatsApp notification failed for order {OrderId}", id); }
 

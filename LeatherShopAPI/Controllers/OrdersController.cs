@@ -42,10 +42,14 @@ public class OrdersController : ControllerBase
     {
         var newStatus = dto.Status;
         // Validate status string at controller level - return 400 for garbage input
-        if (!Enum.TryParse<OrderStatus>(newStatus, true, out _))
+        if (!Enum.TryParse<OrderStatus>(newStatus, true, out var parsedStatus))
             return BadRequest(ApiResponse.Fail($"Invalid status '{newStatus}'. Valid values: {string.Join(", ", Enum.GetNames<OrderStatus>())}."));
 
-        var result = await _orderService.UpdateStatusAsync(id, newStatus, ct);
+        // Tracking number is required when marking as Shipped
+        if (parsedStatus == OrderStatus.Shipped && string.IsNullOrWhiteSpace(dto.TrackingNumber))
+            return BadRequest(ApiResponse.Fail("Tracking number is required when marking an order as Shipped."));
+
+        var result = await _orderService.UpdateStatusAsync(id, dto, ct);
         return result switch
         {
             UpdateStatusResult.NotFound => NotFound(ApiResponse.Fail("Order not found.")),

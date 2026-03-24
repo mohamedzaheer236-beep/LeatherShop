@@ -78,6 +78,15 @@
                   }
                 </div>
               </div>
+              @if (order.trackingNumber) {
+                <div class="tracking-info">
+                  <span class="tracking-label">📦 Tracking:</span>
+                  <span class="tracking-number">{{ order.trackingNumber }}</span>
+                  @if (order.trackingLink) {
+                    <a [href]="order.trackingLink" target="_blank" rel="noopener noreferrer" class="tracking-link">Track Shipment →</a>
+                  }
+                </div>
+              }
             </div>
           }
         </p-card>
@@ -102,3 +111,42 @@
     </div>
   }
 </div>
+
+<!-- Shipping Info Dialog -->
+<p-dialog
+  header="🚚 Enter Shipping Details"
+  [(visible)]="showShipDialog"
+  [modal]="true"
+  [closable]="true"
+  [style]="{ width: '420px' }"
+  (onHide)="cancelShipDialog()">
+  <form [formGroup]="shipForm" class="ship-form">
+    <div class="ship-field">
+      <label for="trackingNumber">Tracking Number (AWB) <span class="required">*</span></label>
+      <input
+        id="trackingNumber"
+        pInputText
+        formControlName="trackingNumber"
+        placeholder="e.g. 49605610000055"
+        class="w-full"
+        autocomplete="off" />
+      @if (shipForm.get('trackingNumber')?.invalid && shipForm.get('trackingNumber')?.touched) {
+        <small class="error-msg">Tracking number is required.</small>
+      }
+    </div>
+    <div class="ship-field">
+      <label for="trackingLink">Tracking Link <span class="optional">(optional)</span></label>
+      <input
+        id="trackingLink"
+        pInputText
+        formControlName="trackingLink"
+        placeholder="https://www.delhivery.com/track/..."
+        class="w-full"
+        autocomplete="off" />
+    </div>
+  </form>
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="cancelShipDialog()"></p-button>
+    <p-button label="Mark as Shipped & Notify Customer" severity="primary" [disabled]="shipForm.invalid" (onClick)="confirmShip()"></p-button>
+  </ng-template>
+</p-dialog>
