@@ -95,7 +95,7 @@ public class CustomerService : ICustomerService
         await _db.SaveChangesAsync(ct);
 
         // Send welcome template via WhatsApp (templates can initiate conversations).
-        // Try dedicated 'customer_welcome' first (formatted); fallback to 'store_notification' (plain).
+        // Try dedicated 'customer_welcomemsg' first (UTILITY); fallback to 'store_notification'.
         var welcomeSent = false;
         try
         {
@@ -104,15 +104,15 @@ public class CustomerService : ICustomerService
             {
                 await _whatsApp.SendTemplateMessage(
                     to: phone,
-                    templateName: "customer_welcome",
+                    templateName: "customer_welcomemsg",
                     languageCode: "en",
                     parameters: new List<string> { nameParam });
             }
             catch
             {
-                // customer_welcome may still be pending approval — fallback to store_notification (UTILITY)
-                var welcomeText = $"Welcome to Cuir Galerie, {nameParam}! Your account has been created. " +
-                    "Browse our premium leather products and place orders right here on WhatsApp. Type Hi to get started!";
+                // customer_welcomemsg may still be pending approval — fallback to store_notification (UTILITY)
+                var welcomeText = $"Hello {nameParam}, your account at Cuir Galerie has been created successfully. " +
+                    "You can reach us anytime on WhatsApp for order updates and support. Reply Hi to get started.";
                 await _whatsApp.SendTemplateMessage(
                     to: phone,
                     templateName: "store_notification",
