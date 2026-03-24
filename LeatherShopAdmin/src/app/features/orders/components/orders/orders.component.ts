@@ -16,6 +16,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { CardModule } from 'primeng/card';
 import { ToolbarModule } from 'primeng/toolbar';
 import { PaginatorModule } from 'primeng/paginator';
+import { TooltipModule } from 'primeng/tooltip';
 
 @Component({
   selector: 'app-orders',
@@ -32,6 +33,7 @@ import { PaginatorModule } from 'primeng/paginator';
     CardModule,
     ToolbarModule,
     PaginatorModule,
+    TooltipModule,
   ],
   templateUrl: './orders.component.html',
   styleUrl: './orders.component.scss',

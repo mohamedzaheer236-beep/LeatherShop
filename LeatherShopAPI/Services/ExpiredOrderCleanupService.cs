@@ -83,7 +83,7 @@ public sealed class ExpiredOrderCleanupService : BackgroundService
 
                 if (order == null) continue; // Already processed or paid in the meantime
 
-                await OrderExpiryHelper.CancelAndRestoreCartAsync(db, order, _logger);
+                await OrderExpiryHelper.CancelAndRestoreCartAsync(db, order, "System", _logger);
                 await db.SaveChangesAsync(ct);
 
                 // Persist notification + push to connected admins

@@ -90,6 +90,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CartHandler>();
         services.AddScoped<CheckoutHandler>();
         services.AddScoped<OrderHistoryHandler>();
+        services.AddScoped<OrderCancellationHandler>();
         services.AddScoped<IChatBotService, ChatBotService>();
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IOrderService, OrderService>();

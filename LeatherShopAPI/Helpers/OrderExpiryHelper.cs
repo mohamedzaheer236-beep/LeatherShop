@@ -19,7 +19,8 @@ internal static class OrderExpiryHelper
     /// This allows batch operations (e.g., cleaning up multiple orders) to commit once.
     /// </para>
     /// </summary>
-    internal static async Task CancelAndRestoreCartAsync(AppDbContext db, Order order, ILogger? logger = null)
+    /// <param name="cancelledBy">Who initiated the cancellation: "Customer", "Admin", or "System".</param>
+    internal static async Task CancelAndRestoreCartAsync(AppDbContext db, Order order, string cancelledBy, ILogger? logger = null)
     {
         if (order.Status == OrderStatus.Cancelled) return;
 
@@ -28,11 +29,12 @@ internal static class OrderExpiryHelper
                 $"Order {order.OrderNumber} must be loaded with .Include(o => o.OrderItems).ThenInclude(oi => oi.Product).");
 
         logger?.LogInformation(
-            "Cancelling order {OrderNumber} and restoring cart for customer {CustomerId}.",
-            order.OrderNumber, order.CustomerId);
+            "Cancelling order {OrderNumber} (CancelledBy={CancelledBy}) and restoring cart for customer {CustomerId}.",
+            order.OrderNumber, cancelledBy, order.CustomerId);
 
         // 1. Cancel the order
         order.Status = OrderStatus.Cancelled;
+        order.CancelledBy = cancelledBy;
         order.UpdatedAt = DateTime.UtcNow;
 
         // 2. Restore stock

@@ -46,6 +46,13 @@ public class Order
     [MaxLength(500)]
     public string? PaytmTxnToken { get; set; }
 
+    /// <summary>
+    /// Who cancelled this order. Null for non-cancelled orders and legacy orders.
+    /// Values: "Customer" (self-service via WhatsApp), "Admin" (dashboard), "System" (expired payment).
+    /// </summary>
+    [MaxLength(20)]
+    public string? CancelledBy { get; set; }
+
     // Navigation
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 }

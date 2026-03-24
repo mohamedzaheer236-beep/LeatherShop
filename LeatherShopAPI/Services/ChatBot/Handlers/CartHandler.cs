@@ -160,12 +160,17 @@ public class CartHandler
                     ? $"{baseUrl}/api/payment/pay/{Uri.EscapeDataString(pendingOrder.OrderNumber)}"
                     : null;
 
-                var msg = $"⏳ You have a pending order *{pendingOrder.OrderNumber}* (₹{pendingOrder.TotalAmount}).\n\n" +
-                          $"Your cart items are in this order - pay within *{mins}m {secs}s* to complete it.\n\n" +
-                          (paymentUrl != null ? $"💳 Pay here: {paymentUrl}\n\n" : "") +
-                          $"If you don't pay in time, your items will be restored to the cart automatically.";
-
-                await _bot.SendText(to, msg, ct);
+                await _bot.SendButtons(to,
+                    $"⏳ You have a pending order *{pendingOrder.OrderNumber}* (₹{pendingOrder.TotalAmount}).\n\n" +
+                    $"Your cart items are in this order — pay within *{mins}m {secs}s* to complete it.\n\n" +
+                    (paymentUrl != null ? $"💳 Pay here: {paymentUrl}\n\n" : "") +
+                    $"If you no longer want this order, tap *Cancel Order* below — your items will be restored.",
+                    new List<ButtonOption>
+                    {
+                        new() { Id = $"cancel_ord_{pendingOrder.Id}", Title = "❌ Cancel Order" },
+                        new() { Id = "main_menu",                     Title = "🏠 Main Menu" }
+                    },
+                    ct: ct);
                 return;
             }
 

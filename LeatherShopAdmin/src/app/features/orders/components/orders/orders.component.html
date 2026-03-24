@@ -31,6 +31,15 @@
               </button>
               <strong class="order-amount">&#8377;{{ order.totalAmount | number:'1.0-0' }}</strong>
               <p-tag [value]="order.status" [severity]="getSeverity(order.status)"></p-tag>
+              @if (order.status === 'Cancelled' && order.cancelledBy) {
+                <p-tag
+                  [value]="order.cancelledBy === 'Customer' ? 'Customer' : order.cancelledBy === 'System' ? 'Expired' : 'Admin'"
+                  severity="secondary"
+                  [style]="{'font-size': '0.7rem', 'opacity': '0.8'}"
+                  [pTooltip]="'Cancelled by: ' + order.cancelledBy"
+                  tooltipPosition="top">
+                </p-tag>
+              }
               <p-tag [value]="order.isPaid ? 'Paid' : 'Unpaid'" [severity]="order.isPaid ? 'success' : 'danger'"></p-tag>
               <span class="order-date">{{ order.createdAt | date:'dd MMM yyyy' }}</span>
               <i class="pi" [class.pi-chevron-up]="expandedOrderId === order.id" [class.pi-chevron-down]="expandedOrderId !== order.id"></i>

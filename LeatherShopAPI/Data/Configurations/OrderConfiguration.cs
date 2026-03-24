@@ -32,6 +32,10 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(o => o.IsPaid);
         builder.HasIndex(o => o.PaymentExpiresAt); // Used by ExpiredOrderCleanupService
 
+        builder.Property(o => o.CancelledBy)
+            .HasMaxLength(20)
+            .IsRequired(false);
+
         // Many-to-one: Order → Customer (Restrict: preserve order history for accounting)
         builder.HasOne(o => o.Customer)
             .WithMany(c => c.Orders)

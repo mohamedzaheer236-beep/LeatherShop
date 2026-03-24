@@ -65,6 +65,7 @@ public static class MappingExtensions
         PaymentId = o.PaymentId,
         CreatedAt = o.CreatedAt,
         UpdatedAt = o.UpdatedAt,
+        CancelledBy = o.CancelledBy,
         Items = o.OrderItems.Select(oi => oi.ToDto()).ToList()
     };
 

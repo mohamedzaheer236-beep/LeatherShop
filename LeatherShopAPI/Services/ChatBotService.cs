@@ -18,6 +18,7 @@ public class ChatBotService : IChatBotService
     private readonly CartHandler _cartHandler;
     private readonly CheckoutHandler _checkoutHandler;
     private readonly OrderHistoryHandler _orderHistoryHandler;
+    private readonly OrderCancellationHandler _orderCancellationHandler;
     private readonly ILogger<ChatBotService> _logger;
 
     public ChatBotService(
@@ -28,6 +29,7 @@ public class ChatBotService : IChatBotService
         CartHandler cartHandler,
         CheckoutHandler checkoutHandler,
         OrderHistoryHandler orderHistoryHandler,
+        OrderCancellationHandler orderCancellationHandler,
         ILogger<ChatBotService> logger)
     {
         _bot = bot;
@@ -37,6 +39,7 @@ public class ChatBotService : IChatBotService
         _cartHandler = cartHandler;
         _checkoutHandler = checkoutHandler;
         _orderHistoryHandler = orderHistoryHandler;
+        _orderCancellationHandler = orderCancellationHandler;
         _logger = logger;
     }
 
@@ -156,6 +159,12 @@ public class ChatBotService : IChatBotService
     /// <summary>Routes the user's input to the appropriate handler.</summary>
     private async Task RouteInput(string phone, Customer customer, string input, CancellationToken ct)
     {
+        // Stale checkout button replies (confirm_address / change_address) that arrive
+        // after the state was already cleared (e.g. user tapped both buttons, or a
+        // duplicate webhook delivery). Silently ignore to avoid the default "Welcome" response.
+        if (input is "confirm_address" or "change_address")
+            return;
+
         // Main menu
         if (input is "hi" or "hello" or "hey" or "menu" or "start" or "main_menu")
         {
@@ -246,6 +255,21 @@ public class ChatBotService : IChatBotService
         if (input == "my_orders")
         {
             await _orderHistoryHandler.SendOrderHistory(phone, customer.Id, ct);
+            return;
+        }
+
+        // Customer-initiated order cancellation (button id: cancel_ord_{orderId})
+        if (input.StartsWith("cancel_ord_"))
+        {
+            var suffix = input["cancel_ord_".Length..];
+            if (int.TryParse(suffix, out var orderId))
+            {
+                await _orderCancellationHandler.HandleCancelOrder(phone, customer, orderId, ct);
+                return;
+            }
+            // Malformed suffix — silently ignore rather than showing a confusing default response
+            _logger.LogWarning("Received malformed cancel_ord_ button id '{Input}' from {Phone}.", input, phone);
+            await _bot.SendText(phone, "❌ Invalid order reference. Type *my orders* to view your orders.", ct);
             return;
         }
 

@@ -191,7 +191,7 @@ public class PaymentService : IPaymentService
     /// </summary>
     internal async Task ExpireOrderAndRestoreCartAsync(Order order, CancellationToken ct = default)
     {
-        await OrderExpiryHelper.CancelAndRestoreCartAsync(_db, order, _logger);
+        await OrderExpiryHelper.CancelAndRestoreCartAsync(_db, order, "System", _logger);
         await _db.SaveChangesAsync(ct);
 
         // Persist "Cancelled" notification so admin sees it even if offline

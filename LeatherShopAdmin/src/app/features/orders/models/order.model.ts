@@ -10,6 +10,8 @@ export interface Order {
   isPaid: boolean;
   createdAt: string;
   items: OrderItem[];
+  /** Who cancelled this order: "Customer", "Admin", "System", or undefined for non-cancelled/legacy orders. */
+  cancelledBy?: string;
   /** Local UI flag – not from API */
   downloading?: boolean;
 }

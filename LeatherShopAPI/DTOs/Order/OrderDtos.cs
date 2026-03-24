@@ -15,6 +15,8 @@ public class OrderDto
     public string? PaymentId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
+    /// <summary>Who cancelled this order. "Customer", "Admin", "System", or null for non-cancelled/legacy orders.</summary>
+    public string? CancelledBy { get; set; }
     public List<OrderItemDto> Items { get; set; } = new();
 }
 

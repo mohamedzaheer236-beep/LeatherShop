@@ -270,10 +270,16 @@ public class CheckoutHandler
             ? $"{baseUrl}/api/payment/pay/{Uri.EscapeDataString(pendingOrder.OrderNumber)}"
             : null;
 
-        await _bot.SendText(to,
+        await _bot.SendButtons(to,
             $"⏳ You already have a pending order *{pendingOrder.OrderNumber}* (₹{pendingOrder.TotalAmount}).\n\n" +
             (paymentUrl != null ? $"💳 Pay here: {paymentUrl}\n\n" : "") +
-            $"Complete the payment first, or wait for it to expire to get a new checkout link.", ct);
+            $"Complete the payment first, or cancel the order below to start a new one.",
+            new List<ButtonOption>
+            {
+                new() { Id = $"cancel_ord_{pendingOrder.Id}", Title = "❌ Cancel Order" },
+                new() { Id = "main_menu",                     Title = "🏠 Main Menu" }
+            },
+            ct: ct);
         return true;
     }
 }
