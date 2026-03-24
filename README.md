@@ -264,10 +264,17 @@ Admin opens http://localhost:4200
 └────────────────────────────────────────────────────────┘
 
 ┌── CUSTOMERS (/customers) ──────────────────────────────┐
-│  [Show Subscribers Only ☐]                              │
+│  [Search...] [All Categories ▼] [Subscribers only ☐]   │
 │  ┌─ Customer List ───────────────────────────────────┐ │
-│  │ Phone │ Name │ Address │ Subscribed │ Orders │ Date│ │
+│  │ Phone │ Name │ Address │ Category │ Subscribed │   │ │
+│  │ Orders │ Joined │ Actions                         │ │
 │  └───────────────────────────────────────────────────┘ │
+│  Features:                                              │
+│  • Category filter: All / Reseller / Direct Corporate / │
+│    Friends And Family                                   │
+│  • Multi-select with cross-page checkbox tracking       │
+│  • Bulk broadcast to selected customers                 │
+│  • Import via CSV / manual bulk add dialog              │
 └────────────────────────────────────────────────────────┘
 
 ┌── BROADCAST (/broadcast) ──────────────────────────────┐
@@ -677,15 +684,21 @@ cd LeatherShop
 
 #### WhatsApp Message Templates
 
-| Template Name | Type | Status |
-|---------------|------|--------|
-| `shop_deals` | MARKETING | ✅ **APPROVED** |
-| `order_update` | UTILITY | ✅ **APPROVED** |
-| `store_notification` | UTILITY | ✅ **APPROVED** |
-| `hello_world` | UTILITY | ✅ **APPROVED** |
-| `product_gallery` | MARKETING (Carousel) | ✅ **APPROVED** |
-| `product_gallery_3` | MARKETING (Carousel) | ✅ **APPROVED** |
-| `product_gallery` (alt) | MARKETING (Carousel) | ✅ **APPROVED** |
+| Template Name | Type | Status | Notes |
+|---------------|------|--------|-------|
+| `shop_deals` | MARKETING | ✅ **APPROVED** | Quick Message tab uses this. 1 body param `{{1}}`. |
+| `order_update` | UTILITY | ✅ **APPROVED** | Used by OrderService when admin updates order status. 2 params: order number + status. |
+| `store_notification` | UTILITY | ✅ **APPROVED** | Used for customer welcome messages on account creation. 1 param `{{1}}`. |
+| `hello_world` | UTILITY | ✅ **APPROVED** | Default Meta template — only works with test numbers. |
+| `single_product` | MARKETING | ✅ **APPROVED** | Standard IMAGE header template. 3 body params: product name, price, description. |
+| `product_gallery` | MARKETING (Carousel) | ✅ **APPROVED** | 2-card carousel. |
+| `product_gallery_3` | MARKETING (Carousel) | ✅ **APPROVED** | 3-card carousel. |
+| `product_gallery_4` | MARKETING (Carousel) | ✅ **APPROVED** | 4-card carousel. |
+| `custom_message` | MARKETING | ⏳ **PENDING** | General-purpose broadcast. Fixed header `📢 *Cuir Galerie*`, 1 body param. Created Mar 2026. |
+| `luxury_discover` | MARKETING | ⏳ **PENDING** | Fixed promotional message for store launch. No params. Created Mar 2026. |
+| `customer_welcomemsg` | MARKETING | ✅ **APPROVED** | Meta override to MARKETING despite UTILITY intent. Superseded by `store_notification`. |
+
+> **Note:** All template parameters must be plain text with no newline (`\n`) characters — Meta API rejects them with error 132018. The backend `SanitizeParam()` method automatically strips newlines to spaces before sending.
 
 #### Database
 
@@ -695,7 +708,7 @@ cd LeatherShop
 | **Database Name** | `LeatherShopDB` (auto-created by EF Core migrations) |
 | **Default Username** | `postgres` |
 | **ORM** | Entity Framework Core 8 |
-| **Tables** | Products, Customers, CartItems, Orders, OrderItems, BroadcastMessages, ChatMessages, AdminUsers |
+| **Tables** | Products, ProductImages, Customers, CartItems, Orders, OrderItems, BroadcastMessages, ChatMessages, AdminUsers, RefreshTokens, AdminNotifications, WhatsAppOutboxMessages |
 | **Seed Data** | 6 leather products + 1 admin user auto-seeded on first run |
 
 #### GitHub Repository
@@ -1044,7 +1057,7 @@ POST /api/payment/verify  (with transactionId + orderId)
 ### Customers
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/v1/customers` | List customers (paginated). Query params: `?subscribedOnly=true&search=phone_or_name&page=1&pageSize=25` |
+| GET | `/api/v1/customers` | List customers (paginated). Query params: `?subscribedOnly=true&search=phone_or_name&category=Reseller&page=1&pageSize=25` |
 | GET | `/api/v1/customers/count` | Get subscriber count and total count |
 | POST | `/api/v1/customers` | Create a single customer (sends WhatsApp welcome message) |
 | POST | `/api/v1/customers/import` | Bulk import customers from list |
@@ -1060,7 +1073,7 @@ POST /api/payment/verify  (with transactionId + orderId)
 ### Broadcast
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/broadcast/send` | Send template message to all subscribers (standard + carousel) |
+| POST | `/api/v1/broadcast/send` | Send template message to subscribers (standard + carousel). Optional `category` filter (`Reseller`/`DirectCorporate`/`FriendsAndFamily`) or explicit `phoneNumbers[]` list. |
 | GET | `/api/v1/broadcast/history` | Broadcast history (paginated). Query params: `?page=1&pageSize=10` |
 | GET | `/api/v1/broadcast/{id}/status` | Poll broadcast delivery status |
 | GET | `/api/v1/broadcast/templates` | List approved WhatsApp templates from Meta (detects carousel) |
