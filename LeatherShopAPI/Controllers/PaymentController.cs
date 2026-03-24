@@ -36,6 +36,13 @@ public class PaymentController : ControllerBase
     [HttpGet("pay/{orderNumber}")]
     public async Task<IActionResult> PaymentPage(string orderNumber, CancellationToken ct)
     {
+        // CRITICAL: prevent browser/WhatsApp in-app browser from caching this page.
+        // Without this, clicking the link a second time may serve the stale page with
+        // a dead Paytm token, bypassing the server-side retry logic entirely.
+        Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
+        Response.Headers["Pragma"] = "no-cache";
+        Response.Headers["Expires"] = "0";
+
         try
         {
             var (result, data) = await _paymentService.GetPaymentPageDataAsync(orderNumber, ct);
@@ -117,6 +124,9 @@ public class PaymentController : ControllerBase
     [Consumes("application/x-www-form-urlencoded")]
     public async Task<IActionResult> PaytmCallback([FromForm] IFormCollection form, CancellationToken ct)
     {
+        Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
+        Response.Headers["Pragma"] = "no-cache";
+
         var paytmOrderId = form["ORDERID"].FirstOrDefault() ?? "";
         var txnId = form["TXNID"].FirstOrDefault() ?? "";
         var status = form["STATUS"].FirstOrDefault() ?? "";
