@@ -65,6 +65,19 @@ export class OrdersComponent implements OnInit {
   statusOptions: OrderStatus[] = ['Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'];
   expandedOrderId: number | null = null;
 
+  /** Mirrors server-side ValidStatusTransitions — keeps UI consistent with backend rules. */
+  private readonly validTransitions: Record<OrderStatus, OrderStatus[]> = {
+    Pending:   ['Confirmed', 'Cancelled'],
+    Confirmed: ['Shipped',   'Cancelled'],
+    Shipped:   ['Delivered', 'Cancelled'],
+    Delivered: [],
+    Cancelled: [],
+  };
+
+  isTransitionAllowed(currentStatus: OrderStatus, targetStatus: OrderStatus): boolean {
+    return this.validTransitions[currentStatus]?.includes(targetStatus) ?? false;
+  }
+
   // Pagination
   totalRecords = 0;
   currentPage = 1;
@@ -125,6 +138,9 @@ export class OrdersComponent implements OnInit {
   }
 
   updateStatus(order: Order, newStatus: OrderStatus): void {
+    // Guard: only allow valid transitions (mirrors server-side rules)
+    if (!this.isTransitionAllowed(order.status, newStatus)) return;
+
     if (newStatus === 'Shipped') {
       this.pendingShipOrder = order;
       this.shipForm.reset();

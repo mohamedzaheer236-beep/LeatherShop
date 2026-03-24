@@ -73,7 +73,7 @@
                       [label]="s" size="small"
                       [severity]="order.status === s ? 'primary' : 'secondary'"
                       [outlined]="order.status !== s"
-                      [disabled]="order.status === s"
+                      [disabled]="order.status === s || !isTransitionAllowed(order.status, s)"
                     (onClick)="updateStatus(order, s)"></p-button>
                   }
                 </div>
