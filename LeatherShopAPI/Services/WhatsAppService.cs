@@ -19,7 +19,7 @@ public class WhatsAppService : IWhatsAppService
     private const int RateLimitMaxRetries = 2;
     private static readonly int[] RateLimitRetryDelaysMs = [2000, 5000];
     private const string RateLimitErrorCode = "131056"; // Meta error: (Business, Consumer) pair rate limit hit
-    private static readonly Regex ConsecutiveSpaces = new(@"\s{4,}", RegexOptions.Compiled);
+    private static readonly Regex ConsecutiveSpaces = new(@" {4,}", RegexOptions.Compiled);
 
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _config;
@@ -361,14 +361,16 @@ public class WhatsAppService : IWhatsAppService
 
     /// <summary>
     /// Sanitize a template body parameter for WhatsApp compliance.
-    /// Meta rejects params with newline/tab characters or 4+ consecutive spaces.
+    /// Preserves newlines (WhatsApp supports \n in params). Strips tabs and excess spaces.
     /// </summary>
     private static string SanitizeParam(string text)
     {
         if (string.IsNullOrEmpty(text)) return text;
-        // Replace newlines and tabs with a single space
-        var clean = text.Replace("\r\n", " ").Replace("\n", " ").Replace("\r", " ").Replace("\t", " ");
-        // Collapse 4+ consecutive whitespace chars to a single space
+        // Normalize line endings to \n (WhatsApp supports newlines in template params)
+        var clean = text.Replace("\r\n", "\n").Replace("\r", "\n");
+        // Replace tabs with a single space
+        clean = clean.Replace("\t", " ");
+        // Collapse 4+ consecutive spaces (not newlines) to a single space
         clean = ConsecutiveSpaces.Replace(clean, " ");
         return clean.Trim();
     }
