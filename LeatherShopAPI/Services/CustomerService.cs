@@ -99,11 +99,12 @@ public class CustomerService : ICustomerService
         try
         {
             var nameParam = string.IsNullOrEmpty(customer.Name) ? "there" : customer.Name;
+            var welcomeText = $"Welcome to Cuir Galerie, {nameParam}! Your account has been created. Browse our premium leather products and place orders right here on WhatsApp. Type Hi to get started!";
             await _whatsApp.SendTemplateMessage(
                 to: phone,
-                templateName: "account_created",
+                templateName: "store_notification",
                 languageCode: "en",
-                parameters: new List<string> { nameParam });
+                parameters: new List<string> { welcomeText });
             welcomeSent = true;
             _logger.LogInformation("Welcome template sent to {Phone}", phone);
         }
