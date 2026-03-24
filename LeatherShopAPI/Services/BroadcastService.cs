@@ -146,15 +146,9 @@ public class BroadcastService : IBroadcastService
         };
     }
 
-    private static readonly HashSet<string> SystemTemplates = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "welcome_message"
-    };
-
     public async Task<List<WhatsAppTemplate>> GetTemplatesAsync(CancellationToken ct = default)
     {
-        var templates = await _whatsApp.GetApprovedTemplates(ct);
-        return templates.Where(t => !SystemTemplates.Contains(t.Name)).ToList();
+        return await _whatsApp.GetApprovedTemplates(ct);
     }
 
     public async Task<int> GetTotalSentCountAsync(CancellationToken ct = default)
