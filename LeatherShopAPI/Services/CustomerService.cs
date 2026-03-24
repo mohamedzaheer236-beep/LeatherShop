@@ -94,31 +94,18 @@ public class CustomerService : ICustomerService
         _db.Customers.Add(customer);
         await _db.SaveChangesAsync(ct);
 
-        // Send welcome template via WhatsApp (templates can initiate conversations).
-        // Try dedicated 'customer_welcomemsg' first (UTILITY); fallback to 'store_notification'.
+        // Send welcome message via WhatsApp using store_notification (UTILITY — no frequency caps).
         var welcomeSent = false;
         try
         {
             var nameParam = string.IsNullOrEmpty(customer.Name) ? "there" : customer.Name;
-            try
-            {
-                await _whatsApp.SendTemplateMessage(
-                    to: phone,
-                    templateName: "customer_welcomemsg",
-                    languageCode: "en",
-                    parameters: new List<string> { nameParam });
-            }
-            catch
-            {
-                // customer_welcomemsg may still be pending approval — fallback to store_notification (UTILITY)
-                var welcomeText = $"Hello {nameParam}, your account at Cuir Galerie has been created successfully. " +
-                    "You can reach us anytime on WhatsApp for order updates and support. Reply Hi to get started.";
-                await _whatsApp.SendTemplateMessage(
-                    to: phone,
-                    templateName: "store_notification",
-                    languageCode: "en",
-                    parameters: new List<string> { welcomeText });
-            }
+            var welcomeText = $"Hello {nameParam}, your account at Cuir Galerie has been created successfully. " +
+                "You can reach us anytime on WhatsApp for order updates and support. Reply Hi to get started.";
+            await _whatsApp.SendTemplateMessage(
+                to: phone,
+                templateName: "store_notification",
+                languageCode: "en",
+                parameters: new List<string> { welcomeText });
             welcomeSent = true;
             _logger.LogInformation("Welcome template sent to {Phone}", phone);
         }
