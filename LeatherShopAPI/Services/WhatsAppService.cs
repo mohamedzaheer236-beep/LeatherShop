@@ -361,16 +361,16 @@ public class WhatsAppService : IWhatsAppService
 
     /// <summary>
     /// Sanitize a template body parameter for WhatsApp compliance.
-    /// Preserves newlines (WhatsApp supports \n in params). Strips tabs and excess spaces.
+    /// Meta rejects newlines/tabs in template parameter values (error 132018).
+    /// Newlines are converted to spaces so messages always deliver.
     /// </summary>
     private static string SanitizeParam(string text)
     {
         if (string.IsNullOrEmpty(text)) return text;
-        // Normalize line endings to \n (WhatsApp supports newlines in template params)
-        var clean = text.Replace("\r\n", "\n").Replace("\r", "\n");
-        // Replace tabs with a single space
+        // Meta API rejects \n and \t inside parameter values — replace with space
+        var clean = text.Replace("\r\n", " ").Replace("\r", " ").Replace("\n", " ");
         clean = clean.Replace("\t", " ");
-        // Collapse 4+ consecutive spaces (not newlines) to a single space
+        // Collapse 4+ consecutive spaces to a single space
         clean = ConsecutiveSpaces.Replace(clean, " ");
         return clean.Trim();
     }

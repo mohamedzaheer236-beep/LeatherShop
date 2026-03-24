@@ -124,7 +124,7 @@
           <label for="bcParams">{{ helper.bodyParamCount <= 1 ? 'Message' : 'Parameters (comma separated)' }}</label>
           @if (helper.bodyParamCount <= 1) {
             <textarea pInputText id="bcParams" formControlName="params" placeholder="Type your message..." class="w-full" rows="5" style="resize: vertical;"></textarea>
-            <small class="hint"><i class="pi pi-info-circle"></i> Type your full message — line breaks and commas are preserved</small>
+            <small class="hint"><i class="pi pi-info-circle"></i> Type your full message — line breaks are removed on delivery (WhatsApp limitation)</small>
           } @else {
             <input type="text" pInputText id="bcParams" formControlName="params" placeholder="param1, param2" class="w-full" />
             <small class="hint"><i class="pi pi-info-circle"></i> This template requires {{ helper.bodyParamCount }} parameter(s)</small>
