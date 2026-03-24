@@ -19,6 +19,7 @@ public class ChatBotService : IChatBotService
     private readonly CheckoutHandler _checkoutHandler;
     private readonly OrderHistoryHandler _orderHistoryHandler;
     private readonly OrderCancellationHandler _orderCancellationHandler;
+    private readonly ContactHandler _contactHandler;
     private readonly ILogger<ChatBotService> _logger;
 
     public ChatBotService(
@@ -30,6 +31,7 @@ public class ChatBotService : IChatBotService
         CheckoutHandler checkoutHandler,
         OrderHistoryHandler orderHistoryHandler,
         OrderCancellationHandler orderCancellationHandler,
+        ContactHandler contactHandler,
         ILogger<ChatBotService> logger)
     {
         _bot = bot;
@@ -40,6 +42,7 @@ public class ChatBotService : IChatBotService
         _checkoutHandler = checkoutHandler;
         _orderHistoryHandler = orderHistoryHandler;
         _orderCancellationHandler = orderCancellationHandler;
+        _contactHandler = contactHandler;
         _logger = logger;
     }
 
@@ -270,6 +273,13 @@ public class ChatBotService : IChatBotService
             // Malformed suffix — silently ignore rather than showing a confusing default response
             _logger.LogWarning("Received malformed cancel_ord_ button id '{Input}' from {Phone}.", input, phone);
             await _bot.SendText(phone, "❌ Invalid order reference. Type *my orders* to view your orders.", ct);
+            return;
+        }
+
+        // Contact Us
+        if (input == "contact_us")
+        {
+            await _contactHandler.SendContactInfo(phone, ct);
             return;
         }
 

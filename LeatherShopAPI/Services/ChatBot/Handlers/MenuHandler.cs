@@ -46,6 +46,14 @@ public class MenuHandler
                     {
                         new() { Id = "my_orders", Title = "📦 My Orders", Description = "Track your order status" }
                     }
+                },
+                new()
+                {
+                    Title = "Support",
+                    Rows = new List<ListRow>
+                    {
+                        new() { Id = "contact_us", Title = "📞 Contact Us", Description = "Phone, WhatsApp & business hours" }
+                    }
                 }
             },
             ct: ct
