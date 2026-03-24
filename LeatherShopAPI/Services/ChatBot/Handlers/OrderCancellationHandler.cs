@@ -58,10 +58,16 @@ public class OrderCancellationHandler
                 break;
 
             case CancelOrderResult.NotCancellable:
-                await _bot.SendText(to,
+                await _bot.SendButtons(to,
                     "❌ *This order cannot be cancelled.*\n\n" +
                     "Orders that have already been paid or are being processed cannot be cancelled through WhatsApp. " +
-                    "Please contact us directly if you need help.", ct);
+                    "Please contact us directly if you need help.",
+                    new List<ButtonOption>
+                    {
+                        new() { Id = "view_cart", Title = "🛒 View Cart" },
+                        new() { Id = "main_menu", Title = "🏠 Menu" }
+                    },
+                    ct: ct);
                 break;
 
             case CancelOrderResult.ConcurrencyConflict:

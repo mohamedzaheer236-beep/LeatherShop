@@ -218,10 +218,16 @@ public class CheckoutHandler
             _logger.LogWarning(ex, "Failed to create notification for {OrderNumber}", order.OrderNumber);
         }
 
-        // Try to send immediately (fast path)
+        // Try to send immediately (fast path) — button message with inline cancel option
         try
         {
-            await _bot.SendText(to, orderSummary, ct);
+            await _bot.SendButtons(to, orderSummary,
+                new List<ButtonOption>
+                {
+                    new() { Id = $"cancel_ord_{order.Id}", Title = "❌ Cancel Order" },
+                    new() { Id = "main_menu",              Title = "🏠 Main Menu" }
+                },
+                ct: ct);
 
             outboxMessage.Status = OutboxMessageStatus.Sent;
             outboxMessage.SentAt = DateTime.UtcNow;
