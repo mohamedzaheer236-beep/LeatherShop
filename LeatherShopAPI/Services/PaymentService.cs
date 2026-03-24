@@ -64,22 +64,16 @@ public class PaymentService : IPaymentService
                 "Paytm:MerchantId and Paytm:MerchantKey must be configured. " +
                 "Set them in appsettings or environment variables (Paytm__MerchantId, Paytm__MerchantKey).");
 
-        // Reuse cached txnToken if available (avoids Paytm "Repeat Request Inconsistent" error on retry)
-        string txnToken;
-        if (!string.IsNullOrEmpty(order.PaytmTxnToken))
-        {
-            _logger.LogDebug("Reusing cached Paytm txnToken for order {OrderNumber}", order.OrderNumber);
-            txnToken = order.PaytmTxnToken;
-        }
-        else
-        {
-            txnToken = await InitiatePaytmTransactionAsync(
-                merchantId, merchantKey, order.OrderNumber, order.TotalAmount, order.Customer.PhoneNumber, ct);
+        // Always generate a fresh txnToken on each page load.
+        // Cached tokens become invalid if the user opened Paytm checkout and then pressed back/cancelled —
+        // Paytm marks that token as abandoned and any subsequent payment attempt with it fails.
+        // Re-calling initiateTransaction with the same orderId and amount is safe; Paytm returns a new valid token.
+        var txnToken = await InitiatePaytmTransactionAsync(
+            merchantId, merchantKey, order.OrderNumber, order.TotalAmount, order.Customer.PhoneNumber, ct);
 
-            // Cache token on the order for subsequent visits
-            order.PaytmTxnToken = txnToken;
-            await _db.SaveChangesAsync(ct);
-        }
+        // Persist the latest token (useful for debugging; not relied on for reuse)
+        order.PaytmTxnToken = txnToken;
+        await _db.SaveChangesAsync(ct);
 
         return (PaymentPageResult.Ok, new PaymentPageDto
         {
