@@ -82,7 +82,7 @@ export class TemplateLoaderService {
 
   getLanguageCode(templateName: string): string {
     const selected = this.state.templates.find(t => t.name === templateName);
-    return selected ? selected.language : 'en_US';
+    return selected ? selected.language : 'en';
   }
 
   getTemplate(templateName: string): WhatsAppTemplate | undefined {

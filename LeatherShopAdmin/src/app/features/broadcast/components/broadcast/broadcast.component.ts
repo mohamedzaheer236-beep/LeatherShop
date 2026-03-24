@@ -136,7 +136,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
     this.broadcastService
       .sendBroadcast({
         templateName: 'shop_deals',
-        languageCode: this.templateLoader.getLanguageCode('shop_deals') || 'en_US',
+        languageCode: this.templateLoader.getLanguageCode('shop_deals') || 'en',
         parameters: [this.customMessage.trim()],
       })
       .subscribe({
