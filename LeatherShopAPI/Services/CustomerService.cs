@@ -101,7 +101,7 @@ public class CustomerService : ICustomerService
             var nameParam = string.IsNullOrEmpty(customer.Name) ? "there" : customer.Name;
             await _whatsApp.SendTemplateMessage(
                 to: phone,
-                templateName: "welcome_message",
+                templateName: "account_created",
                 languageCode: "en",
                 parameters: new List<string> { nameParam });
             welcomeSent = true;
