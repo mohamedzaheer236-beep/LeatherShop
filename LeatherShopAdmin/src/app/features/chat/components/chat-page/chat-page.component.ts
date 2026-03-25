@@ -250,7 +250,10 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (!this.hasMoreMessages || this.loadingMessages) return;
     const el = this.messagesContainer?.nativeElement;
     if (!el) return;
-    // Trigger when user scrolls within 60px of the top
+    // Only auto-load if content is scrollable (overflows container).
+    // If content is shorter than the container, scrollTop is always 0 —
+    // use the manual "Load older messages" button instead.
+    if (el.scrollHeight <= el.clientHeight) return;
     if (el.scrollTop < 60) {
       this.loadMoreMessages();
     }
