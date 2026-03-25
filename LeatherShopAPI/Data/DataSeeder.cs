@@ -1,5 +1,6 @@
 using LeatherShopAPI.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace LeatherShopAPI.Data;
 
@@ -14,7 +15,7 @@ public static class DataSeeder
     /// Seeds the database with initial data if tables are empty.
     /// Called once on startup after migrations have been applied.
     /// </summary>
-    public static async Task SeedAsync(AppDbContext db, IConfiguration config)
+    public static async Task SeedAsync(AppDbContext db, IConfiguration config, ILogger logger)
     {
         var changed = false;
 
@@ -34,7 +35,7 @@ public static class DataSeeder
                 CreatedAt = DateTime.UtcNow
             });
             changed = true;
-            Console.WriteLine("\u2705 Default admin user seeded.");
+            logger.LogInformation("Default admin user seeded");
         }
 
         // Seed sample products if none exist
@@ -49,7 +50,7 @@ public static class DataSeeder
                 new Product { Name = "Leather Laptop Sleeve", Brand = "Heritage Craft", Category = "Bag", Price = 2499, StockQuantity = 25, Description = "Slim leather sleeve for 15-inch laptops", ImageUrl = "/images/sleeve1.jpg" }
             );
             changed = true;
-            Console.WriteLine("\u2705 Sample products seeded.");
+            logger.LogInformation("Sample products seeded ({Count} products)", 6);
         }
 
         if (changed)

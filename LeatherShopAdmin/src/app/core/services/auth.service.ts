@@ -61,9 +61,11 @@ export class AuthService {
     }
   }
 
-  /** Call server to revoke refresh token cookie (fire-and-forget) */
+  /** Call server to revoke refresh token cookie (fire-and-forget — best-effort, token expires naturally) */
   serverLogout(): void {
-    this.http.post(`${environment.apiUrl}/auth/logout`, {}, { withCredentials: true }).subscribe();
+    this.http.post(`${environment.apiUrl}/auth/logout`, {}, { withCredentials: true }).subscribe({
+      error: () => { /* Best-effort — HttpOnly cookie expires naturally if revocation fails */ },
+    });
   }
 
   /** Clear in-memory tokens and localStorage without navigating or API calls */

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Product;
 using LeatherShopAPI.Extensions;
@@ -15,11 +16,13 @@ public class ProductService : IProductService
 {
     private readonly AppDbContext _db;
     private readonly IWebHostEnvironment _env;
+    private readonly ILogger<ProductService> _logger;
 
-    public ProductService(AppDbContext db, IWebHostEnvironment env)
+    public ProductService(AppDbContext db, IWebHostEnvironment env, ILogger<ProductService> logger)
     {
         _db = db;
         _env = env;
+        _logger = logger;
     }
 
     public async Task<PaginatedResult<ProductDto>> GetAllAsync(string? category, string? brand, string? search, int page = 1, int pageSize = 25, CancellationToken ct = default)
@@ -278,9 +281,9 @@ public class ProductService : IProductService
             using var stream = new FileStream(filePath, FileMode.Create);
             await file.CopyToAsync(stream, ct);
         }
-        catch
+        catch (Exception ex)
         {
-            // Clean up partial file on failure (client disconnect, stream error, etc.)
+            _logger.LogError(ex, "Video upload failed for file {FileName}, cleaning up partial file", fileName);
             if (File.Exists(filePath)) File.Delete(filePath);
             throw;
         }

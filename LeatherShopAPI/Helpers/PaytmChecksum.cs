@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace LeatherShopAPI.Helpers;
 
@@ -32,7 +33,7 @@ public static class PaytmChecksum
     }
 
     /// <summary>Verifies a Paytm checksum against the expected body and merchant key.</summary>
-    public static bool VerifySignature(string body, string merchantKey, string checksum)
+    public static bool VerifySignature(string body, string merchantKey, string checksum, ILogger? logger = null)
     {
         try
         {
@@ -49,8 +50,9 @@ public static class PaytmChecksum
                 Encoding.UTF8.GetBytes(decrypted),
                 Encoding.UTF8.GetBytes(recomputed));
         }
-        catch
+        catch (Exception ex)
         {
+            logger?.LogWarning(ex, "Paytm checksum verification failed — possible tampered or malformed checksum");
             return false;
         }
     }

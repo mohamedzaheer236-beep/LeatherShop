@@ -152,8 +152,9 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var seederLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DataSeeder");
     await db.Database.MigrateAsync();
-    await DataSeeder.SeedAsync(db, app.Configuration);
+    await DataSeeder.SeedAsync(db, app.Configuration, seederLogger);
 }
 
 // --- Global exception handling (must be first in pipeline) ---

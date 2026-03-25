@@ -68,6 +68,7 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   private searchTimeout: number | null = null;
   private conversationRefreshTimeout: number | null = null;
+  private scrollRestorationTimeout: number | null = null;
 
   ngOnInit(): void {
     this.loadConversations();
@@ -133,6 +134,9 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
     if (this.conversationRefreshTimeout) {
       clearTimeout(this.conversationRefreshTimeout);
+    }
+    if (this.scrollRestorationTimeout) {
+      clearTimeout(this.scrollRestorationTimeout);
     }
     this.subs.forEach(s => s.unsubscribe());
   }
@@ -225,7 +229,7 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.hasMoreMessages = this.currentPage < result.totalPages;
           this.cdr.markForCheck();
           // Restore scroll position after DOM update, then unlock
-          setTimeout(() => {
+          this.scrollRestorationTimeout = window.setTimeout(() => {
             if (container) {
               container.scrollTop = container.scrollHeight - previousScrollHeight;
             }

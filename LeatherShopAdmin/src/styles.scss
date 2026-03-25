@@ -253,24 +253,61 @@ body .navbar-menubar .p-menubar-button {
   color: var(--ls-brand-gold);
 }
 
-/* Active route highlighting */
-body .navbar-menubar .p-menuitem-link.p-menuitem-link-active,
-body .navbar-menubar .p-menuitem-link.router-link-active {
-  background: rgba(255, 255, 255, 0.12) !important;
+/* Active route highlighting — doubled selector for specificity instead of !important */
+body .navbar-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-link.p-menuitem-link-active,
+body .navbar-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-link.router-link-active {
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 6px;
 
   .p-menuitem-text {
-    color: var(--ls-brand-gold, #c8a951) !important;
+    color: var(--ls-brand-gold, #c8a951);
     font-weight: 600;
   }
 
   .p-menuitem-icon {
-    color: var(--ls-brand-gold, #c8a951) !important;
+    color: var(--ls-brand-gold, #c8a951);
   }
 }
 
 body .navbar-menubar .p-menubar-end {
   margin-left: auto;
+}
+
+/* Navbar logout button — global override for PrimeNG button specificity */
+body .navbar-logout-btn.p-button {
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  color: var(--ls-error-border);
+  transition: all 0.2s ease;
+}
+
+body .navbar-logout-btn.p-button:hover,
+body .navbar-logout-btn.p-button:focus {
+  background: rgba(220, 38, 38, 0.35);
+  border-color: rgba(220, 38, 38, 0.5);
+  color: #fff;
+}
+
+/* Login button — global override for PrimeNG button specificity */
+body .login-btn.p-button {
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3a1c71, #d76d77);
+  border: none;
+}
+
+/* Chat input/send button — global overrides for PrimeNG specificity */
+body .message-input.p-inputtext {
+  border-radius: 20px;
+}
+
+body .send-btn.p-button {
+  width: 40px;
+  height: 40px;
+}
+
+/* PrimeNG table selected row — global override */
+body .p-datatable .p-datatable-tbody > tr.row-selected {
+  background: var(--ls-accent-light);
 }
 
 .navbar-brand {

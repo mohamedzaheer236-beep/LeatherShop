@@ -105,7 +105,9 @@ export class NavbarComponent implements OnInit {
   }
 
   clearNotifications(): void {
-    this.notificationApi.markAllAsRead().pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+    this.notificationApi.markAllAsRead().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      error: () => { /* Best-effort — UI already cleared, interceptor shows toast on API failure */ },
+    });
     this.notifications = [];
   }
 
@@ -119,7 +121,9 @@ export class NavbarComponent implements OnInit {
 
   onNotificationClick(n: OrderNotification): void {
     if (n.id) {
-      this.notificationApi.markAsRead(n.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+      this.notificationApi.markAsRead(n.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        error: () => { /* Best-effort — UI already updated, interceptor shows toast on API failure */ },
+      });
     }
     this.notifications = this.notifications.filter(x => x.id !== n.id);
     this.router.navigate(['/orders']);
