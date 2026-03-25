@@ -331,13 +331,19 @@ public class PaymentService : IPaymentService
 
         // Atomic guard: claim this order for processing using a database-level WHERE clause.
         // This prevents duplicate processing when Paytm sends concurrent callbacks (retry policy).
+        var paymentId = txnStatus.TxnId ?? dto.TransactionId;
         var claimedRows = await _db.Orders
             .Where(o => o.Id == order.Id && !o.IsPaid)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(o => o.IsPaid, true)
-                .SetProperty(o => o.PaymentId, txnStatus.TxnId ?? dto.TransactionId)
+                .SetProperty(o => o.PaymentId, paymentId)
                 .SetProperty(o => o.Status, OrderStatus.Confirmed)
                 .SetProperty(o => o.UpdatedAt, DateTime.UtcNow), ct);
+
+        // Sync in-memory entity (ExecuteUpdateAsync bypasses EF change tracking)
+        order.IsPaid = true;
+        order.PaymentId = paymentId;
+        order.Status = OrderStatus.Confirmed;
 
         if (claimedRows == 0)
         {
