@@ -212,21 +212,27 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
         if (this.currentPage === 1) {
           this.messages = result.items;
           this.shouldScrollToBottom = true;
+          this.hasMoreMessages = this.currentPage < result.totalPages;
+          this.loadingMessages = false;
+          this.cdr.markForCheck();
         } else {
-          // F64 fix: preserve scroll position when prepending older messages
+          // Preserve scroll position when prepending older messages.
+          // Keep loadingMessages=true until scroll is restored to prevent
+          // the scroll handler from firing a runaway loop.
           const container = this.messagesContainer?.nativeElement;
           const previousScrollHeight = container?.scrollHeight ?? 0;
           this.messages = [...result.items, ...this.messages];
-          // Restore scroll position after DOM update
+          this.hasMoreMessages = this.currentPage < result.totalPages;
+          this.cdr.markForCheck();
+          // Restore scroll position after DOM update, then unlock
           setTimeout(() => {
             if (container) {
               container.scrollTop = container.scrollHeight - previousScrollHeight;
             }
+            this.loadingMessages = false;
+            this.cdr.markForCheck();
           });
         }
-        this.hasMoreMessages = this.currentPage < result.totalPages;
-        this.loadingMessages = false;
-        this.cdr.markForCheck();
       },
       error: () => {
         this.loadingMessages = false;
@@ -244,8 +250,8 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (!this.hasMoreMessages || this.loadingMessages) return;
     const el = this.messagesContainer?.nativeElement;
     if (!el) return;
-    // Trigger when user scrolls within 80px of the top
-    if (el.scrollTop < 80) {
+    // Trigger when user scrolls within 60px of the top
+    if (el.scrollTop < 60) {
       this.loadMoreMessages();
     }
   }
