@@ -3,11 +3,13 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Chat;
 using LeatherShopAPI.DTOs.Payment;
 using LeatherShopAPI.Helpers;
+using LeatherShopAPI.Hubs;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.Interfaces;
 
@@ -17,6 +19,8 @@ public class PaymentService : IPaymentService
 {
     private readonly AppDbContext _db;
     private readonly IWhatsAppService _whatsApp;
+    private readonly IChatService _chatService;
+    private readonly IHubContext<NotificationHub> _hubContext;
     private readonly IAdminNotificationService _adminNotifications;
     private readonly IConfiguration _config;
     private readonly ILogger<PaymentService> _logger;
@@ -28,11 +32,14 @@ public class PaymentService : IPaymentService
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
-    public PaymentService(AppDbContext db, IWhatsAppService whatsApp, IAdminNotificationService adminNotifications,
+    public PaymentService(AppDbContext db, IWhatsAppService whatsApp, IChatService chatService,
+        IHubContext<NotificationHub> hubContext, IAdminNotificationService adminNotifications,
         IConfiguration config, ILogger<PaymentService> logger, IHttpClientFactory httpClientFactory)
     {
         _db = db;
         _whatsApp = whatsApp;
+        _chatService = chatService;
+        _hubContext = hubContext;
         _adminNotifications = adminNotifications;
         _config = config;
         _logger = logger;
@@ -425,24 +432,24 @@ public class PaymentService : IPaymentService
             }
         }
 
-        // Notify customer via WhatsApp (best-effort - don't fail the payment)
+        // Notify customer via WhatsApp + save to chat history (best-effort - don't fail the payment)
         try
         {
-            await _whatsApp.SendTextMessage(
-                order.Customer.PhoneNumber,
-                $"✅ *Payment Received!*\n\n" +
+            var paymentMsg = $"✅ *Payment Received!*\n\n" +
                 $"Order: *{order.OrderNumber}*\n" +
                 $"Amount: *₹{order.TotalAmount}*\n" +
                 $"Transaction ID: {order.PaymentId}\n\n" +
-                $"Your order is confirmed! We'll ship it soon. 🚚"
-            );
+                $"Your order is confirmed! We'll ship it soon. 🚚";
+
+            await _whatsApp.SendTextMessage(order.Customer.PhoneNumber, paymentMsg);
+            await SaveBotMessageToChat(order.CustomerId, paymentMsg, ct);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to send WhatsApp payment notification for order {OrderId}", order.Id);
         }
 
-        // Notify shop owner via WhatsApp (best-effort)
+        // Notify shop owner via WhatsApp (best-effort — not saved to chat since owner isn't a customer)
         try
         {
             var ownerPhone = _config["App:OwnerPhone"];
@@ -538,6 +545,35 @@ public class PaymentService : IPaymentService
         {
             _logger.LogError(ex, "Error calling Paytm Transaction Status API for order {OrderId}", orderId);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Saves an outgoing bot message to chat history and pushes it to the admin panel via SignalR.
+    /// Used by payment verification (which runs outside the chatbot pipeline and can't use BotMessageSender).
+    /// </summary>
+    private async Task SaveBotMessageToChat(int customerId, string content, CancellationToken ct = default)
+    {
+        try
+        {
+            var saved = await _chatService.SaveMessageAsync(
+                customerId, MessageDirection.Outgoing, content, "Bot", true, "text", ct);
+
+            await _hubContext.Clients.Group($"chat_{customerId}").SendAsync("ReceiveMessage", new ChatMessageDto
+            {
+                Id = saved.Id,
+                CustomerId = customerId,
+                Direction = "Outgoing",
+                MessageType = saved.MessageType,
+                Content = saved.Content,
+                SenderName = "Bot",
+                IsFromBot = true,
+                Timestamp = saved.Timestamp
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to save/push payment bot message for customer {CustomerId}", customerId);
         }
     }
 
