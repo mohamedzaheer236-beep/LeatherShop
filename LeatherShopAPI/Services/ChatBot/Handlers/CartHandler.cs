@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LeatherShopAPI.Services.ChatBot.Handlers;
 
 /// <summary>
-/// Handles cart operations: add to cart, view cart, clear cart, quantity input.
+/// Handles cart operations: add to cart, view cart, edit cart, remove item, clear cart, quantity input.
 /// </summary>
 public class CartHandler
 {
@@ -207,8 +207,8 @@ public class CartHandler
             buttons: new List<ButtonOption>
             {
                 new() { Id = "checkout", Title = "💳 Checkout" },
-                new() { Id = "clear_cart", Title = "🗑️ Clear Cart" },
-                new() { Id = "browse_categories", Title = "🛒️ Continue" }
+                new() { Id = "edit_cart", Title = "✏️ Edit Cart" },
+                new() { Id = "browse_categories", Title = "🛍️ Continue" }
             },
             ct: ct
         );
@@ -221,5 +221,121 @@ public class CartHandler
         await _db.SaveChangesAsync(ct);
 
         await _bot.SendText(to, "🗑️ Cart cleared! Type *menu* to browse products.", ct);
+    }
+
+    /// <summary>
+    /// Shows an interactive list of cart items that the customer can tap to remove,
+    /// plus a "Clear All" option. Uses WhatsApp interactive list (supports up to 10 rows).
+    /// </summary>
+    public async Task SendEditCartList(string to, int customerId, CancellationToken ct = default)
+    {
+        var cartItems = await _db.CartItems
+            .Include(ci => ci.Product)
+            .Where(ci => ci.CustomerId == customerId)
+            .ToListAsync(ct);
+
+        if (!cartItems.Any())
+        {
+            await _bot.SendButtons(
+                to,
+                bodyText: "🛒 Your cart is empty!\n\nBrowse our products to add items.",
+                buttons: new List<ButtonOption>
+                {
+                    new() { Id = "browse_categories", Title = "🛍️ Browse" },
+                    new() { Id = "main_menu", Title = "🏠 Menu" }
+                },
+                ct: ct
+            );
+            return;
+        }
+
+        var rows = new List<ListRow>();
+
+        // Add each cart item as a removable row (WhatsApp list supports max 10 rows per section)
+        foreach (var item in cartItems.Take(9))
+        {
+            // Row title max 24 chars, truncate product name if needed
+            var name = item.Product.Name.Length > 20
+                ? item.Product.Name[..17] + "..."
+                : item.Product.Name;
+
+            rows.Add(new ListRow
+            {
+                Id = $"rmcart_{item.Id}",
+                Title = $"❌ {name}",
+                Description = $"Qty: {item.Quantity} × ₹{item.Product.Price} = ₹{item.Product.Price * item.Quantity}"
+            });
+        }
+
+        // Add "Clear All" as the last row (if we have room)
+        if (rows.Count < 10)
+        {
+            rows.Add(new ListRow
+            {
+                Id = "clear_cart",
+                Title = "🗑️ Clear All Items",
+                Description = "Remove everything from your cart"
+            });
+        }
+
+        decimal total = cartItems.Sum(ci => ci.Product.Price * ci.Quantity);
+        var itemCount = cartItems.Sum(ci => ci.Quantity);
+
+        await _bot.SendList(
+            to,
+            headerText: "✏️ Edit Cart",
+            bodyText: $"Your cart has *{itemCount} item(s)* (₹{total}).\n\nTap an item below to remove it from your cart:",
+            buttonText: "🛒 Select Item",
+            sections: new List<ListSection>
+            {
+                new() { Title = "Cart Items", Rows = rows }
+            },
+            ct: ct
+        );
+    }
+
+    /// <summary>
+    /// Removes a specific cart item by its database ID.
+    /// After removal, re-sends the cart summary so the customer can continue editing or checkout.
+    /// </summary>
+    public async Task RemoveCartItem(string to, int customerId, int cartItemId, CancellationToken ct = default)
+    {
+        var cartItem = await _db.CartItems
+            .Include(ci => ci.Product)
+            .FirstOrDefaultAsync(ci => ci.Id == cartItemId && ci.CustomerId == customerId, ct);
+
+        if (cartItem == null)
+        {
+            // Item already removed (stale button tap or duplicate webhook)
+            await SendCartSummary(to, customerId, ct);
+            return;
+        }
+
+        var productName = cartItem.Product.Name;
+        var qty = cartItem.Quantity;
+
+        _db.CartItems.Remove(cartItem);
+        await _db.SaveChangesAsync(ct);
+
+        // Check if cart is now empty
+        var remaining = await _db.CartItems.CountAsync(ci => ci.CustomerId == customerId, ct);
+        if (remaining == 0)
+        {
+            await _bot.SendButtons(
+                to,
+                bodyText: $"✅ Removed *{qty}x {productName}*.\n\n🛒 Your cart is now empty!",
+                buttons: new List<ButtonOption>
+                {
+                    new() { Id = "browse_categories", Title = "🛍️ Browse" },
+                    new() { Id = "main_menu", Title = "🏠 Menu" }
+                },
+                ct: ct
+            );
+            return;
+        }
+
+        // Confirm removal then re-show cart summary so customer can remove more or checkout
+        await _bot.SendText(to, $"✅ Removed *{qty}x {productName}* from your cart.", ct);
+        await SendCartSummary(to, customerId, ct);
     }
 }

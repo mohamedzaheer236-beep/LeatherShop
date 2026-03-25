@@ -240,6 +240,25 @@ public class ChatBotService : IChatBotService
             return;
         }
 
+        // Edit cart (show removable item list)
+        if (input == "edit_cart")
+        {
+            await _cartHandler.SendEditCartList(phone, customer.Id, ct);
+            return;
+        }
+
+        // Remove individual cart item (list row id: rmcart_{cartItemId})
+        if (input.StartsWith("rmcart_"))
+        {
+            if (int.TryParse(input["rmcart_".Length..], out var cartItemId))
+            {
+                await _cartHandler.RemoveCartItem(phone, customer.Id, cartItemId, ct);
+                return;
+            }
+            await _bot.SendText(phone, "Invalid item. Type *menu* to start again.", ct);
+            return;
+        }
+
         // Clear cart
         if (input == "clear_cart")
         {

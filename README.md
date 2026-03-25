@@ -180,7 +180,13 @@ Customer sends "Hi" / "Hello" / "Menu"
          │   Cart Summary (items, quantities, prices, total)
          │       │
          │       ├── [💳 Checkout]     → creates order + payment link
-         │       ├── [🗑️ Clear Cart]   → empties cart
+         │       ├── [✏️ Edit Cart]    → shows item list to remove individually
+         │       │       │
+         │       │       ▼
+         │       │   Interactive List (tap item to remove)
+         │       │       ├── ❌ Product Name (qty × price) → removes that item
+         │       │       └── 🗑️ Clear All Items            → empties entire cart
+         │       │       After removal → re-shows cart summary
          │       └── [🛍️ Continue]     → back to browsing
          │
          ├── Checkout
@@ -3351,3 +3357,14 @@ Eliminated "Power Ranger" color overload on the Customers page — every row pre
 **Design tokens used:** `--ls-accent-light` (indigo tint), `--ls-accent-dark`, `--ls-accent-ring-solid` — all defined in global `styles.scss`.
 
 **Files changed:** `customers.component.html`, `customers.component.scss`
+
+### Phase 46 — WhatsApp Cart Item Removal (March 2026)
+
+Added individual item removal from WhatsApp cart. Previously only "Clear Cart" was available — now customers can tap "Edit Cart" to see an interactive list of their cart items and remove specific ones.
+
+| # | Change | Details | File(s) |
+|---|--------|---------|---------|
+| 1 | **Edit Cart button** | Cart summary now shows "✏️ Edit Cart" instead of "🗑️ Clear Cart". Tapping it shows an interactive list of cart items. | `CartHandler.cs` |
+| 2 | **Interactive removal list** | `SendEditCartList()` — displays each cart item as a list row with name, quantity, and price. Customer taps an item to remove it. "🗑️ Clear All Items" row at bottom for full clear. Respects WhatsApp limits (max 10 rows, 24-char title). | `CartHandler.cs` |
+| 3 | **Single item removal** | `RemoveCartItem()` — removes specific `CartItem` by DB ID. Handles stale buttons (item already removed). Re-shows cart summary after removal so customer can continue editing or checkout. Shows empty cart message if last item removed. | `CartHandler.cs` |
+| 4 | **Router wiring** | New routes: `edit_cart` → `SendEditCartList()`, `rmcart_{id}` → `RemoveCartItem()`. `clear_cart` preserved for backward compatibility. Safe `int.TryParse` on cart item ID. | `ChatBotService.cs` |
