@@ -113,7 +113,12 @@
               <button pButton label="Load older messages" class="p-button-text p-button-sm" (click)="loadMoreMessages()"></button>
             </div>
           }
-          @for (msg of messages; track trackByMessage($index, msg)) {
+          @for (msg of messages; track trackByMessage($index, msg); let i = $index) {
+            @if (showDateSeparator(i)) {
+              <div class="date-separator">
+                <span>{{ msg.timestamp | dateSeparator }}</span>
+              </div>
+            }
             <div class="message-wrapper" [class.outgoing]="msg.direction === 'Outgoing'" [class.incoming]="msg.direction === 'Incoming'">
               <div class="message-bubble">
                 @if (msg.direction === 'Outgoing') {

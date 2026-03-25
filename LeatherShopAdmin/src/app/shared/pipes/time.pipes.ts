@@ -52,3 +52,23 @@ export class MessageTimePipe implements PipeTransform {
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 }
+
+/**
+ * Pure pipe that formats a date into a WhatsApp-style date separator label.
+ * Returns "Today", "Yesterday", or a formatted date like "24/03/2025".
+ */
+@Pipe({ name: 'dateSeparator', standalone: true, pure: true })
+export class DateSeparatorPipe implements PipeTransform {
+  transform(timestamp: string | null | undefined): string {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffDays = Math.round((startOfToday.getTime() - startOfDate.getTime()) / 86400000);
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+}

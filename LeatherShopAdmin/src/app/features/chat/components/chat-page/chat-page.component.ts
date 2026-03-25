@@ -13,7 +13,7 @@ import { ChatService } from '../../services/chat.service';
 import { Conversation, ChatMessage, FailedOutboxMessage } from '../../models/chat.model';
 import { SignalRService } from '../../../../core/services/signalr.service';
 import { FormatMessagePipe } from '../../../../shared/pipes/format-message.pipe';
-import { ConversationTimePipe, MessageTimePipe } from '../../../../shared/pipes/time.pipes';
+import { ConversationTimePipe, MessageTimePipe, DateSeparatorPipe } from '../../../../shared/pipes/time.pipes';
 
 @Component({
   selector: 'app-chat-page',
@@ -30,6 +30,7 @@ import { ConversationTimePipe, MessageTimePipe } from '../../../../shared/pipes/
     FormatMessagePipe,
     ConversationTimePipe,
     MessageTimePipe,
+    DateSeparatorPipe,
   ],
   templateUrl: './chat-page.component.html',
   styleUrl: './chat-page.component.scss',
@@ -322,6 +323,14 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   trackByMessage(_index: number, msg: ChatMessage): number {
     return msg.id;
+  }
+
+  /** Returns true if this message is the first of its calendar day (needs a date separator above it). */
+  showDateSeparator(index: number): boolean {
+    if (index === 0) return true;
+    const curr = new Date(this.messages[index].timestamp);
+    const prev = new Date(this.messages[index - 1].timestamp);
+    return curr.toDateString() !== prev.toDateString();
   }
 
   trackByFailedMessage(_index: number, msg: FailedOutboxMessage): number {
