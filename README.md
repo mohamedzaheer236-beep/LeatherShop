@@ -38,16 +38,19 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 | **Service Implementations** | `Services/ProductService.cs`, `OrderService.cs`, `CustomerService.cs`, `DashboardService.cs`, `BroadcastService.cs`, `PaymentService.cs`, `WhatsAppService.cs`, `ChatBotService.cs`, `ChatService.cs`, `ConversationStateService.cs` | All business logic lives here — DB queries, WhatsApp API calls, chatbot state machine, admin chat, ephemeral conversation state (IMemoryCache) |
 | **Real-time (SignalR)** | `Hubs/NotificationHub.cs` | SignalR hub for real-time push notifications. Pushes `NewOrder` (order notifications to admin dashboard bell), `NewMessage` (incoming WhatsApp messages to chat page), `MessageSent` (outgoing message confirmations), `OutboxMessageFailed` (permanently failed outbox messages → admin toast + chat page badge). JWT-authenticated via query string token. |
 | **Chat System** | `Controllers/ChatController.cs`, `Services/ChatService.cs`, `Models/ChatMessage.cs`, `DTOs/Chat/ChatDtos.cs`, `Data/Configurations/ChatMessageConfiguration.cs` | Full 2-way admin ↔ customer chat. Admin sends messages via dashboard → API → WhatsApp. Customer replies arrive via webhook → saved to DB → pushed to admin via SignalR. Bot auto-pauses when admin takes over, resumes after timeout. |
-| **Background Processing** | `Services/BroadcastBackgroundService.cs`, `Services/WhatsAppOutboxProcessor.cs`, `Services/ExpiredOrderCleanupService.cs` | **Broadcast:** DB-backed `BackgroundService` + `Channel<int>` trigger — all job data stored in PostgreSQL. Resumes incomplete broadcasts on restart. Chunked batch processing (10 concurrent × 200ms delay ≈ 50 msgs/sec). Progress saved every 50 messages. Graceful shutdown saves checkpoint. **Outbox:** Transactional outbox for order confirmations — polls every 10s, exponential backoff retry (30s→10m), marks Failed after 5 attempts. On permanent failure, pushes `OutboxMessageFailed` SignalR event to admins. Admin can view failed messages and retry via `GET /api/chat/failed-messages`, `POST /api/chat/outbox/{id}/retry`, `GET /api/chat/failed-messages/count`. **Expired Orders:** Polls every 60s for unpaid orders past `PaymentExpiresAt` — cancels order, restores stock, restores cart items. |
-| **Entity Configurations** | `Data/Configurations/ProductConfiguration.cs`, `CustomerConfiguration.cs`, `CartItemConfiguration.cs`, `OrderConfiguration.cs`, `OrderItemConfiguration.cs`, `BroadcastMessageConfiguration.cs`, `ChatMessageConfiguration.cs` | Fluent API: relationships (1:1, 1:N, M:1), indexes, unique constraints, delete behavior |
+| **Background Processing** | `Services/BroadcastBackgroundService.cs`, `Services/WhatsAppOutboxProcessor.cs`, `Services/ExpiredOrderCleanupService.cs`, `Services/ChatCleanupBackgroundService.cs` | **Broadcast:** DB-backed `BackgroundService` + `Channel<int>` trigger — all job data stored in PostgreSQL. Resumes incomplete broadcasts on restart. Chunked batch processing (10 concurrent × 200ms delay ≈ 50 msgs/sec). Progress saved every 50 messages. Graceful shutdown saves checkpoint. **Outbox:** Transactional outbox for order confirmations — polls every 10s, exponential backoff retry (30s→10m), marks Failed after 5 attempts. On permanent failure, pushes `OutboxMessageFailed` SignalR event to admins. Admin can view failed messages and retry via `GET /api/chat/failed-messages`, `POST /api/chat/outbox/{id}/retry`, `GET /api/chat/failed-messages/count`. **Expired Orders:** Polls every 60s for unpaid orders past `PaymentExpiresAt` — cancels order, restores stock, restores cart items. |
+| **Entity Configurations** | `Data/Configurations/ProductConfiguration.cs`, `ProductImageConfiguration.cs`, `CustomerConfiguration.cs`, `CartItemConfiguration.cs`, `OrderConfiguration.cs`, `OrderItemConfiguration.cs`, `BroadcastMessageConfiguration.cs`, `ChatMessageConfiguration.cs`, `AdminUserConfiguration.cs`, `RefreshTokenConfiguration.cs`, `WhatsAppOutboxMessageConfiguration.cs`, `AdminNotificationConfiguration.cs` | Fluent API: relationships (1:1, 1:N, M:1), indexes, unique constraints, delete behavior. 12 configuration files total. |
 | **Runtime Seeder** | `Data/DataSeeder.cs` | Idempotent startup seeder — creates default admin user (BCrypt hash from config) and sample products if tables are empty. Replaces EF Core `HasData()` for cleaner migration history. |
 | **Split DTOs (validated)** | `DTOs/Product/`, `DTOs/Order/`, `DTOs/Customer/`, `DTOs/Dashboard/`, `DTOs/Broadcast/`, `DTOs/Payment/`, `DTOs/WhatsApp/`, `DTOs/Chat/` | Per-feature DTO files with `[Required]`, `[MaxLength]`, `[Range]`, `[Url]`, `[RegularExpression]` validation attributes |
 | **DI Extensions** | `Extensions/ServiceCollectionExtensions.cs` | Grouped DI registration: `AddDatabase()`, `AddApplicationServices()`, `AddCorsPolicies()` |
 | **Mapping Extensions** | `Extensions/MappingExtensions.cs` | `Product.ToDto()`, `Order.ToDto()`, `OrderItem.ToDto()` — shared entity-to-DTO mapping used by ProductService, OrderService, DashboardService |
-| **Authentication** | `Controllers/AuthController.cs`, `Models/AdminUser.cs`, `DTOs/Auth/AuthDtos.cs`, `Data/Configurations/AdminUserConfiguration.cs` | JWT Bearer authentication — `POST /api/auth/login` validates credentials against `AdminUsers` table (BCrypt hash, case-sensitive). Returns JWT token (24h expiry). `[Authorize]` attribute on all admin controllers. Admin user auto-seeded on first startup. |
+| **Authentication** | `Controllers/AuthController.cs`, `Models/AdminUser.cs`, `DTOs/Auth/AuthDtos.cs`, `Data/Configurations/AdminUserConfiguration.cs` | JWT Bearer authentication — `POST /api/auth/login` validates credentials against `AdminUsers` table (BCrypt hash, case-sensitive). Returns access token (15 min expiry) + HttpOnly refresh token cookie (7 day expiry, auto-rotation). `[Authorize]` attribute on all admin controllers. Admin user auto-seeded on first startup. |
 | **Config** | `appsettings.json`, `appsettings.Development.json`, `appsettings.Production.json` | Environment-specific configuration files |
-| **Data Models** | `Models/Product.cs`, `Customer.cs`, `CartItem.cs`, `Order.cs`, `OrderItem.cs`, `BroadcastMessage.cs`, `AdminUser.cs`, `ChatMessage.cs` | Entity classes with navigation properties |
+| **Data Models** | `Models/Product.cs`, `ProductImage.cs`, `Customer.cs`, `CartItem.cs`, `Order.cs`, `OrderItem.cs`, `BroadcastMessage.cs`, `AdminUser.cs`, `ChatMessage.cs`, `RefreshToken.cs`, `AdminNotification.cs`, `WhatsApp/WhatsAppOutboxMessage.cs`, `WhatsApp/WhatsAppApiException.cs`, `ApiResponse.cs`, `PaginatedResult.cs`, `CustomerCategory.cs` | Entity classes with navigation properties, enums, and response wrappers. 17 model files total. |
 | **Database** | `AppDbContext.cs` | EF Core DbContext — uses `ApplyConfigurationsFromAssembly()` for auto-discovering entity configs. 12 DbSets including AdminUsers, ChatMessages, RefreshTokens, AdminNotifications. |
+| **Infrastructure** | `Program.cs` | Response compression (Brotli + Gzip), security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`), forwarded headers (`X-Forwarded-For`/`X-Forwarded-Proto` for Railway proxy), ephemeral Data Protection (container-friendly), connection pooling (min 5 / max 50 / idle 60s). |
+| **Invoice PDF** | `Services/InvoicePdfService.cs` | QuestPDF-based invoice generation — downloadable from `GET /api/v1/orders/{id}/invoice`. Path traversal defense via `Path.GetFullPath()` validation. |
+| **Image Optimization** | `Services/ProductService.cs` | SixLabors.ImageSharp — auto-resizes and compresses uploaded product images to ~300 KB JPEG. |
 
 ### Frontend Admin Panel (Angular 18) — `LeatherShopAdmin/`
 
@@ -61,7 +64,7 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 | **Customers** | `/customers` (lazy) | `features/customers/` — `customer.service.ts`, `customer.model.ts`, `customers.routes.ts`, `components/customers/` |
 | **Broadcast** | `/broadcast` (lazy) | `features/broadcast/` — `broadcast.service.ts`, `broadcast.model.ts`, `broadcast.routes.ts`, `components/broadcast/` |
 | **Chat** | `/chat` (lazy) | `features/chat/` — `chat.service.ts`, `chat.model.ts`, `chat.routes.ts`, `components/chat-page/` — WhatsApp-style 2-way chat with conversation sidebar, message history, bot pause/resume toggle |
-| **Auth** | `/login` | `features/auth/components/login/` — animated login page with background video, JWT token storage, redirect to dashboard on success |
+| **Auth** | `/login` | `features/auth/components/login/` — animated login page with background video, in-memory JWT access token + HttpOnly refresh cookie, redirect to dashboard on success |
 | **Core** | _(app-wide)_ | `core/interceptors/error.interceptor.ts` — HTTP error interceptor with toast notifications. `core/interceptors/auth.interceptor.ts` — attaches JWT Bearer token to all API requests. `core/guards/auth.guard.ts` — protects all admin routes (redirects to `/login` if no token). `core/services/auth.service.ts` — login, logout, token management, username extraction. `core/services/signalr.service.ts` — SignalR hub connection for real-time order notifications and chat messages. |
 | **Shared** | _(all pages)_ | `shared/components/navbar/`, `shared/components/toast/`, `shared/components/loading-spinner/`, `shared/services/notification.service.ts`, `shared/services/template-loader.service.ts`, `shared/utils/severity.utils.ts` — Navbar includes notification bell with overlay panel for real-time order alerts (powered by SignalR) |
 | **Environments** | _(build-time)_ | `environments/environment.ts` (dev), `environments/environment.prod.ts` (prod) — API URL + SignalR hub URL config |
@@ -151,6 +154,8 @@ Customer sends "Hi" / "Hello" / "Menu"
 │  │  💳 Checkout                     │    │
 │  ├─ Account ───────────────────────┤    │
 │  │  📦 My Orders                    │    │
+│  ├─ Help ──────────────────────────┤    │
+│  │  📞 Contact Us                   │    │
 │  └─────────────────────────────────┘    │
 └─────────────────────────────────────────┘
          │
@@ -207,7 +212,14 @@ Customer sends "Hi" / "Hello" / "Menu"
                  │
                  ▼
              Last 5 orders with: order number, amount, status, paid, date
+                 │
+                 └── [Cancel] (unpaid Pending orders only)
+                         → Order cancelled, cart items restored
+                         → "Order cancelled. Items returned to your cart."
 ```
+
+Additionally:
+- **Contact / Support** — customer says "contact" or "support" → receives business phone, WhatsApp link, business hours, and available services
 
 **Message Types Used:**
 - **Interactive List** — for menus with 4+ options (categories, products)
@@ -274,7 +286,7 @@ Admin opens http://localhost:4200
 │    Friends And Family                                   │
 │  • Multi-select with cross-page checkbox tracking       │
 │  • Bulk broadcast to selected customers                 │
-│  • Import via CSV / manual bulk add dialog              │
+│  • Import via XLSX/XLS / manual bulk add dialog         │
 └────────────────────────────────────────────────────────┘
 
 ┌── BROADCAST (/broadcast) ──────────────────────────────┐
@@ -478,7 +490,10 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │           ├── CheckoutHandler.cs       # Address flow, order placement, stock check
 │           │                            #   Aggregate stock validation (GroupBy ProductId)
 │           │                            #   Pushes Pending notification via IAdminNotificationService
-│           └── OrderHistoryHandler.cs   # View past orders
+│           ├── OrderHistoryHandler.cs   # View past orders
+│           ├── OrderCancellationHandler.cs  # Customer-initiated order cancellation via WhatsApp
+│           │                            #   Cancels unpaid Pending orders, restores cart items
+│           └── ContactHandler.cs        # Shows business contact info (phone, WhatsApp, hours)
 
 ├── Helpers/
 │   ├── OrderExpiryHelper.cs             # Cancel order + restore stock + restore cart
@@ -536,8 +551,8 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 │       │
 │       ├── core/
 │       │   ├── guards/
-│       │   │   ├── auth.guard.ts        # CanActivateFn — checks localStorage token,
-│       │   │   │                        #   redirects to /login if missing
+│       │   │   ├── auth.guard.ts        # CanActivateFn — checks in-memory token,
+│       │   │   │                        #   attempts silent refresh, redirects to /login if unauthenticated
 │       │   │   └── unsaved-changes.guard.ts  # CanDeactivateFn — prompt on dirty form
 │       │   ├── interceptors/
 │       │   │   ├── auth.interceptor.ts  # Attaches JWT Bearer token to all API requests
@@ -547,7 +562,7 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 │       │   │                            #   Auto-redirects to /login on 401 (expired token)
 │       │   └── services/
 │       │       ├── auth.service.ts      # login(), logout(), isLoggedIn(), getUsername()
-│       │       │                        #   JWT token management via localStorage
+│       │       │                        #   Access token in-memory only (never localStorage)
 │       │       │                        #   Refresh token rotation via HttpOnly cookie
 │       │       │                        #   isAuthenticated$ BehaviorSubject for reactive auth state
 │       │       ├── signalr.service.ts   # SignalR hub connection manager
@@ -652,7 +667,7 @@ cd LeatherShop
 | **Username** | `Admin` | Case-sensitive (capital A). Auto-seeded on first startup. Stored in `AdminUsers` PostgreSQL table. |
 | **Password** | _(your `Admin:SeedPassword` value)_ | Set in `appsettings.Local.json` → `Admin.SeedPassword`. BCrypt-hashed in DB. |
 | **Login URL** | `http://localhost:4200` (dev) / Vercel URL (prod) | Redirects to `/login` automatically |
-| **Auth type** | JWT Bearer token, 24h expiry | Stored in `localStorage`. Attached to API calls by `auth.interceptor.ts`. |
+| **Auth type** | JWT Bearer — access token (15 min, in-memory) + refresh token (7 days, HttpOnly cookie) | Attached to API calls by `auth.interceptor.ts`. Auto-refreshes on 401 via HttpOnly cookie. |
 
 #### URLs
 
@@ -763,6 +778,7 @@ cd LeatherShop
 | `WhatsApp:BusinessAccountId` | No* | Meta WhatsApp Business Account ID | Meta Developer Console → WhatsApp → API Setup → Business Account ID | WhatsApp features won't work |
 | `WhatsApp:AccessToken` | No* | Meta API access token (permanent System User token for production) | Meta Business Settings → System Users → Generate Token (see [WhatsApp Setup](#whatsapp-business-api-setup)) | WhatsApp features won't work |
 | `WhatsApp:VerifyToken` | No* | Webhook verification string — must match what you enter in Meta Console | Choose any custom string (e.g., `my_verify_token_2026`) | Meta webhook verification fails |
+| `WhatsApp:AppSecret` | No* | Meta App Secret — used for HMAC-SHA256 webhook signature validation (`X-Hub-Signature-256`) | Meta Developer Console → App Settings → Basic → App Secret | Webhook signature verification skipped (dev only); **required in production** for security |
 | `Paytm:MerchantId` | No* | Paytm Merchant ID (MID) — unique identifier for your Paytm business account | [business.paytm.com](https://business.paytm.com/) → Dashboard → Developer Settings → API Keys | Payment page won't load |
 | `Paytm:MerchantKey` | No* | Paytm Merchant Key — secret key for checksum generation | Same as above — shown in Developer Settings | Payment verification rejected |
 | `Paytm:Environment` | No | `staging` (test mode) or `production` (live). Defaults to `production` | Choose based on your deployment stage | Defaults to production |
@@ -794,7 +810,8 @@ Then edit `LeatherShopAPI/appsettings.Local.json` with your actual credentials:
     "PhoneNumberId": "YOUR_WHATSAPP_PHONE_NUMBER_ID",
     "BusinessAccountId": "YOUR_WHATSAPP_BUSINESS_ACCOUNT_ID",
     "AccessToken": "YOUR_WHATSAPP_ACCESS_TOKEN",
-    "VerifyToken": "YOUR_WEBHOOK_VERIFY_TOKEN"
+    "VerifyToken": "YOUR_WEBHOOK_VERIFY_TOKEN",
+    "AppSecret": "YOUR_META_APP_SECRET"
   },
   "Paytm": {
     "MerchantId": "YOUR_PAYTM_MERCHANT_ID",
@@ -1025,7 +1042,7 @@ POST /api/payment/verify  (with transactionId + orderId)
 ### Authentication
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/auth/login` | Login with username + password. Returns JWT token (24h expiry) + sets HttpOnly refresh token cookie. |
+| POST | `/api/v1/auth/login` | Login with username + password. Returns access token (15 min) + sets HttpOnly refresh token cookie (7 days). |
 | POST | `/api/v1/auth/refresh` | Refresh access token using HttpOnly cookie. Returns new JWT. |
 | POST | `/api/v1/auth/logout` | Revoke refresh token and clear cookie. |
 | GET | `/api/v1/auth/verify` | Verify if current access token is valid. |
@@ -1059,10 +1076,13 @@ POST /api/payment/verify  (with transactionId + orderId)
 |--------|----------|-------------|
 | GET | `/api/v1/customers` | List customers (paginated). Query params: `?subscribedOnly=true&search=phone_or_name&category=Reseller&page=1&pageSize=25` |
 | GET | `/api/v1/customers/count` | Get subscriber count and total count |
+| GET | `/api/v1/customers/check-phone` | Check if phone number exists. Query: `?phone=919876543210` |
+| POST | `/api/v1/customers/check-phones` | Bulk phone existence check (returns list of existing phones from input set) |
 | POST | `/api/v1/customers` | Create a single customer (sends WhatsApp welcome message) |
-| POST | `/api/v1/customers/import` | Bulk import customers from list |
+| POST | `/api/v1/customers/import` | Bulk import customers from XLSX/XLS file |
 | PUT | `/api/v1/customers/{id}` | Update customer name, address, subscription. **No WhatsApp message sent on edit.** |
-| DELETE | `/api/v1/customers/{id}` | Delete customer + cascade delete all orders, cart, chat messages |
+| DELETE | `/api/v1/customers/{id}` | Delete customer (blocked if has orders; cascade deletes cart + chat) |
+| POST | `/api/v1/customers/bulk-delete` | Batch delete customers. Skips customers with orders, returns summary. |
 | PUT | `/api/v1/customers/{id}/subscribe` | Toggle subscription status |
 
 ### Dashboard
@@ -1261,7 +1281,7 @@ These features are not built yet and would need to be added for production:
 | Feature | Details |
 |---------|---------|
 | ~~**Authentication / Authorization**~~ | ✅ **IMPLEMENTED** — JWT Bearer auth with BCrypt password hashing. Admin credentials stored in PostgreSQL `AdminUsers` table. Auto-seeded on first startup. `[Authorize]` on all admin controllers. Angular auth guard + interceptor + animated login page. |
-| ~~**Image Upload**~~ | ✅ **IMPLEMENTED** — Server-side file upload endpoint (`POST /api/products/upload-images`). Images saved to `wwwroot/uploads/` with GUID filenames. Type validation (JPG/PNG/WebP/GIF) and 20 MB server-side hard limit (images auto-compressed to ~300 KB). Served via `app.UseStaticFiles()`. Frontend: multi-image upload dropzone (up to 4 images), reorderable gallery with drag-to-reorder, live preview, and remove buttons. At least 1 image required on save. |
+| ~~**Image Upload**~~ | ✅ **IMPLEMENTED** — Server-side file upload endpoint (`POST /api/products/upload-images`). Images saved to `wwwroot/uploads/` with GUID filenames. Type validation (JPG/PNG/WebP/GIF) and 5 MB per-file limit (25 MB total). Server-side ImageSharp compression: resize to max 1200px + iterative JPEG quality reduction targeting ~300 KB. Served via `app.UseStaticFiles()`. Frontend: multi-image upload dropzone (up to 4 images), reorderable gallery with drag-to-reorder, live preview, and remove buttons. Client-side canvas compression with graceful fallback to server-side compression on failure. At least 1 image required on save. |
 | ~~**Video Upload**~~ | ✅ **IMPLEMENTED** — Server-side video upload endpoint (`POST /api/products/upload-video`). Videos saved to `wwwroot/uploads/` with GUID filenames. Type validation (MP4/3GP only) and 16 MB hard limit (WhatsApp's video size limit). `VideoUrl` column added to `Products` table via EF migration. Frontend: separate video dropzone with HTML5 `<video>` preview player and remove button. Video is optional — shown on WhatsApp after product images/carousel when viewing product details. |
 | ~~**Razorpay Signature Verification**~~ | ✅ **IMPLEMENTED (migrated to Paytm)** — `PaymentService.VerifyPaymentAsync` calls Paytm's Transaction Status API server-to-server and verifies the response checksum using AES-128-CBC algorithm via `PaytmChecksum` helper. Rejects unverified payments. |
 | **Logging to File/Service** | Uses default console logging only. Need Serilog or similar for production. |
@@ -1270,7 +1290,7 @@ These features are not built yet and would need to be added for production:
 | ~~**Product Image in WhatsApp**~~ | ✅ **IMPLEMENTED** — `SendImageMessage` added to `IWhatsAppService`/`WhatsAppService` (WhatsApp Cloud API `image` type with `link` + `caption`). `ChatBotService.SendProductDetails()` sends product photo with all details as the caption when `ImageUrl` is set. Constructs full public URL from `RAILWAY_PUBLIC_DOMAIN` env var (auto-provided by Railway) with `App:BaseUrl` config as primary source. Falls back gracefully to text-only button message if image send fails (try-catch with `LogWarning`). Caption and body text truncated to WhatsApp's 1024-char limit. Action buttons (Add to Cart / Categories / Menu) sent as a separate follow-up message since WhatsApp image messages don't support inline interactive buttons. **Requires:** Railway Volume mounted at `/app/wwwroot/uploads` for image persistence across redeployments. |
 | ~~**Product Video in WhatsApp**~~ | ✅ **IMPLEMENTED** — `SendVideoMessage` added to `IWhatsAppService`/`WhatsAppService` (WhatsApp Cloud API `video` type with `link` + `caption`). `ProductHandler.TrySendProductVideo()` sends product video as a follow-up message after images/carousel when `VideoUrl` is set. Max 16 MB (WhatsApp limit). Graceful fallback — if video send fails, logs warning and continues (product details already sent). Video appears after product details + images in the WhatsApp conversation. |
 | ~~**Customer Address Collection**~~ | ✅ **IMPLEMENTED** — Bot asks for shipping address at checkout if not set. If address exists, shows Confirm/Change buttons before placing order. Address stored on `Customer.Address` and copied to `Order.ShippingAddress`. Admin UI requires address on create/edit (min 10 chars). |
-| **Order Cancellation by Customer** | No WhatsApp flow for customers to cancel orders. |
+| ~~**Order Cancellation by Customer**~~ | ✅ **IMPLEMENTED** — `OrderCancellationHandler` in the WhatsApp chatbot allows customers to cancel unpaid Pending orders. Restores cart items on cancellation. `IOrderService.CancelByCustomerAsync()` handles the backend logic with proper status validation. |
 | ~~**HTTPS in Production**~~ | ✅ **DEPLOYED** — Railway provides HTTPS automatically via Metal Edge. API accessible at `https://leathershop-production.up.railway.app`. |
 | ~~**Permanent WhatsApp Access Token**~~ | ✅ **IMPLEMENTED** — System User token (type: `SYSTEM_USER`, never expires) created under "Cuir Galerie" Business Portfolio (ID: `YOUR_PORTFOLIO_ID`). Scopes: `whatsapp_business_management`, `whatsapp_business_messaging`. App: "Cuir Galerie Business" (ID: `YOUR_APP_ID`). WABA ID: YOUR_WABA_ID, Phone Number ID: YOUR_PHONE_NUMBER_ID, Phone: +XX XXXXX XXXXX. Deployed to Railway as `WhatsApp__AccessToken` environment variable. Token validity confirmed via `debug_token` API — `is_valid: true`, `expires_at: 0`. |
 | ~~**WhatsApp Message Templates**~~ | ✅ **APPROVED** — All 7 templates approved by Meta: `shop_deals` (MARKETING), `order_update` (UTILITY), `store_notification` (UTILITY), `hello_world` (UTILITY), `product_gallery` (MARKETING carousel ×3). All templates are live and available for broadcast messaging. |
@@ -1313,11 +1333,11 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 | M1 | ~~**No Pagination on Any List Endpoint**~~ | ~~All services, all controllers~~ | **FIXED** — All list endpoints now return server-side paginated results via `PaginatedResult<T>` (generic model with `Items`, `TotalCount`, `Page`, `PageSize`, `TotalPages`). Orders: `GET /api/orders?page=1&pageSize=25`. Customers: `GET /api/customers?page=1&pageSize=25`. Products: `GET /api/products?page=1&pageSize=25`. Broadcast History: `GET /api/broadcast/history?page=1&pageSize=10`. All query params clamped 1-100. Frontend uses PrimeNG `p-paginator`, fetches only the current page. Customer checkbox selections tracked via `Map<number, string>` (ID→phone) — survive page changes for cross-page broadcast. DB indexes added for all filtered/sorted columns. |
 | M2 | ~~**N+1 Queries in BulkImport**~~ | ~~`CustomerService.cs`~~ | **FIXED** — Replaced per-customer `AnyAsync` query with a single `SELECT PhoneNumber` query that loads all existing phone numbers into a `HashSet<string>`. Then checks containment in O(1) per import entry. Also prevents duplicates within the same import batch by adding to the HashSet as we go. 1000 imports = 1 DB query instead of 1000. |
 | M3 | ~~**`.ToLower()` in LINQ Kills DB Indexes**~~ | ~~`ProductService.cs`, `CustomerService.cs`~~ | **FIXED (F101)** — All `.ToLower()` patterns replaced with `EF.Functions.ILike()`. Search input wildcards (`%`, `_`) escaped via `SqlHelper.EscapeLikePattern()` (F127). |
-| M4 | ~~**No `OnPush` Change Detection**~~ | ~~All Angular components~~ | **FIXED** — All 19 components now use `ChangeDetectionStrategy.OnPush` with `ChangeDetectorRef.markForCheck()` after every async state mutation. Array mutations converted to immutable patterns. |
+| M4 | ~~**No `OnPush` Change Detection**~~ | ~~All Angular components~~ | **FIXED** — All 20 components now use `ChangeDetectionStrategy.OnPush` with `ChangeDetectorRef.markForCheck()` after every async state mutation. Array mutations converted to immutable patterns. |
 | M5 | ~~**Memory Leaks: No Unsubscribe**~~ | All 6 feature components | **FIXED** — Product-list simplified to button-triggered search (no `valueChanges` subscriptions). All HTTP `subscribe()` calls auto-complete — no leak risk. Observable patterns are leak-safe by design. |
 | M6 | ~~**Product Search on Every Keystroke**~~ | `product-list.component.html` | **FIXED** — Removed `(input)="onSearch()"`. API call now fires only via dedicated Search button (`pi pi-search`) or Enter key (`keyup.enter`). No debounce needed — user explicitly triggers search. |
 | M7 | ~~**No `trackBy` on Any `*ngFor`**~~ | ~~All list templates~~ | **FIXED** — Orders list has `trackBy: trackByOrderId` on the main `*ngFor`. Prevents full DOM re-renders when order list is refreshed. Other lists either use `p-table` (handles DOM diffing internally) or have static collections. |
-| M8 | ~~**ChatBotService is a 1053-Line God Class**~~ | ~~`ChatBotService.cs`~~ | **FIXED** — Decomposed into 6 focused handler files: `CartHandler.cs` (176 lines), `CheckoutHandler.cs` (196 lines), `MenuHandler.cs` (80 lines), `OrderHistoryHandler.cs` (47 lines), `ProductHandler.cs` (198 lines), `BotMessageSender.cs` (88 lines). Original `ChatBotService.cs` is now a thin router (~200 lines) that delegates to handlers via constructor injection. |
+| M8 | ~~**ChatBotService is a 1053-Line God Class**~~ | ~~`ChatBotService.cs`~~ | **FIXED** — Decomposed into 8 focused files: `CartHandler.cs`, `CheckoutHandler.cs`, `MenuHandler.cs`, `OrderHistoryHandler.cs`, `OrderCancellationHandler.cs`, `ContactHandler.cs`, `ProductHandler.cs`, `BotMessageSender.cs`. Original `ChatBotService.cs` is now a thin router (~200 lines) that delegates to handlers via constructor injection. |
 | M9 | ~~**Dashboard Makes 7 Separate DB Roundtrips**~~ | ~~`DashboardService.cs`~~ | ✅ **FIXED** — Consolidated 7 sequential queries into 4: (1) `GroupBy(_ => 1).Select()` projection fetches TotalOrders + TotalRevenue + PendingOrders in a single query, (2) TotalCustomers count, (3) TotalProducts count, (4) RecentOrders with `AsNoTracking()`. |
 | M10 | ~~**No Rate Limiting**~~ | ~~All controllers~~ | **FIXED (F104)** — ASP.NET Core rate limiting middleware configured with global 100req/min and stricter per-endpoint limits on auth/payment/webhook. |
 | M11 | ~~**Google Fonts via `@import url()` + PrimeNG Broken Font Files**~~ | ~~`styles.scss`, `angular.json`, `index.html`~~ | **FIXED** — Moved Google Fonts Inter from `@import url()` in SCSS to `<link>` in `index.html` with `preconnect` hints (faster, non-render-blocking). PrimeNG's lara-light-indigo theme ships with corrupted `Inter-roman.var.woff2` / `Inter-italic.var.woff2` that Angular's esbuild bundler can't serve correctly — caused 30+ "Failed to decode downloaded font" + "OTS parsing error" console errors. Fix: copied theme CSS to `public/primeng-theme.css` with broken `@font-face` declarations stripped, loaded as static `<link>` instead of bundled via `styles[]`. Override `--font-family: 'Inter', sans-serif` in `:root` so PrimeNG uses Google Fonts. |
@@ -1433,7 +1453,7 @@ Comprehensive line-by-line audit of the entire codebase. These remain to be fixe
 | 39 | **`inject()` function DI** — All components and services use Angular's `inject()` function instead of constructor injection (migrated via `@angular/core:inject` schematic) |
 | 40 | **ESLint + Prettier** — `@angular-eslint` + `prettier` + `eslint-config-prettier` fully configured. 0 lint errors. `.prettierrc` for consistent formatting. `npm run format` script available. |
 | 41 | **Component decomposition** — `BroadcastFormComponent`, `BroadcastHistoryComponent`, `CustomerBroadcastDialogComponent` extracted from monolithic parent components. Parents are now thin orchestrators. |
-| 42 | **OnPush on all components** — All 19 components use `ChangeDetectionStrategy.OnPush` with proper `ChangeDetectorRef.markForCheck()` calls, immutable array patterns, and coverage of `SignalR`, `setTimeout`, `setInterval`, `FileReader.onload`, and `Promise` callbacks. |
+| 42 | **OnPush on all components** — All 20 components use `ChangeDetectionStrategy.OnPush` with proper `ChangeDetectorRef.markForCheck()` calls, immutable array patterns, and coverage of `SignalR`, `setTimeout`, `setInterval`, `FileReader.onload`, and `Promise` callbacks. |
 | 43 | **Active route highlighting** — Navbar visually indicates active page with gold text/icon color via `routerLinkActiveOptions` + CSS `.p-menuitem-link-active` styling. |
 | 44 | **Pure `TimeAgoPipe` with tick refresh** — Relative timestamps ("5m ago") auto-refresh via a `_tick` counter parameter that increments every 60s (changed from impure `pure: false` to pure pipe in Phase 32 for performance). No stale "just now" labels on old messages. |
 | 45 | **JWT HttpOnly refresh tokens** — Access tokens (15 min) stored in memory only. Refresh tokens (7 days) in `HttpOnly`/`Secure`/`SameSite=None` cookies with automatic rotation. Token refresh interceptor with queue for concurrent 401s. |
@@ -1662,6 +1682,7 @@ restartPolicyMaxRetries = 10
 | `WhatsApp__BusinessAccountId` | Meta business account ID |
 | `WhatsApp__AccessToken` | **Permanent** System User token (never expires) |
 | `WhatsApp__VerifyToken` | Webhook verification token |
+| `WhatsApp__AppSecret` | Meta App Secret — used for webhook signature verification (HMAC-SHA256). **Required in production.** |
 | `Paytm__MerchantId` | Paytm Merchant ID (MID) — unique identifier for your business account. **Required for payments to work.** |
 | `Paytm__MerchantKey` | Paytm Merchant Key — secret key for checksum generation. **Required for payment verification.** |
 | `Paytm__Environment` | `production` (live payments) or `staging` (test mode). Defaults to `production` if not set. |
@@ -1894,7 +1915,7 @@ git push
 | **Memory Leak Fix (M5)** | ✅ No `valueChanges` subscriptions remain in product-list (simplified to button-triggered search). HTTP `subscribe()` calls auto-complete — no leak risk. All observable patterns are leak-safe by design. |
 | **Dead Code Cleanup (L13/L14)** | ✅ Removed unused `Router` injections from navbar and customers components. Removed unused `filteredCustomers` variable from customers. Removed unused `sharedButtonSeverity` import alias from orders. Consolidated duplicate `AbstractControl`/`ValidationErrors` import in customers. Removed dead `send-btn` CSS class reference from broadcast. |
 | **Accessibility Improvements** | ✅ Added `for`/`id` pairs on all customers dialog labels (add customer, broadcast dialogs). Added `aria-label` on table header checkbox ("Select all customers") and row checkboxes ("Select customer {name}"). Added `aria-label` on product and customer search inputs. |
-| **JWT Authentication (C1 Fix)** | ✅ Full authentication layer: Backend — `AuthController` with `POST /api/auth/login`, BCrypt password verification against `AdminUsers` PostgreSQL table (case-sensitive exact match), JWT Bearer token generation (24h expiry via `TokenExpiryHours` constant), `[Authorize]` attribute on all admin controllers (Products, Orders, Customers, Dashboard, Broadcast), Payment and WhatsApp webhook remain public. `AdminUser` model with `AdminUserConfiguration` Fluent API config. Auto-seeds `Admin` user on first startup. Frontend — `AuthService` (login/logout/token management), `AuthGuard` (`CanActivateFn` protecting all admin routes), `AuthInterceptor` (attaches Bearer token to all requests), animated login page with background video, leather texture overlay, frosted glass card, inline error messages, and smooth transitions. Navbar redesigned with username pill badge + round red power-off logout button pushed to far right. |
+| **JWT Authentication (C1 Fix)** | ✅ Full authentication layer: Backend — `AuthController` with `POST /api/auth/login`, BCrypt password verification against `AdminUsers` PostgreSQL table (case-sensitive exact match), JWT access token (15 min via `AccessTokenExpiryMinutes` constant) + HttpOnly refresh token (7 days), `[Authorize]` attribute on all admin controllers (Products, Orders, Customers, Dashboard, Broadcast), Payment and WhatsApp webhook remain public. `AdminUser` model with `AdminUserConfiguration` Fluent API config. Auto-seeds `Admin` user on first startup. Frontend — `AuthService` (login/logout/token management, access token in-memory only), `AuthGuard` (`CanActivateFn` protecting all admin routes), `AuthInterceptor` (attaches Bearer token to all requests, auto-refreshes via HttpOnly cookie on 401), animated login page with background video, leather texture overlay, frosted glass card, inline error messages, and smooth transitions. Navbar redesigned with username pill badge + round red power-off logout button pushed to far right. |
 | **DB-Based Admin Credentials** | ✅ Moved admin credentials from `appsettings.json` to PostgreSQL `AdminUsers` table. BCrypt password hashing with `BCrypt.Net-Next`. Credentials auto-seeded on first startup via `Program.cs`. Removed `Admin` section from appsettings.json entirely. |
 | **Code Quality Audit Fixes** | ✅ 10 fixes applied from comprehensive codebase audit: (1) Error interceptor skips toast for login 401s (prevents double notification). (2) Auth interceptor removed unused `Router` import, fixed doc comment. (3) Login component removed unused `PasswordModule`. (4) Login HTML changed from "Protected by JWT Authentication" to "Secure Admin Access" (info leakage). (5) App component fixed type narrowing for `NavigationEnd`, removed empty `styleUrl`. (6) Product model `Description` MaxLength aligned to 2000 (matching DTO). (7) Product form categories fetched dynamically from API instead of hardcoded. (8) Product list added error handlers on `toggleActive`, `deleteProduct`, `getCategories`, `getBrands`. (9) Orders component added error handler on `updateStatus` with status revert on failure. (10) AuthController extracted `TokenExpiryHours = 24` constant. |
 | **Broadcast Status Polling** | ✅ Added `GET /api/broadcast/{id}/status` endpoint. Frontend polls every 1s for up to 30s after sending. Shows real-time results: all-failed (red error banner), partial (warning), all-success (green). Custom styled status banners with gradient backgrounds, icons, slideDown animation, and dismissible close button. Dark styled toast notifications positioned 60px from top. |
@@ -1902,7 +1923,7 @@ git push
 | **WhatsApp Business Setup** | ✅ Permanent System User token under "Cuir Galerie" Business Portfolio (ID: `YOUR_PORTFOLIO_ID`, **Meta Business Verified**). WABA ID: YOUR_WABA_ID, Phone Number ID: YOUR_PHONE_NUMBER_ID, Phone: +XX XXXXX XXXXX. Display name "Cuir Galerie" approved by Meta. All 7 templates APPROVED (`shop_deals`, `order_update`, `store_notification`, `hello_world`, `product_gallery` ×3). Phone quality GREEN, TIER_1K, LIVE. End-to-end chatbot flow verified working. |
 | **Railway Deployment** | ✅ Full cloud deployment: (1) `Dockerfile` — multi-stage build (SDK 8.0 → ASP.NET 8.0 runtime). (2) `railway.toml` — build config with `watchPatterns`, health check on `/health`, restart-on-failure policy. (3) `ServiceCollectionExtensions.cs` — `AddDatabase()` auto-parses Railway `DATABASE_URL` URI format to Npgsql connection string with `QuerySplittingBehavior.SplitQuery`, `AddCorsPolicies()` reads `FRONTEND_URL` env var. (4) `Program.cs` — reads `PORT` env var, Swagger in Development only, `/health` endpoint for production. `UseEphemeralDataProtectionProvider()` for containerized JWT-only deployment. (5) `appsettings.Production.json` — placeholder values, actual secrets in Railway env vars. (6) `environment.prod.ts` — API URL set to `https://leathershop-production.up.railway.app/api`. (7) PostgreSQL on Railway with persistent volume. Public URL: `leathershop-production.up.railway.app`. |
 | **Vercel Frontend Deployment** | ✅ Angular admin panel deployed to Vercel: Root directory `LeatherShopAdmin`, framework preset Angular, build command `ng build --configuration production`, output `dist/leather-shop-admin/browser`. Auto-deploys from GitHub `main` branch. |
-| **Image Upload** | ✅ Server-side file upload: `POST /api/products/upload-image` accepts multipart file, validates type (JPG/PNG/WebP/GIF) and size (< 20 MB server-side), saves to `wwwroot/uploads/` with GUID filename, returns relative path. `app.UseStaticFiles()` serves uploaded images. Frontend enforces 5 MB client-side limit with auto-compression to ~300 KB. Frontend: clickable browse dropzone replaces URL text input, instant local preview via `FileReader`, remove button (×) to clear. `[Url]` DTO validators removed since images are now server-relative paths. |
+| **Image Upload** | ✅ Server-side file upload: `POST /api/products/upload-images` accepts multipart files (up to 4), validates type (JPG/PNG/WebP/GIF) and size (< 5 MB per file, 25 MB total), saves to `wwwroot/uploads/` with GUID filenames, returns relative paths. Server-side ImageSharp compression: resize to max 1200px + iterative JPEG quality reduction targeting ~300 KB. `app.UseStaticFiles()` serves uploaded images. Frontend: client-side canvas compression as optimization (resize + quality reduction before upload). **Graceful fallback:** if client-side compression fails (browser quirks, canvas issues), the original file is uploaded directly and the backend handles compression — `compressImage()` never rejects, always resolves with either compressed or original file. Error toast shown on server upload failure. Frontend: clickable browse dropzone replaces URL text input, instant local preview via `FileReader`, reorderable gallery with drag-to-reorder, remove button (×) to clear. `[Url]` DTO validators removed since images are now server-relative paths. |
 | **Duplicate Product Name Validation** | ✅ Async validator on product name field: `GET /api/products/check-name?name=X&excludeId=Y` endpoint performs case-insensitive DB lookup (excludes current product on edit). Frontend: 300ms debounced `AsyncValidator` with `timer()` + `switchMap()`, spinner while checking, inline error "A product with this name already exists". Submit button disabled while validation pending. |
 | **Logout + Unsaved Changes Guard Fix** | ✅ Fixed bug where clicking Logout on a dirty form, then clicking "Stay", would still log the user out on next navigation. Root cause: `auth.logout()` cleared localStorage tokens immediately before `canDeactivate` could block navigation. Fix: `AuthService.clearSession()` (tokens only, no navigate) + `navbar.logout()` navigates first via `router.navigate(['/login'])`, clears tokens only in `.then()` callback if navigation succeeded. Login component skips "already logged in" redirect when arriving from logout via `NavigationExtras.state`. |
 | **WhatsApp Product Image** | ✅ Product images now display in WhatsApp chatbot when a customer views product details. **Implementation chain:** (1) `IWhatsAppService.SendImageMessage(to, imageUrl, caption)` — new interface method. (2) `WhatsAppService.SendImageMessage()` — sends WhatsApp Cloud API `image` message type with `link` (public URL) + `caption` (product details text). (3) `ChatBotService.SendProductDetails()` — if `product.ImageUrl` is set, constructs full URL using `App:BaseUrl` config with fallback to `RAILWAY_PUBLIC_DOMAIN` env var (auto-provided by Railway), sends image with details as caption, then sends action buttons as separate message. Falls back to text-only on failure. Caption truncated to 1024 chars (WhatsApp limit). **Key debug history:** Initial deploy failed with "Param image['link'] is not a valid URL" because `App:BaseUrl` was set to placeholder `WILL_BE_SET_BY_RAILWAY_ENV_VAR` instead of actual URL. Fixed by adding `RAILWAY_PUBLIC_DOMAIN` fallback. **Files:** `IWhatsAppService.cs`, `WhatsAppService.cs`, `ChatBotService.cs` (lines ~258-305). |

@@ -111,13 +111,13 @@ Admin Panel ──→ BroadcastController ──→ BroadcastService (enqueue) �
 
 | Handler | Trigger | Action |
 |---------|---------|--------|
-| `HiHandler` | "hi", "hello", "hey", "start" | Sends welcome message + product catalog |
-| `ShowProductsHandler` | "products", "shop", "catalog" | Sends product list with images |
-| `ViewProductHandler` | Product number (1-N) | Shows product detail + Add to Cart option |
-| `AddToCartHandler` | "add N" | Adds item to cart |
-| `ViewCartHandler` | "cart", "my cart" | Shows current cart |
-| `CheckoutHandler` | "checkout", "order" | Creates order, sends Paytm payment link |
-| `OrderStatusHandler` | "order status", "my orders" | Shows recent orders and their status |
+| `MenuHandler` | "hi", "hello", "hey", "start", "menu", "help" | Sends welcome message + main menu with interactive buttons |
+| `ProductHandler` | "browse_{category}", "cat_{category}", product selection | Sends product carousel by category, product details with images |
+| `CartHandler` | "add_cart_{productId}", "view_cart", "remove_cart" | Add/remove/view cart items, quantity input flow |
+| `CheckoutHandler` | "checkout" | Address collection flow, order placement, Paytm payment link |
+| `OrderHistoryHandler` | "orders", "my orders" | Shows recent orders with status details |
+| `OrderCancellationHandler` | "cancel_order_{orderId}" | Customer-initiated cancellation of unpaid Pending orders, restores cart items |
+| `ContactHandler` | "contact", "support" | Shows business contact info (phone, WhatsApp link, hours, services) |
 
 ---
 

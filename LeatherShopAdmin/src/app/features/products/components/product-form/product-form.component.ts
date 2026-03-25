@@ -206,7 +206,9 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     this.uploading = true;
 
     // Compress images client-side before uploading (resize + quality reduction)
-    Promise.all(filesToProcess.map(f => this.compressImage(f)))
+    // .catch(() => f) ensures compression failure falls back to the original file
+    // (the backend does its own ImageSharp compression anyway)
+    Promise.all(filesToProcess.map(f => this.compressImage(f).catch(() => f)))
       .then(compressedFiles => {
         // Generate local previews
         const previewPromises = compressedFiles.map(
@@ -233,6 +235,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
           },
           error: () => {
             this.uploading = false;
+            this.notification.error('Failed to upload images. Please try again.');
             this.cdr.markForCheck();
           },
         });
@@ -256,53 +259,62 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
       const img = new Image();
       img.onload = () => {
         URL.revokeObjectURL(img.src); // free blob memory immediately
-        let { width, height } = img;
 
-        // Resize if larger than maxDimension
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round(height * (maxDimension / width));
-            width = maxDimension;
-          } else {
-            width = Math.round(width * (maxDimension / height));
-            height = maxDimension;
+        try {
+          let { width, height } = img;
+
+          // Resize if larger than maxDimension
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round(height * (maxDimension / width));
+              width = maxDimension;
+            } else {
+              width = Math.round(width * (maxDimension / height));
+              height = maxDimension;
+            }
           }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(file); // canvas unavailable — skip compression
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const targetBytes = 300 * 1024; // 300 KB
+
+          // Try decreasing quality until we're under 300KB
+          const tryCompress = (quality: number) => {
+            canvas.toBlob(
+              blob => {
+                if (!blob) {
+                  resolve(file); // blob creation failed — use original
+                  return;
+                }
+                // If still too big and quality can go lower, try again
+                if (blob.size > targetBytes && quality > 0.3) {
+                  tryCompress(quality - 0.1);
+                  return;
+                }
+                const compressedName = file.name.replace(/\.[^.]+$/, '.jpg');
+                resolve(new File([blob], compressedName, { type: 'image/jpeg' }));
+              },
+              'image/jpeg',
+              quality,
+            );
+          };
+
+          tryCompress(0.85);
+        } catch {
+          resolve(file); // any canvas error — skip compression, use original
         }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d')!;
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const targetBytes = 300 * 1024; // 300 KB
-
-        // Try decreasing quality until we're under 300KB
-        const tryCompress = (quality: number) => {
-          canvas.toBlob(
-            blob => {
-              if (!blob) {
-                reject(new Error('Compression failed'));
-                return;
-              }
-              // If still too big and quality can go lower, try again
-              if (blob.size > targetBytes && quality > 0.3) {
-                tryCompress(quality - 0.1);
-                return;
-              }
-              const compressedName = file.name.replace(/\.[^.]+$/, '.jpg');
-              resolve(new File([blob], compressedName, { type: 'image/jpeg' }));
-            },
-            'image/jpeg',
-            quality,
-          );
-        };
-
-        tryCompress(0.85);
       };
       img.onerror = () => {
         URL.revokeObjectURL(img.src);
-        reject(new Error('Failed to load image'));
+        resolve(file); // image load failed — skip compression, use original
       };
       img.src = URL.createObjectURL(file);
     });
