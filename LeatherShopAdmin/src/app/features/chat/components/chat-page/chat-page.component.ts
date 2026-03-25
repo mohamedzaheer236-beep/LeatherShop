@@ -240,6 +240,16 @@ export class ChatPageComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.loadMessages();
   }
 
+  onMessagesScroll(): void {
+    if (!this.hasMoreMessages || this.loadingMessages) return;
+    const el = this.messagesContainer?.nativeElement;
+    if (!el) return;
+    // Trigger when user scrolls within 80px of the top
+    if (el.scrollTop < 80) {
+      this.loadMoreMessages();
+    }
+  }
+
   sendMessage(): void {
     if (!this.selectedCustomerId || !this.messageText.trim() || this.sending) return;
 

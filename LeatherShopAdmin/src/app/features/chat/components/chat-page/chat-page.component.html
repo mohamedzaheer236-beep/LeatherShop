@@ -102,10 +102,15 @@
           </div>
         </div>
         <!-- Messages Area -->
-        <div class="chat-messages" #messagesContainer>
-          @if (loadingMessages) {
+        <div class="chat-messages" #messagesContainer (scroll)="onMessagesScroll()">
+          @if (loadingMessages && currentPage === 1) {
             <div class="loading-state">
               <p-progressSpinner [style]="{width: '30px', height: '30px'}" strokeWidth="3"></p-progressSpinner>
+            </div>
+          }
+          @if (loadingMessages && currentPage > 1) {
+            <div class="load-more-spinner">
+              <p-progressSpinner [style]="{width: '22px', height: '22px'}" strokeWidth="4"></p-progressSpinner>
             </div>
           }
           @if (hasMoreMessages && !loadingMessages) {
