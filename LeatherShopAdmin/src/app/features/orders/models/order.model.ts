@@ -5,6 +5,7 @@ export interface Order {
   orderNumber: string;
   customerName: string;
   customerPhone: string;
+  shippingAddress?: string;
   totalAmount: number;
   status: OrderStatus;
   isPaid: boolean;

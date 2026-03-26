@@ -47,6 +47,20 @@
           </div>
           @if (expandedOrderId === order.id) {
             <div class="order-details">
+              <div class="customer-info">
+                <div class="info-item">
+                  <span class="info-label">👤 Customer:</span>
+                  <span class="info-value">{{ order.customerName || '—' }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">📞 Phone:</span>
+                  <span class="info-value font-mono">{{ order.customerPhone }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">📍 Address:</span>
+                  <span class="info-value">{{ order.shippingAddress || 'No address provided' }}</span>
+                </div>
+              </div>
               <p-table [value]="order.items" styleClass="p-datatable-sm" [tableStyle]="{'min-width': '30rem'}">
                 <ng-template pTemplate="header">
                   <tr>

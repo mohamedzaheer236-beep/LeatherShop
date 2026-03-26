@@ -103,6 +103,37 @@
   }
 }
 
+.customer-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  background: var(--ls-surface-secondary, #f8f9fa);
+  border-radius: 8px;
+
+  .info-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+  }
+
+  .info-label {
+    font-weight: 600;
+    color: var(--ls-text-secondary, #6c757d);
+    white-space: nowrap;
+  }
+
+  .info-value {
+    color: var(--ls-text-primary, #1e293b);
+  }
+
+  .font-mono {
+    font-family: monospace;
+  }
+}
+
 .tracking-info {
   display: flex;
   align-items: center;
