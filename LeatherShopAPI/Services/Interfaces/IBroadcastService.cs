@@ -14,4 +14,5 @@ public interface IBroadcastService
     Task<int> GetTotalSentCountAsync(CancellationToken ct = default);
     Task<PaginatedResult<BroadcastRecipientDto>> GetRecipientsAsync(int broadcastId, int page = 1, int pageSize = 20, string? statusFilter = null, CancellationToken ct = default);
     Task<BroadcastDeliverySummaryDto?> GetDeliverySummaryAsync(int broadcastId, CancellationToken ct = default);
+    Task<BroadcastRetryResultDto> RetryFailedRecipientsAsync(int broadcastId, CancellationToken ct = default);
 }

@@ -80,6 +80,8 @@ public class BroadcastRecipientDto
     public DateTime? DeliveredAt { get; set; }
     public DateTime? ReadAt { get; set; }
     public DateTime? FailedAt { get; set; }
+    public int RetryCount { get; set; }
+    public DateTime? NextRetryAt { get; set; }
 }
 
 public class BroadcastDeliverySummaryDto
@@ -90,4 +92,11 @@ public class BroadcastDeliverySummaryDto
     public int Delivered { get; set; }
     public int Read { get; set; }
     public int Failed { get; set; }
+    public int RetryScheduled { get; set; }
+}
+
+public class BroadcastRetryResultDto
+{
+    public int ScheduledCount { get; set; }
+    public string Message { get; set; } = string.Empty;
 }

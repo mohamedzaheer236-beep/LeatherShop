@@ -41,5 +41,13 @@ public class BroadcastRecipientConfiguration : IEntityTypeConfiguration<Broadcas
         // Prevent duplicate: same phone in same broadcast
         builder.HasIndex(r => new { r.BroadcastMessageId, r.Phone })
             .IsUnique();
+
+        // Default RetryCount to 0
+        builder.Property(r => r.RetryCount)
+            .HasDefaultValue(0);
+
+        // Index for retry service: find retryable failed recipients efficiently
+        builder.HasIndex(r => r.NextRetryAt)
+            .HasFilter("\"NextRetryAt\" IS NOT NULL");
     }
 }

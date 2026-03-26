@@ -39,6 +39,7 @@ export class BroadcastHistoryComponent {
   recipientsLoading = false;
   summary: BroadcastDeliverySummary | null = null;
   statusFilter = '';
+  retrying = false;
 
   statusFilterOptions = [
     { label: 'All Statuses', value: '' },
@@ -85,6 +86,25 @@ export class BroadcastHistoryComponent {
       case 'Failed': return 'danger';
       default: return 'secondary';
     }
+  }
+
+  retryFailed(): void {
+    if (!this.selectedBroadcast || this.retrying) return;
+    this.retrying = true;
+    this.broadcastService.retryFailedRecipients(this.selectedBroadcast.id).subscribe({
+      next: result => {
+        this.retrying = false;
+        if (this.selectedBroadcast) {
+          this.loadSummary(this.selectedBroadcast.id);
+          this.loadRecipients(this.selectedBroadcast.id);
+        }
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.retrying = false;
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   private loadRecipients(broadcastId: number): void {

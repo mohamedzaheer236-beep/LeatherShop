@@ -68,6 +68,8 @@ export interface BroadcastRecipient {
   deliveredAt: string | null;
   readAt: string | null;
   failedAt: string | null;
+  retryCount: number;
+  nextRetryAt: string | null;
 }
 
 export interface BroadcastDeliverySummary {
@@ -77,4 +79,10 @@ export interface BroadcastDeliverySummary {
   delivered: number;
   read: number;
   failed: number;
+  retryScheduled: number;
+}
+
+export interface BroadcastRetryResult {
+  scheduledCount: number;
+  message: string;
 }

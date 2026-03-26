@@ -72,6 +72,21 @@ public class BroadcastRecipient
     /// <summary>When Meta reported a failure.</summary>
     public DateTime? FailedAt { get; set; }
 
+    /// <summary>
+    /// Number of retry attempts already made.
+    /// Only retryable errors (131049 - per-user marketing cap) are retried.
+    /// Permanent errors (131050 - user opted out) are never retried.
+    /// </summary>
+    public int RetryCount { get; set; }
+
+    /// <summary>
+    /// Scheduled time for the next retry attempt. Null means no retry pending.
+    /// Set by WebhookProcessingService when error 131049 is detected.
+    /// Cleared when retry succeeds or max retries (3) exhausted.
+    /// Uses exponential backoff: 24h → 48h → 72h.
+    /// </summary>
+    public DateTime? NextRetryAt { get; set; }
+
     // Navigation
     public BroadcastMessage BroadcastMessage { get; set; } = null!;
 }

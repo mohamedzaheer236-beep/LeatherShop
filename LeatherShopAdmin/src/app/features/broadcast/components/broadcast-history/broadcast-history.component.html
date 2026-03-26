@@ -84,10 +84,16 @@
           <span class="summary-count">{{ summary.failed }}</span>
           <span class="summary-label">Failed</span>
         </div>
+        @if (summary.retryScheduled > 0) {
+          <div class="summary-item summary-retry">
+            <span class="summary-count">{{ summary.retryScheduled }}</span>
+            <span class="summary-label">Retry Pending</span>
+          </div>
+        }
       </div>
     }
 
-    <!-- Status Filter -->
+    <!-- Status Filter + Retry Button -->
     <div class="recipients-filter">
       <p-dropdown
         [options]="statusFilterOptions"
@@ -96,6 +102,18 @@
         [style]="{ width: '200px' }"
         appendTo="body">
       </p-dropdown>
+      @if (summary && summary.failed > 0) {
+        <p-button
+          label="Retry Failed (131049)"
+          icon="pi pi-replay"
+          severity="warning"
+          [loading]="retrying"
+          [disabled]="retrying"
+          (onClick)="retryFailed()"
+          pTooltip="Retries recipients that failed due to Meta's per-user marketing cap (error 131049). Messages will be re-sent shortly."
+          tooltipPosition="left">
+        </p-button>
+      }
     </div>
 
     <!-- Recipients Table -->
@@ -108,6 +126,7 @@
           <th>Sent At</th>
           <th>Delivered At</th>
           <th>Read At</th>
+          <th>Retry</th>
           <th>Error</th>
         </tr>
       </ng-template>
@@ -118,6 +137,18 @@
           <td>{{ r.sentAt ? (r.sentAt | date:'dd MMM HH:mm:ss') : '—' }}</td>
           <td>{{ r.deliveredAt ? (r.deliveredAt | date:'dd MMM HH:mm:ss') : '—' }}</td>
           <td>{{ r.readAt ? (r.readAt | date:'dd MMM HH:mm:ss') : '—' }}</td>
+          <td>
+            @if (r.retryCount > 0 || r.nextRetryAt) {
+              <span class="retry-info" [pTooltip]="r.nextRetryAt ? 'Next retry: ' + (r.nextRetryAt | date:'dd MMM HH:mm') : 'No more retries'" tooltipPosition="left">
+                {{ r.retryCount }}/3
+                @if (r.nextRetryAt) {
+                  <i class="pi pi-clock" style="font-size: 0.75rem; margin-left: 4px; color: var(--orange-500)"></i>
+                }
+              </span>
+            } @else {
+              <span>—</span>
+            }
+          </td>
           <td class="error-cell">
             @if (r.errorDetail) {
               <span [pTooltip]="r.errorDetail" tooltipPosition="left" class="error-text">{{ r.errorDetail }}</span>
@@ -129,7 +160,7 @@
       </ng-template>
       <ng-template pTemplate="emptymessage">
         <tr>
-          <td colspan="6" class="text-center p-4">No recipients found.</td>
+          <td colspan="7" class="text-center p-4">No recipients found.</td>
         </tr>
       </ng-template>
     </p-table>

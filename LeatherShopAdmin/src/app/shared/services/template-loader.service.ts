@@ -50,9 +50,13 @@ export class TemplateLoaderService {
         // Only show MARKETING templates in broadcast dropdown — UTILITY templates
         // (e.g., order_update) are for transactional messages, not broadcasts.
         // Exclude system templates used internally (e.g., welcome_message for new customers).
+        // Allow specific UTILITY templates for testing (e.g., checkutility).
         const SYSTEM_TEMPLATES = ['customer_welcomemsg', 'store_notification'];
+        const ALLOWED_UTILITY = ['checkutility'];
         const broadcastTemplates = data.filter(
-          t => t.category === 'MARKETING' && !SYSTEM_TEMPLATES.includes(t.name),
+          t =>
+            (t.category === 'MARKETING' || ALLOWED_UTILITY.includes(t.name)) &&
+            !SYSTEM_TEMPLATES.includes(t.name),
         );
         this.state.templateOptions = broadcastTemplates.map(t => ({
           label: `${t.name} (${t.language})`,

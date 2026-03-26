@@ -189,7 +189,9 @@ public class BroadcastService : IBroadcastService
                 SentAt = r.SentAt,
                 DeliveredAt = r.DeliveredAt,
                 ReadAt = r.ReadAt,
-                FailedAt = r.FailedAt
+                FailedAt = r.FailedAt,
+                RetryCount = r.RetryCount,
+                NextRetryAt = r.NextRetryAt
             })
             .ToListAsync(ct);
 
@@ -222,7 +224,48 @@ public class BroadcastService : IBroadcastService
             Sent = lookup.GetValueOrDefault(BroadcastDeliveryStatus.Sent),
             Delivered = lookup.GetValueOrDefault(BroadcastDeliveryStatus.Delivered),
             Read = lookup.GetValueOrDefault(BroadcastDeliveryStatus.Read),
-            Failed = lookup.GetValueOrDefault(BroadcastDeliveryStatus.Failed)
+            Failed = lookup.GetValueOrDefault(BroadcastDeliveryStatus.Failed),
+            RetryScheduled = await _db.BroadcastRecipients
+                .CountAsync(r => r.BroadcastMessageId == broadcastId
+                                 && r.Status == BroadcastDeliveryStatus.Failed
+                                 && r.NextRetryAt != null, ct)
+        };
+    }
+
+    public async Task<BroadcastRetryResultDto> RetryFailedRecipientsAsync(int broadcastId, CancellationToken ct = default)
+    {
+        var broadcast = await _db.BroadcastMessages.FirstOrDefaultAsync(b => b.Id == broadcastId, ct);
+        if (broadcast == null)
+            throw new InvalidOperationException("Broadcast not found.");
+
+        // Find all failed recipients for this broadcast that have error 131049 and haven't exhausted retries
+        var now = DateTime.UtcNow;
+        var failedRecipients = await _db.BroadcastRecipients
+            .Where(r => r.BroadcastMessageId == broadcastId
+                        && r.Status == BroadcastDeliveryStatus.Failed
+                        && r.RetryCount < 3
+                        && (r.ErrorDetail != null && r.ErrorDetail.Contains("131049")))
+            .ToListAsync(ct);
+
+        if (failedRecipients.Count == 0)
+            return new BroadcastRetryResultDto
+            {
+                ScheduledCount = 0,
+                Message = "No retryable recipients found (only error 131049 with less than 3 retries can be retried)."
+            };
+
+        foreach (var recipient in failedRecipients)
+        {
+            // Schedule immediate retry (NextRetryAt = now)
+            recipient.NextRetryAt = now;
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        return new BroadcastRetryResultDto
+        {
+            ScheduledCount = failedRecipients.Count,
+            Message = $"Scheduled {failedRecipients.Count} recipient(s) for immediate retry. The retry service will process them shortly."
         };
     }
 }

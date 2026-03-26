@@ -100,6 +100,20 @@ public class BroadcastController : ControllerBase
         return Ok(ApiResponse<BroadcastDeliverySummaryDto>.Ok(summary));
     }
 
+    [HttpPost("{id}/retry")]
+    public async Task<IActionResult> RetryFailedRecipients(int id, CancellationToken ct)
+    {
+        try
+        {
+            var result = await _broadcastService.RetryFailedRecipientsAsync(id, ct);
+            return Ok(ApiResponse<BroadcastRetryResultDto>.Ok(result, result.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse.Fail(ex.Message));
+        }
+    }
+
     /// <summary>Upload an image for broadcast carousel cards. Reuses product image pipeline (resize + compress).</summary>
     [HttpPost("upload-image")]
     [RequestSizeLimit(5 * 1024 * 1024)] // 5 MB

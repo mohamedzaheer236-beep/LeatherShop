@@ -82,8 +82,17 @@
   color: #ef4444;
 }
 
+.summary-retry {
+  background: #fff3e0;
+  color: #e65100;
+}
+
 .recipients-filter {
   margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .error-cell {
@@ -102,4 +111,13 @@
 
 .font-mono {
   font-family: monospace;
+}
+
+.retry-info {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--orange-600, #e65100);
+  display: inline-flex;
+  align-items: center;
+  cursor: help;
 }

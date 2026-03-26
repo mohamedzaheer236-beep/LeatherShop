@@ -353,6 +353,26 @@ public class WebhookProcessingService : IWebhookProcessingService
                     if (!string.IsNullOrEmpty(error.ErrorData?.Details))
                         detail += $" — {error.ErrorData.Details}";
                     recipient.ErrorDetail = detail.Length > 1000 ? detail[..1000] : detail;
+
+                    // ── Auto-retry for error 131049 (per-user marketing frequency cap) ──
+                    // This is a TEMPORARY restriction — Meta limits how many marketing messages
+                    // a single user receives. The cap resets dynamically based on user engagement.
+                    // Meta recommends waiting at least 24 hours before resending.
+                    // Max 3 retries with exponential backoff: 24h → 48h → 72h.
+                    // 
+                    // IMPORTANT: Do NOT retry these permanent errors:
+                    //   131050 = User permanently stopped marketing messages (opted out)
+                    //   130472 = User's number is part of an experiment
+                    //   131048 = Spam rate limit (quality problem, not per-user cap)
+                    if (error.Code == 131049 && recipient.RetryCount < 3)
+                    {
+                        var backoffHours = 24 * (recipient.RetryCount + 1); // 24h, 48h, 72h
+                        recipient.NextRetryAt = now.AddHours(backoffHours);
+                        _logger.LogInformation(
+                            "Broadcast recipient {RecipientId} (phone {Phone}) hit 131049 per-user marketing cap. " +
+                            "Scheduled retry #{RetryNum} at {NextRetryAt:u}",
+                            recipient.Id, recipient.Phone, recipient.RetryCount + 1, recipient.NextRetryAt);
+                    }
                 }
                 break;
 
