@@ -116,7 +116,13 @@
           <td>{{ r.sentAt ? (r.sentAt | date:'dd MMM HH:mm:ss') : '—' }}</td>
           <td>{{ r.deliveredAt ? (r.deliveredAt | date:'dd MMM HH:mm:ss') : '—' }}</td>
           <td>{{ r.readAt ? (r.readAt | date:'dd MMM HH:mm:ss') : '—' }}</td>
-          <td class="error-cell">{{ r.errorDetail || '—' }}</td>
+          <td class="error-cell">
+            @if (r.errorDetail) {
+              <span [pTooltip]="r.errorDetail" tooltipPosition="left" class="error-text">{{ r.errorDetail }}</span>
+            } @else {
+              <span>—</span>
+            }
+          </td>
         </tr>
       </ng-template>
       <ng-template pTemplate="emptymessage">

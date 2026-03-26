@@ -105,7 +105,9 @@ public class BroadcastService : IBroadcastService
                 MessageBody = b.MessageBody,
                 TotalRecipients = b.TotalRecipients,
                 SentCount = b.SentCount,
-                FailedCount = b.FailedCount,
+                FailedCount = b.Recipients.Any()
+                    ? b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Failed)
+                    : b.FailedCount,
                 DeliveredCount = b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Delivered || r.Status == BroadcastDeliveryStatus.Read),
                 ReadCount = b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Read),
                 SentAt = b.SentAt,
@@ -132,7 +134,9 @@ public class BroadcastService : IBroadcastService
                 MessageBody = b.MessageBody,
                 TotalRecipients = b.TotalRecipients,
                 SentCount = b.SentCount,
-                FailedCount = b.FailedCount,
+                FailedCount = b.Recipients.Any()
+                    ? b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Failed)
+                    : b.FailedCount,
                 DeliveredCount = b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Delivered || r.Status == BroadcastDeliveryStatus.Read),
                 ReadCount = b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Read),
                 SentAt = b.SentAt,
