@@ -27,6 +27,12 @@ public class Value
     public Metadata Metadata { get; set; } = new();
     public List<Contact>? Contacts { get; set; }
     public List<Message>? Messages { get; set; }
+
+    /// <summary>
+    /// Delivery status updates from Meta (sent, delivered, read, failed).
+    /// Sent for every message your business sends via the API.
+    /// </summary>
+    public List<StatusUpdate>? Statuses { get; set; }
 }
 
 public class Metadata
@@ -89,4 +95,44 @@ public class ButtonReplyContent
 {
     public string Payload { get; set; } = string.Empty;
     public string Text { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Delivery status update from Meta's webhook.
+/// Sent for every outgoing message: sent → delivered → read (or failed).
+/// The "id" field is the wamid of the original outgoing message.
+/// </summary>
+public class StatusUpdate
+{
+    /// <summary>The wamid of the message this status refers to.</summary>
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>Status value: "sent", "delivered", "read", or "failed".</summary>
+    public string Status { get; set; } = string.Empty;
+
+    /// <summary>Unix timestamp string of when this status occurred.</summary>
+    public string Timestamp { get; set; } = string.Empty;
+
+    /// <summary>Recipient phone number (WhatsApp ID).</summary>
+    [JsonPropertyName("recipient_id")]
+    public string RecipientId { get; set; } = string.Empty;
+
+    /// <summary>Error details if status is "failed".</summary>
+    public List<StatusError>? Errors { get; set; }
+}
+
+/// <summary>Error info from a failed status update.</summary>
+public class StatusError
+{
+    public int Code { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Message { get; set; }
+    [JsonPropertyName("error_data")]
+    public StatusErrorData? ErrorData { get; set; }
+}
+
+/// <summary>Nested error data with additional details.</summary>
+public class StatusErrorData
+{
+    public string? Details { get; set; }
 }

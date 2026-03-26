@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<BroadcastMessage> BroadcastMessages => Set<BroadcastMessage>();
+    public DbSet<BroadcastRecipient> BroadcastRecipients => Set<BroadcastRecipient>();
     public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<WhatsAppOutboxMessage> WhatsAppOutboxMessages => Set<WhatsAppOutboxMessage>();

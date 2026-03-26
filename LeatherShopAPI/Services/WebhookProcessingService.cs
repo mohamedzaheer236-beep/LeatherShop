@@ -55,21 +55,40 @@ public class WebhookProcessingService : IWebhookProcessingService
 
             foreach (var change in entry.Changes)
             {
+                // ── Process incoming customer messages ──
                 var messages = change.Value.Messages;
                 var contacts = change.Value.Contacts;
 
-                if (messages == null || !messages.Any()) continue;
-
-                foreach (var message in messages)
+                if (messages != null && messages.Any())
                 {
-                    try
+                    foreach (var message in messages)
                     {
-                        await ProcessSingleMessageAsync(message, contacts, ct);
+                        try
+                        {
+                            await ProcessSingleMessageAsync(message, contacts, ct);
+                        }
+                        catch (Exception msgEx)
+                        {
+                            _logger.LogError(msgEx, "Error processing message from {From}", message.From);
+                            // Continue processing remaining messages in the batch
+                        }
                     }
-                    catch (Exception msgEx)
+                }
+
+                // ── Process delivery status updates (sent/delivered/read/failed) ──
+                var statuses = change.Value.Statuses;
+                if (statuses != null && statuses.Any())
+                {
+                    foreach (var status in statuses)
                     {
-                        _logger.LogError(msgEx, "Error processing message from {From}", message.From);
-                        // Continue processing remaining messages in the batch
+                        try
+                        {
+                            await ProcessStatusUpdateAsync(status, ct);
+                        }
+                        catch (Exception statusEx)
+                        {
+                            _logger.LogError(statusEx, "Error processing status update for wamid {WamId}", status.Id);
+                        }
                     }
                 }
             }
@@ -255,4 +274,93 @@ public class WebhookProcessingService : IWebhookProcessingService
         content.Length > MessagePreviewMaxLength
             ? content[..MessagePreviewMaxLength] + "…"
             : content;
+
+    /// <summary>
+    /// Processes a delivery status update from Meta's webhook.
+    /// Matches the wamid to a BroadcastRecipient record and updates its delivery status.
+    /// Status progression: Sent → Delivered → Read (or Failed at any point).
+    /// Only advances status forward — never downgrades (e.g., Read won't go back to Delivered).
+    /// </summary>
+    private async Task ProcessStatusUpdateAsync(StatusUpdate statusUpdate, CancellationToken ct)
+    {
+        var wamId = statusUpdate.Id;
+        if (string.IsNullOrEmpty(wamId)) return;
+
+        // Deduplicate status webhooks (Meta may retry)
+        var cacheKey = $"wa_status_{wamId}_{statusUpdate.Status}";
+        if (_cache.TryGetValue(cacheKey, out _)) return;
+        _cache.Set(cacheKey, true, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = MessageDeduplicationTtl
+        });
+
+        // Find the broadcast recipient record by wamid
+        var recipient = await _db.BroadcastRecipients
+            .FirstOrDefaultAsync(r => r.WamId == wamId, ct);
+
+        if (recipient == null)
+        {
+            // Not a broadcast message — could be a chatbot message or admin chat reply.
+            // This is normal, not an error. Silently ignore.
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+
+        switch (statusUpdate.Status.ToLowerInvariant())
+        {
+            case "sent":
+                // Meta accepted into delivery queue — we already set this in broadcast send.
+                // Only update if still Queued (shouldn't happen, but defensive).
+                if (recipient.Status == BroadcastDeliveryStatus.Queued)
+                {
+                    recipient.Status = BroadcastDeliveryStatus.Sent;
+                    recipient.SentAt ??= now;
+                }
+                break;
+
+            case "delivered":
+                // Only advance forward (Queued/Sent → Delivered)
+                if (recipient.Status < BroadcastDeliveryStatus.Delivered)
+                {
+                    recipient.Status = BroadcastDeliveryStatus.Delivered;
+                    recipient.DeliveredAt = now;
+                    recipient.SentAt ??= now; // backfill if "sent" webhook was missed
+                }
+                break;
+
+            case "read":
+                // Only advance forward (anything below Read → Read)
+                if (recipient.Status < BroadcastDeliveryStatus.Read)
+                {
+                    recipient.Status = BroadcastDeliveryStatus.Read;
+                    recipient.ReadAt = now;
+                    recipient.DeliveredAt ??= now; // backfill if "delivered" webhook was missed
+                    recipient.SentAt ??= now;
+                }
+                break;
+
+            case "failed":
+                // Failed can happen at any point — always update
+                recipient.Status = BroadcastDeliveryStatus.Failed;
+                recipient.FailedAt = now;
+
+                // Extract error details from Meta's error payload
+                var error = statusUpdate.Errors?.FirstOrDefault();
+                if (error != null)
+                {
+                    var detail = $"[{error.Code}] {error.Title}";
+                    if (!string.IsNullOrEmpty(error.ErrorData?.Details))
+                        detail += $" — {error.ErrorData.Details}";
+                    recipient.ErrorDetail = detail.Length > 1000 ? detail[..1000] : detail;
+                }
+                break;
+
+            default:
+                _logger.LogDebug("Ignoring unknown status '{Status}' for wamid {WamId}", statusUpdate.Status, wamId);
+                return;
+        }
+
+        await _db.SaveChangesAsync(ct);
+    }
 }

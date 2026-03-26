@@ -190,6 +190,51 @@ public sealed class BroadcastBackgroundService : BackgroundService
             isResume ? $" (resumed, {alreadyProcessed.Count} already processed)" : "",
             BatchSize, BatchDelayMs);
 
+        // ── 2b. Create BroadcastRecipient records for remaining phones (if not resuming) ──
+        // On first run, bulk-insert all recipient records as Queued.
+        // On resume, they already exist — skip creation for already-processed phones.
+        if (!isResume)
+        {
+            using var recipientScope = _scopeFactory.CreateScope();
+            var recipientDb = recipientScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var recipientRecords = remaining.Select(phone => new BroadcastRecipient
+            {
+                BroadcastMessageId = broadcastId,
+                Phone = phone,
+                Status = BroadcastDeliveryStatus.Queued
+            }).ToList();
+
+            recipientDb.BroadcastRecipients.AddRange(recipientRecords);
+            await recipientDb.SaveChangesAsync(ct);
+
+            _logger.LogInformation("Broadcast {BroadcastId}: created {Count} recipient tracking records", broadcastId, recipientRecords.Count);
+        }
+        else
+        {
+            // On resume: create any missing recipient records (phones not yet in the table)
+            using var recipientScope = _scopeFactory.CreateScope();
+            var recipientDb = recipientScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var existingPhones = await recipientDb.BroadcastRecipients
+                .Where(r => r.BroadcastMessageId == broadcastId)
+                .Select(r => r.Phone)
+                .ToListAsync(ct);
+
+            var missingPhones = remaining.Except(existingPhones).ToList();
+            if (missingPhones.Count > 0)
+            {
+                var newRecords = missingPhones.Select(phone => new BroadcastRecipient
+                {
+                    BroadcastMessageId = broadcastId,
+                    Phone = phone,
+                    Status = BroadcastDeliveryStatus.Queued
+                }).ToList();
+                recipientDb.BroadcastRecipients.AddRange(newRecords);
+                await recipientDb.SaveChangesAsync(ct);
+            }
+        }
+
         // ── 3. Process remaining recipients in throttled batches ──
         // Sends BatchSize messages concurrently, then pauses BatchDelayMs before next batch.
         // This keeps throughput at ~50 msgs/sec - well under Meta's per-second limit.
@@ -245,19 +290,29 @@ public sealed class BroadcastBackgroundService : BackgroundService
                 {
                     using var taskScope = _scopeFactory.CreateScope();
                     var whatsApp = taskScope.ServiceProvider.GetRequiredService<IWhatsAppService>();
+                    var taskDb = taskScope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+                    string? wamId;
                     if (broadcast.IsCarousel && carouselCards != null && carouselCards.Count > 0)
                     {
-                        await whatsApp.SendCarouselTemplateMessage(
+                        wamId = await whatsApp.SendCarouselTemplateMessage(
                             phone, broadcast.MessageTemplate,
                             carouselCards, broadcast.LanguageCode);
                     }
                     else
                     {
-                        await whatsApp.SendTemplateMessage(
+                        wamId = await whatsApp.SendTemplateMessage(
                             phone, broadcast.MessageTemplate, broadcast.LanguageCode,
                             parameters, ResolveImageUrl(broadcast.ImageUrl) ?? broadcast.ImageUrl);
                     }
+
+                    // Update recipient record: Queued → Sent + store wamid
+                    await taskDb.BroadcastRecipients
+                        .Where(r => r.BroadcastMessageId == broadcastId && r.Phone == phone)
+                        .ExecuteUpdateAsync(s => s
+                            .SetProperty(r => r.Status, BroadcastDeliveryStatus.Sent)
+                            .SetProperty(r => r.WamId, wamId)
+                            .SetProperty(r => r.SentAt, DateTime.UtcNow), ct);
 
                     Interlocked.Increment(ref sent);
                 }
@@ -265,6 +320,26 @@ public sealed class BroadcastBackgroundService : BackgroundService
                 {
                     _logger.LogError(ex, "Broadcast {BroadcastId}: failed to send to {Phone}",
                         broadcastId, phone);
+
+                    // Update recipient record: Queued → Failed + store error
+                    try
+                    {
+                        using var errScope = _scopeFactory.CreateScope();
+                        var errDb = errScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                        var errorDetail = ex.Message.Length > 1000 ? ex.Message[..1000] : ex.Message;
+
+                        await errDb.BroadcastRecipients
+                            .Where(r => r.BroadcastMessageId == broadcastId && r.Phone == phone)
+                            .ExecuteUpdateAsync(s => s
+                                .SetProperty(r => r.Status, BroadcastDeliveryStatus.Failed)
+                                .SetProperty(r => r.ErrorDetail, errorDetail)
+                                .SetProperty(r => r.FailedAt, DateTime.UtcNow), ct);
+                    }
+                    catch (Exception dbEx)
+                    {
+                        _logger.LogWarning(dbEx, "Broadcast {BroadcastId}: failed to update recipient status for {Phone}", broadcastId, phone);
+                    }
+
                     Interlocked.Increment(ref failed);
                 }
                 finally

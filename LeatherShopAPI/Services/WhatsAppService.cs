@@ -161,7 +161,7 @@ public class WhatsAppService : IWhatsAppService
     /// Send a template message (required for broadcast / first message to customer).
     /// Template must be pre-approved in Meta Business Manager.
     /// </summary>
-    public async Task SendTemplateMessage(string to, string templateName, string languageCode = "en", List<string>? parameters = null, string? imageUrl = null, CancellationToken ct = default)
+    public async Task<string?> SendTemplateMessage(string to, string templateName, string languageCode = "en", List<string>? parameters = null, string? imageUrl = null, CancellationToken ct = default)
     {
         var components = new List<object>();
 
@@ -200,7 +200,7 @@ public class WhatsAppService : IWhatsAppService
                 components = components.Any() ? components : null
             }
         };
-        await SendRequest(payload, ct);
+        return await SendRequestWithWamId(payload, ct);
     }
 
     /// <summary>
@@ -209,7 +209,7 @@ public class WhatsAppService : IWhatsAppService
     /// Template must be pre-approved in Meta Business Manager.
     /// The number of cards MUST match the template definition (e.g., product_gallery has 2 cards).
     /// </summary>
-    public async Task SendCarouselTemplateMessage(string to, string templateName, List<CarouselCard> cards, string languageCode = "en", CancellationToken ct = default)
+    public async Task<string?> SendCarouselTemplateMessage(string to, string templateName, List<CarouselCard> cards, string languageCode = "en", CancellationToken ct = default)
     {
         // Build card components - each card has header (image), body (text param), and button (quick_reply payload)
         var carouselCards = cards.Select((card, idx) => new Dictionary<string, object>
@@ -242,7 +242,7 @@ public class WhatsAppService : IWhatsAppService
                 }
             }
         };
-        await SendRequest(payload, ct);
+        return await SendRequestWithWamId(payload, ct);
     }
 
     /// <summary>
@@ -407,5 +407,61 @@ public class WhatsAppService : IWhatsAppService
             _logger.LogError("WhatsApp API Error: {StatusCode} - {Body}", response.StatusCode, responseBody);
             throw new WhatsAppApiException($"WhatsApp API Error: {response.StatusCode} - {responseBody}");
         }
+    }
+
+    /// <summary>
+    /// Sends a WhatsApp API request and extracts the wamid from Meta's response.
+    /// Meta response format: { "messaging_product": "whatsapp", "contacts": [...], "messages": [{ "id": "wamid.xxx" }] }
+    /// Used by template/carousel sends for broadcast delivery tracking.
+    /// </summary>
+    private async Task<string?> SendRequestWithWamId(object payload, CancellationToken ct = default)
+    {
+        var json = JsonSerializer.Serialize(payload, _jsonOptions);
+        _logger.LogDebug("WhatsApp API Request: {Json}", json);
+
+        for (int attempt = 0; attempt <= RateLimitMaxRetries; attempt++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, BaseUrl);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
+            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var response = await _httpClient.SendAsync(request, ct);
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogDebug("WhatsApp API Success: {Body}", responseBody);
+
+                // Extract wamid from response: { "messages": [{ "id": "wamid.HBgL..." }] }
+                try
+                {
+                    using var doc = JsonDocument.Parse(responseBody);
+                    if (doc.RootElement.TryGetProperty("messages", out var msgs) && msgs.GetArrayLength() > 0)
+                    {
+                        return msgs[0].TryGetProperty("id", out var id) ? id.GetString() : null;
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogWarning(ex, "Could not parse wamid from WhatsApp API response");
+                }
+
+                return null;
+            }
+
+            // Retry only on rate limit errors (Meta code 131056) - all other errors fail immediately
+            if (responseBody.Contains(RateLimitErrorCode) && attempt < RateLimitMaxRetries)
+            {
+                var delay = RateLimitRetryDelaysMs[attempt];
+                _logger.LogWarning("WhatsApp rate limit hit (attempt {Attempt}/{Max}), retrying after {Delay}ms",
+                    attempt + 1, RateLimitMaxRetries + 1, delay);
+                await Task.Delay(delay, ct);
+                continue;
+            }
+
+            _logger.LogError("WhatsApp API Error: {StatusCode} - {Body}", response.StatusCode, responseBody);
+            throw new WhatsAppApiException($"WhatsApp API Error: {response.StatusCode} - {responseBody}");
+        }
+
+        return null;
     }
 }

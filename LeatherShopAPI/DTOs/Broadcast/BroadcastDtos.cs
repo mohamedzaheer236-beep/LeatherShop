@@ -55,6 +55,8 @@ public class BroadcastHistoryDto
     public int TotalRecipients { get; set; }
     public int SentCount { get; set; }
     public int FailedCount { get; set; }
+    public int DeliveredCount { get; set; }
+    public int ReadCount { get; set; }
     public DateTime SentAt { get; set; }
     public string Status { get; set; } = string.Empty;
     public bool IsCarousel { get; set; }
@@ -65,4 +67,27 @@ public class BroadcastResultDto
     public string Message { get; set; } = string.Empty;
     public int BroadcastId { get; set; }
     public int TotalRecipients { get; set; }
+}
+
+public class BroadcastRecipientDto
+{
+    public long Id { get; set; }
+    public string Phone { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string? ErrorDetail { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? SentAt { get; set; }
+    public DateTime? DeliveredAt { get; set; }
+    public DateTime? ReadAt { get; set; }
+    public DateTime? FailedAt { get; set; }
+}
+
+public class BroadcastDeliverySummaryDto
+{
+    public int TotalRecipients { get; set; }
+    public int Queued { get; set; }
+    public int Sent { get; set; }
+    public int Delivered { get; set; }
+    public int Read { get; set; }
+    public int Failed { get; set; }
 }

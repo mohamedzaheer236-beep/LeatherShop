@@ -106,6 +106,8 @@ public class BroadcastService : IBroadcastService
                 TotalRecipients = b.TotalRecipients,
                 SentCount = b.SentCount,
                 FailedCount = b.FailedCount,
+                DeliveredCount = b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Delivered || r.Status == BroadcastDeliveryStatus.Read),
+                ReadCount = b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Read),
                 SentAt = b.SentAt,
                 Status = b.Status.ToString(),
                 IsCarousel = b.IsCarousel
@@ -131,6 +133,8 @@ public class BroadcastService : IBroadcastService
                 TotalRecipients = b.TotalRecipients,
                 SentCount = b.SentCount,
                 FailedCount = b.FailedCount,
+                DeliveredCount = b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Delivered || r.Status == BroadcastDeliveryStatus.Read),
+                ReadCount = b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Read),
                 SentAt = b.SentAt,
                 Status = b.Status.ToString(),
                 IsCarousel = b.IsCarousel
@@ -154,5 +158,67 @@ public class BroadcastService : IBroadcastService
     public async Task<int> GetTotalSentCountAsync(CancellationToken ct = default)
     {
         return await _db.BroadcastMessages.SumAsync(b => b.SentCount, ct);
+    }
+
+    public async Task<PaginatedResult<BroadcastRecipientDto>> GetRecipientsAsync(
+        int broadcastId, int page = 1, int pageSize = 20, string? statusFilter = null, CancellationToken ct = default)
+    {
+        var query = _db.BroadcastRecipients
+            .Where(r => r.BroadcastMessageId == broadcastId);
+
+        if (!string.IsNullOrEmpty(statusFilter) && Enum.TryParse<BroadcastDeliveryStatus>(statusFilter, true, out var status))
+            query = query.Where(r => r.Status == status);
+
+        var totalCount = await query.CountAsync(ct);
+
+        var items = await query
+            .OrderBy(r => r.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(r => new BroadcastRecipientDto
+            {
+                Id = r.Id,
+                Phone = r.Phone,
+                Status = r.Status.ToString(),
+                ErrorDetail = r.ErrorDetail,
+                CreatedAt = r.CreatedAt,
+                SentAt = r.SentAt,
+                DeliveredAt = r.DeliveredAt,
+                ReadAt = r.ReadAt,
+                FailedAt = r.FailedAt
+            })
+            .ToListAsync(ct);
+
+        return new PaginatedResult<BroadcastRecipientDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<BroadcastDeliverySummaryDto?> GetDeliverySummaryAsync(int broadcastId, CancellationToken ct = default)
+    {
+        var exists = await _db.BroadcastMessages.AnyAsync(b => b.Id == broadcastId, ct);
+        if (!exists) return null;
+
+        var counts = await _db.BroadcastRecipients
+            .Where(r => r.BroadcastMessageId == broadcastId)
+            .GroupBy(r => r.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var lookup = counts.ToDictionary(c => c.Status, c => c.Count);
+
+        return new BroadcastDeliverySummaryDto
+        {
+            TotalRecipients = counts.Sum(c => c.Count),
+            Queued = lookup.GetValueOrDefault(BroadcastDeliveryStatus.Queued),
+            Sent = lookup.GetValueOrDefault(BroadcastDeliveryStatus.Sent),
+            Delivered = lookup.GetValueOrDefault(BroadcastDeliveryStatus.Delivered),
+            Read = lookup.GetValueOrDefault(BroadcastDeliveryStatus.Read),
+            Failed = lookup.GetValueOrDefault(BroadcastDeliveryStatus.Failed)
+        };
     }
 }

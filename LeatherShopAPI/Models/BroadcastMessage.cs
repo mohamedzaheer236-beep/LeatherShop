@@ -71,4 +71,7 @@ public class BroadcastMessage
     /// Null for non-carousel templates.
     /// </summary>
     public string? CarouselCardsJson { get; set; }
+
+    // Navigation — per-recipient delivery tracking
+    public ICollection<BroadcastRecipient> Recipients { get; set; } = new List<BroadcastRecipient>();
 }

@@ -75,6 +75,31 @@ public class BroadcastController : ControllerBase
         return Ok(ApiResponse<int>.Ok(totalSent));
     }
 
+    [HttpGet("{id}/recipients")]
+    public async Task<IActionResult> GetRecipients(
+        int id,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? status = null,
+        CancellationToken ct = default)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 20;
+        if (pageSize > 100) pageSize = 100;
+
+        var result = await _broadcastService.GetRecipientsAsync(id, page, pageSize, status, ct);
+        return Ok(ApiResponse<PaginatedResult<BroadcastRecipientDto>>.Ok(result));
+    }
+
+    [HttpGet("{id}/delivery-summary")]
+    public async Task<IActionResult> GetDeliverySummary(int id, CancellationToken ct)
+    {
+        var summary = await _broadcastService.GetDeliverySummaryAsync(id, ct);
+        if (summary == null)
+            return NotFound(ApiResponse.Fail("Broadcast not found."));
+        return Ok(ApiResponse<BroadcastDeliverySummaryDto>.Ok(summary));
+    }
+
     /// <summary>Upload an image for broadcast carousel cards. Reuses product image pipeline (resize + compress).</summary>
     [HttpPost("upload-image")]
     [RequestSizeLimit(5 * 1024 * 1024)] // 5 MB
