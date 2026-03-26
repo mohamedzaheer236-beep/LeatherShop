@@ -157,13 +157,24 @@ public class ProductService : IProductService
         return true;
     }
 
+    private static readonly List<string> DefaultCategories =
+    [
+        "Men's Bags", "Women's Handbags", "Backpacks", "Duffel & Travel Bags",
+        "Wallets", "Card Holders", "Belts", "Desk Mats & Office",
+        "Accessories", "Corporate Gifts"
+    ];
+
     public async Task<List<string>> GetCategoriesAsync(CancellationToken ct = default)
     {
-        return await _db.Products
-            .Where(p => p.IsActive)
+        var dbCategories = await _db.Products
             .Select(p => p.Category)
             .Distinct()
             .ToListAsync(ct);
+
+        return DefaultCategories
+            .Union(dbCategories, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c)
+            .ToList();
     }
 
     public async Task<List<string>> GetBrandsAsync(CancellationToken ct = default)
