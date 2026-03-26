@@ -51,6 +51,7 @@
   [(visible)]="showRecipientsDialog"
   [modal]="true"
   [style]="{ width: '85vw', maxWidth: '950px' }"
+  [contentStyle]="{ overflow: 'auto', maxHeight: '75vh' }"
   [maximizable]="true"
   [draggable]="false">
 
@@ -92,7 +93,8 @@
         [options]="statusFilterOptions"
         [(ngModel)]="statusFilter"
         (onChange)="onStatusFilterChange()"
-        [style]="{ width: '200px' }">
+        [style]="{ width: '200px' }"
+        appendTo="body">
       </p-dropdown>
     </div>
 
