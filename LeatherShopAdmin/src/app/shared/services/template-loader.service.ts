@@ -51,8 +51,8 @@ export class TemplateLoaderService {
         // (e.g., order_update) are for transactional messages, not broadcasts.
         // Exclude system templates used internally (e.g., welcome_message for new customers).
         // Allow specific UTILITY templates for testing (e.g., checkutility).
-        const SYSTEM_TEMPLATES = ['customer_welcomemsg', 'store_notification'];
-        const ALLOWED_UTILITY = ['checkutility'];
+        const SYSTEM_TEMPLATES = ['customer_welcomemsg'];
+        const ALLOWED_UTILITY = ['checkutility', 'store_notification'];
         const broadcastTemplates = data.filter(
           t =>
             (t.category === 'MARKETING' || ALLOWED_UTILITY.includes(t.name)) &&
