@@ -34,20 +34,20 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 | **Middleware** | `Middleware/ExceptionHandlingMiddleware.cs` | Global exception handling — catches all unhandled exceptions, logs them, returns consistent `ApiResponse` JSON. Maps exception types to HTTP status codes (404, 400, 409, 401, 500). Prevents stack trace leaks. |
 | **API Response Model** | `Models/ApiResponse.cs` | Unified response envelope `ApiResponse<T>` with `success`, `message`, `data`, `errors` fields. Generic and non-generic versions. All controllers return this shape. |
 | **Controllers (thin)** | `AuthController.cs`, `ProductsController.cs`, `OrdersController.cs`, `CustomersController.cs`, `DashboardController.cs`, `BroadcastController.cs`, `PaymentController.cs`, `WhatsAppWebhookController.cs`, `ChatController.cs`, `NotificationsController.cs` | HTTP routing only — delegates all logic to service interfaces. Wraps responses in `ApiResponse<T>`. `[Authorize]` on all admin controllers; Auth/Payment/Webhook are public. |
-| **Service Interfaces** | `Services/Interfaces/IProductService.cs`, `IOrderService.cs`, `ICustomerService.cs`, `IDashboardService.cs`, `IBroadcastService.cs`, `IPaymentService.cs`, `IWhatsAppService.cs`, `IChatBotService.cs`, `IChatService.cs`, `IAdminNotificationService.cs` | Contracts for all business logic |
-| **Service Implementations** | `Services/ProductService.cs`, `OrderService.cs`, `CustomerService.cs`, `DashboardService.cs`, `BroadcastService.cs`, `PaymentService.cs`, `WhatsAppService.cs`, `ChatBotService.cs`, `ChatService.cs`, `ConversationStateService.cs` | All business logic lives here — DB queries, WhatsApp API calls, chatbot state machine, admin chat, ephemeral conversation state (IMemoryCache) |
+| **Service Interfaces** | `Services/Interfaces/IAuthService.cs`, `IProductService.cs`, `IOrderService.cs`, `ICustomerService.cs`, `IDashboardService.cs`, `IBroadcastService.cs`, `IPaymentService.cs`, `IWhatsAppService.cs`, `IChatBotService.cs`, `IChatService.cs`, `IWebhookProcessingService.cs`, `IInvoicePdfService.cs`, `IAdminNotificationService.cs` | Contracts for all business logic. 13 interfaces total. |
+| **Service Implementations** | `Services/AuthService.cs`, `ProductService.cs`, `OrderService.cs`, `CustomerService.cs`, `DashboardService.cs`, `BroadcastService.cs`, `PaymentService.cs`, `WhatsAppService.cs`, `WebhookProcessingService.cs`, `ChatBotService.cs`, `ChatService.cs`, `InvoicePdfService.cs`, `AdminNotificationService.cs`, `ConversationStateService.cs` | All business logic lives here — DB queries, WhatsApp API calls, chatbot state machine, admin chat, ephemeral conversation state (IMemoryCache) |
 | **Real-time (SignalR)** | `Hubs/NotificationHub.cs` | SignalR hub for real-time push notifications. Pushes `NewOrder` (order notifications to admin dashboard bell), `NewMessage` (incoming WhatsApp messages to chat page), `MessageSent` (outgoing message confirmations), `OutboxMessageFailed` (permanently failed outbox messages → admin toast + chat page badge). JWT-authenticated via query string token. |
 | **Chat System** | `Controllers/ChatController.cs`, `Services/ChatService.cs`, `Models/ChatMessage.cs`, `DTOs/Chat/ChatDtos.cs`, `Data/Configurations/ChatMessageConfiguration.cs` | Full 2-way admin ↔ customer chat. Admin sends messages via dashboard → API → WhatsApp. Customer replies arrive via webhook → saved to DB → pushed to admin via SignalR. Bot auto-pauses when admin takes over, resumes after timeout. |
-| **Background Processing** | `Services/BroadcastBackgroundService.cs`, `Services/WhatsAppOutboxProcessor.cs`, `Services/ExpiredOrderCleanupService.cs`, `Services/ChatCleanupBackgroundService.cs` | **Broadcast:** DB-backed `BackgroundService` + `Channel<int>` trigger — all job data stored in PostgreSQL. Resumes incomplete broadcasts on restart. Chunked batch processing (10 concurrent × 200ms delay ≈ 50 msgs/sec). Progress saved every 50 messages. Graceful shutdown saves checkpoint. **Outbox:** Transactional outbox for order confirmations — polls every 10s, exponential backoff retry (30s→10m), marks Failed after 5 attempts. On permanent failure, pushes `OutboxMessageFailed` SignalR event to admins. Admin can view failed messages and retry via `GET /api/chat/failed-messages`, `POST /api/chat/outbox/{id}/retry`, `GET /api/chat/failed-messages/count`. **Expired Orders:** Polls every 60s for unpaid orders past `PaymentExpiresAt` — cancels order, restores stock, restores cart items. |
-| **Entity Configurations** | `Data/Configurations/ProductConfiguration.cs`, `ProductImageConfiguration.cs`, `CustomerConfiguration.cs`, `CartItemConfiguration.cs`, `OrderConfiguration.cs`, `OrderItemConfiguration.cs`, `BroadcastMessageConfiguration.cs`, `ChatMessageConfiguration.cs`, `AdminUserConfiguration.cs`, `RefreshTokenConfiguration.cs`, `WhatsAppOutboxMessageConfiguration.cs`, `AdminNotificationConfiguration.cs` | Fluent API: relationships (1:1, 1:N, M:1), indexes, unique constraints, delete behavior. 12 configuration files total. |
+| **Background Processing** | `Services/BroadcastBackgroundService.cs`, `Services/BroadcastRetryBackgroundService.cs`, `Services/WhatsAppOutboxProcessor.cs`, `Services/ExpiredOrderCleanupService.cs`, `Services/ChatCleanupBackgroundService.cs` | **Broadcast:** DB-backed `BackgroundService` + `Channel<int>` trigger — all job data stored in PostgreSQL. Resumes incomplete broadcasts on restart. Chunked batch processing (10 concurrent × 200ms delay ≈ 50 msgs/sec). Progress saved every 50 messages. Graceful shutdown saves checkpoint. **Broadcast Retry:** Retries recipients that failed due to Meta error 131049 (per-user marketing frequency cap). Runs every 30 min, exponential backoff (24h→48h→72h), max 3 retries. **Outbox:** Transactional outbox for order confirmations — polls every 10s, exponential backoff retry (30s→10m), marks Failed after 5 attempts. On permanent failure, pushes `OutboxMessageFailed` SignalR event to admins. Admin can view failed messages and retry via `GET /api/chat/failed-messages`, `POST /api/chat/outbox/{id}/retry`, `GET /api/chat/failed-messages/count`. **Expired Orders:** Polls every 60s for unpaid orders past `PaymentExpiresAt` — cancels order, restores stock, restores cart items. 5 hosted background services total. |
+| **Entity Configurations** | `Data/Configurations/ProductConfiguration.cs`, `ProductImageConfiguration.cs`, `CustomerConfiguration.cs`, `CartItemConfiguration.cs`, `OrderConfiguration.cs`, `OrderItemConfiguration.cs`, `BroadcastMessageConfiguration.cs`, `BroadcastRecipientConfiguration.cs`, `ChatMessageConfiguration.cs`, `AdminUserConfiguration.cs`, `RefreshTokenConfiguration.cs`, `WhatsAppOutboxMessageConfiguration.cs`, `AdminNotificationConfiguration.cs` | Fluent API: relationships (1:1, 1:N, M:1), indexes, unique constraints, delete behavior. 13 configuration files total. |
 | **Runtime Seeder** | `Data/DataSeeder.cs` | Idempotent startup seeder — creates default admin user (BCrypt hash from config) and sample products if tables are empty. Replaces EF Core `HasData()` for cleaner migration history. |
 | **Split DTOs (validated)** | `DTOs/Product/`, `DTOs/Order/`, `DTOs/Customer/`, `DTOs/Dashboard/`, `DTOs/Broadcast/`, `DTOs/Payment/`, `DTOs/WhatsApp/`, `DTOs/Chat/` | Per-feature DTO files with `[Required]`, `[MaxLength]`, `[Range]`, `[Url]`, `[RegularExpression]` validation attributes |
 | **DI Extensions** | `Extensions/ServiceCollectionExtensions.cs` | Grouped DI registration: `AddDatabase()`, `AddApplicationServices()`, `AddCorsPolicies()` |
 | **Mapping Extensions** | `Extensions/MappingExtensions.cs` | `Product.ToDto()`, `Order.ToDto()`, `OrderItem.ToDto()` — shared entity-to-DTO mapping used by ProductService, OrderService, DashboardService |
 | **Authentication** | `Controllers/AuthController.cs`, `Models/AdminUser.cs`, `DTOs/Auth/AuthDtos.cs`, `Data/Configurations/AdminUserConfiguration.cs` | JWT Bearer authentication — `POST /api/auth/login` validates credentials against `AdminUsers` table (BCrypt hash, case-sensitive). Returns access token (15 min expiry) + HttpOnly refresh token cookie (7 day expiry, auto-rotation). `[Authorize]` attribute on all admin controllers. Admin user auto-seeded on first startup. |
 | **Config** | `appsettings.json`, `appsettings.Development.json`, `appsettings.Production.json` | Environment-specific configuration files |
-| **Data Models** | `Models/Product.cs`, `ProductImage.cs`, `Customer.cs`, `CartItem.cs`, `Order.cs`, `OrderItem.cs`, `BroadcastMessage.cs`, `AdminUser.cs`, `ChatMessage.cs`, `RefreshToken.cs`, `AdminNotification.cs`, `WhatsApp/WhatsAppOutboxMessage.cs`, `WhatsApp/WhatsAppApiException.cs`, `ApiResponse.cs`, `PaginatedResult.cs`, `CustomerCategory.cs` | Entity classes with navigation properties, enums, and response wrappers. 17 model files total. |
-| **Database** | `AppDbContext.cs` | EF Core DbContext — uses `ApplyConfigurationsFromAssembly()` for auto-discovering entity configs. 12 DbSets including AdminUsers, ChatMessages, RefreshTokens, AdminNotifications. |
+| **Data Models** | `Models/Product.cs`, `ProductImage.cs`, `Customer.cs`, `CartItem.cs`, `Order.cs`, `OrderItem.cs`, `BroadcastMessage.cs`, `BroadcastRecipient.cs`, `AdminUser.cs`, `ChatMessage.cs`, `RefreshToken.cs`, `AdminNotification.cs`, `WhatsAppOutboxMessage.cs`, `WhatsAppApiException.cs`, `ApiResponse.cs`, `PaginatedResult.cs`, `CustomerCategory.cs`, `WhatsApp/ButtonOption.cs`, `WhatsApp/CarouselCard.cs`, `WhatsApp/ListRow.cs`, `WhatsApp/ListSection.cs`, `WhatsApp/WhatsAppTemplate.cs` | Entity classes with navigation properties, enums, WhatsApp message construction helpers, and response wrappers. 21 model files total (16 in root + 5 in WhatsApp/ subdirectory). |
+| **Database** | `AppDbContext.cs` | EF Core DbContext — uses `ApplyConfigurationsFromAssembly()` for auto-discovering entity configs. 13 DbSets including AdminUsers, ChatMessages, RefreshTokens, AdminNotifications, BroadcastRecipients. |
 | **Infrastructure** | `Program.cs` | Response compression (Brotli + Gzip), security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`), forwarded headers (`X-Forwarded-For`/`X-Forwarded-Proto` for Railway proxy), ephemeral Data Protection (container-friendly), connection pooling (min 5 / max 50 / idle 60s). |
 | **Invoice PDF** | `Services/InvoicePdfService.cs` | QuestPDF-based invoice generation — downloadable from `GET /api/v1/orders/{id}/invoice`. Path traversal defense via `Path.GetFullPath()` validation. |
 | **Image Optimization** | `Services/ProductService.cs` | SixLabors.ImageSharp — auto-resizes and compresses uploaded product images to ~300 KB JPEG. |
@@ -464,6 +464,9 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   ├── BroadcastBackgroundService.cs    # Hosted BackgroundService — reads from Channel<T>,
 │   │                                    #   processes broadcasts with .Chunk(10) + Task.WhenAll
 │   │                                    #   concurrency (~50 msgs/sec), saves progress every 50 messages
+│   ├── BroadcastRetryBackgroundService.cs # Hosted BackgroundService — retries broadcast recipients
+│   │                                    #   that failed with Meta error 131049 (per-user marketing cap)
+│   │                                    #   Runs every 30 min, exponential backoff (24h→48h→72h), max 3 retries
 │   ├── ChatService.cs                   # Implements IChatService — conversations list,
 │   │                                    #   paginated messages, send message via WhatsApp,
 │   │                                    #   bot pause/resume with auto-expiry
@@ -506,9 +509,9 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │   └── PaytmChecksum.cs                # HMAC-SHA256 checksum for Paytm API
 │
 ├── Data/
-│   ├── AppDbContext.cs                  # 12 DbSets, uses ApplyConfigurationsFromAssembly()
+│   ├── AppDbContext.cs                  # 13 DbSets, uses ApplyConfigurationsFromAssembly()
 │   ├── DataSeeder.cs                    # Idempotent startup seeder — admin user + sample products
-│   └── Configurations/                  # Fluent API entity configurations (12 files)
+│   └── Configurations/                  # Fluent API entity configurations (13 files)
 │       ├── ProductConfiguration.cs      # Indexes on Category/Brand
 │       ├── ProductImageConfiguration.cs # FK to Product, DisplayOrder
 │       ├── CustomerConfiguration.cs     # Unique PhoneNumber, 1:N → Orders, 1:N → CartItems
@@ -516,6 +519,7 @@ LeatherShopAPI/                          # ── .NET 8 Web API ──
 │       ├── OrderConfiguration.cs        # Unique OrderNumber, M:1 → Customer, 1:N → OrderItems
 │       ├── OrderItemConfiguration.cs    # M:1 → Order, M:1 → Product (Restrict delete)
 │       ├── BroadcastMessageConfiguration.cs
+│       ├── BroadcastRecipientConfiguration.cs  # FK to BroadcastMessage, retry tracking
 │       ├── ChatMessageConfiguration.cs  # CustomerId+Timestamp composite index,
 │       │                                #   Direction stored as string, FK cascade delete
 │       ├── AdminUserConfiguration.cs    # Unique Username, max lengths
@@ -547,7 +551,8 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 │   │
 │   ├── environments/
 │   │   ├── environment.ts               # Dev config (apiUrl: localhost:8080, hubUrl for SignalR)
-│   │   └── environment.prod.ts          # Prod config (apiUrl: production URL, hubUrl for SignalR)
+│   │   ├── environment.prod.ts          # Prod config (apiUrl: production URL, hubUrl for SignalR)
+│   │   └── environment.model.ts         # TypeScript interface for environment configuration
 │   │
 │   └── app/
 │       ├── app.component.ts             # Root: toast + navbar + router-outlet
@@ -585,7 +590,9 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 │       │   │   │                             #   Used by dashboard + orders components
 │       │   │   └── form.utils.ts             # Shared form utility functions
 │       │   ├── pipes/
-│       │   │   ├── time.pipes.ts             # TimeAgoPipe — relative timestamps (e.g., "2 min ago")
+│       │   │   ├── time.pipes.ts             # TimeAgoPipe, ConversationTimePipe, MessageTimePipe,
+│       │   │   │                             #   DateSeparatorPipe — 4 pipes for relative and
+│       │   │   │                             #   absolute timestamp formatting across the app
 │       │   │   └── format-message.pipe.ts    # Format WhatsApp message content for display
 │       │   ├── services/
 │       │   │   ├── notification.service.ts    # Centralized toast notification service
@@ -630,10 +637,16 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 │           │   ├── services/customer.service.ts   # Uses environment.apiUrl
 │           │   ├── customers.routes.ts
 │           │   └── components/customers/     (ts, html, scss)
+│           │       ├── customer-detail-dialog/     # View customer details
+│           │       ├── customer-form-dialog/        # Add/edit customer
+│           │       ├── customer-import-dialog/       # Bulk import from Excel/CSV
+│           │       ├── customer-send-message-dialog/ # Send WhatsApp template message
+│           │       └── customer-subscribe-dialog/    # Opt-in/opt-out management
 │           │
 │           └── broadcast/
 │               ├── models/broadcast.model.ts
 │               ├── services/broadcast.service.ts  # Uses environment.apiUrl
+│               │   └── broadcast-form-helper.service.ts  # Component-level form helper
 │               ├── broadcast.routes.ts
 │               └── components/broadcast/     (ts, html, scss)
 │
@@ -729,7 +742,7 @@ cd LeatherShop
 | **Database Name** | `LeatherShopDB` (auto-created by EF Core migrations) |
 | **Default Username** | `postgres` |
 | **ORM** | Entity Framework Core 8 |
-| **Tables** | Products, ProductImages, Customers, CartItems, Orders, OrderItems, BroadcastMessages, ChatMessages, AdminUsers, RefreshTokens, AdminNotifications, WhatsAppOutboxMessages |
+| **Tables** | Products, ProductImages, Customers, CartItems, Orders, OrderItems, BroadcastMessages, BroadcastRecipients, ChatMessages, AdminUsers, RefreshTokens, AdminNotifications, WhatsAppOutboxMessages |
 | **Seed Data** | 6 leather products + 1 admin user auto-seeded on first run |
 
 #### GitHub Repository
@@ -1223,8 +1236,26 @@ POST /api/payment/verify  (with transactionId + orderId)
 │ SentAt           │
 └──────────────────┘
 
+┌────────────────────┐
+│ BroadcastRecipients│  (FK → BroadcastMessages)
+├────────────────────┤
+│ Id (PK)            │
+│ BroadcastMsgId(FK) │
+│ Phone              │
+│ WamId              │
+│ Status (enum)      │  (Queued/Sent/Delivered/Read/Failed)
+│ ErrorDetail        │
+│ RetryCount         │
+│ NextRetryAt        │
+│ CreatedAt          │
+│ SentAt             │
+│ DeliveredAt        │
+│ ReadAt             │
+│ FailedAt           │
+└────────────────────┘
+
 Order Status Enum: Pending → Confirmed → Shipped → Delivered → Cancelled
-Total: 12 tables (12 DbSets in AppDbContext)
+Total: 13 tables (13 DbSets in AppDbContext)
 ```
 
 **Seed Data (auto-inserted on first run):**
