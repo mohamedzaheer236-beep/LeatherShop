@@ -61,6 +61,7 @@ export interface WhatsAppTemplate {
 export interface BroadcastRecipient {
   id: number;
   phone: string;
+  name: string | null;
   status: string;
   errorDetail: string | null;
   createdAt: string;

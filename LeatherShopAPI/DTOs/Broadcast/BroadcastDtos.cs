@@ -73,6 +73,7 @@ public class BroadcastRecipientDto
 {
     public long Id { get; set; }
     public string Phone { get; set; } = string.Empty;
+    public string? Name { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? ErrorDetail { get; set; }
     public DateTime CreatedAt { get; set; }

@@ -122,6 +122,7 @@
       <ng-template pTemplate="header">
         <tr>
           <th>Phone</th>
+          <th>Name</th>
           <th>Status</th>
           <th>Sent At</th>
           <th>Delivered At</th>
@@ -133,6 +134,7 @@
       <ng-template pTemplate="body" let-r>
         <tr>
           <td class="font-mono">{{ r.phone }}</td>
+          <td>{{ r.name || '—' }}</td>
           <td><p-tag [value]="r.status" [severity]="getStatusSeverity(r.status)"></p-tag></td>
           <td>{{ r.sentAt ? (r.sentAt | date:'dd MMM HH:mm:ss') : '—' }}</td>
           <td>{{ r.deliveredAt ? (r.deliveredAt | date:'dd MMM HH:mm:ss') : '—' }}</td>

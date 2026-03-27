@@ -183,6 +183,10 @@ public class BroadcastService : IBroadcastService
             {
                 Id = r.Id,
                 Phone = r.Phone,
+                Name = _db.Customers
+                    .Where(c => c.PhoneNumber == r.Phone)
+                    .Select(c => c.Name)
+                    .FirstOrDefault(),
                 Status = r.Status.ToString(),
                 ErrorDetail = r.ErrorDetail,
                 CreatedAt = r.CreatedAt,
