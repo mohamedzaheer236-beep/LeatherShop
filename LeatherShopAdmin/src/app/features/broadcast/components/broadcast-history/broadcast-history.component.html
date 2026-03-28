@@ -277,11 +277,43 @@
             </tbody>
           </table>
 
-          @if (selectedRetryRecipient.retryCount >= 3 && selectedRetryRecipient.status === 'Failed') {
-            <div class="retry-exhausted">
-              <i class="pi pi-ban"></i> All 3 retry attempts exhausted — no further retries.
-            </div>
-          }
+          <!-- Final Outcome -->
+          <div class="final-outcome" [ngClass]="{
+            'outcome-delivered': selectedRetryRecipient.status === 'Delivered' || selectedRetryRecipient.status === 'Read',
+            'outcome-failed': selectedRetryRecipient.status === 'Failed',
+            'outcome-pending': selectedRetryRecipient.status === 'Sent' || selectedRetryRecipient.status === 'Queued'
+          }">
+            @switch (selectedRetryRecipient.status) {
+              @case ('Delivered') {
+                <i class="pi pi-check-circle"></i>
+                <div class="outcome-text">
+                  <strong>Delivered</strong>
+                  <span>Message reached the user's phone{{ selectedRetryRecipient.deliveredAt ? ' on ' + (selectedRetryRecipient.deliveredAt | date:'dd MMM yyyy, HH:mm') : '' }}</span>
+                </div>
+              }
+              @case ('Read') {
+                <i class="pi pi-eye"></i>
+                <div class="outcome-text">
+                  <strong>Read</strong>
+                  <span>Message was read by the user{{ selectedRetryRecipient.readAt ? ' on ' + (selectedRetryRecipient.readAt | date:'dd MMM yyyy, HH:mm') : '' }}</span>
+                </div>
+              }
+              @case ('Failed') {
+                <i class="pi pi-times-circle"></i>
+                <div class="outcome-text">
+                  <strong>Not Delivered</strong>
+                  <span>Message never reached the user's phone{{ selectedRetryRecipient.retryCount >= 3 ? ' — all 3 retries exhausted' : '' }}</span>
+                </div>
+              }
+              @default {
+                <i class="pi pi-clock"></i>
+                <div class="outcome-text">
+                  <strong>Pending</strong>
+                  <span>Waiting for delivery confirmation from WhatsApp</span>
+                </div>
+              }
+            }
+          </div>
         </div>
       }
     </p-overlayPanel>

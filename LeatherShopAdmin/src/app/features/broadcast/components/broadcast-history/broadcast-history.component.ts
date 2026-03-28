@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgClass } from '@angular/common';
 import { PaginatorModule, PaginatorState } from 'primeng/paginator';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -15,7 +15,7 @@ import { BroadcastService } from '../../services/broadcast.service';
 @Component({
   selector: 'app-broadcast-history',
   standalone: true,
-  imports: [DatePipe, TableModule, TagModule, PaginatorModule, DialogModule, ButtonModule, DropdownModule, TooltipModule, OverlayPanelModule, FormsModule],
+  imports: [DatePipe, NgClass, TableModule, TagModule, PaginatorModule, DialogModule, ButtonModule, DropdownModule, TooltipModule, OverlayPanelModule, FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './broadcast-history.component.html',
   styleUrl: './broadcast-history.component.scss',
