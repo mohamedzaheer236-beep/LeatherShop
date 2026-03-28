@@ -1,10 +1,8 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, OnDestroy, inject, ViewChild } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
-import { PaginatorState } from 'primeng/paginator';
 import { BroadcastService } from '../../services/broadcast.service';
-import { BroadcastHistory } from '../../models/broadcast.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { TemplateLoaderService } from '../../../../shared/services/template-loader.service';
 import { CustomerService } from '../../../customers/services/customer.service';
@@ -44,14 +42,10 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   private templateLoader = inject(TemplateLoaderService);
   private cdr = inject(ChangeDetectorRef);
 
-  history: BroadcastHistory[] = [];
+  @ViewChild('historyComponent') historyComponent!: BroadcastHistoryComponent;
+
   subscriberCount = 0;
   totalSent = 0;
-
-  // History pagination
-  historyTotalRecords = 0;
-  historyCurrentPage = 1;
-  historyPageSize = 10;
 
   broadcastMode: 'custom' | 'template' = 'custom';
   customMessage = '';
@@ -64,7 +58,6 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   private pollingSubs = new Map<number, Subscription>();
 
   ngOnInit(): void {
-    this.loadHistory();
     this.customerService.getSubscriberCount().subscribe({
       next: data => {
         this.subscriberCount = data.subscriberCount;
@@ -92,28 +85,9 @@ export class BroadcastComponent implements OnInit, OnDestroy {
 
   // ─── History ───
 
-  loadHistory(): void {
-    this.broadcastService.getBroadcastHistory(this.historyCurrentPage, this.historyPageSize).subscribe({
-      next: result => {
-        this.history = result.items;
-        this.historyTotalRecords = result.totalCount;
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        /* silently ignore */
-      },
-    });
-  }
-
-  onHistoryPageChange(event: PaginatorState): void {
-    this.historyCurrentPage = (event.page ?? 0) + 1;
-    this.historyPageSize = event.rows ?? this.historyPageSize;
-    this.loadHistory();
-  }
-
   /** Called by BroadcastFormComponent when a template broadcast finishes */
   onBroadcastSent(): void {
-    this.loadHistory();
+    this.historyComponent?.loadHistory();
     this.broadcastService.getTotalSentCount().subscribe({
       next: count => {
         this.totalSent = count;
@@ -163,9 +137,8 @@ export class BroadcastComponent implements OnInit, OnDestroy {
       next: status => {
         this.pollingSubs.delete(broadcastId);
         this.sending = this.pollingSubs.size > 0;
-        this.loadHistory();
+        this.historyComponent?.loadHistory();
         if (status.failedCount > 0 && status.sentCount === 0) {
-          this.resultMessage = `Broadcast failed! ${status.failedCount} message(s) could not be delivered.`;
           this.resultType = 'error';
           this.notification.error(`Broadcast failed for ${status.failedCount} recipient(s).`);
         } else if (status.failedCount > 0) {
@@ -184,7 +157,7 @@ export class BroadcastComponent implements OnInit, OnDestroy {
         this.sending = this.pollingSubs.size > 0;
         this.resultMessage = 'Could not verify broadcast delivery status.';
         this.resultType = 'error';
-        this.loadHistory();
+        this.historyComponent?.loadHistory();
         this.cdr.markForCheck();
       },
     });

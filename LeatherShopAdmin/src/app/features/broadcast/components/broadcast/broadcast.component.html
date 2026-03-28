@@ -127,7 +127,7 @@
             <i class="pi pi-history"></i>
           </div>
           <div>
-            <span class="stat-number">{{ historyTotalRecords }}</span>
+            <span class="stat-number">{{ historyComponent?.totalRecords ?? 0 }}</span>
             <span class="stat-label">Total Broadcasts</span>
           </div>
         </div>
@@ -146,11 +146,6 @@
   </div>
 
   <!-- Broadcast History (extracted component) -->
-  <app-broadcast-history
-    [history]="history"
-    [totalRecords]="historyTotalRecords"
-    [currentPage]="historyCurrentPage"
-    [pageSize]="historyPageSize"
-    (pageChange)="onHistoryPageChange($event)">
+  <app-broadcast-history #historyComponent>
   </app-broadcast-history>
 </div>

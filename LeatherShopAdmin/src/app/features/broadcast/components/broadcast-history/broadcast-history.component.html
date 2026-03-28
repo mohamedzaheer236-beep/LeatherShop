@@ -1,49 +1,115 @@
-@if (totalRecords > 0) {
-  <div class="history-section">
-    <div class="section-header">
-      <h3><i class="pi pi-history"></i> Broadcast History</h3>
+<div class="history-section">
+  <div class="section-header">
+    <h3><i class="pi pi-history"></i> Broadcast History</h3>
+    <div class="header-actions">
+      <button type="button" pButton [text]="true" [rounded]="true"
+        [icon]="showFilters ? 'pi pi-filter-slash' : 'pi pi-filter'"
+        [class.filter-active]="showFilters"
+        (click)="toggleFilters()"
+        [pTooltip]="showFilters ? 'Hide Filters' : 'Show Filters'"
+        tooltipPosition="left">
+      </button>
     </div>
-    <p-table [value]="history"
-      styleClass="p-datatable-striped" [tableStyle]="{'min-width': '60rem'}" [rowHover]="true">
-      <ng-template pTemplate="header">
-        <tr>
-          <th>Template</th>
-          <th>Recipients</th>
-          <th>Sent</th>
-          <th>Delivered</th>
-          <th>Read</th>
-          <th>Failed</th>
-          <th>Date</th>
-          <th style="width: 5rem"></th>
-        </tr>
-      </ng-template>
-      <ng-template pTemplate="body" let-b>
-        <tr>
-          <td><strong class="font-mono">{{ b.messageTemplate }}</strong></td>
-          <td>{{ b.totalRecipients }}</td>
-          <td><p-tag [value]="b.sentCount.toString()" severity="success"></p-tag></td>
-          <td><p-tag [value]="b.deliveredCount.toString()" [severity]="b.deliveredCount > 0 ? 'success' : 'secondary'"></p-tag></td>
-          <td><p-tag [value]="b.readCount.toString()" [severity]="b.readCount > 0 ? 'info' : 'secondary'"></p-tag></td>
-          <td><p-tag [value]="b.failedCount.toString()" [severity]="b.failedCount > 0 ? 'danger' : 'secondary'"></p-tag></td>
-          <td>{{ b.sentAt | date:'dd MMM yyyy HH:mm' }}</td>
-          <td>
-            <p-button icon="pi pi-eye" [rounded]="true" [text]="true" severity="info"
-              pTooltip="View Recipients" (onClick)="openRecipients(b)"></p-button>
-          </td>
-        </tr>
-      </ng-template>
-    </p-table>
-    <p-paginator
-      [first]="(currentPage - 1) * pageSize"
-      [rows]="pageSize"
-      [totalRecords]="totalRecords"
-      [rowsPerPageOptions]="[10, 25, 50]"
-      (onPageChange)="onPageChange($event)"
-      [showCurrentPageReport]="true"
-      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} broadcasts">
-    </p-paginator>
   </div>
-}
+
+  <p-table [value]="history"
+    [lazy]="true"
+    (onLazyLoad)="onLazyLoad($event)"
+    [paginator]="true"
+    [rows]="pageSize"
+    [totalRecords]="totalRecords"
+    [rowsPerPageOptions]="[10, 25, 50]"
+    [loading]="loading"
+    [sortField]="sortField"
+    [sortOrder]="sortOrder"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} broadcasts"
+    styleClass="p-datatable-striped broadcast-table"
+    [tableStyle]="{'min-width': '60rem'}"
+    [rowHover]="true">
+
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="messageTemplate" style="min-width: 180px">
+          Template <p-sortIcon field="messageTemplate"></p-sortIcon>
+        </th>
+        <th pSortableColumn="totalRecipients" style="width: 110px">
+          Recipients <p-sortIcon field="totalRecipients"></p-sortIcon>
+        </th>
+        <th pSortableColumn="sentCount" style="width: 90px">
+          Sent <p-sortIcon field="sentCount"></p-sortIcon>
+        </th>
+        <th pSortableColumn="deliveredCount" style="width: 110px">
+          Delivered <p-sortIcon field="deliveredCount"></p-sortIcon>
+        </th>
+        <th pSortableColumn="readCount" style="width: 90px">
+          Read <p-sortIcon field="readCount"></p-sortIcon>
+        </th>
+        <th pSortableColumn="failedCount" style="width: 90px">
+          Failed <p-sortIcon field="failedCount"></p-sortIcon>
+        </th>
+        <th pSortableColumn="sentAt" style="width: 170px">
+          Date <p-sortIcon field="sentAt"></p-sortIcon>
+        </th>
+        <th style="width: 5rem"></th>
+      </tr>
+      @if (showFilters) {
+        <tr class="filter-row">
+          <th>
+            <span class="p-input-icon-left filter-input-wrap">
+              <i class="pi pi-search"></i>
+              <input pInputText type="text" [(ngModel)]="templateSearch"
+                (input)="onTemplateSearchInput()"
+                placeholder="Search template..."
+                class="filter-input" />
+            </span>
+          </th>
+          <th></th>
+          <th></th>
+          <th></th>
+          <th></th>
+          <th></th>
+          <th></th>
+          <th>
+            @if (templateSearch) {
+              <button type="button" pButton icon="pi pi-times" [rounded]="true" [text]="true"
+                severity="danger" (click)="clearFilters()" pTooltip="Clear filters" class="clear-btn">
+              </button>
+            }
+          </th>
+        </tr>
+      }
+    </ng-template>
+
+    <ng-template pTemplate="body" let-b>
+      <tr>
+        <td><strong class="font-mono">{{ b.messageTemplate }}</strong></td>
+        <td>{{ b.totalRecipients }}</td>
+        <td><p-tag [value]="b.sentCount.toString()" severity="success"></p-tag></td>
+        <td><p-tag [value]="b.deliveredCount.toString()" [severity]="b.deliveredCount > 0 ? 'success' : 'secondary'"></p-tag></td>
+        <td><p-tag [value]="b.readCount.toString()" [severity]="b.readCount > 0 ? 'info' : 'secondary'"></p-tag></td>
+        <td><p-tag [value]="b.failedCount.toString()" [severity]="b.failedCount > 0 ? 'danger' : 'secondary'"></p-tag></td>
+        <td>{{ b.sentAt | date:'dd MMM yyyy HH:mm' }}</td>
+        <td>
+          <p-button icon="pi pi-eye" [rounded]="true" [text]="true" severity="info"
+            pTooltip="View Recipients" (onClick)="openRecipients(b)"></p-button>
+        </td>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="8" class="text-center p-4">
+          @if (templateSearch) {
+            No broadcasts matching "<strong>{{ templateSearch }}</strong>"
+          } @else {
+            No broadcasts found.
+          }
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>
 
 <!-- Recipients Detail Dialog -->
 <p-dialog

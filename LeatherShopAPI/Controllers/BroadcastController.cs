@@ -51,13 +51,16 @@ public class BroadcastController : ControllerBase
     public async Task<IActionResult> GetHistory(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
+        [FromQuery] string? sortField = null,
+        [FromQuery] string? sortOrder = null,
+        [FromQuery] string? templateSearch = null,
         CancellationToken ct = default)
     {
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 10;
         if (pageSize > 100) pageSize = 100;
 
-        var history = await _broadcastService.GetHistoryAsync(page, pageSize, ct);
+        var history = await _broadcastService.GetHistoryAsync(page, pageSize, sortField, sortOrder, templateSearch, ct);
         return Ok(ApiResponse<PaginatedResult<BroadcastHistoryDto>>.Ok(history));
     }
 

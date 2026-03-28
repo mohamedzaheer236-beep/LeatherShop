@@ -119,17 +119,18 @@ public class BroadcastService : IBroadcastService
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<PaginatedResult<BroadcastHistoryDto>> GetHistoryAsync(int page = 1, int pageSize = 10, CancellationToken ct = default)
+    public async Task<PaginatedResult<BroadcastHistoryDto>> GetHistoryAsync(int page = 1, int pageSize = 10, string? sortField = null, string? sortOrder = null, string? templateSearch = null, CancellationToken ct = default)
     {
         var query = _db.BroadcastMessages.AsQueryable();
 
+        // Filter
+        if (!string.IsNullOrWhiteSpace(templateSearch))
+            query = query.Where(b => b.MessageTemplate.Contains(templateSearch));
+
         var totalCount = await query.CountAsync(ct);
 
-        var items = await query
-            .OrderByDescending(b => b.SentAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(b => new BroadcastHistoryDto
+        // Sort — project first then sort on DTO fields so count-based columns work
+        var projected = query.Select(b => new BroadcastHistoryDto
             {
                 Id = b.Id,
                 MessageTemplate = b.MessageTemplate,
@@ -144,7 +145,24 @@ public class BroadcastService : IBroadcastService
                 SentAt = b.SentAt,
                 Status = b.Status.ToString(),
                 IsCarousel = b.IsCarousel
-            })
+            });
+
+        var isDesc = string.Equals(sortOrder, "desc", StringComparison.OrdinalIgnoreCase);
+        projected = (sortField?.ToLowerInvariant()) switch
+        {
+            "messagetemplate" => isDesc ? projected.OrderByDescending(b => b.MessageTemplate) : projected.OrderBy(b => b.MessageTemplate),
+            "totalrecipients" => isDesc ? projected.OrderByDescending(b => b.TotalRecipients) : projected.OrderBy(b => b.TotalRecipients),
+            "sentcount" => isDesc ? projected.OrderByDescending(b => b.SentCount) : projected.OrderBy(b => b.SentCount),
+            "deliveredcount" => isDesc ? projected.OrderByDescending(b => b.DeliveredCount) : projected.OrderBy(b => b.DeliveredCount),
+            "readcount" => isDesc ? projected.OrderByDescending(b => b.ReadCount) : projected.OrderBy(b => b.ReadCount),
+            "failedcount" => isDesc ? projected.OrderByDescending(b => b.FailedCount) : projected.OrderBy(b => b.FailedCount),
+            "sentat" => isDesc ? projected.OrderByDescending(b => b.SentAt) : projected.OrderBy(b => b.SentAt),
+            _ => projected.OrderByDescending(b => b.SentAt)
+        };
+
+        var items = await projected
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(ct);
 
         return new PaginatedResult<BroadcastHistoryDto>

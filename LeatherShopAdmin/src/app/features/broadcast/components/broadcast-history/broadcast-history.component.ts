@@ -1,7 +1,7 @@
-import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy, ChangeDetectorRef, inject, OnInit, OnDestroy } from '@angular/core';
 import { DatePipe, NgClass } from '@angular/common';
 import { PaginatorModule, PaginatorState } from 'primeng/paginator';
-import { TableModule } from 'primeng/table';
+import { TableModule, TableLazyLoadEvent } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
@@ -9,26 +9,40 @@ import { DropdownModule } from 'primeng/dropdown';
 import { TooltipModule } from 'primeng/tooltip';
 import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { FormsModule } from '@angular/forms';
+import { InputTextModule } from 'primeng/inputtext';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 import { BroadcastHistory, BroadcastRecipient, BroadcastDeliverySummary, RetryAttemptEntry } from '../../models/broadcast.model';
 import { BroadcastService } from '../../services/broadcast.service';
 
 @Component({
   selector: 'app-broadcast-history',
   standalone: true,
-  imports: [DatePipe, NgClass, TableModule, TagModule, PaginatorModule, DialogModule, ButtonModule, DropdownModule, TooltipModule, OverlayPanelModule, FormsModule],
+  imports: [DatePipe, NgClass, TableModule, TagModule, PaginatorModule, DialogModule, ButtonModule, DropdownModule, TooltipModule, OverlayPanelModule, FormsModule, InputTextModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './broadcast-history.component.html',
   styleUrl: './broadcast-history.component.scss',
 })
-export class BroadcastHistoryComponent {
+export class BroadcastHistoryComponent implements OnInit, OnDestroy {
   private broadcastService = inject(BroadcastService);
   private cdr = inject(ChangeDetectorRef);
+  private destroy$ = new Subject<void>();
 
-  @Input() history: BroadcastHistory[] = [];
-  @Input() totalRecords = 0;
-  @Input() currentPage = 1;
-  @Input() pageSize = 10;
-  @Output() pageChange = new EventEmitter<PaginatorState>();
+  // History table state — self-managed
+  history: BroadcastHistory[] = [];
+  totalRecords = 0;
+  pageSize = 10;
+  loading = false;
+  sortField = 'sentAt';
+  sortOrder = -1; // -1 desc, 1 asc
+
+  // Filter state
+  showFilters = false;
+  templateSearch = '';
+  private templateSearch$ = new Subject<string>();
+
+  // Expose to parent for refresh after send
+  @Output() loaded = new EventEmitter<void>();
 
   // Recipients dialog state
   showRecipientsDialog = false;
@@ -52,8 +66,67 @@ export class BroadcastHistoryComponent {
     { label: 'Failed', value: 'Failed' },
   ];
 
-  onPageChange(event: PaginatorState): void {
-    this.pageChange.emit(event);
+  ngOnInit(): void {
+    this.templateSearch$.pipe(
+      debounceTime(400),
+      distinctUntilChanged(),
+      takeUntil(this.destroy$)
+    ).subscribe(() => this.loadHistory(1));
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  onTemplateSearchInput(): void {
+    this.templateSearch$.next(this.templateSearch);
+  }
+
+  toggleFilters(): void {
+    this.showFilters = !this.showFilters;
+    if (!this.showFilters && this.templateSearch) {
+      this.templateSearch = '';
+      this.loadHistory(1);
+    }
+  }
+
+  clearFilters(): void {
+    this.templateSearch = '';
+    this.loadHistory(1);
+  }
+
+  onLazyLoad(event: TableLazyLoadEvent): void {
+    const page = Math.floor((event.first ?? 0) / (event.rows ?? this.pageSize)) + 1;
+    this.pageSize = event.rows ?? this.pageSize;
+    if (event.sortField) {
+      this.sortField = event.sortField as string;
+      this.sortOrder = event.sortOrder ?? -1;
+    }
+    this.loadHistory(page);
+  }
+
+  /** Public so parent can call refresh after broadcast send */
+  loadHistory(page = 1): void {
+    this.loading = true;
+    this.cdr.markForCheck();
+    const sortOrderStr = this.sortOrder === 1 ? 'asc' : 'desc';
+    this.broadcastService.getBroadcastHistory(
+      page, this.pageSize, this.sortField, sortOrderStr,
+      this.templateSearch || undefined
+    ).subscribe({
+      next: result => {
+        this.history = result.items;
+        this.totalRecords = result.totalCount;
+        this.loading = false;
+        this.loaded.emit();
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.loading = false;
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   openRecipients(broadcast: BroadcastHistory): void {

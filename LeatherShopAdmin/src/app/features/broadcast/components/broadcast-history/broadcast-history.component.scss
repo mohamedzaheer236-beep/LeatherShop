@@ -3,6 +3,9 @@
 
   .section-header {
     margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 
     h3 {
       margin: 0;
@@ -18,7 +21,84 @@
         color: var(--ls-accent);
       }
     }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .filter-active {
+        color: var(--primary-color, #6366f1) !important;
+        background: var(--primary-50, #eef2ff) !important;
+      }
+    }
   }
+}
+
+// Broadcast history table enhancements
+:host ::ng-deep .broadcast-table {
+  .p-sortable-column {
+    .p-sortable-column-icon {
+      font-size: 0.75rem;
+      color: var(--text-color-secondary, #9ca3af);
+      margin-left: 4px;
+    }
+
+    &.p-highlight {
+      .p-sortable-column-icon {
+        color: var(--primary-color, #6366f1);
+      }
+    }
+  }
+}
+
+.filter-row {
+  th {
+    padding: 6px 8px !important;
+    background: var(--surface-50, #f9fafb) !important;
+    border-bottom: 2px solid var(--primary-100, #e0e7ff) !important;
+  }
+}
+
+.filter-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+
+  i {
+    position: absolute;
+    left: 10px;
+    font-size: 12px;
+    color: var(--text-color-secondary, #9ca3af);
+    z-index: 1;
+  }
+}
+
+.filter-input {
+  width: 100% !important;
+  padding: 6px 10px 6px 30px !important;
+  font-size: 12.5px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--surface-300, #d1d5db) !important;
+  background: var(--surface-0, #fff) !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:focus {
+    border-color: var(--primary-color, #6366f1) !important;
+    box-shadow: 0 0 0 2px var(--primary-100, #e0e7ff) !important;
+    outline: none;
+  }
+
+  &::placeholder {
+    color: var(--text-color-secondary, #9ca3af);
+    font-size: 12px;
+  }
+}
+
+.clear-btn {
+  width: 28px !important;
+  height: 28px !important;
 }
 
 // Recipients Dialog
