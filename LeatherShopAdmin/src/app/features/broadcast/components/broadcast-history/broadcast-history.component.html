@@ -218,7 +218,7 @@
                     <td>
                       @if (entry.succeeded) {
                         <span class="result-badge success">
-                          <i class="pi pi-check-circle"></i> Delivered
+                          <i class="pi pi-check-circle"></i> Accepted
                         </span>
                       } @else {
                         <span class="result-badge failed">
@@ -253,7 +253,7 @@
                     @if (selectedRetryRecipient.status === 'Failed') {
                       <span class="result-badge failed"><i class="pi pi-times-circle"></i> Failed</span>
                     } @else {
-                      <span class="result-badge success"><i class="pi pi-check-circle"></i> Delivered</span>
+                      <span class="result-badge success"><i class="pi pi-check-circle"></i> Accepted</span>
                     }
                   </td>
                   <td class="error-cell-mini"><span class="no-error">—</span></td>
