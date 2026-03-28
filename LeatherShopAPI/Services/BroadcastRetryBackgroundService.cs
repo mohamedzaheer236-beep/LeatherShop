@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Broadcast;
@@ -8,6 +9,24 @@ using LeatherShopAPI.Services.ChatBot;
 using LeatherShopAPI.Services.Interfaces;
 
 namespace LeatherShopAPI.Services;
+
+/// <summary>
+/// Thread-safe channel for triggering immediate retry processing.
+/// When the admin clicks "Retry Failed", a signal is written so the background
+/// service wakes up immediately instead of waiting for the next 30-min poll.
+/// </summary>
+public sealed class BroadcastRetryChannel
+{
+    private readonly Channel<bool> _channel =
+        Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
+        {
+            FullMode = BoundedChannelFullMode.DropOldest,
+            SingleReader = true
+        });
+
+    public ChannelWriter<bool> Writer => _channel.Writer;
+    public ChannelReader<bool> Reader => _channel.Reader;
+}
 
 /// <summary>
 /// Background service that periodically retries broadcast recipients who failed
@@ -34,6 +53,7 @@ public sealed class BroadcastRetryBackgroundService : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _config;
     private readonly ILogger<BroadcastRetryBackgroundService> _logger;
+    private readonly BroadcastRetryChannel _retryChannel;
 
     /// <summary>How often to check for retryable recipients.</summary>
     private static readonly TimeSpan CheckInterval = TimeSpan.FromMinutes(30);
@@ -47,11 +67,13 @@ public sealed class BroadcastRetryBackgroundService : BackgroundService
     public BroadcastRetryBackgroundService(
         IServiceScopeFactory scopeFactory,
         IConfiguration config,
-        ILogger<BroadcastRetryBackgroundService> logger)
+        ILogger<BroadcastRetryBackgroundService> logger,
+        BroadcastRetryChannel retryChannel)
     {
         _scopeFactory = scopeFactory;
         _config = config;
         _logger = logger;
+        _retryChannel = retryChannel;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -76,13 +98,17 @@ public sealed class BroadcastRetryBackgroundService : BackgroundService
                 _logger.LogError(ex, "Error in BroadcastRetryBackgroundService retry cycle");
             }
 
+            // Wait for either the 30-min interval OR an immediate trigger from admin
             try
             {
-                await Task.Delay(CheckInterval, stoppingToken);
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                cts.CancelAfter(CheckInterval);
+                await _retryChannel.Reader.ReadAsync(cts.Token);
+                _logger.LogInformation("BroadcastRetryService: triggered immediately by admin retry request");
             }
             catch (OperationCanceledException)
             {
-                break;
+                // Either stoppingToken fired (shutdown) or CancelAfter expired (normal 30-min poll)
             }
         }
 

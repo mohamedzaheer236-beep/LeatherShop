@@ -14,12 +14,14 @@ public class BroadcastService : IBroadcastService
     private readonly AppDbContext _db;
     private readonly IWhatsAppService _whatsApp;
     private readonly BroadcastChannel _channel;
+    private readonly BroadcastRetryChannel _retryChannel;
 
-    public BroadcastService(AppDbContext db, IWhatsAppService whatsApp, BroadcastChannel channel)
+    public BroadcastService(AppDbContext db, IWhatsAppService whatsApp, BroadcastChannel channel, BroadcastRetryChannel retryChannel)
     {
         _db = db;
         _whatsApp = whatsApp;
         _channel = channel;
+        _retryChannel = retryChannel;
     }
 
     public async Task<BroadcastResultDto> SendBroadcastAsync(BroadcastRequestDto dto, CancellationToken ct = default)
@@ -288,10 +290,13 @@ public class BroadcastService : IBroadcastService
 
         await _db.SaveChangesAsync(ct);
 
+        // Wake up the retry background service immediately
+        await _retryChannel.Writer.WriteAsync(true, ct);
+
         return new BroadcastRetryResultDto
         {
             ScheduledCount = failedRecipients.Count,
-            Message = $"Scheduled {failedRecipients.Count} recipient(s) for immediate retry. The retry service will process them shortly."
+            Message = $"Scheduled {failedRecipients.Count} recipient(s) for immediate retry. Processing now."
         };
     }
 }

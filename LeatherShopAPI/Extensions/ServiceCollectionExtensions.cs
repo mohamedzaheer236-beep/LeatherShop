@@ -108,7 +108,9 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<BroadcastBackgroundService>();
 
         // Broadcast retry: retries recipients who failed with 131049 (per-user marketing cap)
-        // Runs every 30 min, exponential backoff: 24h → 48h → 72h, max 3 retries
+        // Runs every 30 min OR immediately when admin clicks "Retry Failed"
+        // Exponential backoff: 24h → 48h → 72h, max 3 retries
+        services.AddSingleton<BroadcastRetryChannel>();
         services.AddHostedService<BroadcastRetryBackgroundService>();
 
         // Chat cleanup: deletes messages older than 30 days (runs daily)
