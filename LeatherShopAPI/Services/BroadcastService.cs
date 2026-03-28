@@ -139,7 +139,7 @@ public class BroadcastService : IBroadcastService
             if (DateTime.TryParse(ds, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
             {
                 // Exact date range (ignores time/timezone issues)
-                var startOfDay = parsedDate.Date;
+                var startOfDay = DateTime.SpecifyKind(parsedDate.Date, DateTimeKind.Utc);
                 var endOfDay = startOfDay.AddDays(1);
                 query = query.Where(b => b.SentAt >= startOfDay && b.SentAt < endOfDay);
             }
