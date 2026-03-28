@@ -47,3 +47,16 @@ public class UpdateOrderStatusDto
     [Url]
     public string? TrackingLink { get; set; }
 }
+
+public class UpdateTrackingDto
+{
+    /// <summary>Corrected courier AWB/tracking number.</summary>
+    [Required]
+    [MaxLength(100)]
+    public string TrackingNumber { get; set; } = string.Empty;
+
+    /// <summary>Optional corrected tracking URL.</summary>
+    [MaxLength(500)]
+    [Url]
+    public string? TrackingLink { get; set; }
+}

@@ -85,6 +85,7 @@ export class OrdersComponent implements OnInit {
 
   // Shipping dialog
   showShipDialog = false;
+  isEditingTracking = false;
   shipForm!: FormGroup;
   private pendingShipOrder: Order | null = null;
 
@@ -151,17 +152,44 @@ export class OrdersComponent implements OnInit {
     this.submitStatusUpdate(order, newStatus);
   }
 
+  editTracking(order: Order, event: Event): void {
+    event.stopPropagation();
+    this.pendingShipOrder = order;
+    this.isEditingTracking = true;
+    this.shipForm.reset({
+      trackingNumber: order.trackingNumber ?? '',
+      trackingLink: order.trackingLink ?? '',
+    });
+    this.showShipDialog = true;
+    this.cdr.markForCheck();
+  }
+
   confirmShip(): void {
     if (this.shipForm.invalid || !this.pendingShipOrder) return;
     const { trackingNumber, trackingLink } = this.shipForm.value;
     const order = this.pendingShipOrder;
     this.showShipDialog = false;
-    this.submitStatusUpdate(order, 'Shipped', trackingNumber.trim(), trackingLink?.trim() || undefined);
+    if (this.isEditingTracking) {
+      const tn = trackingNumber.trim();
+      const tl = trackingLink?.trim() || undefined;
+      this.orderService.updateTracking(order.id, tn, tl).subscribe({
+        next: () => {
+          order.trackingNumber = tn;
+          order.trackingLink = tl;
+          this.notification.success('Tracking updated. Customer notified via WhatsApp.');
+          this.cdr.markForCheck();
+        },
+        error: () => this.cdr.markForCheck(),
+      });
+    } else {
+      this.submitStatusUpdate(order, 'Shipped', trackingNumber.trim(), trackingLink?.trim() || undefined);
+    }
   }
 
   cancelShipDialog(): void {
     this.showShipDialog = false;
     this.pendingShipOrder = null;
+    this.isEditingTracking = false;
   }
 
   private submitStatusUpdate(order: Order, newStatus: OrderStatus, trackingNumber?: string, trackingLink?: string): void {

@@ -168,6 +168,40 @@ public class OrderService : IOrderService
         return UpdateStatusResult.Success;
     }
 
+    public async Task<UpdateTrackingResult> UpdateTrackingAsync(int id, UpdateTrackingDto dto, CancellationToken ct = default)
+    {
+        var order = await _db.Orders
+            .Include(o => o.Customer)
+            .FirstOrDefaultAsync(o => o.Id == id, ct);
+
+        if (order == null) return UpdateTrackingResult.NotFound;
+        if (order.Status != OrderStatus.Shipped) return UpdateTrackingResult.NotShipped;
+
+        order.TrackingNumber = dto.TrackingNumber.Trim();
+        order.TrackingLink = string.IsNullOrWhiteSpace(dto.TrackingLink) ? null : dto.TrackingLink.Trim();
+        order.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+
+        // Re-notify customer with corrected tracking info
+        try
+        {
+            var statusParam = string.IsNullOrEmpty(order.TrackingLink)
+                ? $"Shipped 📦\n\nTracking (AWB): {order.TrackingNumber}"
+                : $"Shipped 📦\n\nTracking (AWB): {order.TrackingNumber}\nTrack here: {order.TrackingLink}";
+
+            await _whatsApp.SendTemplateMessage(
+                order.Customer.PhoneNumber,
+                templateName: "order_update",
+                languageCode: "en",
+                parameters: [order.OrderNumber, statusParam],
+                ct: ct);
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Best-effort WhatsApp notification failed for order {OrderId}", id); }
+
+        return UpdateTrackingResult.Success;
+    }
+
     public async Task<CancelOrderResult> CancelByCustomerAsync(int orderId, int customerId, CancellationToken ct = default)
     {
         // Security gate: filter by both orderId AND customerId in a single query.

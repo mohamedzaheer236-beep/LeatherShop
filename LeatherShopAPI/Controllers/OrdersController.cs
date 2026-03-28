@@ -60,6 +60,18 @@ public class OrdersController : ControllerBase
         };
     }
 
+    [HttpPatch("{id}/tracking")]
+    public async Task<IActionResult> UpdateTracking(int id, [FromBody] UpdateTrackingDto dto, CancellationToken ct)
+    {
+        var result = await _orderService.UpdateTrackingAsync(id, dto, ct);
+        return result switch
+        {
+            UpdateTrackingResult.NotFound   => NotFound(ApiResponse.Fail("Order not found.")),
+            UpdateTrackingResult.NotShipped => BadRequest(ApiResponse.Fail("Tracking can only be updated for Shipped orders.")),
+            _                               => Ok(ApiResponse.Ok("Tracking info updated successfully."))
+        };
+    }
+
     [HttpGet("{id}/invoice")]
     public async Task<IActionResult> DownloadInvoice(int id, CancellationToken ct)
     {

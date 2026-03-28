@@ -26,11 +26,21 @@ public enum CancelOrderResult
     ConcurrencyConflict
 }
 
+/// <summary>Result of a tracking info update operation.</summary>
+public enum UpdateTrackingResult
+{
+    Success,
+    NotFound,
+    /// <summary>Tracking can only be edited when the order is in Shipped status.</summary>
+    NotShipped
+}
+
 public interface IOrderService
 {
     Task<PaginatedResult<OrderDto>> GetAllAsync(string? status, int page = 1, int pageSize = 25, CancellationToken ct = default);
     Task<Order?> GetByIdWithDetailsAsync(int id, CancellationToken ct = default);
     Task<UpdateStatusResult> UpdateStatusAsync(int id, UpdateOrderStatusDto dto, CancellationToken ct = default);
+    Task<UpdateTrackingResult> UpdateTrackingAsync(int id, UpdateTrackingDto dto, CancellationToken ct = default);
 
     /// <summary>
     /// Cancels a Pending, unpaid order on behalf of the customer.

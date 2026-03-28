@@ -24,6 +24,10 @@ export class OrderService {
     return this.http.put<void>(`${this.baseUrl}/${id}/status`, { status, trackingNumber, trackingLink });
   }
 
+  updateTracking(id: number, trackingNumber: string, trackingLink?: string): Observable<void> {
+    return this.http.patch<void>(`${this.baseUrl}/${id}/tracking`, { trackingNumber, trackingLink });
+  }
+
   downloadInvoice(orderId: number): Observable<Blob> {
     return this.http.get(`${this.baseUrl}/${orderId}/invoice`, { responseType: 'blob' });
   }

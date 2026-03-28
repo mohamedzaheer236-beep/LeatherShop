@@ -164,6 +164,27 @@
       text-decoration: underline;
     }
   }
+
+  .tracking-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid var(--ls-border, #dee2e6);
+    border-radius: 4px;
+    padding: 2px 6px;
+    cursor: pointer;
+    color: var(--ls-text-secondary);
+    font-size: 12px;
+    line-height: 1;
+    transition: background 0.15s, color 0.15s;
+    margin-left: auto;
+
+    &:hover {
+      background: var(--ls-surface-hover, #e9ecef);
+      color: var(--ls-primary, #1976d2);
+    }
+  }
 }
 
 .ship-form {

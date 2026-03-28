@@ -99,6 +99,11 @@
                   @if (order.trackingLink) {
                     <a [href]="order.trackingLink" target="_blank" rel="noopener noreferrer" class="tracking-link">Track Shipment →</a>
                   }
+                  @if (order.status === 'Shipped') {
+                    <button class="tracking-edit-btn" (click)="editTracking(order, $event)" title="Edit tracking details">
+                      <i class="pi pi-pencil"></i>
+                    </button>
+                  }
                 </div>
               }
             </div>
@@ -128,7 +133,7 @@
 
 <!-- Shipping Info Dialog -->
 <p-dialog
-  header="🚚 Enter Shipping Details"
+  [header]="isEditingTracking ? '✏️ Edit Tracking Details' : '🚚 Enter Shipping Details'"
   [(visible)]="showShipDialog"
   [modal]="true"
   [closable]="true"
@@ -161,6 +166,6 @@
   </form>
   <ng-template pTemplate="footer">
     <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="cancelShipDialog()"></p-button>
-    <p-button label="Mark as Shipped & Notify Customer" severity="primary" [disabled]="shipForm.invalid" (onClick)="confirmShip()"></p-button>
+    <p-button [label]="isEditingTracking ? 'Update Tracking & Notify' : 'Mark as Shipped & Notify Customer'" severity="primary" [disabled]="shipForm.invalid" (onClick)="confirmShip()"></p-button>
   </ng-template>
 </p-dialog>
