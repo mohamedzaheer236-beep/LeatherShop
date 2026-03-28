@@ -327,6 +327,15 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
     this.cdr.markForCheck();
   }
 
+  /** Set an image as primary (move to index 0) */
+  setPrimary(index: number): void {
+    if (index === 0 || index >= this.images.length) return;
+    const selected = this.images[index];
+    this.images = [selected, ...this.images.filter((_, i) => i !== index)];
+    this.syncFormImages();
+    this.cdr.markForCheck();
+  }
+
   /** Handle video file selection */
   onVideoSelect(event: Event): void {
     const input = event.target as HTMLInputElement;

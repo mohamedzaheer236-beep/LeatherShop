@@ -162,6 +162,34 @@
   background: var(--ls-accent, #6366f1);
   border-radius: 4px;
   z-index: 1;
+
+  &.set-primary-badge {
+    display: none;
+    background: rgba(0, 0, 0, 0.65);
+    font-size: 10.5px;
+    padding: 3px 8px;
+    gap: 4px;
+    align-items: center;
+
+    i { font-size: 10px; }
+  }
+}
+
+.image-card.can-set-primary {
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--ls-accent, #6366f1);
+    box-shadow: 0 0 0 2px var(--ls-accent-light, #e0e7ff);
+
+    .set-primary-badge {
+      display: inline-flex;
+    }
+  }
+}
+
+.image-card.is-primary {
+  border-color: var(--ls-accent, #6366f1);
 }
 
 .image-card .image-preview {

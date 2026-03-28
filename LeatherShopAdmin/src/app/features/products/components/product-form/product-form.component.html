@@ -120,12 +120,15 @@
             @if (images.length > 0) {
               <div class="images-grid">
                 @for (img of images; track img; let i = $index) {
-                  <div class="image-card">
+                  <div class="image-card" [class.is-primary]="i === 0" [class.can-set-primary]="i !== 0"
+                    (click)="setPrimary(i)" [title]="i === 0 ? 'Primary image' : 'Click to set as primary'">
                     @if (i === 0) {
                       <span class="image-badge">Primary</span>
+                    } @else {
+                      <span class="image-badge set-primary-badge"><i class="pi pi-star"></i> Set Primary</span>
                     }
                     <img [src]="img.preview" [alt]="'Product image ' + (i + 1)" class="image-preview" />
-                    <button type="button" class="remove-image-btn" (click)="removeImage(i)" title="Remove image">
+                    <button type="button" class="remove-image-btn" (click)="removeImage(i); $event.stopPropagation()" title="Remove image">
                       <i class="pi pi-times"></i>
                     </button>
                   </div>
