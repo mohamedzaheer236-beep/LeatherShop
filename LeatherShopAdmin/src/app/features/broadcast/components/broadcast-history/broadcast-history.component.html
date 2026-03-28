@@ -303,6 +303,9 @@
                 <div class="outcome-text">
                   <strong>Not Delivered</strong>
                   <span>Message never reached the user's phone{{ selectedRetryRecipient.retryCount >= 3 ? ' — all 3 retries exhausted' : '' }}</span>
+                  @if (selectedRetryRecipient.errorDetail) {
+                    <span class="outcome-error"><i class="pi pi-info-circle"></i> {{ selectedRetryRecipient.errorDetail }}</span>
+                  }
                 </div>
               }
               @default {
