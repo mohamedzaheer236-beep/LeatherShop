@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using LeatherShopAPI.Data;
@@ -131,6 +132,25 @@ public class BroadcastService : IBroadcastService
         if (sentFilter.HasValue)
             query = query.Where(b => b.SentCount == sentFilter.Value);
 
+        // Date filter — pre-projection (SentAt is a real column)
+        if (!string.IsNullOrWhiteSpace(dateSearch))
+        {
+            var ds = dateSearch.Trim();
+            if (DateTime.TryParse(ds, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
+            {
+                // Exact date range (ignores time/timezone issues)
+                var startOfDay = parsedDate.Date;
+                var endOfDay = startOfDay.AddDays(1);
+                query = query.Where(b => b.SentAt >= startOfDay && b.SentAt < endOfDay);
+            }
+            else
+            {
+                // Partial text search (e.g. "Mar", "2026")
+                query = query.Where(b =>
+                    EF.Functions.ILike(AppDbContext.ToChar(b.SentAt, "DD Mon YYYY"), $"%{ds}%"));
+            }
+        }
+
         // Project first so we can filter on computed count columns
         var projected = query.Select(b => new BroadcastHistoryDto
             {
@@ -156,14 +176,6 @@ public class BroadcastService : IBroadcastService
             projected = projected.Where(b => b.ReadCount == readFilter.Value);
         if (failedFilter.HasValue)
             projected = projected.Where(b => b.FailedCount == failedFilter.Value);
-        if (!string.IsNullOrWhiteSpace(dateSearch))
-        {
-            var ds = dateSearch.Trim();
-            projected = projected.Where(b =>
-                EF.Functions.ILike(
-                    AppDbContext.ToChar(b.SentAt, "DD Mon YYYY HH24:MI"),
-                    $"%{ds}%"));
-        }
 
         var totalCount = await projected.CountAsync(ct);
 
