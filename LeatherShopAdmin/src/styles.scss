@@ -881,3 +881,109 @@ body .p-dropdown-panel .p-dropdown-header .p-dropdown-filter-container .p-dropdo
 body .p-dropdown-panel .p-dropdown-header .p-dropdown-filter-container .filter-clear-icon:hover {
   color: #475569;
 }
+
+/* =============================================
+   Broadcast History Table (was ::ng-deep in broadcast-history.component.scss)
+   ============================================= */
+body .broadcast-table {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--surface-200, #e5e7eb);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+body .broadcast-table .p-datatable-thead > tr.header-row > th {
+  background: var(--surface-50, #f8fafc);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  color: var(--text-color, #374151);
+  padding: 12px 14px;
+  border: none;
+  border-bottom: 2px solid var(--surface-200, #e5e7eb);
+  white-space: nowrap;
+}
+
+body .broadcast-table .p-sortable-column .p-column-header-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+body .broadcast-table .p-sortable-column .p-sortable-column-icon {
+  font-size: 0.7rem;
+  color: var(--surface-400, #9ca3af);
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+body .broadcast-table .p-sortable-column.p-highlight .p-sortable-column-icon {
+  color: var(--primary-color, #6366f1);
+}
+
+body .broadcast-table .p-datatable-tbody > tr {
+  transition: all 0.2s ease;
+  border-bottom: 1px solid transparent;
+}
+
+body .broadcast-table .p-datatable-tbody > tr > td {
+  padding: 11px 14px;
+  font-size: 13.5px;
+  border: none;
+  border-bottom: 1px solid var(--surface-100, #f3f4f6);
+}
+
+body .broadcast-table .p-datatable-tbody > tr:hover > td {
+  background: var(--primary-50, #eef2ff);
+}
+
+body .broadcast-table .p-datatable-tbody > tr:last-child > td {
+  border-bottom: none;
+}
+
+body .broadcast-table .p-datatable-thead > tr.filter-row > th {
+  border: none;
+}
+
+body .broadcast-table .p-paginator {
+  border: none;
+  border-top: 1px solid var(--surface-200, #e5e7eb);
+  padding: 8px 12px;
+}
+
+/* Broadcast filter row calendar (was ::ng-deep in broadcast-history.component.scss) */
+body .broadcast-table .filter-row p-calendar .p-calendar {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+body .broadcast-table .filter-row p-calendar .p-inputtext {
+  padding: 5px 10px;
+  font-size: 12.5px;
+  border-radius: 6px;
+  border: 1px solid var(--surface-300, #d1d5db);
+  background: var(--surface-50, #f9fafb);
+  width: 100%;
+  padding-right: 28px;
+}
+
+body .broadcast-table .filter-row p-calendar .p-inputtext:focus {
+  border-color: var(--primary-color, #6366f1);
+  box-shadow: 0 0 0 2px var(--primary-100, #e0e7ff);
+  background: #fff;
+}
+
+body .broadcast-table .filter-row p-calendar .p-calendar-clear-icon {
+  position: absolute;
+  right: 32px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--surface-400, #9ca3af);
+  cursor: pointer;
+}
+
+body .broadcast-table .filter-row p-calendar .p-datepicker-trigger {
+  padding: 0 6px;
+}

@@ -28,87 +28,19 @@
       gap: 8px;
 
       .reset-highlight {
-        color: var(--primary-color, #6366f1) !important;
-        background: var(--primary-50, #eef2ff) !important;
+        color: var(--primary-color, #6366f1);
+        background: var(--primary-50, #eef2ff);
       }
 
       .filter-active {
-        color: var(--primary-color, #6366f1) !important;
-        background: var(--primary-50, #eef2ff) !important;
+        color: var(--primary-color, #6366f1);
+        background: var(--primary-50, #eef2ff);
       }
     }
   }
 }
 
-// ─── Broadcast Table ───
-:host ::ng-deep .broadcast-table {
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid var(--surface-200, #e5e7eb);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-
-  .p-datatable-thead > tr.header-row > th {
-    background: var(--surface-50, #f8fafc);
-    font-weight: 600;
-    font-size: 13px;
-    letter-spacing: 0.2px;
-    color: var(--text-color, #374151);
-    padding: 12px 14px;
-    border: none;
-    border-bottom: 2px solid var(--surface-200, #e5e7eb);
-    white-space: nowrap;
-  }
-
-  // Fix sort icon alignment
-  .p-sortable-column {
-    .p-column-header-content {
-      display: inline-flex !important;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .p-sortable-column-icon {
-      font-size: 0.7rem;
-      color: var(--surface-400, #9ca3af);
-      display: inline-flex !important;
-      flex-shrink: 0;
-    }
-
-    &.p-highlight .p-sortable-column-icon {
-      color: var(--primary-color, #6366f1);
-    }
-  }
-
-  .p-datatable-tbody > tr {
-    transition: all 0.2s ease;
-    border-bottom: 1px solid transparent;
-
-    > td {
-      padding: 11px 14px;
-      font-size: 13.5px;
-      border: none;
-      border-bottom: 1px solid var(--surface-100, #f3f4f6);
-    }
-
-    &:hover > td {
-      background: var(--primary-50, #eef2ff) !important;
-    }
-
-    &:last-child > td {
-      border-bottom: none;
-    }
-  }
-
-  .p-datatable-thead > tr.filter-row > th {
-    border: none;
-  }
-
-  .p-paginator {
-    border: none;
-    border-top: 1px solid var(--surface-200, #e5e7eb);
-    padding: 8px 12px;
-  }
-}
+// ─── Broadcast Table — overrides moved to global styles.scss ───
 
 // Sort icon helper for inline layout
 .th-inner {
@@ -123,48 +55,9 @@
   animation: filterSlideIn 0.25s ease-out;
 
   th {
-    padding: 8px 8px !important;
-    background: var(--surface-0, #fff) !important;
-    border-bottom: 2px solid var(--primary-100, #e0e7ff) !important;
-  }
-
-  // Calendar picker inside filter row
-  :host ::ng-deep p-calendar {
-    .p-calendar {
-      display: flex;
-      align-items: center;
-      position: relative;
-    }
-
-    .p-inputtext {
-      padding: 5px 10px !important;
-      font-size: 12.5px !important;
-      border-radius: 6px !important;
-      border: 1px solid var(--surface-300, #d1d5db) !important;
-      background: var(--surface-50, #f9fafb) !important;
-      width: 100%;
-      padding-right: 28px !important;
-
-      &:focus {
-        border-color: var(--primary-color, #6366f1) !important;
-        box-shadow: 0 0 0 2px var(--primary-100, #e0e7ff) !important;
-        background: #fff !important;
-      }
-    }
-
-    .p-calendar-clear-icon {
-      position: absolute;
-      right: 32px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 12px;
-      color: var(--surface-400, #9ca3af);
-      cursor: pointer;
-    }
-
-    .p-datepicker-trigger {
-      padding: 0 6px;
-    }
+    padding: 8px 8px;
+    background: var(--surface-0, #fff);
+    border-bottom: 2px solid var(--primary-100, #e0e7ff);
   }
 }
 
@@ -180,18 +73,18 @@
 }
 
 .col-filter {
-  width: 100% !important;
-  padding: 5px 10px !important;
-  font-size: 12.5px !important;
-  border-radius: 6px !important;
-  border: 1px solid var(--surface-300, #d1d5db) !important;
-  background: var(--surface-50, #f9fafb) !important;
+  width: 100%;
+  padding: 5px 10px;
+  font-size: 12.5px;
+  border-radius: 6px;
+  border: 1px solid var(--surface-300, #d1d5db);
+  background: var(--surface-50, #f9fafb);
   transition: border-color 0.2s, box-shadow 0.2s;
 
   &:focus {
-    border-color: var(--primary-color, #6366f1) !important;
-    box-shadow: 0 0 0 2px var(--primary-100, #e0e7ff) !important;
-    background: #fff !important;
+    border-color: var(--primary-color, #6366f1);
+    box-shadow: 0 0 0 2px var(--primary-100, #e0e7ff);
+    background: #fff;
     outline: none;
   }
 
