@@ -157,7 +157,13 @@ public class BroadcastService : IBroadcastService
         if (failedFilter.HasValue)
             projected = projected.Where(b => b.FailedCount == failedFilter.Value);
         if (!string.IsNullOrWhiteSpace(dateSearch))
-            projected = projected.Where(b => b.SentAt.ToString().Contains(dateSearch));
+        {
+            var ds = dateSearch.Trim();
+            projected = projected.Where(b =>
+                EF.Functions.ILike(
+                    AppDbContext.ToChar(b.SentAt, "DD Mon YYYY HH24:MI"),
+                    $"%{ds}%"));
+        }
 
         var totalCount = await projected.CountAsync(ct);
 

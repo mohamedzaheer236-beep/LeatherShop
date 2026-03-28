@@ -147,19 +147,21 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
   private getActiveFilters(): Record<string, string> | undefined {
     const active: Record<string, string> = {};
     const f = this.filters;
-    if (f.templateSearch.trim()) active['templateSearch'] = f.templateSearch.trim();
-    if (f.recipientsFilter.trim()) active['recipientsFilter'] = f.recipientsFilter.trim();
-    if (f.sentFilter.trim()) active['sentFilter'] = f.sentFilter.trim();
-    if (f.deliveredFilter.trim()) active['deliveredFilter'] = f.deliveredFilter.trim();
-    if (f.readFilter.trim()) active['readFilter'] = f.readFilter.trim();
-    if (f.failedFilter.trim()) active['failedFilter'] = f.failedFilter.trim();
-    if (f.dateSearch.trim()) active['dateSearch'] = f.dateSearch.trim();
+    const s = (v: unknown) => String(v ?? '').trim();
+    if (s(f.templateSearch)) active['templateSearch'] = s(f.templateSearch);
+    if (s(f.recipientsFilter)) active['recipientsFilter'] = s(f.recipientsFilter);
+    if (s(f.sentFilter)) active['sentFilter'] = s(f.sentFilter);
+    if (s(f.deliveredFilter)) active['deliveredFilter'] = s(f.deliveredFilter);
+    if (s(f.readFilter)) active['readFilter'] = s(f.readFilter);
+    if (s(f.failedFilter)) active['failedFilter'] = s(f.failedFilter);
+    if (s(f.dateSearch)) active['dateSearch'] = s(f.dateSearch);
     return Object.keys(active).length > 0 ? active : undefined;
   }
 
   private updateHasActiveFilters(): void {
     const f = this.filters;
-    this.hasActiveFilters = !!(f.templateSearch || f.recipientsFilter || f.sentFilter || f.deliveredFilter || f.readFilter || f.failedFilter || f.dateSearch);
+    const s = (v: unknown) => String(v ?? '').trim();
+    this.hasActiveFilters = !!(s(f.templateSearch) || s(f.recipientsFilter) || s(f.sentFilter) || s(f.deliveredFilter) || s(f.readFilter) || s(f.failedFilter) || s(f.dateSearch));
   }
 
   openRecipients(broadcast: BroadcastHistory): void {

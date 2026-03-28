@@ -181,6 +181,13 @@
   font-weight: 500;
 }
 
+.template-cell {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .text-center {
   text-align: center;
 }

@@ -36,22 +36,22 @@
 
     <ng-template pTemplate="header">
       <tr class="header-row">
-        <th pSortableColumn="messageTemplate" style="min-width: 180px">
+        <th pSortableColumn="messageTemplate" style="width: 200px; max-width: 220px">
           <div class="th-inner">Template <p-sortIcon field="messageTemplate"></p-sortIcon></div>
         </th>
-        <th pSortableColumn="totalRecipients" style="width: 105px">
+        <th pSortableColumn="totalRecipients" style="width: 110px">
           <div class="th-inner">Recipients <p-sortIcon field="totalRecipients"></p-sortIcon></div>
         </th>
-        <th pSortableColumn="sentCount" style="width: 85px">
+        <th pSortableColumn="sentCount" style="width: 90px">
           <div class="th-inner">Sent <p-sortIcon field="sentCount"></p-sortIcon></div>
         </th>
-        <th pSortableColumn="deliveredCount" style="width: 105px">
+        <th pSortableColumn="deliveredCount" style="width: 110px">
           <div class="th-inner">Delivered <p-sortIcon field="deliveredCount"></p-sortIcon></div>
         </th>
-        <th pSortableColumn="readCount" style="width: 85px">
+        <th pSortableColumn="readCount" style="width: 90px">
           <div class="th-inner">Read <p-sortIcon field="readCount"></p-sortIcon></div>
         </th>
-        <th pSortableColumn="failedCount" style="width: 85px">
+        <th pSortableColumn="failedCount" style="width: 90px">
           <div class="th-inner">Failed <p-sortIcon field="failedCount"></p-sortIcon></div>
         </th>
         <th pSortableColumn="sentAt" style="width: 165px">
@@ -99,7 +99,7 @@
 
     <ng-template pTemplate="body" let-b>
       <tr>
-        <td><strong class="font-mono">{{ b.messageTemplate }}</strong></td>
+        <td class="template-cell"><strong class="font-mono">{{ b.messageTemplate }}</strong></td>
         <td class="text-center">{{ b.totalRecipients }}</td>
         <td class="text-center"><p-tag [value]="b.sentCount.toString()" severity="success"></p-tag></td>
         <td class="text-center"><p-tag [value]="b.deliveredCount.toString()" [severity]="b.deliveredCount > 0 ? 'success' : 'secondary'"></p-tag></td>
