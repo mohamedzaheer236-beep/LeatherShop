@@ -54,13 +54,19 @@ public class BroadcastController : ControllerBase
         [FromQuery] string? sortField = null,
         [FromQuery] string? sortOrder = null,
         [FromQuery] string? templateSearch = null,
+        [FromQuery] int? recipientsFilter = null,
+        [FromQuery] int? sentFilter = null,
+        [FromQuery] int? deliveredFilter = null,
+        [FromQuery] int? readFilter = null,
+        [FromQuery] int? failedFilter = null,
+        [FromQuery] string? dateSearch = null,
         CancellationToken ct = default)
     {
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 10;
         if (pageSize > 100) pageSize = 100;
 
-        var history = await _broadcastService.GetHistoryAsync(page, pageSize, sortField, sortOrder, templateSearch, ct);
+        var history = await _broadcastService.GetHistoryAsync(page, pageSize, sortField, sortOrder, templateSearch, recipientsFilter, sentFilter, deliveredFilter, readFilter, failedFilter, dateSearch, ct);
         return Ok(ApiResponse<PaginatedResult<BroadcastHistoryDto>>.Ok(history));
     }
 

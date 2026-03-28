@@ -2,11 +2,10 @@
   <div class="section-header">
     <h3><i class="pi pi-history"></i> Broadcast History</h3>
     <div class="header-actions">
-      <button type="button" pButton [text]="true" [rounded]="true"
-        [icon]="showFilters ? 'pi pi-filter-slash' : 'pi pi-filter'"
-        [class.filter-active]="showFilters"
-        (click)="toggleFilters()"
-        [pTooltip]="showFilters ? 'Hide Filters' : 'Show Filters'"
+      <button type="button" pButton [text]="true" [rounded]="true" icon="pi pi-refresh"
+        (click)="resetAll()"
+        [class.reset-highlight]="hasActiveFilters || sortField !== 'sentAt' || sortOrder !== -1"
+        pTooltip="Reset all filters & sorting"
         tooltipPosition="left">
       </button>
     </div>
@@ -24,71 +23,76 @@
     [sortOrder]="sortOrder"
     [showCurrentPageReport]="true"
     currentPageReportTemplate="Showing {first} to {last} of {totalRecords} broadcasts"
-    styleClass="p-datatable-striped broadcast-table"
+    styleClass="p-datatable-gridlines broadcast-table"
     [tableStyle]="{'min-width': '60rem'}"
     [rowHover]="true">
 
     <ng-template pTemplate="header">
-      <tr>
+      <tr class="header-row">
         <th pSortableColumn="messageTemplate" style="min-width: 180px">
-          Template <p-sortIcon field="messageTemplate"></p-sortIcon>
+          <div class="th-inner">Template <p-sortIcon field="messageTemplate"></p-sortIcon></div>
         </th>
-        <th pSortableColumn="totalRecipients" style="width: 110px">
-          Recipients <p-sortIcon field="totalRecipients"></p-sortIcon>
+        <th pSortableColumn="totalRecipients" style="width: 105px">
+          <div class="th-inner">Recipients <p-sortIcon field="totalRecipients"></p-sortIcon></div>
         </th>
-        <th pSortableColumn="sentCount" style="width: 90px">
-          Sent <p-sortIcon field="sentCount"></p-sortIcon>
+        <th pSortableColumn="sentCount" style="width: 85px">
+          <div class="th-inner">Sent <p-sortIcon field="sentCount"></p-sortIcon></div>
         </th>
-        <th pSortableColumn="deliveredCount" style="width: 110px">
-          Delivered <p-sortIcon field="deliveredCount"></p-sortIcon>
+        <th pSortableColumn="deliveredCount" style="width: 105px">
+          <div class="th-inner">Delivered <p-sortIcon field="deliveredCount"></p-sortIcon></div>
         </th>
-        <th pSortableColumn="readCount" style="width: 90px">
-          Read <p-sortIcon field="readCount"></p-sortIcon>
+        <th pSortableColumn="readCount" style="width: 85px">
+          <div class="th-inner">Read <p-sortIcon field="readCount"></p-sortIcon></div>
         </th>
-        <th pSortableColumn="failedCount" style="width: 90px">
-          Failed <p-sortIcon field="failedCount"></p-sortIcon>
+        <th pSortableColumn="failedCount" style="width: 85px">
+          <div class="th-inner">Failed <p-sortIcon field="failedCount"></p-sortIcon></div>
         </th>
-        <th pSortableColumn="sentAt" style="width: 170px">
-          Date <p-sortIcon field="sentAt"></p-sortIcon>
+        <th pSortableColumn="sentAt" style="width: 165px">
+          <div class="th-inner">Date <p-sortIcon field="sentAt"></p-sortIcon></div>
         </th>
-        <th style="width: 5rem"></th>
+        <th style="width: 4rem"></th>
       </tr>
-      @if (showFilters) {
-        <tr class="filter-row">
-          <th>
-            <span class="p-input-icon-left filter-input-wrap">
-              <i class="pi pi-search"></i>
-              <input pInputText type="text" [(ngModel)]="templateSearch"
-                (input)="onTemplateSearchInput()"
-                placeholder="Search template..."
-                class="filter-input" />
-            </span>
-          </th>
-          <th></th>
-          <th></th>
-          <th></th>
-          <th></th>
-          <th></th>
-          <th></th>
-          <th>
-            @if (templateSearch) {
-              <button type="button" pButton icon="pi pi-times" [rounded]="true" [text]="true"
-                severity="danger" (click)="clearFilters()" pTooltip="Clear filters" class="clear-btn">
-              </button>
-            }
-          </th>
-        </tr>
-      }
+      <tr class="filter-row">
+        <th>
+          <input pInputText type="text" [(ngModel)]="filters.templateSearch"
+            (input)="onFilterInput()" placeholder="Search..." class="col-filter" />
+        </th>
+        <th>
+          <input pInputText type="number" [(ngModel)]="filters.recipientsFilter"
+            (input)="onFilterInput()" placeholder="#" class="col-filter col-filter-num" />
+        </th>
+        <th>
+          <input pInputText type="number" [(ngModel)]="filters.sentFilter"
+            (input)="onFilterInput()" placeholder="#" class="col-filter col-filter-num" />
+        </th>
+        <th>
+          <input pInputText type="number" [(ngModel)]="filters.deliveredFilter"
+            (input)="onFilterInput()" placeholder="#" class="col-filter col-filter-num" />
+        </th>
+        <th>
+          <input pInputText type="number" [(ngModel)]="filters.readFilter"
+            (input)="onFilterInput()" placeholder="#" class="col-filter col-filter-num" />
+        </th>
+        <th>
+          <input pInputText type="number" [(ngModel)]="filters.failedFilter"
+            (input)="onFilterInput()" placeholder="#" class="col-filter col-filter-num" />
+        </th>
+        <th>
+          <input pInputText type="text" [(ngModel)]="filters.dateSearch"
+            (input)="onFilterInput()" placeholder="Search date..." class="col-filter" />
+        </th>
+        <th></th>
+      </tr>
     </ng-template>
 
     <ng-template pTemplate="body" let-b>
       <tr>
         <td><strong class="font-mono">{{ b.messageTemplate }}</strong></td>
-        <td>{{ b.totalRecipients }}</td>
-        <td><p-tag [value]="b.sentCount.toString()" severity="success"></p-tag></td>
-        <td><p-tag [value]="b.deliveredCount.toString()" [severity]="b.deliveredCount > 0 ? 'success' : 'secondary'"></p-tag></td>
-        <td><p-tag [value]="b.readCount.toString()" [severity]="b.readCount > 0 ? 'info' : 'secondary'"></p-tag></td>
-        <td><p-tag [value]="b.failedCount.toString()" [severity]="b.failedCount > 0 ? 'danger' : 'secondary'"></p-tag></td>
+        <td class="text-center">{{ b.totalRecipients }}</td>
+        <td class="text-center"><p-tag [value]="b.sentCount.toString()" severity="success"></p-tag></td>
+        <td class="text-center"><p-tag [value]="b.deliveredCount.toString()" [severity]="b.deliveredCount > 0 ? 'success' : 'secondary'"></p-tag></td>
+        <td class="text-center"><p-tag [value]="b.readCount.toString()" [severity]="b.readCount > 0 ? 'info' : 'secondary'"></p-tag></td>
+        <td class="text-center"><p-tag [value]="b.failedCount.toString()" [severity]="b.failedCount > 0 ? 'danger' : 'secondary'"></p-tag></td>
         <td>{{ b.sentAt | date:'dd MMM yyyy HH:mm' }}</td>
         <td>
           <p-button icon="pi pi-eye" [rounded]="true" [text]="true" severity="info"
@@ -100,8 +104,9 @@
     <ng-template pTemplate="emptymessage">
       <tr>
         <td colspan="8" class="text-center p-4">
-          @if (templateSearch) {
-            No broadcasts matching "<strong>{{ templateSearch }}</strong>"
+          @if (hasActiveFilters) {
+            No broadcasts match your filters.
+            <a class="reset-link" (click)="resetAll()">Reset all</a>
           } @else {
             No broadcasts found.
           }

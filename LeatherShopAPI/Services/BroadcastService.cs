@@ -119,17 +119,19 @@ public class BroadcastService : IBroadcastService
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<PaginatedResult<BroadcastHistoryDto>> GetHistoryAsync(int page = 1, int pageSize = 10, string? sortField = null, string? sortOrder = null, string? templateSearch = null, CancellationToken ct = default)
+    public async Task<PaginatedResult<BroadcastHistoryDto>> GetHistoryAsync(int page = 1, int pageSize = 10, string? sortField = null, string? sortOrder = null, string? templateSearch = null, int? recipientsFilter = null, int? sentFilter = null, int? deliveredFilter = null, int? readFilter = null, int? failedFilter = null, string? dateSearch = null, CancellationToken ct = default)
     {
         var query = _db.BroadcastMessages.AsQueryable();
 
-        // Filter
+        // Pre-projection filters (columns that exist on BroadcastMessage)
         if (!string.IsNullOrWhiteSpace(templateSearch))
             query = query.Where(b => b.MessageTemplate.Contains(templateSearch));
+        if (recipientsFilter.HasValue)
+            query = query.Where(b => b.TotalRecipients == recipientsFilter.Value);
+        if (sentFilter.HasValue)
+            query = query.Where(b => b.SentCount == sentFilter.Value);
 
-        var totalCount = await query.CountAsync(ct);
-
-        // Sort — project first then sort on DTO fields so count-based columns work
+        // Project first so we can filter on computed count columns
         var projected = query.Select(b => new BroadcastHistoryDto
             {
                 Id = b.Id,
@@ -146,6 +148,18 @@ public class BroadcastService : IBroadcastService
                 Status = b.Status.ToString(),
                 IsCarousel = b.IsCarousel
             });
+
+        // Post-projection filters (computed count columns)
+        if (deliveredFilter.HasValue)
+            projected = projected.Where(b => b.DeliveredCount == deliveredFilter.Value);
+        if (readFilter.HasValue)
+            projected = projected.Where(b => b.ReadCount == readFilter.Value);
+        if (failedFilter.HasValue)
+            projected = projected.Where(b => b.FailedCount == failedFilter.Value);
+        if (!string.IsNullOrWhiteSpace(dateSearch))
+            projected = projected.Where(b => b.SentAt.ToString().Contains(dateSearch));
+
+        var totalCount = await projected.CountAsync(ct);
 
         var isDesc = string.Equals(sortOrder, "desc", StringComparison.OrdinalIgnoreCase);
         projected = (sortField?.ToLowerInvariant()) switch

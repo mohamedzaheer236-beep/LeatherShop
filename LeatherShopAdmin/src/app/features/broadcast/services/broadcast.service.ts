@@ -24,11 +24,15 @@ export class BroadcastService {
       .pipe(map(res => res.data));
   }
 
-  getBroadcastHistory(page = 1, pageSize = 10, sortField?: string, sortOrder?: string, templateSearch?: string): Observable<PaginatedResult<BroadcastHistory>> {
+  getBroadcastHistory(page = 1, pageSize = 10, sortField?: string, sortOrder?: string, filters?: Record<string, string>): Observable<PaginatedResult<BroadcastHistory>> {
     let params = new HttpParams().set('page', page.toString()).set('pageSize', pageSize.toString());
     if (sortField) params = params.set('sortField', sortField);
     if (sortOrder) params = params.set('sortOrder', sortOrder);
-    if (templateSearch) params = params.set('templateSearch', templateSearch);
+    if (filters) {
+      for (const [key, value] of Object.entries(filters)) {
+        if (value) params = params.set(key, value);
+      }
+    }
     return this.http
       .get<ApiResponse<PaginatedResult<BroadcastHistory>>>(`${this.baseUrl}/history`, { params })
       .pipe(map(res => res.data));

@@ -11,7 +11,7 @@ import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { FormsModule } from '@angular/forms';
 import { InputTextModule } from 'primeng/inputtext';
 import { Subject } from 'rxjs';
-import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
+import { debounceTime, takeUntil } from 'rxjs/operators';
 import { BroadcastHistory, BroadcastRecipient, BroadcastDeliverySummary, RetryAttemptEntry } from '../../models/broadcast.model';
 import { BroadcastService } from '../../services/broadcast.service';
 
@@ -36,10 +36,18 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
   sortField = 'sentAt';
   sortOrder = -1; // -1 desc, 1 asc
 
-  // Filter state
-  showFilters = false;
-  templateSearch = '';
-  private templateSearch$ = new Subject<string>();
+  // Column filter state
+  filters = {
+    templateSearch: '',
+    recipientsFilter: '',
+    sentFilter: '',
+    deliveredFilter: '',
+    readFilter: '',
+    failedFilter: '',
+    dateSearch: '',
+  };
+  private filterInput$ = new Subject<void>();
+  hasActiveFilters = false;
 
   // Expose to parent for refresh after send
   @Output() loaded = new EventEmitter<void>();
@@ -67,9 +75,8 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
   ];
 
   ngOnInit(): void {
-    this.templateSearch$.pipe(
+    this.filterInput$.pipe(
       debounceTime(400),
-      distinctUntilChanged(),
       takeUntil(this.destroy$)
     ).subscribe(() => this.loadHistory(1));
   }
@@ -79,20 +86,24 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  onTemplateSearchInput(): void {
-    this.templateSearch$.next(this.templateSearch);
+  onFilterInput(): void {
+    this.updateHasActiveFilters();
+    this.filterInput$.next();
   }
 
-  toggleFilters(): void {
-    this.showFilters = !this.showFilters;
-    if (!this.showFilters && this.templateSearch) {
-      this.templateSearch = '';
-      this.loadHistory(1);
-    }
-  }
-
-  clearFilters(): void {
-    this.templateSearch = '';
+  resetAll(): void {
+    this.sortField = 'sentAt';
+    this.sortOrder = -1;
+    this.filters = {
+      templateSearch: '',
+      recipientsFilter: '',
+      sentFilter: '',
+      deliveredFilter: '',
+      readFilter: '',
+      failedFilter: '',
+      dateSearch: '',
+    };
+    this.hasActiveFilters = false;
     this.loadHistory(1);
   }
 
@@ -112,8 +123,7 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
     const sortOrderStr = this.sortOrder === 1 ? 'asc' : 'desc';
     this.broadcastService.getBroadcastHistory(
-      page, this.pageSize, this.sortField, sortOrderStr,
-      this.templateSearch || undefined
+      page, this.pageSize, this.sortField, sortOrderStr, this.getActiveFilters()
     ).subscribe({
       next: result => {
         this.history = result.items;
@@ -127,6 +137,24 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       },
     });
+  }
+
+  private getActiveFilters(): Record<string, string> | undefined {
+    const active: Record<string, string> = {};
+    const f = this.filters;
+    if (f.templateSearch.trim()) active['templateSearch'] = f.templateSearch.trim();
+    if (f.recipientsFilter.trim()) active['recipientsFilter'] = f.recipientsFilter.trim();
+    if (f.sentFilter.trim()) active['sentFilter'] = f.sentFilter.trim();
+    if (f.deliveredFilter.trim()) active['deliveredFilter'] = f.deliveredFilter.trim();
+    if (f.readFilter.trim()) active['readFilter'] = f.readFilter.trim();
+    if (f.failedFilter.trim()) active['failedFilter'] = f.failedFilter.trim();
+    if (f.dateSearch.trim()) active['dateSearch'] = f.dateSearch.trim();
+    return Object.keys(active).length > 0 ? active : undefined;
+  }
+
+  private updateHasActiveFilters(): void {
+    const f = this.filters;
+    this.hasActiveFilters = !!(f.templateSearch || f.recipientsFilter || f.sentFilter || f.deliveredFilter || f.readFilter || f.failedFilter || f.dateSearch);
   }
 
   openRecipients(broadcast: BroadcastHistory): void {
