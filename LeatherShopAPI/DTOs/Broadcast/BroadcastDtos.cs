@@ -104,6 +104,7 @@ public class BroadcastDeliverySummaryDto
     public int Read { get; set; }
     public int Failed { get; set; }
     public int RetryScheduled { get; set; }
+    public int RetryableCount { get; set; }
 }
 
 public class BroadcastRetryResultDto

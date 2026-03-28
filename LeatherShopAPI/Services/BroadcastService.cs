@@ -256,7 +256,12 @@ public class BroadcastService : IBroadcastService
             RetryScheduled = await _db.BroadcastRecipients
                 .CountAsync(r => r.BroadcastMessageId == broadcastId
                                  && r.Status == BroadcastDeliveryStatus.Failed
-                                 && r.NextRetryAt != null, ct)
+                                 && r.NextRetryAt != null, ct),
+            RetryableCount = await _db.BroadcastRecipients
+                .CountAsync(r => r.BroadcastMessageId == broadcastId
+                                 && r.Status == BroadcastDeliveryStatus.Failed
+                                 && r.RetryCount < 3
+                                 && r.ErrorDetail != null && r.ErrorDetail.Contains("131049"), ct)
         };
     }
 

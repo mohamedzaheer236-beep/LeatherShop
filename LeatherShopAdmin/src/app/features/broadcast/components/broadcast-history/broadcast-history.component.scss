@@ -141,92 +141,148 @@
   }
 }
 
-// Retry history overlay panel
+// Retry history overlay panel — table layout
 .retry-history-panel {
-  padding: 0.5rem;
+  padding: 4px 0 0;
 
-  h4 {
-    margin: 0 0 0.75rem 0;
+  .retry-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 14px;
     font-weight: 600;
     color: var(--text-color);
+    margin-bottom: 12px;
+    padding: 0 4px;
+
+    i {
+      font-size: 16px;
+      color: var(--primary-color, #6366f1);
+    }
   }
 }
 
-.retry-timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+.retry-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
 
-  .timeline-entry {
-    display: flex;
-    gap: 12px;
-    padding: 8px 0;
-    border-left: 2px solid var(--surface-300, #ddd);
-    margin-left: 6px;
-    padding-left: 16px;
-    position: relative;
-
-    &:first-child { padding-top: 0; }
-    &:last-child { border-left-color: transparent; }
-
-    &.pending {
-      opacity: 0.7;
-    }
-  }
-
-  .timeline-dot {
-    position: absolute;
-    left: -6px;
-    top: 10px;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--surface-400, #999);
-    flex-shrink: 0;
-
-    &.sent { background: var(--blue-500, #2196f3); }
-    &.success { background: var(--green-500, #4caf50); }
-    &.failed { background: var(--red-500, #f44336); }
-    &.pending { background: var(--orange-500, #ff9800); }
-  }
-
-  .timeline-content {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .timeline-label {
-    font-size: 12px;
+  th {
+    text-align: left;
+    padding: 7px 10px;
     font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-color-secondary, #6c757d);
+    background: var(--surface-50, #fafafa);
+    border-bottom: 2px solid var(--surface-200, #e5e7eb);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--surface-100, #f3f4f6);
     color: var(--text-color);
+    vertical-align: middle;
   }
 
-  .timeline-time {
-    font-size: 11px;
-    color: var(--text-color-secondary, #888);
+  tbody tr {
+    transition: background 0.15s ease;
+
+    &:hover { background: var(--surface-50, #fafafa); }
+    &:last-child td { border-bottom: none; }
   }
 
-  .timeline-result {
-    font-size: 11px;
-    font-weight: 500;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-
-    i { font-size: 0.7rem; }
-
-    &.success { color: var(--green-500, #4caf50); }
-    &.failed { color: var(--red-500, #f44336); }
-    &.pending { color: var(--orange-500, #ff9800); }
+  .dt-cell {
+    white-space: nowrap;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 12px;
+    color: var(--text-color-secondary, #6c757d);
   }
 
-  .timeline-error {
-    font-size: 10px;
-    color: var(--text-color-secondary, #888);
-    word-break: break-word;
-    max-width: 300px;
+  .pending-row {
+    background: #fffbeb;
+    td { color: var(--orange-600, #d97706); }
   }
+}
+
+.attempt-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+
+  &.original {
+    background: var(--surface-100, #f3f4f6);
+    color: var(--text-color-secondary, #6c757d);
+  }
+
+  &.retry {
+    background: #ede9fe;
+    color: #7c3aed;
+  }
+
+  &.pending {
+    background: #fff7ed;
+    color: #ea580c;
+  }
+}
+
+.result-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  i { font-size: 12px; }
+
+  &.success {
+    color: #16a34a;
+  }
+
+  &.failed {
+    color: #dc2626;
+  }
+
+  &.pending {
+    color: #d97706;
+  }
+}
+
+.error-cell-mini {
+  max-width: 160px;
+
+  .error-truncate {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11.5px;
+    color: #dc2626;
+    cursor: help;
+  }
+
+  .no-error {
+    color: var(--text-color-secondary, #9ca3af);
+  }
+}
+
+.retry-exhausted {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 500;
+
+  i { font-size: 13px; }
 }

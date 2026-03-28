@@ -90,6 +90,7 @@ export interface BroadcastDeliverySummary {
   read: number;
   failed: number;
   retryScheduled: number;
+  retryableCount: number;
 }
 
 export interface BroadcastRetryResult {
