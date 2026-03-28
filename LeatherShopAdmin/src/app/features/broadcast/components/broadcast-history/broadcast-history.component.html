@@ -2,6 +2,13 @@
   <div class="section-header">
     <h3><i class="pi pi-history"></i> Broadcast History</h3>
     <div class="header-actions">
+      <button type="button" pButton [text]="true" [rounded]="true"
+        [icon]="showFilters ? 'pi pi-filter-slash' : 'pi pi-filter'"
+        (click)="toggleFilters()"
+        [class.filter-active]="showFilters"
+        [pTooltip]="showFilters ? 'Hide column filters' : 'Show column filters'"
+        tooltipPosition="left">
+      </button>
       <button type="button" pButton [text]="true" [rounded]="true" icon="pi pi-refresh"
         (click)="resetAll()"
         [class.reset-highlight]="hasActiveFilters || sortField !== 'sentAt' || sortOrder !== -1"
@@ -23,7 +30,7 @@
     [sortOrder]="sortOrder"
     [showCurrentPageReport]="true"
     currentPageReportTemplate="Showing {first} to {last} of {totalRecords} broadcasts"
-    styleClass="p-datatable-gridlines broadcast-table"
+    styleClass="broadcast-table"
     [tableStyle]="{'min-width': '60rem'}"
     [rowHover]="true">
 
@@ -52,37 +59,42 @@
         </th>
         <th style="width: 4rem"></th>
       </tr>
+      @if (showFilters) {
       <tr class="filter-row">
         <th>
           <input pInputText type="text" [(ngModel)]="filters.templateSearch"
-            (input)="onFilterInput()" placeholder="Search..." class="col-filter" />
+            (keydown.enter)="applyFilters()" placeholder="Search..." class="col-filter" />
         </th>
         <th>
           <input pInputText type="number" [(ngModel)]="filters.recipientsFilter"
-            (input)="onFilterInput()" placeholder="#" class="col-filter col-filter-num" />
+            (keydown.enter)="applyFilters()" placeholder="#" class="col-filter col-filter-num" />
         </th>
         <th>
           <input pInputText type="number" [(ngModel)]="filters.sentFilter"
-            (input)="onFilterInput()" placeholder="#" class="col-filter col-filter-num" />
+            (keydown.enter)="applyFilters()" placeholder="#" class="col-filter col-filter-num" />
         </th>
         <th>
           <input pInputText type="number" [(ngModel)]="filters.deliveredFilter"
-            (input)="onFilterInput()" placeholder="#" class="col-filter col-filter-num" />
+            (keydown.enter)="applyFilters()" placeholder="#" class="col-filter col-filter-num" />
         </th>
         <th>
           <input pInputText type="number" [(ngModel)]="filters.readFilter"
-            (input)="onFilterInput()" placeholder="#" class="col-filter col-filter-num" />
+            (keydown.enter)="applyFilters()" placeholder="#" class="col-filter col-filter-num" />
         </th>
         <th>
           <input pInputText type="number" [(ngModel)]="filters.failedFilter"
-            (input)="onFilterInput()" placeholder="#" class="col-filter col-filter-num" />
+            (keydown.enter)="applyFilters()" placeholder="#" class="col-filter col-filter-num" />
         </th>
         <th>
           <input pInputText type="text" [(ngModel)]="filters.dateSearch"
-            (input)="onFilterInput()" placeholder="Search date..." class="col-filter" />
+            (keydown.enter)="applyFilters()" placeholder="Search date..." class="col-filter" />
         </th>
-        <th></th>
+        <th>
+          <button type="button" pButton icon="pi pi-search" [rounded]="true" [text]="true"
+            severity="primary" (click)="applyFilters()" pTooltip="Apply filters" tooltipPosition="top"></button>
+        </th>
       </tr>
+      }
     </ng-template>
 
     <ng-template pTemplate="body" let-b>

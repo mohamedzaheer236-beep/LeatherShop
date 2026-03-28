@@ -11,7 +11,7 @@ import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { FormsModule } from '@angular/forms';
 import { InputTextModule } from 'primeng/inputtext';
 import { Subject } from 'rxjs';
-import { debounceTime, takeUntil } from 'rxjs/operators';
+import { takeUntil } from 'rxjs/operators';
 import { BroadcastHistory, BroadcastRecipient, BroadcastDeliverySummary, RetryAttemptEntry } from '../../models/broadcast.model';
 import { BroadcastService } from '../../services/broadcast.service';
 
@@ -37,6 +37,7 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
   sortOrder = -1; // -1 desc, 1 asc
 
   // Column filter state
+  showFilters = false;
   filters = {
     templateSearch: '',
     recipientsFilter: '',
@@ -46,7 +47,6 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
     failedFilter: '',
     dateSearch: '',
   };
-  private filterInput$ = new Subject<void>();
   hasActiveFilters = false;
 
   // Expose to parent for refresh after send
@@ -75,10 +75,7 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
   ];
 
   ngOnInit(): void {
-    this.filterInput$.pipe(
-      debounceTime(400),
-      takeUntil(this.destroy$)
-    ).subscribe(() => this.loadHistory(1));
+    this.loadHistory(1);
   }
 
   ngOnDestroy(): void {
@@ -86,9 +83,17 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  onFilterInput(): void {
+  applyFilters(): void {
     this.updateHasActiveFilters();
-    this.filterInput$.next();
+    this.loadHistory(1);
+  }
+
+  toggleFilters(): void {
+    this.showFilters = !this.showFilters;
+    if (!this.showFilters && this.hasActiveFilters) {
+      this.resetAll();
+    }
+    this.cdr.markForCheck();
   }
 
   resetAll(): void {
