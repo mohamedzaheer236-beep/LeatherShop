@@ -131,43 +131,37 @@ public class OrderService : IOrderService
             return UpdateStatusResult.ConcurrencyConflict;
         }
 
-        // Notify customer via WhatsApp (best-effort - don't fail the update)
+        // Notify customer via WhatsApp using the approved order_update UTILITY template.
+        // Template messages work outside the 24h session window, unlike plain SendTextMessage.
+        // Template params: {{1}} = order number, {{2}} = status text (may include tracking info).
         try
         {
-            var customerName = string.IsNullOrEmpty(order.Customer.Name)
-                ? "Valued Customer"
-                : order.Customer.Name;
-
-            string message;
+            string statusParam;
             if (status == OrderStatus.Shipped && !string.IsNullOrEmpty(order.TrackingNumber))
             {
-                var trackingLine = !string.IsNullOrEmpty(order.TrackingLink)
-                    ? $"Tracking Number (AWB): {order.TrackingNumber}\nTracking Link: {order.TrackingLink}\n\nYou can track your shipment using the link above."
-                    : $"Tracking Number (AWB): {order.TrackingNumber}";
-
-                message =
-                    $"Hello {customerName},\n\n" +
-                    $"Greetings from Cuir Galerie.\n\n" +
-                    $"Your order *{order.OrderNumber}* has been shipped. 📦\n\n" +
-                    $"{trackingLine}\n\n" +
-                    $"It will be delivered soon to your address.\n\n" +
-                    $"If you have any questions, feel free to contact us.\n\n" +
-                    $"Thank you for shopping with Cuir Galerie. 🙏";
+                // Pack tracking info into the status parameter so it arrives in one message
+                statusParam = string.IsNullOrEmpty(order.TrackingLink)
+                    ? $"Shipped 📦\n\nTracking (AWB): {order.TrackingNumber}"
+                    : $"Shipped 📦\n\nTracking (AWB): {order.TrackingNumber}\nTrack here: {order.TrackingLink}";
             }
             else
             {
-                var statusEmoji = status switch
+                statusParam = status switch
                 {
-                    OrderStatus.Confirmed => "✅",
-                    OrderStatus.Shipped   => "🚚",
-                    OrderStatus.Delivered => "📦",
-                    OrderStatus.Cancelled => "❌",
-                    _                    => "ℹ️"
+                    OrderStatus.Confirmed => "Confirmed ✅",
+                    OrderStatus.Shipped   => "Shipped 🚚",
+                    OrderStatus.Delivered => "Delivered 📦",
+                    OrderStatus.Cancelled => "Cancelled ❌",
+                    _                    => status.ToString()
                 };
-                message = $"{statusEmoji} *Order Update*\n\nYour order *{order.OrderNumber}* is now: *{status}*\n\nThank you for shopping with us! 🙏";
             }
 
-            await _whatsApp.SendTextMessage(order.Customer.PhoneNumber, message);
+            await _whatsApp.SendTemplateMessage(
+                order.Customer.PhoneNumber,
+                templateName: "order_update",
+                languageCode: "en",
+                parameters: [order.OrderNumber, statusParam],
+                ct: ct);
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Best-effort WhatsApp notification failed for order {OrderId}", id); }
 
