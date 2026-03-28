@@ -138,10 +138,21 @@ public class BroadcastService : IBroadcastService
             var ds = dateSearch.Trim();
             if (DateTime.TryParse(ds, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
             {
-                // Exact date range (ignores time/timezone issues)
-                var startOfDay = DateTime.SpecifyKind(parsedDate.Date, DateTimeKind.Utc);
-                var endOfDay = startOfDay.AddDays(1);
-                query = query.Where(b => b.SentAt >= startOfDay && b.SentAt < endOfDay);
+                var hasTime = parsedDate.TimeOfDay != TimeSpan.Zero;
+                if (hasTime)
+                {
+                    // Specific minute range when time is provided (e.g. "28 Mar 2026 14:11")
+                    var start = DateTime.SpecifyKind(parsedDate, DateTimeKind.Utc);
+                    var end = start.AddMinutes(1);
+                    query = query.Where(b => b.SentAt >= start && b.SentAt < end);
+                }
+                else
+                {
+                    // Full day range when only date is provided (e.g. "28 Mar 2026")
+                    var startOfDay = DateTime.SpecifyKind(parsedDate.Date, DateTimeKind.Utc);
+                    var endOfDay = startOfDay.AddDays(1);
+                    query = query.Where(b => b.SentAt >= startOfDay && b.SentAt < endOfDay);
+                }
             }
             else
             {
