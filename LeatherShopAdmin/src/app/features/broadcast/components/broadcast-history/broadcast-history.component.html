@@ -141,12 +141,23 @@
           <td>{{ r.readAt ? (r.readAt | date:'dd MMM HH:mm:ss') : '—' }}</td>
           <td>
             @if (r.retryCount > 0 || r.nextRetryAt) {
-              <span class="retry-info" [pTooltip]="r.nextRetryAt ? 'Next retry: ' + (r.nextRetryAt | date:'dd MMM HH:mm') : 'No more retries'" tooltipPosition="left">
-                {{ r.retryCount }}/3
-                @if (r.nextRetryAt) {
-                  <i class="pi pi-clock" style="font-size: 0.75rem; margin-left: 4px; color: var(--orange-500)"></i>
+              <div class="retry-info">
+                <span class="retry-count">{{ r.retryCount }}/3</span>
+                @if (r.retryCount > 0) {
+                  <span class="retry-last" [class.retry-failed]="r.status === 'Failed'" [class.retry-success]="r.status !== 'Failed'">
+                    @if (r.status === 'Failed') {
+                      <i class="pi pi-times-circle"></i> Failed {{ r.failedAt | date:'dd MMM HH:mm' }}
+                    } @else {
+                      <i class="pi pi-check-circle"></i> Sent {{ r.sentAt | date:'dd MMM HH:mm' }}
+                    }
+                  </span>
                 }
-              </span>
+                @if (r.nextRetryAt) {
+                  <span class="retry-next">
+                    <i class="pi pi-clock"></i> Next: {{ r.nextRetryAt | date:'dd MMM HH:mm' }}
+                  </span>
+                }
+              </div>
             } @else {
               <span>—</span>
             }
@@ -162,7 +173,7 @@
       </ng-template>
       <ng-template pTemplate="emptymessage">
         <tr>
-          <td colspan="7" class="text-center p-4">No recipients found.</td>
+          <td colspan="8" class="text-center p-4">No recipients found.</td>
         </tr>
       </ng-template>
     </p-table>

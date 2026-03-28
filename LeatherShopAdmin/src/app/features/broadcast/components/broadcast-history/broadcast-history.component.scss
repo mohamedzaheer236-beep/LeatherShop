@@ -116,8 +116,40 @@
 .retry-info {
   font-size: 12px;
   font-weight: 600;
-  color: var(--orange-600, #e65100);
-  display: inline-flex;
-  align-items: center;
-  cursor: help;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  .retry-count {
+    color: var(--orange-600, #e65100);
+  }
+
+  .retry-last {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 500;
+    font-size: 11px;
+
+    i { font-size: 0.7rem; }
+
+    &.retry-failed {
+      color: var(--red-500, #f44336);
+    }
+
+    &.retry-success {
+      color: var(--green-500, #4caf50);
+    }
+  }
+
+  .retry-next {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 500;
+    font-size: 11px;
+    color: var(--orange-500, #ff9800);
+
+    i { font-size: 0.7rem; }
+  }
 }
