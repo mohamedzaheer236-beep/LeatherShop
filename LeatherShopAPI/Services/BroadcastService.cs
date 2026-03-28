@@ -120,7 +120,7 @@ public class BroadcastService : IBroadcastService
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<PaginatedResult<BroadcastHistoryDto>> GetHistoryAsync(int page = 1, int pageSize = 10, string? sortField = null, string? sortOrder = null, string? templateSearch = null, int? recipientsFilter = null, int? sentFilter = null, int? deliveredFilter = null, int? readFilter = null, int? failedFilter = null, string? dateSearch = null, CancellationToken ct = default)
+    public async Task<PaginatedResult<BroadcastHistoryDto>> GetHistoryAsync(int page = 1, int pageSize = 10, string? sortField = null, string? sortOrder = null, string? templateSearch = null, int? recipientsFilter = null, int? sentFilter = null, int? deliveredFilter = null, int? readFilter = null, int? failedFilter = null, string? dateSearch = null, int? timezoneOffset = null, CancellationToken ct = default)
     {
         var query = _db.BroadcastMessages.AsQueryable();
 
@@ -138,10 +138,25 @@ public class BroadcastService : IBroadcastService
             var ds = dateSearch.Trim();
             if (DateTime.TryParse(ds, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
             {
-                // Match the full day (time is ignored — displayed time is local but DB stores UTC)
-                var startOfDay = DateTime.SpecifyKind(parsedDate.Date, DateTimeKind.Utc);
-                var endOfDay = startOfDay.AddDays(1);
-                query = query.Where(b => b.SentAt >= startOfDay && b.SentAt < endOfDay);
+                var hasTime = parsedDate.TimeOfDay != TimeSpan.Zero;
+                // Convert local time to UTC using browser's timezone offset
+                var offsetMinutes = timezoneOffset ?? 0; // getTimezoneOffset(): IST = -330
+                var utcDate = parsedDate.AddMinutes(offsetMinutes);
+
+                if (hasTime)
+                {
+                    // Specific minute window
+                    var start = DateTime.SpecifyKind(utcDate, DateTimeKind.Utc);
+                    var end = start.AddMinutes(1);
+                    query = query.Where(b => b.SentAt >= start && b.SentAt < end);
+                }
+                else
+                {
+                    // Full day range
+                    var startOfDay = DateTime.SpecifyKind(utcDate.Date, DateTimeKind.Utc);
+                    var endOfDay = startOfDay.AddDays(1);
+                    query = query.Where(b => b.SentAt >= startOfDay && b.SentAt < endOfDay);
+                }
             }
             else
             {
