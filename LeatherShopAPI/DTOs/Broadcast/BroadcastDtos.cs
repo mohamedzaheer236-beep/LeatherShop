@@ -77,12 +77,22 @@ public class BroadcastRecipientDto
     public string Status { get; set; } = string.Empty;
     public string? ErrorDetail { get; set; }
     public DateTime CreatedAt { get; set; }
+    public DateTime? OriginalSentAt { get; set; }
     public DateTime? SentAt { get; set; }
     public DateTime? DeliveredAt { get; set; }
     public DateTime? ReadAt { get; set; }
     public DateTime? FailedAt { get; set; }
     public int RetryCount { get; set; }
     public DateTime? NextRetryAt { get; set; }
+    public List<RetryAttemptEntryDto>? RetryHistory { get; set; }
+}
+
+public class RetryAttemptEntryDto
+{
+    public int Attempt { get; set; }
+    public DateTime Timestamp { get; set; }
+    public bool Succeeded { get; set; }
+    public string? Error { get; set; }
 }
 
 public class BroadcastDeliverySummaryDto

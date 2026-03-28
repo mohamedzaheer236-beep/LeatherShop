@@ -175,29 +175,51 @@ public class BroadcastService : IBroadcastService
 
         var totalCount = await query.CountAsync(ct);
 
-        var items = await query
+        var rawItems = await query
             .OrderBy(r => r.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(r => new BroadcastRecipientDto
+            .Select(r => new
             {
-                Id = r.Id,
-                Phone = r.Phone,
+                r.Id,
+                r.Phone,
                 Name = _db.Customers
                     .Where(c => c.PhoneNumber == r.Phone)
                     .Select(c => c.Name)
                     .FirstOrDefault(),
                 Status = r.Status.ToString(),
-                ErrorDetail = r.ErrorDetail,
-                CreatedAt = r.CreatedAt,
-                SentAt = r.SentAt,
-                DeliveredAt = r.DeliveredAt,
-                ReadAt = r.ReadAt,
-                FailedAt = r.FailedAt,
-                RetryCount = r.RetryCount,
-                NextRetryAt = r.NextRetryAt
+                r.ErrorDetail,
+                r.CreatedAt,
+                r.OriginalSentAt,
+                r.SentAt,
+                r.DeliveredAt,
+                r.ReadAt,
+                r.FailedAt,
+                r.RetryCount,
+                r.NextRetryAt,
+                r.RetryHistoryJson
             })
             .ToListAsync(ct);
+
+        var items = rawItems.Select(r => new BroadcastRecipientDto
+        {
+            Id = r.Id,
+            Phone = r.Phone,
+            Name = r.Name,
+            Status = r.Status,
+            ErrorDetail = r.ErrorDetail,
+            CreatedAt = r.CreatedAt,
+            OriginalSentAt = r.OriginalSentAt,
+            SentAt = r.SentAt,
+            DeliveredAt = r.DeliveredAt,
+            ReadAt = r.ReadAt,
+            FailedAt = r.FailedAt,
+            RetryCount = r.RetryCount,
+            NextRetryAt = r.NextRetryAt,
+            RetryHistory = string.IsNullOrEmpty(r.RetryHistoryJson)
+                ? null
+                : JsonSerializer.Deserialize<List<RetryAttemptEntryDto>>(r.RetryHistoryJson)
+        }).ToList();
 
         return new PaginatedResult<BroadcastRecipientDto>
         {

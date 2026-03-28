@@ -188,6 +188,8 @@ public sealed class BroadcastRetryBackgroundService : BackgroundService
             recipient.NextRetryAt = null;
             recipient.RetryCount++;
 
+            AppendRetryHistory(recipient, succeeded: true, error: null);
+
             _logger.LogInformation(
                 "Retry #{RetryNum} succeeded for recipient {RecipientId} (phone {Phone}, broadcast {BroadcastId}). New wamid: {WamId}",
                 recipient.RetryCount, recipient.Id, recipient.Phone, broadcast.Id, wamId);
@@ -199,6 +201,8 @@ public sealed class BroadcastRetryBackgroundService : BackgroundService
 
             var errorMsg = ex.Message.Length > 1000 ? ex.Message[..1000] : ex.Message;
             recipient.ErrorDetail = $"Retry #{recipient.RetryCount} failed: {errorMsg}";
+
+            AppendRetryHistory(recipient, succeeded: false, error: errorMsg);
 
             // Check if Meta returned 131049 again (embedded in exception message)
             var is131049 = ex.Message.Contains("131049");
@@ -234,5 +238,22 @@ public sealed class BroadcastRetryBackgroundService : BackgroundService
 
         var baseUrl = ChatBotHelpers.GetPublicBaseUrl(_config);
         return baseUrl != null ? $"{baseUrl}{relativePath}" : null;
+    }
+
+    private static void AppendRetryHistory(BroadcastRecipient recipient, bool succeeded, string? error)
+    {
+        var history = string.IsNullOrEmpty(recipient.RetryHistoryJson)
+            ? new List<RetryAttemptEntry>()
+            : JsonSerializer.Deserialize<List<RetryAttemptEntry>>(recipient.RetryHistoryJson) ?? [];
+
+        history.Add(new RetryAttemptEntry
+        {
+            Attempt = recipient.RetryCount,
+            Timestamp = DateTime.UtcNow,
+            Succeeded = succeeded,
+            Error = error
+        });
+
+        recipient.RetryHistoryJson = JsonSerializer.Serialize(history);
     }
 }

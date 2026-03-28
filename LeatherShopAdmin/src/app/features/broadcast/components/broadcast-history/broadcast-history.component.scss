@@ -113,43 +113,120 @@
   font-family: monospace;
 }
 
-.retry-info {
-  font-size: 12px;
-  font-weight: 600;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+.retry-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 
   .retry-count {
+    font-size: 12px;
+    font-weight: 600;
     color: var(--orange-600, #e65100);
   }
 
-  .retry-last {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-weight: 500;
-    font-size: 11px;
+  .retry-eye {
+    font-size: 1rem;
+    color: var(--primary-color, #6366f1);
+    cursor: pointer;
+    transition: color 0.2s;
 
-    i { font-size: 0.7rem; }
-
-    &.retry-failed {
-      color: var(--red-500, #f44336);
-    }
-
-    &.retry-success {
-      color: var(--green-500, #4caf50);
+    &:hover {
+      color: var(--primary-700, #4338ca);
     }
   }
 
-  .retry-next {
+  .retry-pending {
+    font-size: 0.8rem;
+    color: var(--orange-500, #ff9800);
+  }
+}
+
+// Retry history overlay panel
+.retry-history-panel {
+  padding: 0.5rem;
+
+  h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-color);
+  }
+}
+
+.retry-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+
+  .timeline-entry {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0;
+    border-left: 2px solid var(--surface-300, #ddd);
+    margin-left: 6px;
+    padding-left: 16px;
+    position: relative;
+
+    &:first-child { padding-top: 0; }
+    &:last-child { border-left-color: transparent; }
+
+    &.pending {
+      opacity: 0.7;
+    }
+  }
+
+  .timeline-dot {
+    position: absolute;
+    left: -6px;
+    top: 10px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--surface-400, #999);
+    flex-shrink: 0;
+
+    &.sent { background: var(--blue-500, #2196f3); }
+    &.success { background: var(--green-500, #4caf50); }
+    &.failed { background: var(--red-500, #f44336); }
+    &.pending { background: var(--orange-500, #ff9800); }
+  }
+
+  .timeline-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .timeline-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-color);
+  }
+
+  .timeline-time {
+    font-size: 11px;
+    color: var(--text-color-secondary, #888);
+  }
+
+  .timeline-result {
+    font-size: 11px;
+    font-weight: 500;
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-weight: 500;
-    font-size: 11px;
-    color: var(--orange-500, #ff9800);
 
     i { font-size: 0.7rem; }
+
+    &.success { color: var(--green-500, #4caf50); }
+    &.failed { color: var(--red-500, #f44336); }
+    &.pending { color: var(--orange-500, #ff9800); }
+  }
+
+  .timeline-error {
+    font-size: 10px;
+    color: var(--text-color-secondary, #888);
+    word-break: break-word;
+    max-width: 300px;
   }
 }

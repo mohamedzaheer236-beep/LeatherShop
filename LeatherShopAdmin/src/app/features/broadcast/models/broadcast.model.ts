@@ -65,12 +65,21 @@ export interface BroadcastRecipient {
   status: string;
   errorDetail: string | null;
   createdAt: string;
+  originalSentAt: string | null;
   sentAt: string | null;
   deliveredAt: string | null;
   readAt: string | null;
   failedAt: string | null;
   retryCount: number;
   nextRetryAt: string | null;
+  retryHistory: RetryAttemptEntry[] | null;
+}
+
+export interface RetryAttemptEntry {
+  attempt: number;
+  timestamp: string;
+  succeeded: boolean;
+  error: string | null;
 }
 
 export interface BroadcastDeliverySummary {

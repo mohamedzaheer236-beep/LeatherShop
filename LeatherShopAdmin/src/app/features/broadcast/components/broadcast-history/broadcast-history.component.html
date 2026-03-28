@@ -136,26 +136,17 @@
           <td class="font-mono">{{ r.phone }}</td>
           <td>{{ r.name || '—' }}</td>
           <td><p-tag [value]="r.status" [severity]="getStatusSeverity(r.status)"></p-tag></td>
-          <td>{{ r.sentAt ? (r.sentAt | date:'dd MMM HH:mm:ss') : '—' }}</td>
+          <td>{{ (r.originalSentAt || r.sentAt) ? ((r.originalSentAt || r.sentAt) | date:'dd MMM HH:mm:ss') : '—' }}</td>
           <td>{{ r.deliveredAt ? (r.deliveredAt | date:'dd MMM HH:mm:ss') : '—' }}</td>
           <td>{{ r.readAt ? (r.readAt | date:'dd MMM HH:mm:ss') : '—' }}</td>
           <td>
             @if (r.retryCount > 0 || r.nextRetryAt) {
-              <div class="retry-info">
+              <div class="retry-cell">
                 <span class="retry-count">{{ r.retryCount }}/3</span>
-                @if (r.retryCount > 0) {
-                  <span class="retry-last" [class.retry-failed]="r.status === 'Failed'" [class.retry-success]="r.status !== 'Failed'">
-                    @if (r.status === 'Failed') {
-                      <i class="pi pi-times-circle"></i> Failed {{ r.failedAt | date:'dd MMM HH:mm' }}
-                    } @else {
-                      <i class="pi pi-check-circle"></i> Sent {{ r.sentAt | date:'dd MMM HH:mm' }}
-                    }
-                  </span>
-                }
+                <i class="pi pi-eye retry-eye" (click)="selectedRetryRecipient = r; retryPanel.toggle($event)"
+                   pTooltip="View retry history" tooltipPosition="left"></i>
                 @if (r.nextRetryAt) {
-                  <span class="retry-next">
-                    <i class="pi pi-clock"></i> Next: {{ r.nextRetryAt | date:'dd MMM HH:mm' }}
-                  </span>
+                  <i class="pi pi-clock retry-pending" [pTooltip]="'Next retry: ' + (r.nextRetryAt | date:'dd MMM HH:mm')" tooltipPosition="left"></i>
                 }
               </div>
             } @else {
@@ -177,6 +168,75 @@
         </tr>
       </ng-template>
     </p-table>
+
+    <!-- Retry History Overlay Panel -->
+    <p-overlayPanel #retryPanel [style]="{'max-width': '400px'}" appendTo="body">
+      @if (selectedRetryRecipient) {
+        <div class="retry-history-panel">
+          <h4>Retry History — {{ selectedRetryRecipient.name || selectedRetryRecipient.phone }}</h4>
+
+          <div class="retry-timeline">
+            <!-- Original send -->
+            <div class="timeline-entry">
+              <div class="timeline-dot sent"></div>
+              <div class="timeline-content">
+                <span class="timeline-label">Original Send</span>
+                <span class="timeline-time">{{ (selectedRetryRecipient.originalSentAt || selectedRetryRecipient.sentAt) | date:'dd MMM yyyy HH:mm:ss' }}</span>
+                <span class="timeline-result failed"><i class="pi pi-times-circle"></i> Failed (triggered retry)</span>
+              </div>
+            </div>
+
+            <!-- Retry attempts from history -->
+            @if (selectedRetryRecipient.retryHistory && selectedRetryRecipient.retryHistory.length > 0) {
+              @for (entry of selectedRetryRecipient.retryHistory; track entry.attempt) {
+                <div class="timeline-entry">
+                  <div class="timeline-dot" [class.success]="entry.succeeded" [class.failed]="!entry.succeeded"></div>
+                  <div class="timeline-content">
+                    <span class="timeline-label">Retry #{{ entry.attempt }}</span>
+                    <span class="timeline-time">{{ entry.timestamp | date:'dd MMM yyyy HH:mm:ss' }}</span>
+                    @if (entry.succeeded) {
+                      <span class="timeline-result success"><i class="pi pi-check-circle"></i> Sent successfully</span>
+                    } @else {
+                      <span class="timeline-result failed"><i class="pi pi-times-circle"></i> Failed</span>
+                      @if (entry.error) {
+                        <span class="timeline-error">{{ entry.error }}</span>
+                      }
+                    }
+                  </div>
+                </div>
+              }
+            } @else if (selectedRetryRecipient.retryCount > 0) {
+              <!-- Fallback for existing records without history JSON (before this feature) -->
+              <div class="timeline-entry">
+                <div class="timeline-dot" [class.success]="selectedRetryRecipient.status !== 'Failed'" [class.failed]="selectedRetryRecipient.status === 'Failed'"></div>
+                <div class="timeline-content">
+                  <span class="timeline-label">Retry #{{ selectedRetryRecipient.retryCount }}</span>
+                  @if (selectedRetryRecipient.status === 'Failed') {
+                    <span class="timeline-time">{{ selectedRetryRecipient.failedAt | date:'dd MMM yyyy HH:mm:ss' }}</span>
+                    <span class="timeline-result failed"><i class="pi pi-times-circle"></i> Failed</span>
+                  } @else {
+                    <span class="timeline-time">{{ selectedRetryRecipient.sentAt | date:'dd MMM yyyy HH:mm:ss' }}</span>
+                    <span class="timeline-result success"><i class="pi pi-check-circle"></i> Sent successfully</span>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Next retry scheduled -->
+            @if (selectedRetryRecipient.nextRetryAt) {
+              <div class="timeline-entry pending">
+                <div class="timeline-dot pending"></div>
+                <div class="timeline-content">
+                  <span class="timeline-label">Next Retry</span>
+                  <span class="timeline-time">{{ selectedRetryRecipient.nextRetryAt | date:'dd MMM yyyy HH:mm' }}</span>
+                  <span class="timeline-result pending"><i class="pi pi-clock"></i> Scheduled</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </p-overlayPanel>
 
     @if (recipientsTotalRecords > recipientsPageSize) {
       <p-paginator

@@ -7,14 +7,15 @@ import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
 import { TooltipModule } from 'primeng/tooltip';
+import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { FormsModule } from '@angular/forms';
-import { BroadcastHistory, BroadcastRecipient, BroadcastDeliverySummary } from '../../models/broadcast.model';
+import { BroadcastHistory, BroadcastRecipient, BroadcastDeliverySummary, RetryAttemptEntry } from '../../models/broadcast.model';
 import { BroadcastService } from '../../services/broadcast.service';
 
 @Component({
   selector: 'app-broadcast-history',
   standalone: true,
-  imports: [DatePipe, TableModule, TagModule, PaginatorModule, DialogModule, ButtonModule, DropdownModule, TooltipModule, FormsModule],
+  imports: [DatePipe, TableModule, TagModule, PaginatorModule, DialogModule, ButtonModule, DropdownModule, TooltipModule, OverlayPanelModule, FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './broadcast-history.component.html',
   styleUrl: './broadcast-history.component.scss',
@@ -40,6 +41,7 @@ export class BroadcastHistoryComponent {
   summary: BroadcastDeliverySummary | null = null;
   statusFilter = '';
   retrying = false;
+  selectedRetryRecipient: BroadcastRecipient | null = null;
 
   statusFilterOptions = [
     { label: 'All Statuses', value: '' },

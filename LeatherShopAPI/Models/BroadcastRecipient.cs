@@ -63,6 +63,12 @@ public class BroadcastRecipient
     /// <summary>When the Meta API accepted the message (status changed to Sent).</summary>
     public DateTime? SentAt { get; set; }
 
+    /// <summary>
+    /// The original time the message was first sent (initial broadcast).
+    /// Unlike SentAt, this is never overwritten by retries.
+    /// </summary>
+    public DateTime? OriginalSentAt { get; set; }
+
     /// <summary>When Meta confirmed delivery to user's device.</summary>
     public DateTime? DeliveredAt { get; set; }
 
@@ -87,6 +93,23 @@ public class BroadcastRecipient
     /// </summary>
     public DateTime? NextRetryAt { get; set; }
 
+    /// <summary>
+    /// JSON-serialized list of RetryAttemptEntry records.
+    /// Each retry attempt appends an entry with timestamp, result, and error.
+    /// </summary>
+    public string? RetryHistoryJson { get; set; }
+
     // Navigation
     public BroadcastMessage BroadcastMessage { get; set; } = null!;
+}
+
+/// <summary>
+/// A single retry attempt record, serialized into RetryHistoryJson.
+/// </summary>
+public class RetryAttemptEntry
+{
+    public int Attempt { get; set; }
+    public DateTime Timestamp { get; set; }
+    public bool Succeeded { get; set; }
+    public string? Error { get; set; }
 }

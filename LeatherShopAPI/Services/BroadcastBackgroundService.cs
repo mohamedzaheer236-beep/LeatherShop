@@ -312,7 +312,8 @@ public sealed class BroadcastBackgroundService : BackgroundService
                         .ExecuteUpdateAsync(s => s
                             .SetProperty(r => r.Status, BroadcastDeliveryStatus.Sent)
                             .SetProperty(r => r.WamId, wamId)
-                            .SetProperty(r => r.SentAt, DateTime.UtcNow), ct);
+                            .SetProperty(r => r.SentAt, DateTime.UtcNow)
+                            .SetProperty(r => r.OriginalSentAt, DateTime.UtcNow), ct);
 
                     Interlocked.Increment(ref sent);
                 }
