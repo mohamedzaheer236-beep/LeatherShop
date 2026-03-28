@@ -10,6 +10,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { FormsModule } from '@angular/forms';
 import { InputTextModule } from 'primeng/inputtext';
+import { CalendarModule } from 'primeng/calendar';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { BroadcastHistory, BroadcastRecipient, BroadcastDeliverySummary, RetryAttemptEntry } from '../../models/broadcast.model';
@@ -18,7 +19,7 @@ import { BroadcastService } from '../../services/broadcast.service';
 @Component({
   selector: 'app-broadcast-history',
   standalone: true,
-  imports: [DatePipe, NgClass, TableModule, TagModule, PaginatorModule, DialogModule, ButtonModule, DropdownModule, TooltipModule, OverlayPanelModule, FormsModule, InputTextModule],
+  imports: [DatePipe, NgClass, TableModule, TagModule, PaginatorModule, DialogModule, ButtonModule, DropdownModule, TooltipModule, OverlayPanelModule, FormsModule, InputTextModule, CalendarModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './broadcast-history.component.html',
   styleUrl: './broadcast-history.component.scss',
@@ -38,14 +39,22 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
 
   // Column filter state
   showFilters = false;
-  filters = {
+  filters: {
+    templateSearch: string;
+    recipientsFilter: string;
+    sentFilter: string;
+    deliveredFilter: string;
+    readFilter: string;
+    failedFilter: string;
+    dateSearch: Date | null;
+  } = {
     templateSearch: '',
     recipientsFilter: '',
     sentFilter: '',
     deliveredFilter: '',
     readFilter: '',
     failedFilter: '',
-    dateSearch: '',
+    dateSearch: null,
   };
   hasActiveFilters = false;
 
@@ -106,7 +115,7 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
       deliveredFilter: '',
       readFilter: '',
       failedFilter: '',
-      dateSearch: '',
+      dateSearch: null,
     };
     this.hasActiveFilters = false;
     this.loadHistory(1);
@@ -154,14 +163,17 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
     if (s(f.deliveredFilter)) active['deliveredFilter'] = s(f.deliveredFilter);
     if (s(f.readFilter)) active['readFilter'] = s(f.readFilter);
     if (s(f.failedFilter)) active['failedFilter'] = s(f.failedFilter);
-    if (s(f.dateSearch)) active['dateSearch'] = s(f.dateSearch);
+    if (f.dateSearch) {
+      const d = f.dateSearch;
+      active['dateSearch'] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
     return Object.keys(active).length > 0 ? active : undefined;
   }
 
   private updateHasActiveFilters(): void {
     const f = this.filters;
     const s = (v: unknown) => String(v ?? '').trim();
-    this.hasActiveFilters = !!(s(f.templateSearch) || s(f.recipientsFilter) || s(f.sentFilter) || s(f.deliveredFilter) || s(f.readFilter) || s(f.failedFilter) || s(f.dateSearch));
+    this.hasActiveFilters = !!(s(f.templateSearch) || s(f.recipientsFilter) || s(f.sentFilter) || s(f.deliveredFilter) || s(f.readFilter) || s(f.failedFilter) || f.dateSearch);
   }
 
   openRecipients(broadcast: BroadcastHistory): void {

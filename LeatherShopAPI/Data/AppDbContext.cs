@@ -8,10 +8,6 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    /// <summary>Maps to PostgreSQL to_char(timestamp, format) for date formatting in queries.</summary>
-    [DbFunction("to_char", IsBuiltIn = true)]
-    public static string ToChar(DateTime timestamp, string format) => throw new NotSupportedException();
-
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
     public DbSet<Customer> Customers => Set<Customer>();

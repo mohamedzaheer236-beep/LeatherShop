@@ -33,8 +33,6 @@ export class BroadcastService {
         if (value) params = params.set(key, value);
       }
     }
-    // Send browser timezone offset so backend can convert local time searches to UTC
-    params = params.set('timezoneOffset', new Date().getTimezoneOffset().toString());
     return this.http
       .get<ApiResponse<PaginatedResult<BroadcastHistory>>>(`${this.baseUrl}/history`, { params })
       .pipe(map(res => res.data));

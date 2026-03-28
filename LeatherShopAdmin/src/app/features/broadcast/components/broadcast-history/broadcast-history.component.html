@@ -86,8 +86,10 @@
             (keydown.enter)="applyFilters()" placeholder="#" class="col-filter col-filter-num" />
         </th>
         <th>
-          <input pInputText type="text" [(ngModel)]="filters.dateSearch"
-            (keydown.enter)="applyFilters()" placeholder="e.g. 28 Mar 2026 or Mar" class="col-filter" />
+          <p-calendar [(ngModel)]="filters.dateSearch" [showIcon]="true" [showClear]="true"
+            dateFormat="dd M yy" placeholder="Pick date" [inputStyleClass]="'col-filter'"
+            [style]="{'width': '100%'}" appendTo="body"
+            (onSelect)="applyFilters()" (onClear)="applyFilters()"></p-calendar>
         </th>
         <th>
           <button type="button" pButton icon="pi pi-search" [rounded]="true" [text]="true"
