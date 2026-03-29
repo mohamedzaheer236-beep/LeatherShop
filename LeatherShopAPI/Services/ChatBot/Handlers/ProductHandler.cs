@@ -300,10 +300,10 @@ public class ProductHandler
     /// <summary>
     /// Handles "Buy Now" quick-reply from a broadcast template.
     /// Finds the most recent broadcast sent to this customer, extracts the product name,
-    /// and returns the matching product so the caller can directly ask for quantity.
-    /// Returns null if the product can't be found or is unavailable.
+    /// and returns the matching product + selected image ID so the caller can show details.
+    /// Returns (null, null) if the product can't be found or is unavailable.
     /// </summary>
-    public async Task<Product?> ResolveBroadcastProduct(string phone, CancellationToken ct = default)
+    public async Task<(Product? product, int? imageId)> ResolveBroadcastProduct(string phone, CancellationToken ct = default)
     {
         // Find the most recent broadcast recipient entry for this phone
         var recentRecipient = await _db.BroadcastRecipients
@@ -315,19 +315,19 @@ public class ProductHandler
         if (recentRecipient == null)
         {
             await _bot.SendText(phone, "We couldn't find the product. Please type *menu* to browse our catalog.", ct);
-            return null;
+            return (null, null);
         }
 
-        // Get the broadcast parameters to extract product name
+        // Get the broadcast parameters and image URL
         var broadcast = await _db.BroadcastMessages
             .Where(b => b.Id == recentRecipient.BroadcastMessageId)
-            .Select(b => new { b.ParametersJson })
+            .Select(b => new { b.ParametersJson, b.ImageUrl })
             .FirstOrDefaultAsync(ct);
 
         if (broadcast?.ParametersJson == null)
         {
             await _bot.SendText(phone, "We couldn't identify the product. Please type *menu* to browse our catalog.", ct);
-            return null;
+            return (null, null);
         }
 
         List<string>? parameters;
@@ -343,14 +343,15 @@ public class ProductHandler
         if (parameters == null || parameters.Count == 0)
         {
             await _bot.SendText(phone, "We couldn't identify the product. Please type *menu* to browse our catalog.", ct);
-            return null;
+            return (null, null);
         }
 
         // First parameter is the product name
         var productName = parameters[0].Trim();
 
-        // Find the product by name (case-insensitive)
+        // Find the product by name (case-insensitive), include images to match broadcast image
         var product = await _db.Products
+            .Include(p => p.Images)
             .Where(p => p.IsActive && EF.Functions.ILike(p.Name, productName))
             .FirstOrDefaultAsync(ct);
 
@@ -359,15 +360,25 @@ public class ProductHandler
             _logger.LogWarning("Buy Now: product '{ProductName}' from broadcast not found in DB for phone {Phone}",
                 productName, phone);
             await _bot.SendText(phone, $"Sorry, *{productName}* is currently unavailable. Type *menu* to browse our catalog.", ct);
-            return null;
+            return (null, null);
         }
 
         if (product.StockQuantity <= 0)
         {
             await _bot.SendText(phone, $"Sorry, *{product.Name}* is currently out of stock. Type *menu* to browse other products.", ct);
-            return null;
+            return (null, null);
         }
 
-        return product;
+        // Match broadcast image URL to a ProductImage ID
+        int? selectedImageId = null;
+        if (!string.IsNullOrEmpty(broadcast.ImageUrl) && product.Images.Count > 0)
+        {
+            var matchedImg = product.Images.FirstOrDefault(pi =>
+                pi.ImageUrl.Equals(broadcast.ImageUrl, StringComparison.OrdinalIgnoreCase));
+            if (matchedImg != null)
+                selectedImageId = matchedImg.Id;
+        }
+
+        return (product, selectedImageId);
     }
 }

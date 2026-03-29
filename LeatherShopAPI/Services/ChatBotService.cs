@@ -324,9 +324,9 @@ public class ChatBotService : IChatBotService
         // Buy Now (quick-reply from broadcast template) → show product details with Add to Cart
         if (input == "buy now")
         {
-            var product = await _productHandler.ResolveBroadcastProduct(phone, ct);
+            var (product, imageId) = await _productHandler.ResolveBroadcastProduct(phone, ct);
             if (product != null)
-                await _productHandler.SendProductDetailsText(phone, product.Id, ct: ct);
+                await _productHandler.SendProductDetailsText(phone, product.Id, imageId, ct);
             return;
         }
 
