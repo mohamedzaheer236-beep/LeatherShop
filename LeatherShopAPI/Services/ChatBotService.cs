@@ -302,10 +302,19 @@ public class ChatBotService : IChatBotService
             return;
         }
 
-        // Buy Now (quick-reply from broadcast template)
+        // Buy Now (quick-reply from broadcast template) → directly ask quantity
         if (input == "buy now")
         {
-            await _productHandler.HandleBuyNowFromBroadcast(phone, ct);
+            var product = await _productHandler.ResolveBroadcastProduct(phone, ct);
+            if (product != null)
+                await _cartHandler.AskQuantity(phone, customer, product.Id, ct: ct);
+            return;
+        }
+
+        // View Menu (quick-reply from broadcast template)
+        if (input == "view menu")
+        {
+            await _menuHandler.SendMainMenu(phone, customer.Name, ct);
             return;
         }
 

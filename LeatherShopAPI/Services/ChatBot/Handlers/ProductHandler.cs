@@ -299,11 +299,11 @@ public class ProductHandler
 
     /// <summary>
     /// Handles "Buy Now" quick-reply from a broadcast template.
-    /// Finds the most recent broadcast sent to this customer, extracts the product name
-    /// from the template parameters, shows the product image + details, and offers
-    /// Buy Now (add to cart) and View Menu buttons.
+    /// Finds the most recent broadcast sent to this customer, extracts the product name,
+    /// and returns the matching product so the caller can directly ask for quantity.
+    /// Returns null if the product can't be found or is unavailable.
     /// </summary>
-    public async Task HandleBuyNowFromBroadcast(string phone, CancellationToken ct = default)
+    public async Task<Product?> ResolveBroadcastProduct(string phone, CancellationToken ct = default)
     {
         // Find the most recent broadcast recipient entry for this phone
         var recentRecipient = await _db.BroadcastRecipients
@@ -315,7 +315,7 @@ public class ProductHandler
         if (recentRecipient == null)
         {
             await _bot.SendText(phone, "We couldn't find the product. Please type *menu* to browse our catalog.", ct);
-            return;
+            return null;
         }
 
         // Get the broadcast parameters to extract product name
@@ -327,7 +327,7 @@ public class ProductHandler
         if (broadcast?.ParametersJson == null)
         {
             await _bot.SendText(phone, "We couldn't identify the product. Please type *menu* to browse our catalog.", ct);
-            return;
+            return null;
         }
 
         List<string>? parameters;
@@ -343,7 +343,7 @@ public class ProductHandler
         if (parameters == null || parameters.Count == 0)
         {
             await _bot.SendText(phone, "We couldn't identify the product. Please type *menu* to browse our catalog.", ct);
-            return;
+            return null;
         }
 
         // First parameter is the product name
@@ -359,53 +359,15 @@ public class ProductHandler
             _logger.LogWarning("Buy Now: product '{ProductName}' from broadcast not found in DB for phone {Phone}",
                 productName, phone);
             await _bot.SendText(phone, $"Sorry, *{productName}* is currently unavailable. Type *menu* to browse our catalog.", ct);
-            return;
+            return null;
         }
 
         if (product.StockQuantity <= 0)
         {
             await _bot.SendText(phone, $"Sorry, *{product.Name}* is currently out of stock. Type *menu* to browse other products.", ct);
-            return;
+            return null;
         }
 
-        // Send product image with details as caption
-        if (!string.IsNullOrEmpty(product.ImageUrl))
-        {
-            var baseUrl = ChatBotHelpers.GetPublicBaseUrl(_config);
-            if (!string.IsNullOrEmpty(baseUrl))
-            {
-                var imageFullUrl = product.ImageUrl.StartsWith("http")
-                    ? product.ImageUrl
-                    : $"{baseUrl}{product.ImageUrl}";
-
-                var caption = $"*{product.Name}*\n\n" +
-                    $"💰 Price: ₹{product.Price}\n" +
-                    $"📦 In Stock: {product.StockQuantity}\n\n" +
-                    $"📝 {product.Description}";
-
-                if (caption.Length > 1024) caption = caption[..1021] + "...";
-
-                try
-                {
-                    await _bot.SendImage(phone, imageFullUrl, caption, ct);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to send product image for Buy Now, falling back to text");
-                }
-            }
-        }
-
-        // Send Buy Now + View Menu buttons
-        await _bot.SendButtons(
-            phone,
-            bodyText: $"Tap *Buy Now* to purchase *{product.Name}* — ₹{product.Price}",
-            buttons: new List<ButtonOption>
-            {
-                new() { Id = $"addcart_{product.Id}", Title = "🛒 Buy Now" },
-                new() { Id = "main_menu", Title = "📋 View Menu" }
-            },
-            ct: ct
-        );
+        return product;
     }
 }
