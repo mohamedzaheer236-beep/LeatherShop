@@ -39,7 +39,7 @@ public interface IOrderService
 {
     Task<PaginatedResult<OrderDto>> GetAllAsync(string? status, int page = 1, int pageSize = 25, CancellationToken ct = default);
     Task<PaginatedResult<OrderDto>> GetHistoryAsync(int page, int pageSize, string? sortField, string? sortOrder,
-        string? customerName, string? customerPhone, string? orderNumber, string? status, string? dateSearch,
+        string? customerName, string? customerPhone, string? orderNumber, string? status, string? dateFrom, string? dateTo,
         decimal? amountMin = null, decimal? amountMax = null, string? isPaid = null, CancellationToken ct = default);
     Task<Order?> GetByIdWithDetailsAsync(int id, CancellationToken ct = default);
     Task<UpdateStatusResult> UpdateStatusAsync(int id, UpdateOrderStatusDto dto, CancellationToken ct = default);

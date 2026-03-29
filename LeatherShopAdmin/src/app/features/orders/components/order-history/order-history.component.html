@@ -123,10 +123,17 @@
               appendTo="body"></p-dropdown>
           </th>
           <th>
-            <p-calendar [(ngModel)]="filters.dateSearch" [showIcon]="true" [showClear]="true"
-              dateFormat="dd M yy" placeholder="Pick date" [inputStyleClass]="'col-filter'"
-              [style]="{'width': '100%'}" appendTo="body"
-              (onSelect)="applyFilters()" (onClear)="applyFilters()"></p-calendar>
+            <div class="date-range-wrap">
+              <p-calendar [(ngModel)]="filters.dateFrom" [showIcon]="true" [showClear]="true"
+                dateFormat="dd M yy" placeholder="From" [inputStyleClass]="'col-filter'"
+                [style]="{'width': '100%'}" appendTo="body"
+                [maxDate]="filters.dateTo!" (onSelect)="applyFilters()" (onClear)="applyFilters()"></p-calendar>
+              <span class="date-sep">–</span>
+              <p-calendar [(ngModel)]="filters.dateTo" [showIcon]="true" [showClear]="true"
+                dateFormat="dd M yy" placeholder="To" [inputStyleClass]="'col-filter'"
+                [style]="{'width': '100%'}" appendTo="body"
+                [minDate]="filters.dateFrom!" (onSelect)="applyFilters()" (onClear)="applyFilters()"></p-calendar>
+            </div>
           </th>
           <th>
             <button type="button" pButton icon="pi pi-search" [rounded]="true" [text]="true"

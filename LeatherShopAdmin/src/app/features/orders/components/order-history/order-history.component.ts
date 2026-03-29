@@ -50,7 +50,8 @@ export class OrderHistoryComponent implements OnInit {
     customerPhone: '',
     orderNumber: '',
     status: '',
-    dateSearch: null as Date | null,
+    dateFrom: null as Date | null,
+    dateTo: null as Date | null,
     amountMin: '',
     amountMax: '',
     isPaid: '',
@@ -95,7 +96,7 @@ export class OrderHistoryComponent implements OnInit {
   resetAll(): void {
     this.sortField = 'createdAt';
     this.sortOrder = -1;
-    this.filters = { customerName: '', customerPhone: '', orderNumber: '', status: '', dateSearch: null, amountMin: '', amountMax: '', isPaid: '' };
+    this.filters = { customerName: '', customerPhone: '', orderNumber: '', status: '', dateFrom: null, dateTo: null, amountMin: '', amountMax: '', isPaid: '' };
     this.hasActiveFilters = false;
     this.loadHistory(1);
   }
@@ -164,9 +165,13 @@ export class OrderHistoryComponent implements OnInit {
     if (f.customerPhone.trim()) active['customerPhone'] = f.customerPhone.trim();
     if (f.orderNumber.trim()) active['orderNumber'] = f.orderNumber.trim();
     if (f.status) active['status'] = f.status;
-    if (f.dateSearch) {
-      const d = f.dateSearch;
-      active['dateSearch'] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (f.dateFrom) {
+      const d = f.dateFrom;
+      active['dateFrom'] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    if (f.dateTo) {
+      const d = f.dateTo;
+      active['dateTo'] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
     if (f.amountMin !== '' && f.amountMin != null) active['amountMin'] = String(f.amountMin);
     if (f.amountMax !== '' && f.amountMax != null) active['amountMax'] = String(f.amountMax);
@@ -176,6 +181,6 @@ export class OrderHistoryComponent implements OnInit {
 
   private updateHasActiveFilters(): void {
     const f = this.filters;
-    this.hasActiveFilters = !!(f.customerName.trim() || f.customerPhone.trim() || f.orderNumber.trim() || f.status || f.dateSearch || (f.amountMin !== '' && f.amountMin != null) || (f.amountMax !== '' && f.amountMax != null) || f.isPaid);
+    this.hasActiveFilters = !!(f.customerName.trim() || f.customerPhone.trim() || f.orderNumber.trim() || f.status || f.dateFrom || f.dateTo || (f.amountMin !== '' && f.amountMin != null) || (f.amountMax !== '' && f.amountMax != null) || f.isPaid);
   }
 }

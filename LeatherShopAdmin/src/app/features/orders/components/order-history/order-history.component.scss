@@ -265,6 +265,18 @@
   }
 }
 
+.date-range-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .date-sep {
+    color: var(--ls-text-placeholder, #94a3b8);
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+}
+
 .col-filter-num {
   text-align: center;
   -moz-appearance: textfield;

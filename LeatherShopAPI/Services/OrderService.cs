@@ -67,7 +67,7 @@ public class OrderService : IOrderService
     public async Task<PaginatedResult<OrderDto>> GetHistoryAsync(
         int page, int pageSize, string? sortField, string? sortOrder,
         string? customerName, string? customerPhone, string? orderNumber,
-        string? status, string? dateSearch,
+        string? status, string? dateFrom, string? dateTo,
         decimal? amountMin = null, decimal? amountMax = null, string? isPaid = null,
         CancellationToken ct = default)
     {
@@ -89,11 +89,16 @@ public class OrderService : IOrderService
         if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<OrderStatus>(status, true, out var parsedStatus))
             query = query.Where(o => o.Status == parsedStatus);
 
-        if (!string.IsNullOrWhiteSpace(dateSearch) && DateOnly.TryParse(dateSearch, out var date))
+        if (!string.IsNullOrWhiteSpace(dateFrom) && DateOnly.TryParse(dateFrom, out var fromDate))
         {
-            var start = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-            var end = start.AddDays(1);
-            query = query.Where(o => o.CreatedAt >= start && o.CreatedAt < end);
+            var start = fromDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            query = query.Where(o => o.CreatedAt >= start);
+        }
+
+        if (!string.IsNullOrWhiteSpace(dateTo) && DateOnly.TryParse(dateTo, out var toDate))
+        {
+            var end = toDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddDays(1);
+            query = query.Where(o => o.CreatedAt < end);
         }
 
         if (amountMin.HasValue)
