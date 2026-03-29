@@ -1,5 +1,4 @@
 using LeatherShopAPI.Models;
-using LeatherShopAPI.Models.WhatsApp;
 using LeatherShopAPI.Services.ChatBot;
 using LeatherShopAPI.Services.ChatBot.Handlers;
 using LeatherShopAPI.Services.Interfaces;
@@ -330,20 +329,10 @@ public class ChatBotService : IChatBotService
             return;
         }
 
-        // View Menu (quick-reply from broadcast template) → send inline buttons for one-tap access
+        // View Menu (quick-reply from broadcast template)
         if (input == "view menu")
         {
-            await _bot.SendButtons(
-                phone,
-                bodyText: $"Hello {customer.Name}! 👋\n\nWhat would you like to do?",
-                buttons: new List<ButtonOption>
-                {
-                    new() { Id = "browse_categories", Title = "🏷️ Browse Categories" },
-                    new() { Id = "view_cart", Title = "🛒 View Cart" },
-                    new() { Id = "my_orders", Title = "📦 My Orders" }
-                },
-                ct: ct
-            );
+            await _menuHandler.SendMainMenu(phone, customer.Name, ct);
             return;
         }
 
