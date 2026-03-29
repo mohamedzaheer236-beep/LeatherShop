@@ -1,6 +1,4 @@
 ﻿<div class="dashboard">
-  <h1>Dashboard</h1>
-
   <app-loading-spinner [loading]="loading" message="Loading dashboard..."></app-loading-spinner>
 
   @if (errorMessage && !loading) {
@@ -12,73 +10,160 @@
   }
 
   @if (dashboard && !loading) {
-    <div>
-      <div class="stats-grid">
-        <p-card styleClass="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon blue"><i class="pi pi-box"></i></div>
-            <div class="stat-info">
-              <span class="stat-value">{{ dashboard.totalProducts }}</span>
-              <span class="stat-label">Products</span>
-            </div>
-          </div>
-        </p-card>
-        <p-card styleClass="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon green"><i class="pi pi-users"></i></div>
-            <div class="stat-info">
-              <span class="stat-value">{{ dashboard.totalCustomers }}</span>
-              <span class="stat-label">Customers</span>
-            </div>
-          </div>
-        </p-card>
-        <p-card styleClass="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon purple"><i class="pi pi-shopping-cart"></i></div>
-            <div class="stat-info">
-              <span class="stat-value">{{ dashboard.totalOrders }}</span>
-              <span class="stat-label">Orders</span>
-            </div>
-          </div>
-        </p-card>
-        <p-card styleClass="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon gold"><i class="pi pi-indian-rupee"></i></div>
-            <div class="stat-info">
-              <span class="stat-value">{{ dashboard.totalRevenue | number:'1.0-0' }}</span>
-              <span class="stat-label">Revenue</span>
-            </div>
-          </div>
-        </p-card>
-        <p-card styleClass="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon orange"><i class="pi pi-clock"></i></div>
-            <div class="stat-info">
-              <span class="stat-value">{{ dashboard.pendingOrders }}</span>
-              <span class="stat-label">Pending Orders</span>
-            </div>
-          </div>
-        </p-card>
-        <p-card styleClass="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon red"><i class="pi pi-exclamation-triangle"></i></div>
-            <div class="stat-info">
-              <span class="stat-value">{{ dashboard.lowStockProducts }}</span>
-              <span class="stat-label">Low Stock</span>
-            </div>
-          </div>
-        </p-card>
+    <!-- Hero Header -->
+    <div class="hero-header animate-in">
+      <div class="hero-left">
+        <h1>{{ greeting }}, Admin</h1>
+        <p>Here's what's happening with Cuir Galerie today</p>
       </div>
-      <div class="recent-orders">
-        <div class="section-header">
-          <h2>Recent Orders</h2>
-          <a routerLink="/orders"><p-button label="View All" icon="pi pi-arrow-right" [text]="true"></p-button></a>
+      <div class="hero-right">
+        <span class="hero-date">
+          <i class="pi pi-calendar"></i>
+          {{ currentDate | date:'EEEE, dd MMM yyyy' }}
+        </span>
+        <button class="refresh-btn" (click)="retry()" title="Refresh">
+          <i class="pi pi-refresh"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="stats-grid">
+      <div class="stat-card animate-in" style="--delay: 0.05s">
+        <div class="stat-accent blue"></div>
+        <div class="stat-body">
+          <div class="stat-icon blue"><i class="pi pi-box"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ animatedValues['products'] ?? dashboard.totalProducts }}</span>
+            <span class="stat-label">Products</span>
+          </div>
         </div>
-        <p-table [value]="dashboard.recentOrders" [tableStyle]="{'min-width': '50rem'}" styleClass="p-datatable-striped">
+      </div>
+
+      <div class="stat-card animate-in" style="--delay: 0.1s">
+        <div class="stat-accent green"></div>
+        <div class="stat-body">
+          <div class="stat-icon green"><i class="pi pi-users"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ animatedValues['customers'] ?? dashboard.totalCustomers }}</span>
+            <span class="stat-label">Customers</span>
+            @if (dashboard.customerGrowth !== 0) {
+              <span class="growth-badge" [class]="getGrowthClass(dashboard.customerGrowth)">
+                <i [class]="getGrowthIcon(dashboard.customerGrowth)"></i>
+                {{ dashboard.customerGrowth > 0 ? '+' : '' }}{{ dashboard.customerGrowth }}%
+              </span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card animate-in" style="--delay: 0.15s">
+        <div class="stat-accent purple"></div>
+        <div class="stat-body">
+          <div class="stat-icon purple"><i class="pi pi-shopping-cart"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ animatedValues['orders'] ?? dashboard.totalOrders }}</span>
+            <span class="stat-label">Orders</span>
+            @if (dashboard.orderGrowth !== 0) {
+              <span class="growth-badge" [class]="getGrowthClass(dashboard.orderGrowth)">
+                <i [class]="getGrowthIcon(dashboard.orderGrowth)"></i>
+                {{ dashboard.orderGrowth > 0 ? '+' : '' }}{{ dashboard.orderGrowth }}%
+              </span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card animate-in" style="--delay: 0.2s">
+        <div class="stat-accent gold"></div>
+        <div class="stat-body">
+          <div class="stat-icon gold"><i class="pi pi-indian-rupee"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">&#8377;{{ (animatedValues['revenue'] ?? dashboard.totalRevenue) | number:'1.0-0' }}</span>
+            <span class="stat-label">Revenue</span>
+            @if (dashboard.revenueGrowth !== 0) {
+              <span class="growth-badge" [class]="getGrowthClass(dashboard.revenueGrowth)">
+                <i [class]="getGrowthIcon(dashboard.revenueGrowth)"></i>
+                {{ dashboard.revenueGrowth > 0 ? '+' : '' }}{{ dashboard.revenueGrowth }}%
+              </span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card animate-in" style="--delay: 0.25s">
+        <div class="stat-accent orange"></div>
+        <div class="stat-body">
+          <div class="stat-icon orange"><i class="pi pi-clock"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ animatedValues['pending'] ?? dashboard.pendingOrders }}</span>
+            <span class="stat-label">Pending Orders</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card animate-in" style="--delay: 0.3s">
+        <div class="stat-accent red"></div>
+        <div class="stat-body">
+          <div class="stat-icon red"><i class="pi pi-exclamation-triangle"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ animatedValues['lowStock'] ?? dashboard.lowStockProducts }}</span>
+            <span class="stat-label">Low Stock</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-row">
+      <div class="chart-card revenue-chart animate-in" style="--delay: 0.35s">
+        <div class="chart-header">
+          <div>
+            <h3>Revenue Analytics</h3>
+            <p>Monthly revenue & orders for {{ currentDate | date:'yyyy' }}</p>
+          </div>
+        </div>
+        <div class="chart-body">
+          <p-chart type="bar" [data]="revenueChartData" [options]="revenueChartOptions" height="320px"></p-chart>
+        </div>
+      </div>
+
+      <div class="chart-card status-chart animate-in" style="--delay: 0.4s">
+        <div class="chart-header">
+          <div>
+            <h3>Order Distribution</h3>
+            <p>Breakdown by status</p>
+          </div>
+        </div>
+        <div class="chart-body doughnut-wrap">
+          <p-chart type="doughnut" [data]="statusChartData" [options]="statusChartOptions" height="280px"></p-chart>
+          <div class="doughnut-center">
+            <span class="doughnut-total">{{ dashboard.totalOrders }}</span>
+            <span class="doughnut-label">Total</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Orders -->
+    <div class="recent-orders animate-in" style="--delay: 0.45s">
+      <div class="section-header">
+        <div class="section-title-group">
+          <div class="section-icon"><i class="pi pi-list"></i></div>
+          <div>
+            <h2>Recent Orders</h2>
+            <p class="section-subtitle">Latest {{ dashboard.recentOrders.length }} orders across all customers</p>
+          </div>
+        </div>
+        <a routerLink="/orders"><p-button label="View All" icon="pi pi-arrow-right" [text]="true" [rounded]="true"></p-button></a>
+      </div>
+
+      <div class="orders-table-wrap">
+        <p-table [value]="dashboard.recentOrders" [tableStyle]="{'min-width': '50rem'}" styleClass="dashboard-orders-table" [rowHover]="true">
           <ng-template pTemplate="header">
             <tr>
-              <th>Order #</th>
               <th>Customer</th>
+              <th>Order ID</th>
               <th>Amount</th>
               <th>Status</th>
               <th>Paid</th>
@@ -87,12 +172,17 @@
           </ng-template>
           <ng-template pTemplate="body" let-order>
             <tr>
-              <td><strong class="font-mono">{{ order.orderNumber }}</strong></td>
-              <td>{{ order.customerName || order.customerPhone }}</td>
-              <td>&#8377;{{ order.totalAmount | number:'1.0-0' }}</td>
-              <td><p-tag [value]="order.status" [severity]="getSeverity(order.status)"></p-tag></td>
-              <td><p-tag [value]="order.isPaid ? 'Paid' : 'Unpaid'" [severity]="order.isPaid ? 'success' : 'danger'"></p-tag></td>
-              <td>{{ order.createdAt | date:'dd MMM yyyy' }}</td>
+              <td>
+                <div class="customer-cell">
+                  <span class="customer-avatar">{{ (order.customerName || '?')[0] | uppercase }}</span>
+                  <span class="customer-name">{{ order.customerName || order.customerPhone }}</span>
+                </div>
+              </td>
+              <td><span class="order-id font-mono">{{ order.orderNumber }}</span></td>
+              <td class="amount-cell">&#8377;{{ order.totalAmount | number:'1.0-0' }}</td>
+              <td><p-tag [value]="order.status" [severity]="getSeverity(order.status)" [rounded]="true"></p-tag></td>
+              <td><p-tag [value]="order.isPaid ? 'Paid' : 'Unpaid'" [severity]="order.isPaid ? 'success' : 'danger'" [rounded]="true"></p-tag></td>
+              <td class="date-cell">{{ order.createdAt | date:'dd MMM yyyy' }}</td>
             </tr>
           </ng-template>
           <ng-template pTemplate="emptymessage">
