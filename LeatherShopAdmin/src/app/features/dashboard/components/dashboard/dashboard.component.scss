@@ -130,6 +130,33 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
+
+  :host ::ng-deep .p-calendar {
+    display: flex;
+    align-items: center;
+    position: relative;
+
+    .p-inputtext {
+      width: 100%;
+      padding-right: 60px;
+    }
+
+    .p-calendar-clear-icon {
+      position: absolute;
+      right: 36px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 12px;
+      color: var(--ls-text-placeholder, #94a3b8);
+      cursor: pointer;
+      z-index: 1;
+    }
+
+    .p-datepicker-trigger {
+      position: absolute;
+      right: 0;
+    }
+  }
 }
 
 .filter-apply-btn {
