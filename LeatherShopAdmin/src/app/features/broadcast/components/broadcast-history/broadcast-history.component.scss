@@ -1,43 +1,130 @@
-.history-section {
-  margin-top: 0;
+/* ═══════════════════════════════════════════════════
+   Broadcast History — Redesigned Component Styles
+   ═══════════════════════════════════════════════════ */
 
-  .section-header {
-    margin-bottom: 16px;
+.history-page {
+  padding: 28px 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ─── Page Header ─── */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, var(--ls-navbar-bg, #1a1a2e) 0%, #16213e 100%);
+  border-radius: var(--ls-radius-xl, 12px);
+  box-shadow: 0 4px 20px rgba(26, 26, 46, 0.15);
+
+  .header-left {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 16px;
+  }
 
-    h3 {
-      margin: 0;
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--ls-text-primary);
-      display: flex;
-      align-items: center;
-      gap: 10px;
+  .header-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
 
-      i {
-        font-size: 18px;
-        color: var(--ls-accent);
-      }
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-
-      .reset-highlight {
-        color: var(--primary-color, #6366f1);
-        background: var(--primary-50, #eef2ff);
-      }
-
-      .filter-active {
-        color: var(--primary-color, #6366f1);
-        background: var(--primary-50, #eef2ff);
-      }
+    i {
+      font-size: 22px;
+      color: var(--ls-brand-gold, #e0c097);
     }
   }
+
+  .header-text {
+    h1 {
+      margin: 0;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.3px;
+    }
+
+    p {
+      margin: 2px 0 0;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.55);
+    }
+  }
+
+  .record-badge {
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ls-brand-gold, #e0c097);
+    background: rgba(224, 192, 151, 0.12);
+    border: 1px solid rgba(224, 192, 151, 0.2);
+    border-radius: 20px;
+    letter-spacing: 0.3px;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .active-filter-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #a78bfa;
+    background: rgba(167, 139, 250, 0.12);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: 20px;
+    animation: badgePulse 2s ease-in-out infinite;
+
+    i { font-size: 11px; }
+  }
+
+  .header-btn {
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+    transition: all 0.25s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.12) !important;
+      color: #ffffff !important;
+      border-color: rgba(255, 255, 255, 0.2) !important;
+      transform: translateY(-1px);
+    }
+
+    &.action-active {
+      color: var(--ls-brand-gold, #e0c097) !important;
+      background: rgba(224, 192, 151, 0.12) !important;
+      border-color: rgba(224, 192, 151, 0.25) !important;
+    }
+  }
+}
+
+@keyframes badgePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ─── Table Card ─── */
+.table-card {
+  background: var(--ls-bg-card, #ffffff);
+  border-radius: var(--ls-radius-xl, 12px);
+  box-shadow: var(--ls-shadow-lg, 0 4px 16px rgba(0, 0, 0, 0.08));
+  overflow: hidden;
+  border: 1px solid var(--ls-border-light, #f0f0f0);
 }
 
 // ─── Broadcast Table — overrides moved to global styles.scss ───
@@ -427,5 +514,28 @@
     background: #fffbeb;
     color: #92400e;
     border: 1px solid #fde68a;
+  }
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .history-page {
+    padding: 16px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+    padding: 16px 20px;
+
+    .header-left {
+      flex-wrap: wrap;
+    }
+
+    .header-actions {
+      width: 100%;
+      justify-content: flex-end;
+    }
   }
 }

@@ -127,7 +127,7 @@
             <i class="pi pi-history"></i>
           </div>
           <div>
-            <span class="stat-number">{{ historyComponent?.totalRecords ?? 0 }}</span>
+            <span class="stat-number">{{ totalBroadcasts }}</span>
             <span class="stat-label">Total Broadcasts</span>
           </div>
         </div>
@@ -144,8 +144,4 @@
       </p-card>
     </div>
   </div>
-
-  <!-- Broadcast History (extracted component) -->
-  <app-broadcast-history #historyComponent>
-  </app-broadcast-history>
 </div>

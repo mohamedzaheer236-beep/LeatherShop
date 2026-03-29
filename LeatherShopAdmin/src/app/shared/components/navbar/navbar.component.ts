@@ -48,12 +48,10 @@ export class NavbarComponent implements OnInit {
       ]},
       { label: 'Customers', icon: 'pi pi-users', routerLink: '/customers', routerLinkActiveOptions: { exact: true } },
       { label: 'Chat', icon: 'pi pi-comments', routerLink: '/chat', routerLinkActiveOptions: { exact: true } },
-      {
-        label: 'Broadcast',
-        icon: 'pi pi-megaphone',
-        routerLink: '/broadcast',
-        routerLinkActiveOptions: { exact: true },
-      },
+      { label: 'Broadcast', icon: 'pi pi-megaphone', items: [
+        { label: 'Broadcast', icon: 'pi pi-send', routerLink: '/broadcast', routerLinkActiveOptions: { exact: true } },
+        { label: 'Broadcast History', icon: 'pi pi-history', routerLink: '/broadcast/history', routerLinkActiveOptions: { exact: true } },
+      ]},
     ];
 
     // Reactively start/stop SignalR based on auth state + fetch persisted notifications

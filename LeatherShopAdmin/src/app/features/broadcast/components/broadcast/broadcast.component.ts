@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, OnDestroy, inject, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, OnDestroy, inject } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
@@ -15,7 +15,6 @@ import { ToolbarModule } from 'primeng/toolbar';
 import { DividerModule } from 'primeng/divider';
 
 import { BroadcastFormComponent } from '../broadcast-form/broadcast-form.component';
-import { BroadcastHistoryComponent } from '../broadcast-history/broadcast-history.component';
 
 @Component({
   selector: 'app-broadcast',
@@ -29,7 +28,6 @@ import { BroadcastHistoryComponent } from '../broadcast-history/broadcast-histor
     ToolbarModule,
     DividerModule,
     BroadcastFormComponent,
-    BroadcastHistoryComponent,
   ],
   templateUrl: './broadcast.component.html',
   styleUrl: './broadcast.component.scss',
@@ -42,10 +40,9 @@ export class BroadcastComponent implements OnInit, OnDestroy {
   private templateLoader = inject(TemplateLoaderService);
   private cdr = inject(ChangeDetectorRef);
 
-  @ViewChild('historyComponent') historyComponent!: BroadcastHistoryComponent;
-
   subscriberCount = 0;
   totalSent = 0;
+  totalBroadcasts = 0;
 
   broadcastMode: 'custom' | 'template' = 'custom';
   customMessage = '';
@@ -87,10 +84,18 @@ export class BroadcastComponent implements OnInit, OnDestroy {
 
   /** Called by BroadcastFormComponent when a template broadcast finishes */
   onBroadcastSent(): void {
-    this.historyComponent?.loadHistory();
     this.broadcastService.getTotalSentCount().subscribe({
       next: count => {
         this.totalSent = count;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        /* silently ignore */
+      },
+    });
+    this.broadcastService.getBroadcastHistory(1, 1).subscribe({
+      next: result => {
+        this.totalBroadcasts = result.totalCount;
         this.cdr.markForCheck();
       },
       error: () => {
@@ -137,7 +142,6 @@ export class BroadcastComponent implements OnInit, OnDestroy {
       next: status => {
         this.pollingSubs.delete(broadcastId);
         this.sending = this.pollingSubs.size > 0;
-        this.historyComponent?.loadHistory();
         if (status.failedCount > 0 && status.sentCount === 0) {
           this.resultType = 'error';
           this.notification.error(`Broadcast failed for ${status.failedCount} recipient(s).`);
@@ -157,7 +161,6 @@ export class BroadcastComponent implements OnInit, OnDestroy {
         this.sending = this.pollingSubs.size > 0;
         this.resultMessage = 'Could not verify broadcast delivery status.';
         this.resultType = 'error';
-        this.historyComponent?.loadHistory();
         this.cdr.markForCheck();
       },
     });
