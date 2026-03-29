@@ -1,0 +1,125 @@
+<div class="history-section">
+  <div class="section-header">
+    <div class="header-actions">
+      <button type="button" pButton [text]="true" [rounded]="true"
+        [icon]="showFilters ? 'pi pi-filter-slash' : 'pi pi-filter'"
+        (click)="toggleFilters()"
+        [class.filter-active]="showFilters"
+        [pTooltip]="showFilters ? 'Hide column filters' : 'Show column filters'"
+        tooltipPosition="left">
+      </button>
+      <button type="button" pButton [text]="true" [rounded]="true" icon="pi pi-refresh"
+        (click)="resetAll()"
+        [class.reset-highlight]="hasActiveFilters || sortField !== 'createdAt' || sortOrder !== -1"
+        pTooltip="Reset all filters & sorting"
+        tooltipPosition="left">
+      </button>
+    </div>
+  </div>
+
+  <p-table [value]="orders"
+    [lazy]="true"
+    (onLazyLoad)="onLazyLoad($event)"
+    [paginator]="true"
+    [rows]="pageSize"
+    [totalRecords]="totalRecords"
+    [rowsPerPageOptions]="[10, 25, 50, 100]"
+    [loading]="loading"
+    [sortField]="sortField"
+    [sortOrder]="sortOrder"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} orders"
+    styleClass="order-history-table"
+    [tableStyle]="{'min-width': '55rem'}"
+    [rowHover]="true">
+
+    <ng-template pTemplate="header">
+      <tr class="header-row">
+        <th pSortableColumn="customerName" style="min-width: 160px">
+          <div class="th-inner">Customer <p-sortIcon field="customerName"></p-sortIcon></div>
+        </th>
+        <th pSortableColumn="customerPhone" style="min-width: 140px">
+          <div class="th-inner">Phone <p-sortIcon field="customerPhone"></p-sortIcon></div>
+        </th>
+        <th pSortableColumn="orderNumber" style="min-width: 180px">
+          <div class="th-inner">Order ID <p-sortIcon field="orderNumber"></p-sortIcon></div>
+        </th>
+        <th pSortableColumn="totalAmount" style="width: 110px">
+          <div class="th-inner">Amount <p-sortIcon field="totalAmount"></p-sortIcon></div>
+        </th>
+        <th pSortableColumn="status" style="width: 120px">
+          <div class="th-inner">Status <p-sortIcon field="status"></p-sortIcon></div>
+        </th>
+        <th style="width: 80px; text-align: center">Paid</th>
+        <th pSortableColumn="createdAt" style="min-width: 165px">
+          <div class="th-inner">Date <p-sortIcon field="createdAt"></p-sortIcon></div>
+        </th>
+        <th style="width: 4rem"></th>
+      </tr>
+      @if (showFilters) {
+      <tr class="filter-row">
+        <th>
+          <input pInputText type="text" [(ngModel)]="filters.customerName"
+            (keydown.enter)="applyFilters()" placeholder="Search name..." class="col-filter" />
+        </th>
+        <th>
+          <input pInputText type="text" [(ngModel)]="filters.customerPhone"
+            (keydown.enter)="applyFilters()" placeholder="Search phone..." class="col-filter" />
+        </th>
+        <th>
+          <input pInputText type="text" [(ngModel)]="filters.orderNumber"
+            (keydown.enter)="applyFilters()" placeholder="Search order..." class="col-filter" />
+        </th>
+        <th><!-- no filter for amount --></th>
+        <th>
+          <p-dropdown [options]="statusFilterOptions" [(ngModel)]="filters.status"
+            (onChange)="applyFilters()" [style]="{'width': '100%', 'font-size': '12.5px'}"
+            appendTo="body"></p-dropdown>
+        </th>
+        <th><!-- no filter for paid --></th>
+        <th>
+          <p-calendar [(ngModel)]="filters.dateSearch" [showIcon]="true" [showClear]="true"
+            dateFormat="dd M yy" placeholder="Pick date" [inputStyleClass]="'col-filter'"
+            [style]="{'width': '100%'}" appendTo="body"
+            (onSelect)="applyFilters()" (onClear)="applyFilters()"></p-calendar>
+        </th>
+        <th>
+          <button type="button" pButton icon="pi pi-search" [rounded]="true" [text]="true"
+            severity="primary" (click)="applyFilters()" pTooltip="Apply filters" tooltipPosition="top"></button>
+        </th>
+      </tr>
+      }
+    </ng-template>
+
+    <ng-template pTemplate="body" let-order>
+      <tr>
+        <td><strong>{{ order.customerName || '—' }}</strong></td>
+        <td class="font-mono">{{ order.customerPhone }}</td>
+        <td class="font-mono">{{ order.orderNumber }}</td>
+        <td class="text-right">₹{{ order.totalAmount | number:'1.0-0' }}</td>
+        <td><p-tag [value]="order.status" [severity]="getSeverity(order.status)"></p-tag></td>
+        <td class="text-center">
+          <p-tag [value]="order.isPaid ? 'Paid' : 'Unpaid'" [severity]="order.isPaid ? 'success' : 'danger'"></p-tag>
+        </td>
+        <td>{{ order.createdAt | date:'dd MMM yyyy hh:mm a' }}</td>
+        <td class="text-center">
+          <p-button icon="pi pi-file-pdf" [rounded]="true" [text]="true" severity="danger"
+            pTooltip="Download Invoice" tooltipPosition="left"
+            [loading]="isDownloading(order.id)"
+            (onClick)="downloadInvoice(order)"></p-button>
+        </td>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="8" class="text-center p-4">
+          <div class="empty-state">
+            <i class="pi pi-inbox"></i>
+            <p>No orders found.</p>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>

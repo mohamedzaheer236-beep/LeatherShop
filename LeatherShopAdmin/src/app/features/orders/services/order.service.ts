@@ -20,6 +20,18 @@ export class OrderService {
     return this.http.get<ApiResponse<PaginatedResult<Order>>>(this.baseUrl, { params }).pipe(map(res => res.data));
   }
 
+  getOrderHistory(page = 1, pageSize = 25, sortField?: string, sortOrder?: string, filters?: Record<string, string>): Observable<PaginatedResult<Order>> {
+    let params = new HttpParams().set('page', page.toString()).set('pageSize', pageSize.toString());
+    if (sortField) params = params.set('sortField', sortField);
+    if (sortOrder) params = params.set('sortOrder', sortOrder);
+    if (filters) {
+      for (const [key, value] of Object.entries(filters)) {
+        if (value) params = params.set(key, value);
+      }
+    }
+    return this.http.get<ApiResponse<PaginatedResult<Order>>>(`${this.baseUrl}/history`, { params }).pipe(map(res => res.data));
+  }
+
   updateOrderStatus(id: number, status: string, trackingNumber?: string, trackingLink?: string): Observable<void> {
     return this.http.put<void>(`${this.baseUrl}/${id}/status`, { status, trackingNumber, trackingLink });
   }

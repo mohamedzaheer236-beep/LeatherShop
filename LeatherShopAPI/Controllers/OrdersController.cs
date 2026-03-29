@@ -37,6 +37,28 @@ public class OrdersController : ControllerBase
         return Ok(ApiResponse<PaginatedResult<OrderDto>>.Ok(result));
     }
 
+    [HttpGet("history")]
+    public async Task<IActionResult> GetHistory(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        [FromQuery] string? sortField = null,
+        [FromQuery] string? sortOrder = null,
+        [FromQuery] string? customerName = null,
+        [FromQuery] string? customerPhone = null,
+        [FromQuery] string? orderNumber = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? dateSearch = null,
+        CancellationToken ct = default)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 25;
+        if (pageSize > 100) pageSize = 100;
+
+        var result = await _orderService.GetHistoryAsync(page, pageSize, sortField, sortOrder,
+            customerName, customerPhone, orderNumber, status, dateSearch, ct);
+        return Ok(ApiResponse<PaginatedResult<OrderDto>>.Ok(result));
+    }
+
     [HttpPut("{id}/status")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateOrderStatusDto dto, CancellationToken ct)
     {

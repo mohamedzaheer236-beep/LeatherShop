@@ -1,8 +1,5 @@
 ﻿<div class="orders-page">
   <p-toolbar styleClass="mb-4">
-    <ng-template pTemplate="left">
-      <h1 class="page-title">Orders</h1>
-    </ng-template>
     <ng-template pTemplate="right">
       <span [formGroup]="filterForm">
         <p-dropdown [options]="statusDropdownOptions" formControlName="filterStatus" (onChange)="onFilterChange()"

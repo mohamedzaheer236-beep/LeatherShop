@@ -64,6 +64,64 @@ public class OrderService : IOrderService
         };
     }
 
+    public async Task<PaginatedResult<OrderDto>> GetHistoryAsync(
+        int page, int pageSize, string? sortField, string? sortOrder,
+        string? customerName, string? customerPhone, string? orderNumber,
+        string? status, string? dateSearch, CancellationToken ct = default)
+    {
+        var query = _db.Orders.AsNoTracking()
+            .Include(o => o.Customer)
+            .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
+            .AsQueryable();
+
+        // Column filters
+        if (!string.IsNullOrWhiteSpace(customerName))
+            query = query.Where(o => o.Customer.Name.ToLower().Contains(customerName.Trim().ToLower()));
+
+        if (!string.IsNullOrWhiteSpace(customerPhone))
+            query = query.Where(o => o.Customer.PhoneNumber.Contains(customerPhone.Trim()));
+
+        if (!string.IsNullOrWhiteSpace(orderNumber))
+            query = query.Where(o => o.OrderNumber.ToLower().Contains(orderNumber.Trim().ToLower()));
+
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<OrderStatus>(status, true, out var parsedStatus))
+            query = query.Where(o => o.Status == parsedStatus);
+
+        if (!string.IsNullOrWhiteSpace(dateSearch) && DateOnly.TryParse(dateSearch, out var date))
+        {
+            var start = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            var end = start.AddDays(1);
+            query = query.Where(o => o.CreatedAt >= start && o.CreatedAt < end);
+        }
+
+        var totalCount = await query.CountAsync(ct);
+
+        // Sorting
+        var isDesc = string.Equals(sortOrder, "desc", StringComparison.OrdinalIgnoreCase);
+        query = (sortField?.ToLower()) switch
+        {
+            "customername" => isDesc ? query.OrderByDescending(o => o.Customer.Name) : query.OrderBy(o => o.Customer.Name),
+            "customerphone" => isDesc ? query.OrderByDescending(o => o.Customer.PhoneNumber) : query.OrderBy(o => o.Customer.PhoneNumber),
+            "ordernumber" => isDesc ? query.OrderByDescending(o => o.OrderNumber) : query.OrderBy(o => o.OrderNumber),
+            "totalamount" => isDesc ? query.OrderByDescending(o => o.TotalAmount) : query.OrderBy(o => o.TotalAmount),
+            "status" => isDesc ? query.OrderByDescending(o => o.Status) : query.OrderBy(o => o.Status),
+            _ => isDesc ? query.OrderByDescending(o => o.CreatedAt) : query.OrderBy(o => o.CreatedAt),
+        };
+
+        var orders = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return new PaginatedResult<OrderDto>
+        {
+            Items = orders.Select(o => o.ToDto()).ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
     public async Task<Order?> GetByIdWithDetailsAsync(int id, CancellationToken ct = default)
     {
         return await _db.Orders

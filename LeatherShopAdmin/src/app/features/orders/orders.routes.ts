@@ -1,4 +1,4 @@
 import { Routes } from '@angular/router';
-import { OrdersComponent } from './components/orders/orders.component';
+import { OrdersLayoutComponent } from './components/orders-layout/orders-layout.component';
 
-export const ordersRoutes: Routes = [{ path: '', component: OrdersComponent }];
+export const ordersRoutes: Routes = [{ path: '', component: OrdersLayoutComponent }];
