@@ -130,33 +130,6 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
-
-  :host ::ng-deep .p-calendar {
-    display: flex;
-    align-items: center;
-    position: relative;
-
-    .p-inputtext {
-      width: 100%;
-      padding-right: 60px;
-    }
-
-    .p-calendar-clear-icon {
-      position: absolute;
-      right: 36px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 12px;
-      color: var(--ls-text-placeholder, #94a3b8);
-      cursor: pointer;
-      z-index: 1;
-    }
-
-    .p-datepicker-trigger {
-      position: absolute;
-      right: 0;
-    }
-  }
 }
 
 .filter-apply-btn {
@@ -423,37 +396,7 @@
 }
 
 // ─── Dashboard Orders Table ───
-:host ::ng-deep .dashboard-orders-table {
-  .p-datatable-thead > tr > th {
-    background: var(--ls-bg-table-header, #f8f9fb);
-    color: var(--ls-text-muted, #64748b);
-    font-size: 11.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    padding: 14px 16px;
-    border-bottom: 2px solid var(--ls-border-medium, #e2e8f0);
-    border-top: none;
-  }
-
-  .p-datatable-tbody > tr {
-    transition: background 0.2s ease;
-    border-bottom: 1px solid var(--ls-border-light, #f0f0f0);
-
-    &:hover {
-      background: var(--ls-bg-table-hover, #f8f9fb) !important;
-      box-shadow: inset 3px 0 0 var(--ls-accent, #6366f1);
-    }
-
-    > td {
-      padding: 14px 16px;
-      font-size: 13.5px;
-      color: var(--ls-text-secondary, #334155);
-      border-bottom: none;
-      vertical-align: middle;
-    }
-  }
-}
+// Styles in global styles.scss (body .dashboard-orders-table)
 
 .customer-cell {
   display: flex;

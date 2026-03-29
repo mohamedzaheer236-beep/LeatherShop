@@ -135,63 +135,7 @@
   white-space: nowrap;
 }
 
-:host ::ng-deep .order-history-table {
-  .p-datatable-thead > tr.header-row > th {
-    background: var(--ls-bg-table-header, #f8f9fb);
-    color: var(--ls-text-muted, #64748b);
-    font-size: 11.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    padding: 14px 16px;
-    border-bottom: 2px solid var(--ls-border-medium, #e2e8f0);
-    border-top: none;
-    transition: background 0.2s ease;
-  }
-
-  .p-datatable-tbody > tr {
-    transition: background 0.2s ease, box-shadow 0.2s ease;
-    border-bottom: 1px solid var(--ls-border-light, #f0f0f0);
-
-    &.row-even {
-      background: var(--ls-bg-table-stripe, #fafbfc);
-    }
-
-    &:hover {
-      background: var(--ls-bg-table-hover, #f8f9fb) !important;
-      box-shadow: inset 3px 0 0 var(--ls-accent, #6366f1);
-    }
-
-    > td {
-      padding: 14px 16px;
-      font-size: 13.5px;
-      color: var(--ls-text-secondary, #334155);
-      border-bottom: none;
-      vertical-align: middle;
-    }
-  }
-
-  // Paginator
-  .p-paginator {
-    padding: 14px 20px;
-    background: var(--ls-bg-table-header, #f8f9fb);
-    border-top: 1px solid var(--ls-border-light, #f0f0f0);
-    border-bottom: none;
-    font-size: 13px;
-    color: var(--ls-text-muted, #64748b);
-
-    .p-paginator-current {
-      color: var(--ls-text-muted);
-      font-size: 12.5px;
-    }
-  }
-
-  // Loading overlay
-  .p-datatable-loading-overlay {
-    backdrop-filter: blur(2px);
-    background: rgba(255, 255, 255, 0.7);
-  }
-}
+// Table styles in global styles.scss (body .order-history-table)
 
 /* ─── Filter Row ─── */
 .filter-row {
@@ -272,16 +216,6 @@
 
   .date-sep {
     display: none;
-  }
-
-  :host ::ng-deep .p-calendar {
-    width: 100% !important;
-
-    .p-inputtext {
-      width: 100%;
-      font-size: 12.5px;
-      padding: 7px 10px;
-    }
   }
 }
 
