@@ -752,6 +752,9 @@ body .p-dialog .p-dialog-footer {
   border-radius: 0 0 var(--ls-radius-2xl) var(--ls-radius-2xl);
   padding: 16px 24px;
   border-top: 1px solid var(--ls-border-light);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 /* ----- CONFIRM DIALOG ----- */
@@ -768,15 +771,7 @@ body .p-confirm-dialog .p-dialog-footer {
 
 /* ----- INPUT NUMBER SPINNER BUTTONS ----- */
 body .p-inputnumber-buttons-stacked .p-inputnumber-button-group {
-  gap: 2px;
-}
-
-body .p-inputnumber-buttons-stacked .p-inputnumber-button-group .p-button {
-  padding: 6px 0;
-}
-
-body .p-inputnumber-stacked .p-inputnumber-button-group {
-  gap: 2px;
+  gap: 1px;
 }
 
 body .p-inputnumber .p-inputnumber-button-up {
