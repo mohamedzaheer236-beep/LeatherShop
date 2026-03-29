@@ -1,4 +1,8 @@
 import { Routes } from '@angular/router';
-import { OrdersLayoutComponent } from './components/orders-layout/orders-layout.component';
+import { OrdersComponent } from './components/orders/orders.component';
+import { OrderHistoryComponent } from './components/order-history/order-history.component';
 
-export const ordersRoutes: Routes = [{ path: '', component: OrdersLayoutComponent }];
+export const ordersRoutes: Routes = [
+  { path: '', component: OrdersComponent },
+  { path: 'history', component: OrderHistoryComponent },
+];

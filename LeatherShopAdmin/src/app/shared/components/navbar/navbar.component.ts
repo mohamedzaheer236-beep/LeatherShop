@@ -42,7 +42,10 @@ export class NavbarComponent implements OnInit {
     this.items = [
       { label: 'Dashboard', icon: 'pi pi-home', routerLink: '/dashboard', routerLinkActiveOptions: { exact: true } },
       { label: 'Products', icon: 'pi pi-box', routerLink: '/products', routerLinkActiveOptions: { exact: false } },
-      { label: 'Orders', icon: 'pi pi-shopping-cart', routerLink: '/orders', routerLinkActiveOptions: { exact: true } },
+      { label: 'Orders', icon: 'pi pi-shopping-cart', items: [
+        { label: 'Orders', icon: 'pi pi-list', routerLink: '/orders', routerLinkActiveOptions: { exact: true } },
+        { label: 'Order History', icon: 'pi pi-history', routerLink: '/orders/history', routerLinkActiveOptions: { exact: true } },
+      ]},
       { label: 'Customers', icon: 'pi pi-users', routerLink: '/customers', routerLinkActiveOptions: { exact: true } },
       { label: 'Chat', icon: 'pi pi-comments', routerLink: '/chat', routerLinkActiveOptions: { exact: true } },
       {
