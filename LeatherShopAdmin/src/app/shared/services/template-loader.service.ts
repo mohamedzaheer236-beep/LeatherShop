@@ -52,11 +52,13 @@ export class TemplateLoaderService {
         // Exclude system templates used internally (e.g., welcome_message for new customers).
         // Allow specific UTILITY templates for testing (e.g., checkutility).
         const SYSTEM_TEMPLATES = ['customer_welcomemsg'];
-        const ALLOWED_UTILITY = ['checkutility', 'store_notification'];
+        const HIDDEN_TEMPLATES = ['custom_message', 'luxury_discover', 'store_notification', 'shop_deals'];
+        const ALLOWED_UTILITY = ['checkutility'];
         const broadcastTemplates = data.filter(
           t =>
             (t.category === 'MARKETING' || ALLOWED_UTILITY.includes(t.name)) &&
-            !SYSTEM_TEMPLATES.includes(t.name),
+            !SYSTEM_TEMPLATES.includes(t.name) &&
+            !HIDDEN_TEMPLATES.includes(t.name),
         );
         this.state.templateOptions = broadcastTemplates.map(t => ({
           label: `${t.name} (${t.language})`,
