@@ -253,6 +253,78 @@ body .navbar-menubar .p-menubar-button {
   color: var(--ls-brand-gold);
 }
 
+/* ─── Submenu dropdown (Orders → Orders / Order History) ─── */
+body .navbar-menubar .p-submenu-list {
+  background: var(--ls-navbar-bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 6px;
+  min-width: 200px;
+  margin-top: 4px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.2);
+  animation: submenuSlideIn 0.2s ease-out;
+}
+
+@keyframes submenuSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+body .navbar-menubar .p-submenu-list > .p-menuitem > .p-menuitem-content {
+  background: transparent;
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+
+body .navbar-menubar .p-submenu-list > .p-menuitem > .p-menuitem-content:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+body .navbar-menubar .p-submenu-list > .p-menuitem > .p-menuitem-content .p-menuitem-link {
+  padding: 10px 14px;
+  gap: 10px;
+}
+
+body .navbar-menubar .p-submenu-list > .p-menuitem > .p-menuitem-content .p-menuitem-link .p-menuitem-text {
+  color: var(--ls-navbar-text);
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: color 0.2s ease;
+}
+
+body .navbar-menubar .p-submenu-list > .p-menuitem > .p-menuitem-content:hover .p-menuitem-link .p-menuitem-text {
+  color: #ffffff;
+}
+
+body .navbar-menubar .p-submenu-list > .p-menuitem > .p-menuitem-content .p-menuitem-link .p-menuitem-icon {
+  color: var(--ls-navbar-text);
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+body .navbar-menubar .p-submenu-list > .p-menuitem > .p-menuitem-content:hover .p-menuitem-link .p-menuitem-icon {
+  color: var(--ls-brand-gold);
+}
+
+/* Submenu chevron icon on parent item */
+body .navbar-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-content .p-submenu-icon {
+  color: var(--ls-navbar-text);
+  font-size: 0.7rem;
+  margin-left: 4px;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+body .navbar-menubar .p-menubar-root-list > .p-menuitem.p-menuitem-active > .p-menuitem-content .p-submenu-icon {
+  color: var(--ls-brand-gold);
+  transform: rotate(180deg);
+}
+
 /* Active route highlighting — doubled selector for specificity instead of !important */
 body .navbar-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-link.p-menuitem-link-active,
 body .navbar-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-link.router-link-active {
