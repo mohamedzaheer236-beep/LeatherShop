@@ -152,7 +152,7 @@
           <td class="text-center">
             <p-tag [value]="order.isPaid ? 'Paid' : 'Unpaid'" [severity]="order.isPaid ? 'success' : 'danger'" [rounded]="true"></p-tag>
           </td>
-          <td class="date-cell">{{ order.createdAt | date:'dd MMM yyyy, hh:mm a' }}</td>
+          <td class="date-cell">{{ order.createdAt | date:'dd MMM yyyy HH:mm' }}</td>
           <td class="text-center">
             <button class="pdf-btn" (click)="downloadInvoice(order)" [disabled]="isDownloading(order.id)"
               pTooltip="Download Invoice" tooltipPosition="left">
