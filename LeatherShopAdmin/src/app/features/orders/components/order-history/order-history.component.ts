@@ -84,10 +84,6 @@ export class OrderHistoryComponent implements OnInit {
     this.loadHistory(1);
   }
 
-  onPaste(): void {
-    setTimeout(() => this.applyFilters());
-  }
-
   toggleFilters(): void {
     this.showFilters = !this.showFilters;
     if (!this.showFilters && this.hasActiveFilters) {
