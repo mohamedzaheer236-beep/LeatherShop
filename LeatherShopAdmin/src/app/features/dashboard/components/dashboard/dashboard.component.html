@@ -47,19 +47,21 @@
     <!-- Filter Row -->
     @if (showFilters) {
       <div class="filter-row" @filterAnimation>
-        <div class="filter-field">
-          <label>From</label>
-          <p-calendar [(ngModel)]="filterFrom" [showIcon]="true" [showClear]="true"
-            view="month" dateFormat="M yy" placeholder="Start month"
-            [style]="{'width': '100%'}" appendTo="body"
-            [maxDate]="filterTo!"></p-calendar>
-        </div>
-        <div class="filter-field">
-          <label>To</label>
-          <p-calendar [(ngModel)]="filterTo" [showIcon]="true" [showClear]="true"
-            view="month" dateFormat="M yy" placeholder="End month"
-            [style]="{'width': '100%'}" appendTo="body"
-            [minDate]="filterFrom!"></p-calendar>
+        <div class="filter-fields">
+          <div class="filter-field">
+            <label>From</label>
+            <p-calendar [(ngModel)]="filterFrom" [showIcon]="true" [showClear]="true"
+              view="month" dateFormat="M yy" placeholder="Select start month"
+              [style]="{'width': '100%'}" appendTo="body"
+              [maxDate]="filterTo!"></p-calendar>
+          </div>
+          <div class="filter-field">
+            <label>To</label>
+            <p-calendar [(ngModel)]="filterTo" [showIcon]="true" [showClear]="true"
+              view="month" dateFormat="M yy" placeholder="Select end month"
+              [style]="{'width': '100%'}" appendTo="body"
+              [minDate]="filterFrom!"></p-calendar>
+          </div>
         </div>
         <button class="filter-apply-btn" (click)="applyFilter()" [disabled]="!filterFrom || !filterTo">
           <i class="pi pi-search"></i> Apply

@@ -1168,27 +1168,64 @@ body .filter-row .filter-field .p-calendar {
   display: flex;
   align-items: center;
   position: relative;
+  width: 100%;
 }
 
 body .filter-row .filter-field .p-calendar .p-inputtext {
   width: 100%;
-  padding-right: 60px;
+  padding: 10px 14px;
+  padding-right: 64px;
+  font-size: 13.5px;
+  border-radius: 10px;
+  border: 1px solid var(--ls-border-input, #d1d5db);
+  background: var(--ls-bg-input, #f9fafb);
+  color: var(--ls-text-primary, #1e293b);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+body .filter-row .filter-field .p-calendar .p-inputtext:focus {
+  border-color: var(--ls-accent, #6366f1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  background: #fff;
+  outline: none;
+}
+
+body .filter-row .filter-field .p-calendar .p-inputtext::placeholder {
+  color: var(--ls-text-placeholder, #94a3b8);
+  font-size: 13px;
 }
 
 body .filter-row .filter-field .p-calendar .p-calendar-clear-icon {
   position: absolute;
-  right: 36px;
+  right: 40px;
   top: 50%;
   transform: translateY(-50%);
   font-size: 12px;
   color: var(--ls-text-placeholder, #94a3b8);
   cursor: pointer;
   z-index: 1;
+  transition: color 0.2s ease;
+}
+
+body .filter-row .filter-field .p-calendar .p-calendar-clear-icon:hover {
+  color: var(--ls-text-primary, #1e293b);
 }
 
 body .filter-row .filter-field .p-calendar .p-datepicker-trigger {
   position: absolute;
-  right: 0;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--ls-text-muted, #64748b);
+  padding: 8px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+body .filter-row .filter-field .p-calendar .p-datepicker-trigger:hover {
+  color: var(--ls-accent, #6366f1);
 }
 
 /* Dashboard — Orders table */
