@@ -5,5 +5,5 @@ namespace LeatherShopAPI.Services.Interfaces;
 
 public interface IDashboardService
 {
-    Task<DashboardDto> GetDashboardAsync(CancellationToken ct = default);
+    Task<DashboardDto> GetDashboardAsync(DateTime? from = null, DateTime? to = null, CancellationToken ct = default);
 }

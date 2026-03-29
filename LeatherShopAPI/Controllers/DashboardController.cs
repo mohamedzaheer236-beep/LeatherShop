@@ -21,9 +21,12 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetDashboard(CancellationToken ct)
+    public async Task<IActionResult> GetDashboard(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        CancellationToken ct)
     {
-        var dashboard = await _dashboardService.GetDashboardAsync(ct);
+        var dashboard = await _dashboardService.GetDashboardAsync(from, to, ct);
         return Ok(ApiResponse<DashboardDto>.Ok(dashboard));
     }
 }

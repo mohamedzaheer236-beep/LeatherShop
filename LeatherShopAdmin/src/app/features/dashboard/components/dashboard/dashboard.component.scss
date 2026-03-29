@@ -44,7 +44,7 @@
 .hero-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .hero-date {
@@ -62,7 +62,22 @@
   i { font-size: 14px; color: var(--ls-brand-gold, #e0c097); }
 }
 
-.refresh-btn {
+.filter-active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #e0c097;
+  background: rgba(224, 192, 151, 0.15);
+  border: 1px solid rgba(224, 192, 151, 0.3);
+  border-radius: 20px;
+
+  i { font-size: 11px; }
+}
+
+.hero-icon-btn {
   width: 40px;
   height: 40px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -78,10 +93,72 @@
   &:hover {
     background: rgba(255, 255, 255, 0.14);
     color: #fff;
-    transform: rotate(90deg);
+  }
+
+  &.active {
+    background: rgba(224, 192, 151, 0.2);
+    border-color: rgba(224, 192, 151, 0.4);
+    color: #e0c097;
   }
 
   i { font-size: 15px; }
+}
+
+// ─── Filter Row ───
+.filter-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 16px 24px;
+  margin-bottom: 24px;
+  background: var(--ls-bg-card, #ffffff);
+  border-radius: var(--ls-radius-xl, 12px);
+  border: 1px solid var(--ls-border-light, #f0f0f0);
+  box-shadow: var(--ls-shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.03));
+}
+
+.filter-field {
+  flex: 1;
+  min-width: 180px;
+
+  label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ls-text-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+
+.filter-apply-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--ls-accent, #6366f1);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+  height: 42px;
+
+  &:hover:not(:disabled) {
+    background: var(--ls-accent-dark, #4338ca);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  i { font-size: 13px; }
 }
 
 // ─── Stat Cards Grid ───
@@ -398,6 +475,11 @@
     flex-direction: column;
     gap: 16px;
     text-align: center;
+  }
+
+  .filter-row {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .charts-row {

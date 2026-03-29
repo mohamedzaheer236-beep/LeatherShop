@@ -14,18 +14,58 @@
     <div class="hero-header animate-in">
       <div class="hero-left">
         <h1>{{ greeting }}, Admin</h1>
-        <p>Here's what's happening with Cuir Galerie today</p>
+        <p>
+          @if (hasActiveFilter && filterFrom && filterTo) {
+            Showing data from {{ filterFrom | date:'dd MMM yyyy' }} to {{ filterTo | date:'dd MMM yyyy' }}
+          } @else {
+            Here's what's happening with Cuir Galerie today
+          }
+        </p>
       </div>
       <div class="hero-right">
         <span class="hero-date">
           <i class="pi pi-calendar"></i>
           {{ currentDate | date:'EEEE, dd MMM yyyy' }}
         </span>
-        <button class="refresh-btn" (click)="retry()" title="Refresh">
+        @if (hasActiveFilter) {
+          <span class="filter-active-badge">
+            <i class="pi pi-filter-fill"></i> Filtered
+          </span>
+        }
+        <button class="hero-icon-btn" (click)="toggleFilters()"
+          [class.active]="showFilters"
+          [pTooltip]="showFilters ? 'Hide filters' : 'Show filters'"
+          tooltipPosition="left">
+          <i [class]="showFilters ? 'pi pi-filter-slash' : 'pi pi-filter'"></i>
+        </button>
+        <button class="hero-icon-btn" (click)="resetFilter()" pTooltip="Reset to current year" tooltipPosition="left">
           <i class="pi pi-refresh"></i>
         </button>
       </div>
     </div>
+
+    <!-- Filter Row -->
+    @if (showFilters) {
+      <div class="filter-row" @filterAnimation>
+        <div class="filter-field">
+          <label>From</label>
+          <p-calendar [(ngModel)]="filterFrom" [showIcon]="true" [showClear]="true"
+            dateFormat="dd M yy" placeholder="Start date"
+            [style]="{'width': '100%'}" appendTo="body"
+            [maxDate]="filterTo!"></p-calendar>
+        </div>
+        <div class="filter-field">
+          <label>To</label>
+          <p-calendar [(ngModel)]="filterTo" [showIcon]="true" [showClear]="true"
+            dateFormat="dd M yy" placeholder="End date"
+            [style]="{'width': '100%'}" appendTo="body"
+            [minDate]="filterFrom!"></p-calendar>
+        </div>
+        <button class="filter-apply-btn" (click)="applyFilter()" [disabled]="!filterFrom || !filterTo">
+          <i class="pi pi-search"></i> Apply
+        </button>
+      </div>
+    }
 
     <!-- Stat Cards -->
     <div class="stats-grid">
@@ -120,7 +160,13 @@
         <div class="chart-header">
           <div>
             <h3>Revenue Analytics</h3>
-            <p>Monthly revenue & orders for {{ currentDate | date:'yyyy' }}</p>
+            <p>Monthly revenue & orders
+              @if (hasActiveFilter && filterFrom && filterTo) {
+                for {{ filterFrom | date:'dd MMM yyyy' }} – {{ filterTo | date:'dd MMM yyyy' }}
+              } @else {
+                for {{ currentDate | date:'yyyy' }}
+              }
+            </p>
           </div>
         </div>
         <div class="chart-body">

@@ -9,6 +9,8 @@
 } from '@angular/core';
 import { DatePipe, DecimalPipe, UpperCasePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { trigger, transition, style, animate } from '@angular/animations';
 import { DashboardService } from '../../services/dashboard.service';
 import { Dashboard } from '../../models/dashboard.model';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
@@ -18,6 +20,8 @@ import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { ChartModule } from 'primeng/chart';
+import { CalendarModule } from 'primeng/calendar';
+import { TooltipModule } from 'primeng/tooltip';
 
 @Component({
   selector: 'app-dashboard',
@@ -27,16 +31,30 @@ import { ChartModule } from 'primeng/chart';
     DecimalPipe,
     UpperCasePipe,
     RouterLink,
+    FormsModule,
     LoadingSpinnerComponent,
     CardModule,
     TableModule,
     TagModule,
     ButtonModule,
     ChartModule,
+    CalendarModule,
+    TooltipModule,
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  animations: [
+    trigger('filterAnimation', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(-12px)' }),
+        animate('250ms cubic-bezier(0.4, 0, 0.2, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
+      ]),
+      transition(':leave', [
+        animate('200ms cubic-bezier(0.4, 0, 0.2, 1)', style({ opacity: 0, transform: 'translateY(-8px)' })),
+      ]),
+    ]),
+  ],
 })
 export class DashboardComponent implements OnInit {
   private dashboardService = inject(DashboardService);
@@ -47,6 +65,12 @@ export class DashboardComponent implements OnInit {
   dashboard: Dashboard | null = null;
   loading = true;
   errorMessage: string | null = null;
+
+  // Filter state
+  showFilters = false;
+  filterFrom: Date | null = null;
+  filterTo: Date | null = null;
+  hasActiveFilter = false;
 
   // Animated display values
   animatedValues: Record<string, number> = {};
@@ -72,13 +96,40 @@ export class DashboardComponent implements OnInit {
     this.loadDashboard();
   }
 
+  toggleFilters(): void {
+    this.showFilters = !this.showFilters;
+    if (!this.showFilters && this.hasActiveFilter) {
+      this.resetFilter();
+    }
+    this.cdr.markForCheck();
+  }
+
+  applyFilter(): void {
+    if (!this.filterFrom || !this.filterTo) return;
+    this.hasActiveFilter = true;
+    this.loading = true;
+    this.cdr.markForCheck();
+    this.loadDashboard();
+  }
+
+  resetFilter(): void {
+    this.filterFrom = null;
+    this.filterTo = null;
+    this.hasActiveFilter = false;
+    this.loading = true;
+    this.cdr.markForCheck();
+    this.loadDashboard();
+  }
+
   private setGreeting(): void {
     const h = new Date().getHours();
     this.greeting = h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
   }
 
   private loadDashboard(): void {
-    this.dashboardService.getDashboard().subscribe({
+    const from = this.hasActiveFilter && this.filterFrom ? this.filterFrom : undefined;
+    const to = this.hasActiveFilter && this.filterTo ? this.filterTo : undefined;
+    this.dashboardService.getDashboard(from, to).subscribe({
       next: data => {
         this.dashboard = data;
         this.loading = false;
