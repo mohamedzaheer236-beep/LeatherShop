@@ -119,6 +119,7 @@ public class OrderService : IOrderService
             "ordernumber" => isDesc ? query.OrderByDescending(o => o.OrderNumber) : query.OrderBy(o => o.OrderNumber),
             "totalamount" => isDesc ? query.OrderByDescending(o => o.TotalAmount) : query.OrderBy(o => o.TotalAmount),
             "status" => isDesc ? query.OrderByDescending(o => o.Status) : query.OrderBy(o => o.Status),
+            "ispaid" => isDesc ? query.OrderByDescending(o => o.IsPaid) : query.OrderBy(o => o.IsPaid),
             _ => isDesc ? query.OrderByDescending(o => o.CreatedAt) : query.OrderBy(o => o.CreatedAt),
         };
 
