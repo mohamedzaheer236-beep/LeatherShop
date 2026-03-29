@@ -144,21 +144,25 @@ public class ChatBotService : IChatBotService
         }
 
         // ---- QUANTITY INPUT ----
-        if (state.PendingProductId.HasValue && int.TryParse(input, out var qty))
+        // ---- QUANTITY INPUT ----
+        // Only accept quantity when user types a number as plain text (not a button click).
+        // This ensures button presses like "Buy Now" / "View Menu" never accidentally add to cart.
+        if (state.PendingProductId.HasValue && interactiveId == null && int.TryParse(input, out var qty))
         {
             await _cartHandler.AddToCartWithQuantity(phone, customer, state.PendingProductId.Value, qty, state.PendingImageId, ct);
             return true;
         }
 
-        // Pending product is set but input is not a number
+        // Pending product is set but input is not a valid quantity
         if (state.PendingProductId.HasValue)
         {
-            // Button/interactive presses (e.g., "View Menu") — don't clear state, let RouteInput handle them
-            if (interactiveId != null)
-                return false;
-
-            // User typed "menu", "view menu", "back", "cancel" — clear state and let RouteInput show menu
-            if (input is "menu" or "view menu" or "back" or "cancel" or "main_menu" or "hi" or "hello" or "start")
+            // Any button/interactive press or navigation keyword — user is leaving the buy flow.
+            // Clear pending product and let RouteInput handle normally.
+            if (interactiveId != null
+                || input is "menu" or "view menu" or "back" or "cancel" or "main_menu"
+                    or "hi" or "hello" or "start" or "buy now"
+                    or "browse_categories" or "view_cart" or "checkout"
+                    or "my_orders" or "contact_us" or "edit_cart" or "clear_cart")
             {
                 _convState.ClearPendingProduct(customer.Id);
                 return false;
