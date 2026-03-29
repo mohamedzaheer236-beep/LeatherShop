@@ -1,3 +1,4 @@
+using System.Text.Json;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Models.WhatsApp;
@@ -294,5 +295,79 @@ public class ProductHandler
         {
             _logger.LogWarning(ex, "Failed to send product video for product {ProductId}, skipping", product.Id);
         }
+    }
+
+    /// <summary>
+    /// Handles "Buy Now" quick-reply from a broadcast template.
+    /// Finds the most recent broadcast sent to this customer, extracts the product name
+    /// from the template parameters, and shows the product details with Add to Cart.
+    /// </summary>
+    public async Task HandleBuyNowFromBroadcast(string phone, CancellationToken ct = default)
+    {
+        // Find the most recent broadcast recipient entry for this phone
+        var recentRecipient = await _db.BroadcastRecipients
+            .Where(r => r.Phone == phone && r.Status != BroadcastDeliveryStatus.Failed)
+            .OrderByDescending(r => r.SentAt)
+            .Select(r => new { r.BroadcastMessageId })
+            .FirstOrDefaultAsync(ct);
+
+        if (recentRecipient == null)
+        {
+            await _bot.SendText(phone, "We couldn't find the product. Please type *menu* to browse our catalog.", ct);
+            return;
+        }
+
+        // Get the broadcast parameters to extract product name
+        var broadcast = await _db.BroadcastMessages
+            .Where(b => b.Id == recentRecipient.BroadcastMessageId)
+            .Select(b => new { b.ParametersJson })
+            .FirstOrDefaultAsync(ct);
+
+        if (broadcast?.ParametersJson == null)
+        {
+            await _bot.SendText(phone, "We couldn't identify the product. Please type *menu* to browse our catalog.", ct);
+            return;
+        }
+
+        List<string>? parameters;
+        try
+        {
+            parameters = JsonSerializer.Deserialize<List<string>>(broadcast.ParametersJson);
+        }
+        catch
+        {
+            parameters = null;
+        }
+
+        if (parameters == null || parameters.Count == 0)
+        {
+            await _bot.SendText(phone, "We couldn't identify the product. Please type *menu* to browse our catalog.", ct);
+            return;
+        }
+
+        // First parameter is the product name
+        var productName = parameters[0].Trim();
+
+        // Find the product by name (case-insensitive)
+        var product = await _db.Products
+            .Where(p => p.IsActive && EF.Functions.ILike(p.Name, productName))
+            .FirstOrDefaultAsync(ct);
+
+        if (product == null)
+        {
+            _logger.LogWarning("Buy Now: product '{ProductName}' from broadcast not found in DB for phone {Phone}",
+                productName, phone);
+            await _bot.SendText(phone, $"Sorry, *{productName}* is currently unavailable. Type *menu* to browse our catalog.", ct);
+            return;
+        }
+
+        if (product.StockQuantity <= 0)
+        {
+            await _bot.SendText(phone, $"Sorry, *{product.Name}* is currently out of stock. Type *menu* to browse other products.", ct);
+            return;
+        }
+
+        // Show product details with Add to Cart button
+        await SendProductDetails(phone, product.Id, ct);
     }
 }
