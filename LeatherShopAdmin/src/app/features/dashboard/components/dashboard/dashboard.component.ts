@@ -3,7 +3,6 @@
   ChangeDetectorRef,
   Component,
   OnInit,
-  AfterViewInit,
   inject,
   ElementRef,
   NgZone,
@@ -39,7 +38,7 @@ import { ChartModule } from 'primeng/chart';
   styleUrl: './dashboard.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DashboardComponent implements OnInit, AfterViewInit {
+export class DashboardComponent implements OnInit {
   private dashboardService = inject(DashboardService);
   private cdr = inject(ChangeDetectorRef);
   private el = inject(ElementRef);
@@ -67,10 +66,6 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.loadDashboard();
   }
 
-  ngAfterViewInit(): void {
-    this.observeCards();
-  }
-
   retry(): void {
     this.loading = true;
     this.errorMessage = null;
@@ -91,8 +86,11 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         this.buildStatusChart(data);
         this.cdr.markForCheck();
 
-        // Trigger count-up animations after render
-        setTimeout(() => this.startCountUp(), 100);
+        // Trigger animations after Angular renders the new DOM
+        setTimeout(() => {
+          this.observeCards();
+          this.startCountUp();
+        }, 50);
       },
       error: () => {
         this.errorMessage = 'Failed to load dashboard data. Please try again.';
