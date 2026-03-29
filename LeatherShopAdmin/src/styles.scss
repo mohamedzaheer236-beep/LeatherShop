@@ -759,6 +759,34 @@ body .p-confirm-dialog .p-dialog-content {
   padding: 24px;
 }
 
+body .p-confirm-dialog .p-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+}
+
+/* ----- INPUT NUMBER SPINNER BUTTONS ----- */
+body .p-inputnumber-buttons-stacked .p-inputnumber-button-group {
+  gap: 2px;
+}
+
+body .p-inputnumber-buttons-stacked .p-inputnumber-button-group .p-button {
+  padding: 6px 0;
+}
+
+body .p-inputnumber-stacked .p-inputnumber-button-group {
+  gap: 2px;
+}
+
+body .p-inputnumber .p-inputnumber-button-up {
+  border-top-right-radius: 6px;
+}
+
+body .p-inputnumber .p-inputnumber-button-down {
+  border-bottom-right-radius: 6px;
+}
+
 /* ----- MESSAGE (p-message) ----- */
 body .p-message {
   border-radius: var(--ls-radius-lg);
@@ -1490,4 +1518,21 @@ body .products-table .date-range-wrap .p-calendar .p-inputtext {
   width: 100%;
   font-size: 12.5px;
   padding: 7px 10px;
+}
+
+/* Products page Add Product button — gold theme to blend with Marvel header */
+body .products-page .header-action-btn .p-button {
+  background: #d4a942 !important;
+  border-color: #d4a942 !important;
+  color: #1a0a0a !important;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  transition: all 0.25s ease;
+}
+
+body .products-page .header-action-btn .p-button:hover {
+  background: #c49a35 !important;
+  border-color: #c49a35 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(212, 169, 66, 0.35);
 }

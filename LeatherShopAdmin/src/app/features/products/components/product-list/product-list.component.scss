@@ -134,6 +134,10 @@ $marvel-border: rgba(212, 169, 66, 0.15);
       border-color: rgba(212, 169, 66, 0.3) !important;
     }
   }
+
+  .header-action-btn {
+    display: inline-flex;
+  }
 }
 
 @keyframes marvelPulse {
@@ -262,39 +266,6 @@ $marvel-border: rgba(212, 169, 66, 0.15);
   &::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
-  }
-}
-
-/* ─── Product Name Cell ─── */
-.product-name-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.product-thumb {
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
-  object-fit: cover;
-  border: 1px solid #e2e8f0;
-  flex-shrink: 0;
-}
-
-.product-thumb-placeholder {
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-  border: 1px dashed #d1d5db;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  i {
-    font-size: 16px;
-    color: #94a3b8;
   }
 }
 

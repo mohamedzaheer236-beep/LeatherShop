@@ -158,18 +158,7 @@
 
       <ng-template pTemplate="body" let-product let-i="rowIndex">
         <tr class="data-row" [class.row-even]="i % 2 === 0" [class.inactive-row]="!product.isActive">
-          <td>
-            <div class="product-name-cell">
-              @if (product.imageUrl) {
-                <img [src]="product.imageUrl" [alt]="product.name" class="product-thumb" />
-              } @else {
-                <div class="product-thumb-placeholder">
-                  <i class="pi pi-image"></i>
-                </div>
-              }
-              <strong>{{ product.name }}</strong>
-            </div>
-          </td>
+          <td><strong>{{ product.name }}</strong></td>
           <td>{{ product.brand }}</td>
           <td>
             <span class="category-pill">{{ product.category }}</span>
