@@ -123,7 +123,7 @@
   background: var(--ls-bg-card, #ffffff);
   border-radius: var(--ls-radius-xl, 12px);
   box-shadow: var(--ls-shadow-lg, 0 4px 16px rgba(0, 0, 0, 0.08));
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--ls-border-light, #f0f0f0);
 }
 
