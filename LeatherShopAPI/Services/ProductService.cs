@@ -25,7 +25,10 @@ public class ProductService : IProductService
         _logger = logger;
     }
 
-    public async Task<PaginatedResult<ProductDto>> GetAllAsync(string? category, string? brand, string? search, int page = 1, int pageSize = 25, CancellationToken ct = default)
+    public async Task<PaginatedResult<ProductDto>> GetAllAsync(string? category, string? brand, string? search, int page = 1, int pageSize = 25,
+        string? sortField = null, string? sortOrder = null, string? name = null,
+        decimal? priceMin = null, decimal? priceMax = null, int? stockMin = null, int? stockMax = null,
+        string? isActive = null, string? dateFrom = null, string? dateTo = null, CancellationToken ct = default)
     {
         var baseQuery = _db.Products.AsNoTracking().AsQueryable();
 
@@ -41,10 +44,57 @@ public class ProductService : IProductService
             baseQuery = baseQuery.Where(p => EF.Functions.ILike(p.Name, $"%{escaped}%") || EF.Functions.ILike(p.Description, $"%{escaped}%"));
         }
 
+        // Column filters
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            var escaped = EscapeLikePattern(name.Trim());
+            baseQuery = baseQuery.Where(p => EF.Functions.ILike(p.Name, $"%{escaped}%"));
+        }
+
+        if (priceMin.HasValue)
+            baseQuery = baseQuery.Where(p => p.Price >= priceMin.Value);
+        if (priceMax.HasValue)
+            baseQuery = baseQuery.Where(p => p.Price <= priceMax.Value);
+
+        if (stockMin.HasValue)
+            baseQuery = baseQuery.Where(p => p.StockQuantity >= stockMin.Value);
+        if (stockMax.HasValue)
+            baseQuery = baseQuery.Where(p => p.StockQuantity <= stockMax.Value);
+
+        if (!string.IsNullOrWhiteSpace(isActive))
+        {
+            if (bool.TryParse(isActive, out var activeVal))
+                baseQuery = baseQuery.Where(p => p.IsActive == activeVal);
+        }
+
+        if (!string.IsNullOrWhiteSpace(dateFrom) && DateOnly.TryParse(dateFrom, out var fromDate))
+        {
+            var start = fromDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            baseQuery = baseQuery.Where(p => p.CreatedAt >= start);
+        }
+
+        if (!string.IsNullOrWhiteSpace(dateTo) && DateOnly.TryParse(dateTo, out var toDate))
+        {
+            var end = toDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddDays(1);
+            baseQuery = baseQuery.Where(p => p.CreatedAt < end);
+        }
+
         var totalCount = await baseQuery.CountAsync(ct);
 
-        var products = await baseQuery.Include(p => p.Images)
-            .OrderByDescending(p => p.CreatedAt)
+        // Sorting
+        var isDesc = string.Equals(sortOrder, "desc", StringComparison.OrdinalIgnoreCase);
+        IQueryable<Product> sorted = (sortField?.ToLower()) switch
+        {
+            "name" => isDesc ? baseQuery.OrderByDescending(p => p.Name) : baseQuery.OrderBy(p => p.Name),
+            "brand" => isDesc ? baseQuery.OrderByDescending(p => p.Brand) : baseQuery.OrderBy(p => p.Brand),
+            "category" => isDesc ? baseQuery.OrderByDescending(p => p.Category) : baseQuery.OrderBy(p => p.Category),
+            "price" => isDesc ? baseQuery.OrderByDescending(p => p.Price) : baseQuery.OrderBy(p => p.Price),
+            "stockquantity" => isDesc ? baseQuery.OrderByDescending(p => p.StockQuantity) : baseQuery.OrderBy(p => p.StockQuantity),
+            "isactive" => isDesc ? baseQuery.OrderByDescending(p => p.IsActive) : baseQuery.OrderBy(p => p.IsActive),
+            _ => isDesc ? baseQuery.OrderByDescending(p => p.CreatedAt) : baseQuery.OrderBy(p => p.CreatedAt),
+        };
+
+        var products = await sorted.Include(p => p.Images)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(ct);

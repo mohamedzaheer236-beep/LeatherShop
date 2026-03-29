@@ -6,7 +6,10 @@ namespace LeatherShopAPI.Services.Interfaces;
 
 public interface IProductService
 {
-    Task<PaginatedResult<ProductDto>> GetAllAsync(string? category, string? brand, string? search, int page = 1, int pageSize = 25, CancellationToken ct = default);
+    Task<PaginatedResult<ProductDto>> GetAllAsync(string? category, string? brand, string? search, int page = 1, int pageSize = 25,
+        string? sortField = null, string? sortOrder = null, string? name = null,
+        decimal? priceMin = null, decimal? priceMax = null, int? stockMin = null, int? stockMax = null,
+        string? isActive = null, string? dateFrom = null, string? dateTo = null, CancellationToken ct = default);
     Task<ProductDto?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<ProductDto> CreateAsync(CreateProductDto dto, CancellationToken ct = default);
     Task<bool> UpdateAsync(int id, UpdateProductDto dto, CancellationToken ct = default);

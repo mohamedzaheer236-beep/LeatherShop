@@ -1,15 +1,431 @@
+/* ═══════════════════════════════════════════════════
+   Products Page — Marvel-Inspired Theme
+   Deep red/maroon + gold accents, dramatic shadows
+   ═══════════════════════════════════════════════════ */
+
+$marvel-dark: #1a0a0a;
+$marvel-red: #8b1a1a;
+$marvel-red-light: #a52a2a;
+$marvel-gold: #d4a942;
+$marvel-gold-muted: rgba(212, 169, 66, 0.7);
+$marvel-border: rgba(212, 169, 66, 0.15);
+
 .products-page {
-  h1 { margin: 0; }
+  padding: 28px 32px;
+  max-width: 1700px;
+  margin: 0 auto;
 }
 
-// Dropdown filter panel styles moved to global styles.scss (body .p-dropdown-panel)
+/* ─── Page Header — Marvel style ─── */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding: 22px 28px;
+  background: linear-gradient(135deg, $marvel-dark 0%, $marvel-red 60%, $marvel-red-light 100%);
+  border-radius: 14px;
+  box-shadow:
+    0 6px 24px rgba(139, 26, 26, 0.25),
+    0 0 0 1px rgba(212, 169, 66, 0.1);
+  position: relative;
+  overflow: hidden;
 
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 200px;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(212, 169, 66, 0.06));
+    pointer-events: none;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 1;
+  }
+
+  .header-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    background: rgba(212, 169, 66, 0.12);
+    border: 1px solid rgba(212, 169, 66, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+
+    i {
+      font-size: 24px;
+      color: $marvel-gold;
+    }
+  }
+
+  .header-text {
+    h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    p {
+      margin: 3px 0 0;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.5);
+      letter-spacing: 0.3px;
+    }
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 8px;
+    margin-left: 12px;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 1;
+  }
+
+  .active-filter-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: $marvel-gold;
+    background: rgba(212, 169, 66, 0.12);
+    border: 1px solid rgba(212, 169, 66, 0.25);
+    border-radius: 20px;
+    animation: marvelPulse 2s ease-in-out infinite;
+
+    i { font-size: 11px; }
+  }
+
+  .header-btn {
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: rgba(255, 255, 255, 0.55) !important;
+    transition: all 0.25s ease;
+
+    &:hover {
+      background: rgba(212, 169, 66, 0.12) !important;
+      color: $marvel-gold !important;
+      border-color: rgba(212, 169, 66, 0.25) !important;
+      transform: translateY(-1px);
+    }
+
+    &.action-active {
+      color: $marvel-gold !important;
+      background: rgba(212, 169, 66, 0.15) !important;
+      border-color: rgba(212, 169, 66, 0.3) !important;
+    }
+  }
+}
+
+@keyframes marvelPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+/* ─── Stat Pills ─── */
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(212, 169, 66, 0.1);
+  color: $marvel-gold-muted;
+  border: 1px solid rgba(212, 169, 66, 0.15);
+
+  i { font-size: 13px; }
+}
+
+/* ─── Table Card ─── */
+.table-card {
+  background: var(--ls-bg-card, #ffffff);
+  border-radius: 14px;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.08),
+    0 0 0 1px var(--ls-border-light, #f0f0f0);
+  overflow: visible;
+  border: none;
+}
+
+/* ─── Table Header ─── */
+.th-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* ─── Filter Row ─── */
+.filter-row {
+  th {
+    padding: 10px 12px !important;
+    background: #fef9f0 !important;
+    border-bottom: 2px solid rgba(212, 169, 66, 0.15) !important;
+  }
+}
+
+.filter-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  > i {
+    position: absolute;
+    left: 10px;
+    font-size: 12px;
+    color: var(--ls-text-placeholder, #94a3b8);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  > .col-filter {
+    padding-left: 30px;
+  }
+}
+
+.col-filter {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  border-radius: 8px;
+  border: 1px solid var(--ls-border-input, #d1d5db);
+  background: #fff;
+  transition: all 0.25s ease;
+  color: var(--ls-text-primary, #1e293b);
+
+  &:focus {
+    border-color: $marvel-red-light;
+    box-shadow: 0 0 0 3px rgba(165, 42, 42, 0.12);
+    background: #fff;
+    outline: none;
+  }
+
+  &::placeholder {
+    color: var(--ls-text-placeholder, #94a3b8);
+    font-size: 12px;
+  }
+}
+
+.filter-apply-btn {
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+}
+
+/* ─── Range Filters ─── */
+.range-filter-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .range-sep {
+    color: var(--ls-text-placeholder, #94a3b8);
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+}
+
+.date-range-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.col-filter-num {
+  text-align: center;
+  -moz-appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+/* ─── Product Name Cell ─── */
+.product-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.product-thumb {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.product-thumb-placeholder {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  border: 1px dashed #d1d5db;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  i {
+    font-size: 16px;
+    color: #94a3b8;
+  }
+}
+
+/* ─── Data Cells ─── */
+.price-cell {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.date-cell {
+  font-size: 12.5px;
+  color: var(--ls-text-muted, #64748b);
+}
+
+/* ─── Category Pill ─── */
+.category-pill {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  white-space: nowrap;
+}
+
+/* ─── Active Status ─── */
+.active-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #94a3b8;
+  background: transparent;
+  border: 1px solid transparent;
+
+  &:hover {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $marvel-red-light;
+    outline-offset: 2px;
+  }
+
+  .active-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    transition: all 0.25s ease;
+  }
+
+  &.active {
+    color: #166534;
+    .active-dot {
+      background: #22c55e;
+      box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+    }
+  }
+}
+
+/* ─── Inactive Row ─── */
+.inactive-row {
+  opacity: 0.5;
+}
+
+/* ─── Action Buttons ─── */
 .action-buttons {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   align-items: center;
 }
 
-.inactive-row {
-  opacity: 0.5;
+/* ─── Empty State ─── */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+
+  .empty-icon-wrap {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #fef2f2, #fff5f5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    border: 2px solid #fecaca;
+
+    i {
+      font-size: 28px;
+      color: #ef4444;
+    }
+  }
+
+  h3 {
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ls-text-primary, #1e293b);
+  }
+
+  p {
+    margin: 0 0 16px;
+    font-size: 13.5px;
+    color: var(--ls-text-muted, #64748b);
+  }
+}
+
+/* ─── Error State ─── */
+.error-state {
+  text-align: center;
+  padding: 48px 24px;
+
+  .error-icon {
+    font-size: 48px;
+    color: #ef4444;
+    margin-bottom: 16px;
+  }
+
+  .error-message {
+    font-size: 14px;
+    color: var(--ls-text-muted, #64748b);
+    margin-bottom: 16px;
+  }
 }

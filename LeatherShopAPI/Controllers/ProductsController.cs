@@ -27,13 +27,24 @@ public class ProductsController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
+        [FromQuery] string? sortField = null,
+        [FromQuery] string? sortOrder = null,
+        [FromQuery] string? name = null,
+        [FromQuery] decimal? priceMin = null,
+        [FromQuery] decimal? priceMax = null,
+        [FromQuery] int? stockMin = null,
+        [FromQuery] int? stockMax = null,
+        [FromQuery] string? isActive = null,
+        [FromQuery] string? dateFrom = null,
+        [FromQuery] string? dateTo = null,
         CancellationToken ct = default)
     {
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 25;
         if (pageSize > 100) pageSize = 100;
 
-        var result = await _productService.GetAllAsync(category, brand, search, page, pageSize, ct);
+        var result = await _productService.GetAllAsync(category, brand, search, page, pageSize,
+            sortField, sortOrder, name, priceMin, priceMax, stockMin, stockMax, isActive, dateFrom, dateTo, ct);
         return Ok(ApiResponse<PaginatedResult<ProductDto>>.Ok(result));
     }
 

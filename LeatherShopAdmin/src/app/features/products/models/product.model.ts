@@ -16,6 +16,7 @@ export interface Product {
   imageUrls: string[];
   imageItems: ProductImageItem[];
   isActive: boolean;
+  createdAt: string;
 }
 
 export interface CreateProduct {

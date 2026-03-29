@@ -1393,3 +1393,101 @@ body .customers-table .date-range-wrap .p-calendar .p-inputtext {
   font-size: 12.5px;
   padding: 7px 10px;
 }
+
+/* ─── Products Table — PrimeNG overrides (Marvel theme) ─── */
+body .products-table .p-datatable-thead > tr.header-row > th {
+  background: #fdf8f0;
+  color: #78350f;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 14px 16px;
+  border-bottom: 2px solid rgba(212, 169, 66, 0.2);
+  border-top: none;
+  transition: background 0.2s ease;
+}
+
+body .products-table .p-datatable-tbody > tr {
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+  border-bottom: 1px solid var(--ls-border-light, #f0f0f0);
+}
+
+body .products-table .p-datatable-tbody > tr.row-even {
+  background: #fefcf8;
+}
+
+body .products-table .p-datatable-tbody > tr:hover {
+  background: #fef7ed !important;
+  box-shadow: inset 3px 0 0 #a52a2a;
+}
+
+body .products-table .p-datatable-tbody > tr > td {
+  padding: 14px 16px;
+  font-size: 13.5px;
+  color: var(--ls-text-secondary, #334155);
+  border-bottom: none;
+  vertical-align: middle;
+}
+
+body .products-table .p-paginator {
+  padding: 14px 20px;
+  background: #fdf8f0;
+  border-top: 1px solid rgba(212, 169, 66, 0.12);
+  border-bottom: none;
+  font-size: 13px;
+  color: var(--ls-text-muted, #64748b);
+}
+
+body .products-table .p-paginator .p-paginator-current {
+  color: var(--ls-text-muted);
+  font-size: 12.5px;
+}
+
+body .products-table .p-datatable-loading-overlay {
+  backdrop-filter: blur(2px);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+body .products-table .filter-row p-calendar .p-calendar {
+  display: flex;
+  align-items: center;
+  width: 100% !important;
+}
+
+body .products-table .filter-row p-calendar .p-inputtext {
+  width: 100%;
+  font-size: 12.5px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--ls-border-input, #d1d5db);
+  transition: all 0.25s ease;
+}
+
+body .products-table .filter-row p-calendar .p-inputtext:focus {
+  border-color: #a52a2a;
+  box-shadow: 0 0 0 3px rgba(165, 42, 42, 0.12);
+}
+
+body .products-table .filter-row p-calendar .p-calendar-clear-icon {
+  right: 2.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--ls-text-placeholder, #94a3b8);
+  cursor: pointer;
+}
+
+body .products-table .filter-row p-calendar .p-datepicker-trigger {
+  padding: 0 6px;
+}
+
+body .products-table .date-range-wrap .p-calendar {
+  width: 100% !important;
+}
+
+body .products-table .date-range-wrap .p-calendar .p-inputtext {
+  width: 100%;
+  font-size: 12.5px;
+  padding: 7px 10px;
+}
