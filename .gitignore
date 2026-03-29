@@ -43,3 +43,6 @@ LeatherShopAdmin/yarn-error.log
 .env*.local
 *.jpg
 *.png
+
+# Allow company logo for invoice PDF
+!LeatherShopAPI/wwwroot/images/logo.png
