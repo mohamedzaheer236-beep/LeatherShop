@@ -150,8 +150,11 @@ public class ChatBotService : IChatBotService
             return true;
         }
 
-        // Clear stale pending product if user typed something else
-        if (state.PendingProductId.HasValue)
+        // Clear stale pending product if user typed something else (not a number).
+        // Only clear for typed text messages — button/interactive presses are explicit actions
+        // that shouldn't invalidate the pending quantity state (e.g., user clicks both
+        // "View Menu" and "Buy Now" from the same broadcast template).
+        if (state.PendingProductId.HasValue && interactiveId == null)
         {
             _convState.ClearPendingProduct(customer.Id);
         }
