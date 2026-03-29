@@ -127,11 +127,11 @@
               <p-calendar [(ngModel)]="filters.dateFrom" [showIcon]="true" [showClear]="true"
                 dateFormat="dd M yy" placeholder="From date" [inputStyleClass]="'col-filter'"
                 [style]="{'width': '100%'}" appendTo="body"
-                [maxDate]="filters.dateTo!" (onSelect)="applyFilters()" (onClear)="applyFilters()"></p-calendar>
+                [maxDate]="filters.dateTo!"></p-calendar>
               <p-calendar [(ngModel)]="filters.dateTo" [showIcon]="true" [showClear]="true"
                 dateFormat="dd M yy" placeholder="To date" [inputStyleClass]="'col-filter'"
                 [style]="{'width': '100%'}" appendTo="body"
-                [minDate]="filters.dateFrom!" (onSelect)="applyFilters()" (onClear)="applyFilters()"></p-calendar>
+                [minDate]="filters.dateFrom!"></p-calendar>
             </div>
           </th>
           <th>
