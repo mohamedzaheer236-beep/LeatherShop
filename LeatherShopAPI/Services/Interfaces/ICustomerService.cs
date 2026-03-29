@@ -6,7 +6,9 @@ namespace LeatherShopAPI.Services.Interfaces;
 
 public interface ICustomerService
 {
-    Task<PaginatedResult<CustomerListDto>> GetAllAsync(bool? subscribedOnly, string? search, string? category, int page = 1, int pageSize = 25, CancellationToken ct = default);
+    Task<PaginatedResult<CustomerListDto>> GetAllAsync(bool? subscribedOnly, string? search, string? category, int page = 1, int pageSize = 25,
+        string? sortField = null, string? sortOrder = null, string? name = null, string? phone = null, string? address = null,
+        string? dateFrom = null, string? dateTo = null, int? orderCountMin = null, int? orderCountMax = null, CancellationToken ct = default);
     Task<CustomerCountDto> GetCountAsync(CancellationToken ct = default);
     Task<CustomerCreatedDto> CreateAsync(CreateCustomerDto dto, CancellationToken ct = default);
     Task<CustomerListDto?> UpdateAsync(int id, UpdateCustomerDto dto, CancellationToken ct = default);

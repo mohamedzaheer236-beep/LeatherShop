@@ -35,38 +35,45 @@
 </app-customer-broadcast-dialog>
 
 <div class="customers-page">
-  <p-toolbar styleClass="mb-4">
-    <ng-template pTemplate="left">
-      <h1 class="page-title">Customers</h1>
-      <div class="customer-stats">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <div class="header-icon">
+        <i class="pi pi-users"></i>
+      </div>
+      <div class="header-text">
+        <h1>Customers</h1>
+        <p>Browse and manage all customers</p>
+      </div>
+      <div class="header-stats">
         <span class="stat-pill"><i class="pi pi-users"></i> {{ totalCount ?? '—' }} total</span>
         <span class="stat-pill accent"><i class="pi pi-check-circle"></i> {{ subscriberCount ?? '—' }} subscribed</span>
       </div>
-    </ng-template>
-    <ng-template pTemplate="right">
-      <p-button label="Add Customer" icon="pi pi-plus" severity="primary" (onClick)="showAddDialog = true"></p-button>
-      <p-button label="Import Bulk" icon="pi pi-upload" severity="secondary" [outlined]="true" (onClick)="showImportDialog = true"></p-button>
-    </ng-template>
-  </p-toolbar>
-
-  <!-- Filters -->
-  <div class="filters-bar" [formGroup]="filterForm">
-    <span class="p-input-icon-left">
-      <i class="pi pi-search"></i>
-      <input type="text" pInputText formControlName="searchTerm" id="customerSearch" name="customerSearch" placeholder="Search by phone or name..." (keyup.enter)="onSearch()" aria-label="Search customers" />
-    </span>
-    <p-button label="Search" icon="pi pi-search" size="small" (onClick)="onSearch()"></p-button>
-    @if (searchTerm) {
-      <p-button label="Clear" icon="pi pi-times" severity="secondary" [outlined]="true" size="small" (onClick)="clearSearch()"></p-button>
-    }
-    <span class="toggle-filter">
-      <p-checkbox formControlName="subscribedOnly" [binary]="true" (onChange)="onFilterChange()" inputId="subscribedOnly" aria-label="Show only subscribed customers"></p-checkbox>
-      <label for="subscribedOnly" class="selection-note">Subscribers only</label>
-    </span>
-    <p-dropdown formControlName="category" [options]="categoryOptions" placeholder="All Categories"
-      [showClear]="true" (onChange)="onFilterChange()" [style]="{'min-width': '220px'}" aria-label="Filter by category"
-      inputId="categoryFilter">
-    </p-dropdown>
+    </div>
+    <div class="header-actions">
+      @if (hasActiveFilters) {
+        <span class="active-filter-badge">
+          <i class="pi pi-filter-fill"></i> Filters active
+        </span>
+      }
+      <button type="button" pButton [rounded]="true"
+        [icon]="showFilters ? 'pi pi-filter-slash' : 'pi pi-filter'"
+        (click)="toggleFilters()"
+        [class.action-active]="showFilters"
+        [pTooltip]="showFilters ? 'Hide filters' : 'Show filters'"
+        tooltipPosition="left"
+        class="header-btn">
+      </button>
+      <button type="button" pButton [rounded]="true" icon="pi pi-refresh"
+        (click)="resetAll()"
+        [class.action-active]="hasActiveFilters || sortField !== 'createdAt' || sortOrder !== -1"
+        pTooltip="Reset all"
+        tooltipPosition="left"
+        class="header-btn">
+      </button>
+      <p-button label="Add Customer" icon="pi pi-plus" severity="primary" (onClick)="showAddDialog = true" class="header-action-btn"></p-button>
+      <p-button label="Import Bulk" icon="pi pi-upload" severity="secondary" [outlined]="true" (onClick)="showImportDialog = true" class="header-action-btn"></p-button>
+    </div>
   </div>
 
   <!-- Selection Action Bar -->
@@ -84,35 +91,129 @@
     </div>
   }
 
-  <app-loading-spinner [loading]="loading" message="Loading customers..."></app-loading-spinner>
-
-  <!-- Customer Table -->
-  @if (!loading && customers.length > 0) {
+  <!-- Table Card -->
+  <div class="table-card">
     <p-table [value]="customers"
-      [tableStyle]="{'min-width': '60rem'}" styleClass="p-datatable-striped" [rowHover]="true">
+      [lazy]="true"
+      (onLazyLoad)="onLazyLoad($event)"
+      [paginator]="true"
+      [rows]="pageSize"
+      [totalRecords]="totalRecords"
+      [rowsPerPageOptions]="[25, 50, 100]"
+      [loading]="loading"
+      [sortField]="sortField"
+      [sortOrder]="sortOrder"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} customers"
+      styleClass="customers-table"
+      [tableStyle]="{'min-width': '65rem'}"
+      [rowHover]="true">
+
       <ng-template pTemplate="header">
-        <tr>
-          <th class="col-checkbox">
+        <tr class="header-row">
+          <th style="width: 3rem">
             <p-checkbox inputId="selectAll" name="selectAll" [binary]="true" [(ngModel)]="allSelected" (onChange)="toggleSelectAll()" aria-label="Select all customers"></p-checkbox>
           </th>
-          <th>Phone Number</th>
-          <th>Name</th>
-          <th>Address</th>
-          <th>Category</th>
-          <th>Subscribed</th>
-          <th>Orders</th>
-          <th>Joined</th>
-          <th>Actions</th>
+          <th pSortableColumn="phoneNumber" style="min-width: 140px">
+            <div class="th-inner">Phone <p-sortIcon field="phoneNumber"></p-sortIcon></div>
+          </th>
+          <th pSortableColumn="name" style="min-width: 140px">
+            <div class="th-inner">Name <p-sortIcon field="name"></p-sortIcon></div>
+          </th>
+          <th style="min-width: 200px">
+            <div class="th-inner">Address</div>
+          </th>
+          <th pSortableColumn="category" style="width: 150px">
+            <div class="th-inner">Category <p-sortIcon field="category"></p-sortIcon></div>
+          </th>
+          <th pSortableColumn="isSubscribed" style="width: 120px">
+            <div class="th-inner">Subscribed <p-sortIcon field="isSubscribed"></p-sortIcon></div>
+          </th>
+          <th pSortableColumn="orderCount" style="width: 100px">
+            <div class="th-inner">Orders <p-sortIcon field="orderCount"></p-sortIcon></div>
+          </th>
+          <th pSortableColumn="createdAt" style="min-width: 180px">
+            <div class="th-inner">Joined <p-sortIcon field="createdAt"></p-sortIcon></div>
+          </th>
+          <th style="width: 5rem"></th>
         </tr>
+        @if (showFilters) {
+        <tr class="filter-row" @filterAnimation>
+          <th></th>
+          <th>
+            <div class="filter-input-wrap">
+              <i class="pi pi-phone"></i>
+              <input pInputText type="text" [(ngModel)]="filters.phone"
+                (keydown.enter)="applyFilters()" placeholder="Phone..." class="col-filter" />
+            </div>
+          </th>
+          <th>
+            <div class="filter-input-wrap">
+              <i class="pi pi-search"></i>
+              <input pInputText type="text" [(ngModel)]="filters.name"
+                (keydown.enter)="applyFilters()" placeholder="Name..." class="col-filter" />
+            </div>
+          </th>
+          <th>
+            <div class="filter-input-wrap">
+              <i class="pi pi-map-marker"></i>
+              <input pInputText type="text" [(ngModel)]="filters.address"
+                (keydown.enter)="applyFilters()" placeholder="Address..." class="col-filter" />
+            </div>
+          </th>
+          <th>
+            <p-dropdown [options]="categoryFilterOptions" [(ngModel)]="filters.category"
+              (onChange)="applyFilters()" [style]="{'width': '100%', 'font-size': '12.5px'}"
+              appendTo="body"></p-dropdown>
+          </th>
+          <th>
+            <p-dropdown [options]="subscribedFilterOptions" [(ngModel)]="filters.subscribedOnly"
+              (onChange)="applyFilters()" [style]="{'width': '100%', 'font-size': '12.5px'}"
+              appendTo="body"></p-dropdown>
+          </th>
+          <th>
+            <div class="order-count-filter-wrap">
+              <input pInputText type="number" [(ngModel)]="filters.orderCountMin"
+                (keydown.enter)="applyFilters()" placeholder="Min" class="col-filter col-filter-num" />
+              <span class="amount-sep">–</span>
+              <input pInputText type="number" [(ngModel)]="filters.orderCountMax"
+                (keydown.enter)="applyFilters()" placeholder="Max" class="col-filter col-filter-num" />
+            </div>
+          </th>
+          <th>
+            <div class="date-range-wrap">
+              <p-calendar [(ngModel)]="filters.dateFrom" [showIcon]="true" [showClear]="true"
+                dateFormat="dd M yy" placeholder="From date" [inputStyleClass]="'col-filter'"
+                [style]="{'width': '100%'}" appendTo="body"
+                [maxDate]="filters.dateTo!"></p-calendar>
+              <p-calendar [(ngModel)]="filters.dateTo" [showIcon]="true" [showClear]="true"
+                dateFormat="dd M yy" placeholder="To date" [inputStyleClass]="'col-filter'"
+                [style]="{'width': '100%'}" appendTo="body"
+                [minDate]="filters.dateFrom!"></p-calendar>
+            </div>
+          </th>
+          <th>
+            <button type="button" pButton icon="pi pi-search" [rounded]="true" [text]="true"
+              severity="primary" (click)="applyFilters()" pTooltip="Apply" tooltipPosition="top"
+              class="filter-apply-btn"></button>
+          </th>
+        </tr>
+        }
       </ng-template>
-      <ng-template pTemplate="body" let-customer>
-        <tr [class.row-selected]="customer.selected">
+
+      <ng-template pTemplate="body" let-customer let-i="rowIndex">
+        <tr class="data-row" [class.row-even]="i % 2 === 0" [class.row-selected]="customer.selected">
           <td>
             <p-checkbox [inputId]="'selectCustomer_' + customer.id" [name]="'selectCustomer_' + customer.id" [binary]="true" [(ngModel)]="customer.selected" (onChange)="onRowSelect(customer)" [attr.aria-label]="'Select customer ' + (customer.name || customer.phoneNumber)"></p-checkbox>
           </td>
-          <td><strong class="phone-number">{{ customer.phoneNumber }}</strong></td>
-          <td>{{ customer.name || '-' }}</td>
-          <td>{{ customer.address || '-' }}</td>
+          <td class="font-mono">{{ customer.phoneNumber }}</td>
+          <td>
+            <div class="customer-cell">
+              <span class="customer-avatar">{{ (customer.name || '?')[0] | uppercase }}</span>
+              <strong>{{ customer.name || '—' }}</strong>
+            </div>
+          </td>
+          <td class="address-cell">{{ customer.address || '—' }}</td>
           <td>
             <span class="category-pill">{{ getCategoryLabel(customer.category) }}</span>
           </td>
@@ -127,8 +228,8 @@
               {{ customer.isSubscribed ? 'Active' : 'Inactive' }}
             </span>
           </td>
-          <td>{{ customer.orderCount }}</td>
-          <td>{{ customer.createdAt | date:'dd MMM yyyy' }}</td>
+          <td class="text-center">{{ customer.orderCount }}</td>
+          <td class="date-cell">{{ customer.createdAt | date:'dd MMM yyyy' }}</td>
           <td>
             <div class="action-buttons">
               <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="secondary"
@@ -139,28 +240,24 @@
           </td>
         </tr>
       </ng-template>
+
       <ng-template pTemplate="emptymessage">
-        <tr><td colspan="9" class="empty-row">No customers found.</td></tr>
+        <tr>
+          <td colspan="9">
+            <div class="empty-state">
+              <div class="empty-icon-wrap">
+                <i class="pi pi-users"></i>
+              </div>
+              <h3>No customers found</h3>
+              <p>Try adjusting your filters or add a new customer.</p>
+              @if (hasActiveFilters) {
+                <button pButton label="Clear Filters" icon="pi pi-filter-slash"
+                  class="p-button-sm p-button-outlined" (click)="resetAll()"></button>
+              }
+            </div>
+          </td>
+        </tr>
       </ng-template>
     </p-table>
-  }
-
-  @if (!loading && totalRecords > 0) {
-    <p-paginator
-      [first]="(currentPage - 1) * pageSize"
-      [rows]="pageSize"
-      [totalRecords]="totalRecords"
-      [rowsPerPageOptions]="[25, 50, 100]"
-      (onPageChange)="onPageChange($event)"
-      [showCurrentPageReport]="true"
-      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} customers">
-    </p-paginator>
-  }
-
-  @if (!loading && customers.length === 0) {
-    <div class="empty-state">
-      <i class="pi pi-users"></i>
-      <p>No customers found.</p>
-    </div>
-  }
+  </div>
 </div>

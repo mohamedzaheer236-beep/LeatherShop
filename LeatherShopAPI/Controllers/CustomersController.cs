@@ -27,13 +27,23 @@ public class CustomersController : ControllerBase
         [FromQuery] string? category,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
+        [FromQuery] string? sortField = null,
+        [FromQuery] string? sortOrder = null,
+        [FromQuery] string? name = null,
+        [FromQuery] string? phone = null,
+        [FromQuery] string? address = null,
+        [FromQuery] string? dateFrom = null,
+        [FromQuery] string? dateTo = null,
+        [FromQuery] int? orderCountMin = null,
+        [FromQuery] int? orderCountMax = null,
         CancellationToken ct = default)
     {
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 25;
         if (pageSize > 100) pageSize = 100;
 
-        var result = await _customerService.GetAllAsync(subscribedOnly, search, category, page, pageSize, ct);
+        var result = await _customerService.GetAllAsync(subscribedOnly, search, category, page, pageSize,
+            sortField, sortOrder, name, phone, address, dateFrom, dateTo, orderCountMin, orderCountMax, ct);
         return Ok(ApiResponse<PaginatedResult<CustomerListDto>>.Ok(result));
     }
 

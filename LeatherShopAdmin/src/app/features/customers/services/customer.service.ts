@@ -20,11 +20,21 @@ export class CustomerService {
     category?: string,
     page = 1,
     pageSize = 25,
+    sortField?: string,
+    sortOrder?: string,
+    filters?: Record<string, string>,
   ): Observable<PaginatedResult<Customer>> {
     let params = new HttpParams().set('page', page.toString()).set('pageSize', pageSize.toString());
     if (subscribedOnly) params = params.set('subscribedOnly', 'true');
     if (search) params = params.set('search', search);
     if (category) params = params.set('category', category);
+    if (sortField) params = params.set('sortField', sortField);
+    if (sortOrder) params = params.set('sortOrder', sortOrder);
+    if (filters) {
+      for (const [key, value] of Object.entries(filters)) {
+        if (value) params = params.set(key, value);
+      }
+    }
     return this.http.get<ApiResponse<PaginatedResult<Customer>>>(this.baseUrl, { params }).pipe(map(res => res.data));
   }
 

@@ -1,7 +1,8 @@
 ﻿import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
-import { DatePipe } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
-import { PaginatorState } from 'primeng/paginator';
+import { DatePipe, UpperCasePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { trigger, transition, style, animate } from '@angular/animations';
+import { TableModule, TableLazyLoadEvent } from 'primeng/table';
 import { CustomerService } from '../../services/customer.service';
 import { Customer, CustomerWithSelection } from '../../models/customer.model';
 import { CUSTOMER_CATEGORIES } from '../../models/customer.model';
@@ -17,15 +18,10 @@ import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { TagModule } from 'primeng/tag';
-import { CardModule } from 'primeng/card';
 import { CheckboxModule } from 'primeng/checkbox';
-import { ToolbarModule } from 'primeng/toolbar';
-import { BadgeModule } from 'primeng/badge';
-import { MessageModule } from 'primeng/message';
-import { TableModule } from 'primeng/table';
 import { TooltipModule } from 'primeng/tooltip';
-import { PaginatorModule } from 'primeng/paginator';
 import { DropdownModule } from 'primeng/dropdown';
+import { CalendarModule } from 'primeng/calendar';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 
 @Component({
@@ -33,8 +29,8 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
   standalone: true,
   imports: [
     DatePipe,
+    UpperCasePipe,
     FormsModule,
-    ReactiveFormsModule,
     LoadingSpinnerComponent,
     CustomerAddDialogComponent,
     CustomerEditDialogComponent,
@@ -45,23 +41,29 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
     ButtonModule,
     InputTextModule,
     TagModule,
-    CardModule,
     CheckboxModule,
-    ToolbarModule,
-    BadgeModule,
-    MessageModule,
     TooltipModule,
-    PaginatorModule,
     DropdownModule,
+    CalendarModule,
     ConfirmDialogModule,
   ],
   templateUrl: './customers.component.html',
   styleUrl: './customers.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [ConfirmationService],
+  animations: [
+    trigger('filterAnimation', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(-12px)' }),
+        animate('250ms cubic-bezier(0.4, 0, 0.2, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
+      ]),
+      transition(':leave', [
+        animate('200ms cubic-bezier(0.4, 0, 0.2, 1)', style({ opacity: 0, transform: 'translateY(-8px)' })),
+      ]),
+    ]),
+  ],
 })
 export class CustomersComponent implements OnInit {
-  private fb = inject(FormBuilder);
   private customerService = inject(CustomerService);
   private notification = inject(NotificationService);
   private cdr = inject(ChangeDetectorRef);
@@ -72,8 +74,6 @@ export class CustomersComponent implements OnInit {
   subscriberCount: number | null = 0;
   totalCount: number | null = 0;
   categoryOptions = CUSTOMER_CATEGORIES;
-
-  filterForm!: FormGroup;
 
   // Dialog visibility
   showAddDialog = false;
@@ -90,18 +90,40 @@ export class CustomersComponent implements OnInit {
   allSelected = false;
   private _selectedMap = new Map<number, string>();
 
-  // Pagination
+  // Pagination & sorting (lazy table)
   totalRecords = 0;
-  currentPage = 1;
   pageSize = 25;
+  sortField = 'createdAt';
+  sortOrder = -1;
+
+  // Column filter state
+  showFilters = false;
+  filters = {
+    name: '',
+    phone: '',
+    address: '',
+    category: '',
+    subscribedOnly: '',
+    orderCountMin: '',
+    orderCountMax: '',
+    dateFrom: null as Date | null,
+    dateTo: null as Date | null,
+  };
+  hasActiveFilters = false;
+
+  categoryFilterOptions = [
+    { label: 'All', value: '' },
+    ...CUSTOMER_CATEGORIES.map(c => ({ label: c.label, value: c.value })),
+  ];
+
+  subscribedFilterOptions = [
+    { label: 'All', value: '' },
+    { label: 'Active', value: 'true' },
+    { label: 'Inactive', value: 'false' },
+  ];
 
   ngOnInit(): void {
-    this.filterForm = this.fb.group({
-      searchTerm: [''],
-      subscribedOnly: [false],
-      category: [null],
-    });
-    this.loadCustomers();
+    this.loadCustomers(1);
     this.loadCounts();
   }
 
@@ -115,10 +137,6 @@ export class CustomersComponent implements OnInit {
 
   get selectedCount(): number {
     return this._selectedMap.size;
-  }
-
-  get searchTerm(): string {
-    return this.filterForm.get('searchTerm')?.value || '';
   }
 
   // ─── Data Loading ───
@@ -138,11 +156,14 @@ export class CustomersComponent implements OnInit {
     });
   }
 
-  loadCustomers(): void {
+  loadCustomers(page = 1): void {
     this.loading = true;
-    const { searchTerm, subscribedOnly, category } = this.filterForm.value;
+    this.cdr.markForCheck();
+    const sortOrderStr = this.sortOrder === 1 ? 'asc' : 'desc';
+    const subscribedOnly = this.filters.subscribedOnly === 'true' ? true : undefined;
     this.customerService
-      .getCustomers(subscribedOnly, searchTerm || undefined, category || undefined, this.currentPage, this.pageSize)
+      .getCustomers(subscribedOnly, undefined, this.filters.category || undefined, page, this.pageSize,
+        this.sortField, sortOrderStr, this.getActiveFilters())
       .subscribe({
         next: result => {
           this.customers = result.items.map(c => ({ ...c, selected: this._selectedMap.has(c.id) }));
@@ -158,22 +179,37 @@ export class CustomersComponent implements OnInit {
       });
   }
 
-  // ─── Filtering & Pagination ───
+  // ─── Lazy Load & Filtering ───
 
-  onFilterChange(): void {
-    this.currentPage = 1;
-    this.loadCustomers();
+  onLazyLoad(event: TableLazyLoadEvent): void {
+    const page = Math.floor((event.first ?? 0) / (event.rows ?? this.pageSize)) + 1;
+    this.pageSize = event.rows ?? this.pageSize;
+    if (event.sortField) {
+      this.sortField = event.sortField as string;
+      this.sortOrder = event.sortOrder ?? -1;
+    }
+    this.loadCustomers(page);
   }
 
-  onSearch(): void {
-    this.currentPage = 1;
-    this.loadCustomers();
+  applyFilters(): void {
+    this.updateHasActiveFilters();
+    this.loadCustomers(1);
   }
 
-  clearSearch(): void {
-    this.filterForm.patchValue({ searchTerm: '' });
-    this.currentPage = 1;
-    this.loadCustomers();
+  toggleFilters(): void {
+    this.showFilters = !this.showFilters;
+    if (!this.showFilters && this.hasActiveFilters) {
+      this.resetAll();
+    }
+    this.cdr.markForCheck();
+  }
+
+  resetAll(): void {
+    this.sortField = 'createdAt';
+    this.sortOrder = -1;
+    this.filters = { name: '', phone: '', address: '', category: '', subscribedOnly: '', orderCountMin: '', orderCountMax: '', dateFrom: null, dateTo: null };
+    this.hasActiveFilters = false;
+    this.loadCustomers(1);
   }
 
   getCategoryLabel(value: string): string {
@@ -182,12 +218,6 @@ export class CustomersComponent implements OnInit {
 
   getCategorySeverity(value: string) {
     return getCategorySeverity(value);
-  }
-
-  onPageChange(event: PaginatorState): void {
-    this.currentPage = (event.page ?? 0) + 1;
-    this.pageSize = event.rows ?? this.pageSize;
-    this.loadCustomers();
   }
 
   // ─── Selection ───
@@ -260,7 +290,6 @@ export class CustomersComponent implements OnInit {
   }
 
   onCustomerDeleted(): void {
-    // Remove deleted customer from selection map so the selection bar clears
     if (this.deleteTarget) {
       this._selectedMap.delete(this.deleteTarget.id);
     }
@@ -293,5 +322,31 @@ export class CustomersComponent implements OnInit {
         // Toast shown by error interceptor
       },
     });
+  }
+
+  // ─── Private Helpers ───
+
+  private getActiveFilters(): Record<string, string> | undefined {
+    const active: Record<string, string> = {};
+    const f = this.filters;
+    if (f.name.trim()) active['name'] = f.name.trim();
+    if (f.phone.trim()) active['phone'] = f.phone.trim();
+    if (f.address.trim()) active['address'] = f.address.trim();
+    if (f.dateFrom) {
+      const d = f.dateFrom;
+      active['dateFrom'] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    if (f.dateTo) {
+      const d = f.dateTo;
+      active['dateTo'] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    if (f.orderCountMin !== '' && f.orderCountMin != null) active['orderCountMin'] = String(f.orderCountMin);
+    if (f.orderCountMax !== '' && f.orderCountMax != null) active['orderCountMax'] = String(f.orderCountMax);
+    return Object.keys(active).length > 0 ? active : undefined;
+  }
+
+  private updateHasActiveFilters(): void {
+    const f = this.filters;
+    this.hasActiveFilters = !!(f.name.trim() || f.phone.trim() || f.address.trim() || f.category || f.subscribedOnly || f.dateFrom || f.dateTo || (f.orderCountMin !== '' && f.orderCountMin != null) || (f.orderCountMax !== '' && f.orderCountMax != null));
   }
 }

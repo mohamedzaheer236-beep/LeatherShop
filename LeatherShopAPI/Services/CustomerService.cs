@@ -21,7 +21,9 @@ public class CustomerService : ICustomerService
         _logger = logger;
     }
 
-    public async Task<PaginatedResult<CustomerListDto>> GetAllAsync(bool? subscribedOnly, string? search, string? category, int page = 1, int pageSize = 25, CancellationToken ct = default)
+    public async Task<PaginatedResult<CustomerListDto>> GetAllAsync(bool? subscribedOnly, string? search, string? category, int page = 1, int pageSize = 25,
+        string? sortField = null, string? sortOrder = null, string? name = null, string? phone = null, string? address = null,
+        string? dateFrom = null, string? dateTo = null, int? orderCountMin = null, int? orderCountMax = null, CancellationToken ct = default)
     {
         var query = _db.Customers.AsNoTracking().AsQueryable();
 
@@ -37,22 +39,78 @@ public class CustomerService : ICustomerService
             query = query.Where(c => EF.Functions.ILike(c.PhoneNumber, $"%{escaped}%") || EF.Functions.ILike(c.Name, $"%{escaped}%"));
         }
 
-        var totalCount = await query.CountAsync(ct);
+        // Column filters
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            var escaped = EscapeLikePattern(name.Trim());
+            query = query.Where(c => EF.Functions.ILike(c.Name, $"%{escaped}%"));
+        }
 
-        var items = await query.OrderByDescending(c => c.CreatedAt)
+        if (!string.IsNullOrWhiteSpace(phone))
+        {
+            var escaped = EscapeLikePattern(phone.Trim());
+            query = query.Where(c => EF.Functions.ILike(c.PhoneNumber, $"%{escaped}%"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(address))
+        {
+            var escaped = EscapeLikePattern(address.Trim());
+            query = query.Where(c => EF.Functions.ILike(c.Address, $"%{escaped}%"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(dateFrom) && DateOnly.TryParse(dateFrom, out var fromDate))
+        {
+            var start = fromDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            query = query.Where(c => c.CreatedAt >= start);
+        }
+
+        if (!string.IsNullOrWhiteSpace(dateTo) && DateOnly.TryParse(dateTo, out var toDate))
+        {
+            var end = toDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddDays(1);
+            query = query.Where(c => c.CreatedAt < end);
+        }
+
+        // Order count filters — applied after projection below
+        // For now, filter in the projected queryable
+
+        // Project first so we can sort/filter on OrderCount
+        var projected = query.Select(c => new CustomerListDto
+        {
+            Id = c.Id,
+            PhoneNumber = c.PhoneNumber,
+            Name = c.Name,
+            Address = c.Address,
+            IsSubscribed = c.IsSubscribed,
+            Category = c.Category.ToString(),
+            CreatedAt = c.CreatedAt,
+            OrderCount = c.Orders.Count
+        });
+
+        if (orderCountMin.HasValue)
+            projected = projected.Where(c => c.OrderCount >= orderCountMin.Value);
+
+        if (orderCountMax.HasValue)
+            projected = projected.Where(c => c.OrderCount <= orderCountMax.Value);
+
+        var totalCount = await projected.CountAsync(ct);
+
+        // Sorting
+        var isDesc = string.Equals(sortOrder, "desc", StringComparison.OrdinalIgnoreCase);
+        projected = (sortField?.ToLower()) switch
+        {
+            "name" => isDesc ? projected.OrderByDescending(c => c.Name) : projected.OrderBy(c => c.Name),
+            "phonenumber" => isDesc ? projected.OrderByDescending(c => c.PhoneNumber) : projected.OrderBy(c => c.PhoneNumber),
+            "address" => isDesc ? projected.OrderByDescending(c => c.Address) : projected.OrderBy(c => c.Address),
+            "category" => isDesc ? projected.OrderByDescending(c => c.Category) : projected.OrderBy(c => c.Category),
+            "issubscribed" => isDesc ? projected.OrderByDescending(c => c.IsSubscribed) : projected.OrderBy(c => c.IsSubscribed),
+            "ordercount" => isDesc ? projected.OrderByDescending(c => c.OrderCount) : projected.OrderBy(c => c.OrderCount),
+            _ => isDesc ? projected.OrderByDescending(c => c.CreatedAt) : projected.OrderBy(c => c.CreatedAt),
+        };
+
+        var items = await projected
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(c => new CustomerListDto
-            {
-                Id = c.Id,
-                PhoneNumber = c.PhoneNumber,
-                Name = c.Name,
-                Address = c.Address,
-                IsSubscribed = c.IsSubscribed,
-                Category = c.Category.ToString(),
-                CreatedAt = c.CreatedAt,
-                OrderCount = c.Orders.Count
-            }).ToListAsync(ct);
+            .ToListAsync(ct);
 
         return new PaginatedResult<CustomerListDto>
         {
