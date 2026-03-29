@@ -150,13 +150,25 @@ public class ChatBotService : IChatBotService
             return true;
         }
 
-        // Clear stale pending product if user typed something else (not a number).
-        // Only clear for typed text messages — button/interactive presses are explicit actions
-        // that shouldn't invalidate the pending quantity state (e.g., user clicks both
-        // "View Menu" and "Buy Now" from the same broadcast template).
-        if (state.PendingProductId.HasValue && interactiveId == null)
+        // Pending product is set but input is not a number
+        if (state.PendingProductId.HasValue)
         {
-            _convState.ClearPendingProduct(customer.Id);
+            // Button/interactive presses (e.g., "View Menu") — don't clear state, let RouteInput handle them
+            if (interactiveId != null)
+                return false;
+
+            // User typed "menu", "view menu", "back", "cancel" — clear state and let RouteInput show menu
+            if (input is "menu" or "view menu" or "back" or "cancel" or "main_menu" or "hi" or "hello" or "start")
+            {
+                _convState.ClearPendingProduct(customer.Id);
+                return false;
+            }
+
+            // User typed something else (rubbish) — stay in quantity mode, guide them
+            await _bot.SendText(phone,
+                "❌ Please type a *valid quantity* (e.g. *1*, *2*, *5*)\n\n" +
+                "Or type *menu* to go back to the main menu.", ct);
+            return true;
         }
 
         return false;
