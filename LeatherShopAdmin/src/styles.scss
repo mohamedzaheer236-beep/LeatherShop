@@ -959,7 +959,7 @@ body .p-dropdown-panel .p-dropdown-header .p-dropdown-filter-container .filter-c
    ============================================= */
 body .broadcast-table {
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--surface-200, #e5e7eb);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
