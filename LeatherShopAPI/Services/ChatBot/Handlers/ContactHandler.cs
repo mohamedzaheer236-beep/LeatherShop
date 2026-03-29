@@ -20,8 +20,8 @@ public class ContactHandler
 
     public async Task SendContactInfo(string to, CancellationToken ct = default)
     {
-        var phone       = _config["ContactInfo:Phone"]          ?? "+91-9360740580";
-        var waNumber    = _config["ContactInfo:WhatsAppNumber"] ?? "919360740580";
+        var phone       = _config["ContactInfo:Phone"]          ?? "+91-84386-29975";
+        var waNumber    = _config["ContactInfo:WhatsAppNumber"] ?? "917305189975";
         var hours       = _config["ContactInfo:BusinessHours"]  ?? "Mon – Sat, 10 AM – 7 PM IST";
         var responseTime = _config["ContactInfo:ResponseTime"]  ?? "within 2 hours during business hours";
 
