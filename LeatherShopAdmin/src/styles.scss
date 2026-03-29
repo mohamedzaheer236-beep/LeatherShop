@@ -1258,3 +1258,40 @@ body .dashboard-orders-table .p-datatable-tbody > tr > td {
   border-bottom: none;
   vertical-align: middle;
 }
+
+/* ─── Revenue Chart Expanded Dialog ─── */
+body .revenue-chart-dialog.p-dialog {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+}
+
+body .revenue-chart-dialog .p-dialog-header {
+  background: var(--ls-bg-card, #ffffff);
+  border-bottom: 1px solid var(--ls-border-light, #f0f0f0);
+  padding: 20px 28px;
+}
+
+body .revenue-chart-dialog .p-dialog-header .p-dialog-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ls-text-primary, #1e293b);
+}
+
+body .revenue-chart-dialog .p-dialog-content {
+  background: var(--ls-bg-card, #ffffff);
+  padding: 20px 28px 28px;
+}
+
+body .revenue-chart-dialog .p-dialog-header-icons .p-dialog-header-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: var(--ls-text-placeholder, #94a3b8);
+  transition: all 0.2s ease;
+}
+
+body .revenue-chart-dialog .p-dialog-header-icons .p-dialog-header-icon:hover {
+  background: var(--ls-accent-light, #eef2ff);
+  color: var(--ls-accent, #6366f1);
+}

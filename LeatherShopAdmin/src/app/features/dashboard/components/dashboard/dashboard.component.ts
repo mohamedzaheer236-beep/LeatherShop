@@ -22,6 +22,7 @@ import { ButtonModule } from 'primeng/button';
 import { ChartModule } from 'primeng/chart';
 import { CalendarModule } from 'primeng/calendar';
 import { TooltipModule } from 'primeng/tooltip';
+import { DialogModule } from 'primeng/dialog';
 
 @Component({
   selector: 'app-dashboard',
@@ -40,6 +41,7 @@ import { TooltipModule } from 'primeng/tooltip';
     ChartModule,
     CalendarModule,
     TooltipModule,
+    DialogModule,
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
@@ -80,6 +82,9 @@ export class DashboardComponent implements OnInit {
   revenueChartOptions: any;
   statusChartData: any;
   statusChartOptions: any;
+
+  // Revenue chart dialog
+  showRevenueDialog = false;
 
   // Current greeting
   greeting = '';

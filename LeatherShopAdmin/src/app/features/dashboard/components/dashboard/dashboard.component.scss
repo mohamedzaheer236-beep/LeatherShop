@@ -320,6 +320,40 @@
   }
 }
 
+.chart-expand-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--ls-border-light, #f0f0f0);
+  background: transparent;
+  color: var(--ls-text-placeholder, #94a3b8);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+
+  &:hover {
+    background: var(--ls-accent-light, #eef2ff);
+    color: var(--ls-accent, #6366f1);
+    border-color: var(--ls-accent, #6366f1);
+  }
+
+  i { font-size: 14px; }
+}
+
+// ─── Revenue Dialog Chart ───
+.dialog-chart-subtitle {
+  font-size: 13px;
+  color: var(--ls-text-placeholder, #94a3b8);
+  margin-bottom: 16px;
+}
+
+.dialog-chart-body {
+  width: 100%;
+}
+
 .chart-body {
   padding: 16px 20px 20px;
 }

@@ -170,6 +170,10 @@
               }
             </p>
           </div>
+          <button class="chart-expand-btn" (click)="showRevenueDialog = true"
+            pTooltip="Expand chart" tooltipPosition="left">
+            <i class="pi pi-window-maximize"></i>
+          </button>
         </div>
         <div class="chart-body">
           <p-chart type="bar" [data]="revenueChartData" [options]="revenueChartOptions" height="320px"></p-chart>
@@ -239,5 +243,22 @@
         </p-table>
       </div>
     </div>
+
+    <!-- Revenue Chart Expanded Dialog -->
+    <p-dialog [(visible)]="showRevenueDialog" [modal]="true" [draggable]="false"
+      [style]="{'width': '92vw', 'max-width': '1400px'}" styleClass="revenue-chart-dialog"
+      header="Revenue Analytics" [dismissableMask]="true">
+      <div class="dialog-chart-subtitle">
+        Monthly revenue & orders
+        @if (hasActiveFilter && filterFrom && filterTo) {
+          for {{ filterFrom | date:'MMM yyyy' }} – {{ filterTo | date:'MMM yyyy' }}
+        } @else {
+          for {{ currentDate | date:'yyyy' }}
+        }
+      </div>
+      <div class="dialog-chart-body">
+        <p-chart type="bar" [data]="revenueChartData" [options]="revenueChartOptions" height="65vh"></p-chart>
+      </div>
+    </p-dialog>
   }
 </div>
