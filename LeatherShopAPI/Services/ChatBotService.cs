@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Services.ChatBot;
 using LeatherShopAPI.Services.ChatBot.Handlers;
@@ -21,6 +22,11 @@ public class ChatBotService : IChatBotService
     private readonly OrderCancellationHandler _orderCancellationHandler;
     private readonly ContactHandler _contactHandler;
     private readonly ILogger<ChatBotService> _logger;
+
+    // Cooldown: prevents the bot from responding to the same button press
+    // from the same customer within a short window (e.g., rapid "View Menu" taps).
+    private static readonly ConcurrentDictionary<string, DateTime> _lastProcessed = new();
+    private static readonly TimeSpan _cooldown = TimeSpan.FromSeconds(2);
 
     public ChatBotService(
         BotMessageSender bot,
@@ -56,6 +62,26 @@ public class ChatBotService : IChatBotService
         _bot.CurrentCustomerId = customer.Id;
 
         var input = (interactiveId ?? textBody ?? "").Trim().ToLower();
+
+        // Cooldown: ignore duplicate identical inputs from the same customer within 2 seconds
+        var cooldownKey = $"{customer.Id}:{input}";
+        var now = DateTime.UtcNow;
+        if (_lastProcessed.TryGetValue(cooldownKey, out var lastTime) && now - lastTime < _cooldown)
+        {
+            _logger.LogDebug("Cooldown: ignoring duplicate '{Input}' from customer {Id}", input, customer.Id);
+            return;
+        }
+        _lastProcessed[cooldownKey] = now;
+
+        // Prune stale cooldown entries every ~100 messages to prevent unbounded growth
+        if (_lastProcessed.Count > 500)
+        {
+            foreach (var key in _lastProcessed.Keys)
+            {
+                if (_lastProcessed.TryGetValue(key, out var ts) && now - ts > TimeSpan.FromMinutes(1))
+                    _lastProcessed.TryRemove(key, out _);
+            }
+        }
 
         try
         {
