@@ -86,30 +86,30 @@
             <div class="filter-input-wrap">
               <i class="pi pi-search"></i>
               <input pInputText type="text" [(ngModel)]="filters.customerName"
-                (keydown.enter)="applyFilters()" placeholder="Name..." class="col-filter" />
+                (keydown.enter)="applyFilters()" (paste)="onPaste()" placeholder="Name..." class="col-filter" />
             </div>
           </th>
           <th>
             <div class="filter-input-wrap">
               <i class="pi pi-phone"></i>
               <input pInputText type="text" [(ngModel)]="filters.customerPhone"
-                (keydown.enter)="applyFilters()" placeholder="Phone..." class="col-filter" />
+                (keydown.enter)="applyFilters()" (paste)="onPaste()" placeholder="Phone..." class="col-filter" />
             </div>
           </th>
           <th>
             <div class="filter-input-wrap">
               <i class="pi pi-hashtag"></i>
               <input pInputText type="text" [(ngModel)]="filters.orderNumber"
-                (keydown.enter)="applyFilters()" placeholder="Order ID..." class="col-filter" />
+                (keydown.enter)="applyFilters()" (paste)="onPaste()" placeholder="Order ID..." class="col-filter" />
             </div>
           </th>
           <th>
             <div class="amount-filter-wrap">
               <input pInputText type="number" [(ngModel)]="filters.amountMin"
-                (keydown.enter)="applyFilters()" placeholder="Min" class="col-filter col-filter-num" />
+                (keydown.enter)="applyFilters()" (paste)="onPaste()" placeholder="Min" class="col-filter col-filter-num" />
               <span class="amount-sep">–</span>
               <input pInputText type="number" [(ngModel)]="filters.amountMax"
-                (keydown.enter)="applyFilters()" placeholder="Max" class="col-filter col-filter-num" />
+                (keydown.enter)="applyFilters()" (paste)="onPaste()" placeholder="Max" class="col-filter col-filter-num" />
             </div>
           </th>
           <th>

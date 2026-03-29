@@ -1059,3 +1059,40 @@ body .broadcast-table .filter-row p-calendar .p-calendar-clear-icon {
 body .broadcast-table .filter-row p-calendar .p-datepicker-trigger {
   padding: 0 6px;
 }
+
+/* Order History filter row calendar (same fix as broadcast-table) */
+body .order-history-table .filter-row p-calendar .p-calendar {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+body .order-history-table .filter-row p-calendar .p-inputtext {
+  padding: 5px 10px;
+  font-size: 12.5px;
+  border-radius: 6px;
+  border: 1px solid var(--surface-300, #d1d5db);
+  background: var(--surface-50, #f9fafb);
+  width: 100%;
+  padding-right: 28px;
+}
+
+body .order-history-table .filter-row p-calendar .p-inputtext:focus {
+  border-color: var(--primary-color, #6366f1);
+  box-shadow: 0 0 0 2px var(--primary-100, #e0e7ff);
+  background: #fff;
+}
+
+body .order-history-table .filter-row p-calendar .p-calendar-clear-icon {
+  position: absolute;
+  right: 32px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--surface-400, #9ca3af);
+  cursor: pointer;
+}
+
+body .order-history-table .filter-row p-calendar .p-datepicker-trigger {
+  padding: 0 6px;
+}
