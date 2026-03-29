@@ -321,12 +321,12 @@ public class ChatBotService : IChatBotService
             return;
         }
 
-        // Buy Now (quick-reply from broadcast template) → directly ask quantity
+        // Buy Now (quick-reply from broadcast template) → show product details with Add to Cart
         if (input == "buy now")
         {
             var product = await _productHandler.ResolveBroadcastProduct(phone, ct);
             if (product != null)
-                await _cartHandler.AskQuantity(phone, customer, product.Id, ct: ct);
+                await _productHandler.SendProductDetailsText(phone, product.Id, ct: ct);
             return;
         }
 
