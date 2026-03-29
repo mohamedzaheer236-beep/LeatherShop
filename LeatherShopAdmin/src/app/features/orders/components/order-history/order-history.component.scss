@@ -278,6 +278,36 @@
   color: var(--ls-text-primary, #1e293b);
 }
 
+.cancelled-by-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &[data-source="Customer"] {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+  }
+
+  &[data-source="Admin"] {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+  }
+
+  &[data-source="System"] {
+    background: rgba(100, 116, 139, 0.12);
+    color: #64748b;
+  }
+
+  i {
+    font-size: 12px;
+  }
+}
+
 .date-cell {
   font-size: 12.5px;
   color: var(--ls-text-muted, #64748b);

@@ -55,6 +55,7 @@ export class OrderHistoryComponent implements OnInit {
     amountMin: '',
     amountMax: '',
     isPaid: '',
+    cancelledBy: '',
   };
   hasActiveFilters = false;
 
@@ -71,6 +72,13 @@ export class OrderHistoryComponent implements OnInit {
     { label: 'All', value: '' },
     { label: 'Paid', value: 'true' },
     { label: 'Unpaid', value: 'false' },
+  ];
+
+  cancelledByFilterOptions = [
+    { label: 'All', value: '' },
+    { label: 'Customer', value: 'Customer' },
+    { label: 'Admin', value: 'Admin' },
+    { label: 'System', value: 'System' },
   ];
 
   // Download tracking
@@ -96,7 +104,7 @@ export class OrderHistoryComponent implements OnInit {
   resetAll(): void {
     this.sortField = 'createdAt';
     this.sortOrder = -1;
-    this.filters = { customerName: '', customerPhone: '', orderNumber: '', status: '', dateFrom: null, dateTo: null, amountMin: '', amountMax: '', isPaid: '' };
+    this.filters = { customerName: '', customerPhone: '', orderNumber: '', status: '', dateFrom: null, dateTo: null, amountMin: '', amountMax: '', isPaid: '', cancelledBy: '' };
     this.hasActiveFilters = false;
     this.loadHistory(1);
   }
@@ -176,11 +184,12 @@ export class OrderHistoryComponent implements OnInit {
     if (f.amountMin !== '' && f.amountMin != null) active['amountMin'] = String(f.amountMin);
     if (f.amountMax !== '' && f.amountMax != null) active['amountMax'] = String(f.amountMax);
     if (f.isPaid) active['isPaid'] = f.isPaid;
+    if (f.cancelledBy) active['cancelledBy'] = f.cancelledBy;
     return Object.keys(active).length > 0 ? active : undefined;
   }
 
   private updateHasActiveFilters(): void {
     const f = this.filters;
-    this.hasActiveFilters = !!(f.customerName.trim() || f.customerPhone.trim() || f.orderNumber.trim() || f.status || f.dateFrom || f.dateTo || (f.amountMin !== '' && f.amountMin != null) || (f.amountMax !== '' && f.amountMax != null) || f.isPaid);
+    this.hasActiveFilters = !!(f.customerName.trim() || f.customerPhone.trim() || f.orderNumber.trim() || f.status || f.dateFrom || f.dateTo || (f.amountMin !== '' && f.amountMin != null) || (f.amountMax !== '' && f.amountMax != null) || f.isPaid || f.cancelledBy);
   }
 }

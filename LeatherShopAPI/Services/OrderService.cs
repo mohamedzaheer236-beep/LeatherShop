@@ -69,7 +69,7 @@ public class OrderService : IOrderService
         string? customerName, string? customerPhone, string? orderNumber,
         string? status, string? dateFrom, string? dateTo,
         decimal? amountMin = null, decimal? amountMax = null, string? isPaid = null,
-        CancellationToken ct = default)
+        string? cancelledBy = null, CancellationToken ct = default)
     {
         var query = _db.Orders.AsNoTracking()
             .Include(o => o.Customer)
@@ -113,6 +113,12 @@ public class OrderService : IOrderService
                 query = query.Where(o => o.IsPaid == paidVal);
         }
 
+        if (!string.IsNullOrWhiteSpace(cancelledBy))
+        {
+            var cb = cancelledBy.Trim();
+            query = query.Where(o => o.CancelledBy != null && o.CancelledBy.ToLower() == cb.ToLower());
+        }
+
         var totalCount = await query.CountAsync(ct);
 
         // Sorting
@@ -125,6 +131,7 @@ public class OrderService : IOrderService
             "totalamount" => isDesc ? query.OrderByDescending(o => o.TotalAmount) : query.OrderBy(o => o.TotalAmount),
             "status" => isDesc ? query.OrderByDescending(o => o.Status) : query.OrderBy(o => o.Status),
             "ispaid" => isDesc ? query.OrderByDescending(o => o.IsPaid) : query.OrderBy(o => o.IsPaid),
+            "cancelledby" => isDesc ? query.OrderByDescending(o => o.CancelledBy) : query.OrderBy(o => o.CancelledBy),
             _ => isDesc ? query.OrderByDescending(o => o.CreatedAt) : query.OrderBy(o => o.CreatedAt),
         };
 

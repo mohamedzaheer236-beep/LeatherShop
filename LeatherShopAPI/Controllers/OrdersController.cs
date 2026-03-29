@@ -52,6 +52,7 @@ public class OrdersController : ControllerBase
         [FromQuery] decimal? amountMin = null,
         [FromQuery] decimal? amountMax = null,
         [FromQuery] string? isPaid = null,
+        [FromQuery] string? cancelledBy = null,
         CancellationToken ct = default)
     {
         if (page < 1) page = 1;
@@ -59,7 +60,7 @@ public class OrdersController : ControllerBase
         if (pageSize > 100) pageSize = 100;
 
         var result = await _orderService.GetHistoryAsync(page, pageSize, sortField, sortOrder,
-            customerName, customerPhone, orderNumber, status, dateFrom, dateTo, amountMin, amountMax, isPaid, ct);
+            customerName, customerPhone, orderNumber, status, dateFrom, dateTo, amountMin, amountMax, isPaid, cancelledBy, ct);
         return Ok(ApiResponse<PaginatedResult<OrderDto>>.Ok(result));
     }
 

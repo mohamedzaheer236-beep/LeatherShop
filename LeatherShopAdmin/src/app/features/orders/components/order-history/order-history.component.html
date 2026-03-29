@@ -75,6 +75,9 @@
           <th pSortableColumn="isPaid" style="width: 90px; text-align: center">
             <div class="th-inner">Paid <p-sortIcon field="isPaid"></p-sortIcon></div>
           </th>
+          <th pSortableColumn="cancelledBy" style="width: 130px">
+            <div class="th-inner">Cancelled By <p-sortIcon field="cancelledBy"></p-sortIcon></div>
+          </th>
           <th pSortableColumn="createdAt" style="min-width: 200px">
             <div class="th-inner">Date <p-sortIcon field="createdAt"></p-sortIcon></div>
           </th>
@@ -123,6 +126,11 @@
               appendTo="body"></p-dropdown>
           </th>
           <th>
+            <p-dropdown [options]="cancelledByFilterOptions" [(ngModel)]="filters.cancelledBy"
+              (onChange)="applyFilters()" [style]="{'width': '100%', 'font-size': '12.5px'}"
+              appendTo="body"></p-dropdown>
+          </th>
+          <th>
             <div class="date-range-wrap">
               <p-calendar [(ngModel)]="filters.dateFrom" [showIcon]="true" [showClear]="true"
                 dateFormat="dd M yy" placeholder="From date" [inputStyleClass]="'col-filter'"
@@ -158,6 +166,16 @@
           <td class="text-center">
             <p-tag [value]="order.isPaid ? 'Paid' : 'Unpaid'" [severity]="order.isPaid ? 'success' : 'danger'" [rounded]="true"></p-tag>
           </td>
+          <td>
+            @if (order.cancelledBy) {
+              <span class="cancelled-by-pill" [attr.data-source]="order.cancelledBy">
+                <i class="pi" [class.pi-user]="order.cancelledBy === 'Customer'" [class.pi-shield]="order.cancelledBy === 'Admin'" [class.pi-clock]="order.cancelledBy === 'System'"></i>
+                {{ order.cancelledBy }}
+              </span>
+            } @else {
+              <span class="text-muted">—</span>
+            }
+          </td>
           <td class="date-cell">{{ order.createdAt | date:'dd MMM yyyy HH:mm' }}</td>
           <td class="text-center">
             <button class="pdf-btn" (click)="downloadInvoice(order)" [disabled]="isDownloading(order.id)"
@@ -172,7 +190,7 @@
 
       <ng-template pTemplate="emptymessage">
         <tr>
-          <td colspan="8">
+          <td colspan="9">
             <div class="empty-state">
               <div class="empty-icon-wrap">
                 <i class="pi pi-inbox"></i>
