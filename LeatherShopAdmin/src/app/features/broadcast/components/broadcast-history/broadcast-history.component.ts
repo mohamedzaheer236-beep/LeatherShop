@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy, ChangeDetectorRef, inject, OnInit, OnDestroy } from '@angular/core';
+import { Component, EventEmitter, Output, ChangeDetectionStrategy, ChangeDetectorRef, inject, OnInit } from '@angular/core';
 import { DatePipe, NgClass } from '@angular/common';
 import { PaginatorModule, PaginatorState } from 'primeng/paginator';
 import { TableModule, TableLazyLoadEvent } from 'primeng/table';
@@ -11,9 +11,7 @@ import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { FormsModule } from '@angular/forms';
 import { InputTextModule } from 'primeng/inputtext';
 import { CalendarModule } from 'primeng/calendar';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-import { BroadcastHistory, BroadcastRecipient, BroadcastDeliverySummary, RetryAttemptEntry } from '../../models/broadcast.model';
+import { BroadcastHistory, BroadcastRecipient, BroadcastDeliverySummary } from '../../models/broadcast.model';
 import { BroadcastService } from '../../services/broadcast.service';
 
 @Component({
@@ -24,10 +22,9 @@ import { BroadcastService } from '../../services/broadcast.service';
   templateUrl: './broadcast-history.component.html',
   styleUrl: './broadcast-history.component.scss',
 })
-export class BroadcastHistoryComponent implements OnInit, OnDestroy {
+export class BroadcastHistoryComponent implements OnInit {
   private broadcastService = inject(BroadcastService);
   private cdr = inject(ChangeDetectorRef);
-  private destroy$ = new Subject<void>();
 
   // History table state — self-managed
   history: BroadcastHistory[] = [];
@@ -85,11 +82,6 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadHistory(1);
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 
   applyFilters(): void {

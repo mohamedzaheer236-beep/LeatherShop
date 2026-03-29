@@ -76,16 +76,9 @@ public sealed class BroadcastBackgroundService : BackgroundService
 
     /// <summary>
     /// Resolve a relative image path (e.g., /uploads/abc.jpg) to a full public URL.
-    /// Delegates to shared ChatBotHelpers.GetPublicBaseUrl for consistent base URL resolution.
+    /// Delegates to shared ChatBotHelpers.ResolveImageUrl for consistent base URL resolution.
     /// </summary>
-    private string? ResolveImageUrl(string? relativePath)
-    {
-        if (string.IsNullOrEmpty(relativePath)) return null;
-        if (relativePath.StartsWith("http")) return relativePath; // already full URL
-
-        var baseUrl = ChatBotHelpers.GetPublicBaseUrl(_config);
-        return baseUrl != null ? $"{baseUrl}{relativePath}" : null;
-    }
+    private string? ResolveImageUrl(string? relativePath) => ChatBotHelpers.ResolveImageUrl(relativePath, _config);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

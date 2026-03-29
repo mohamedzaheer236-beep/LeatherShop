@@ -257,14 +257,7 @@ public sealed class BroadcastRetryBackgroundService : BackgroundService
         }
     }
 
-    private string? ResolveImageUrl(string? relativePath)
-    {
-        if (string.IsNullOrEmpty(relativePath)) return null;
-        if (relativePath.StartsWith("http")) return relativePath;
-
-        var baseUrl = ChatBotHelpers.GetPublicBaseUrl(_config);
-        return baseUrl != null ? $"{baseUrl}{relativePath}" : null;
-    }
+    private string? ResolveImageUrl(string? relativePath) => ChatBotHelpers.ResolveImageUrl(relativePath, _config);
 
     private static void AppendRetryHistory(BroadcastRecipient recipient, bool succeeded, string? error)
     {

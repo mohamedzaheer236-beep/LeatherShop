@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, Output, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { CustomerService } from '../../services/customer.service';
 import { CreateCustomer, CUSTOMER_CATEGORIES } from '../../models/customer.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
+import { getCategorySeverity, getCategoryLabel } from '../../../../shared/utils/severity.utils';
 
 import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
@@ -40,7 +40,7 @@ const COLUMN_ALIASES: Record<string, string[]> = {
 @Component({
   selector: 'app-customer-import-dialog',
   standalone: true,
-  imports: [CommonModule, DialogModule, ButtonModule, FileUploadModule, TableModule, TagModule],
+  imports: [DialogModule, ButtonModule, FileUploadModule, TableModule, TagModule],
   templateUrl: './customer-import-dialog.component.html',
   styleUrl: './customer-import-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -48,7 +48,7 @@ const COLUMN_ALIASES: Record<string, string[]> = {
 export class CustomerImportDialogComponent {
   private customerService = inject(CustomerService);
   private notification = inject(NotificationService);
-  cdr = inject(ChangeDetectorRef);
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() visible = false;
   @Output() visibleChange = new EventEmitter<boolean>();
@@ -91,6 +91,7 @@ export class CustomerImportDialogComponent {
     this.validating = false;
     this.validated = false;
     this.fileError = '';
+    this.cdr.markForCheck();
   }
 
   onFileChange(event: Event): void {
@@ -348,18 +349,12 @@ export class CustomerImportDialogComponent {
     });
   }
 
-  getCategorySeverity(category: string): 'info' | 'secondary' | 'warning' | undefined {
-    switch (category.toLowerCase()) {
-      case 'reseller': return 'info';
-      case 'directcorporate': return 'secondary';
-      case 'friendsandfamily': return 'warning';
-      default: return undefined;
-    }
+  getCategorySeverity(category: string) {
+    return getCategorySeverity(category);
   }
 
   getCategoryLabel(value: string): string {
-    const found = CUSTOMER_CATEGORIES.find(c => c.value.toLowerCase() === value.toLowerCase());
-    return found?.label || value;
+    return getCategoryLabel(value, CUSTOMER_CATEGORIES);
   }
 
   close(): void {

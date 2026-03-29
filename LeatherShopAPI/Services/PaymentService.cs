@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -336,6 +335,9 @@ public class PaymentService : IPaymentService
             return null;
         }
 
+        // Capture the original status BEFORE overwriting — needed to detect cancelled-but-paid orders.
+        var previousStatus = order.Status;
+
         // Atomic guard: claim this order for processing using a database-level WHERE clause.
         // This prevents duplicate processing when Paytm sends concurrent callbacks (retry policy).
         var paymentId = txnStatus.TxnId ?? dto.TransactionId;
@@ -368,7 +370,7 @@ public class PaymentService : IPaymentService
         // If the order was auto-cancelled due to expiry while the customer
         // was completing payment in the Paytm form, we must honor the payment (money is already charged).
         // Re-confirm the order, re-deduct stock, and clear restored cart items.
-        if (order.Status == OrderStatus.Cancelled)
+        if (previousStatus == OrderStatus.Cancelled)
         {
             _logger.LogWarning("Order {OrderNumber} was auto-cancelled (expired) but received valid Paytm payment {TxnId}. Re-confirming.",
                 order.OrderNumber, txnStatus.TxnId);

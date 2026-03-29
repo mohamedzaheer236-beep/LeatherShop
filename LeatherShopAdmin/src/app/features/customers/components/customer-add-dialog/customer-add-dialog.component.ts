@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, Output, inject } from '@angular/core';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { CustomerService } from '../../services/customer.service';
 import { CreateCustomer, CUSTOMER_CATEGORIES } from '../../models/customer.model';
 import { NotificationService } from '../../../../shared/services/notification.service';

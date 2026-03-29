@@ -144,7 +144,6 @@ public class ChatBotService : IChatBotService
         }
 
         // ---- QUANTITY INPUT ----
-        // ---- QUANTITY INPUT ----
         // Only accept quantity when user types a number as plain text (not a button click).
         // This ensures button presses like "Buy Now" / "View Menu" never accidentally add to cart.
         if (state.PendingProductId.HasValue && interactiveId == null && int.TryParse(input, out var qty))

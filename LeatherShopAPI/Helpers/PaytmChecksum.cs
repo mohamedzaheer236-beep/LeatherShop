@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.Extensions.Logging;
 
 namespace LeatherShopAPI.Helpers;
 
@@ -32,31 +31,6 @@ public static class PaytmChecksum
         return AesEncrypt(hashString, merchantKey);
     }
 
-    /// <summary>Verifies a Paytm checksum against the expected body and merchant key.</summary>
-    public static bool VerifySignature(string body, string merchantKey, string checksum, ILogger? logger = null)
-    {
-        try
-        {
-            var decrypted = AesDecrypt(checksum, merchantKey);
-
-            // decrypted = sha256Hex (64 chars) + salt (4 chars) = 68 chars
-            if (decrypted.Length < 65) return false;
-
-            // Extract last 4 chars as salt (matches official SDK)
-            var salt = decrypted[^4..];
-            var recomputed = ComputeHashString(body, salt);
-
-            return CryptographicOperations.FixedTimeEquals(
-                Encoding.UTF8.GetBytes(decrypted),
-                Encoding.UTF8.GetBytes(recomputed));
-        }
-        catch (Exception ex)
-        {
-            logger?.LogWarning(ex, "Paytm checksum verification failed — possible tampered or malformed checksum");
-            return false;
-        }
-    }
-
     /// <summary>Generates 3 random bytes → 4-char Base64 salt (matches official Paytm SDK).</summary>
     private static string GenerateSalt()
     {
@@ -85,20 +59,5 @@ public static class PaytmChecksum
         var plainBytes = Encoding.ASCII.GetBytes(plainText);
         var encrypted = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
         return Convert.ToBase64String(encrypted);
-    }
-
-    /// <summary>AES-128-CBC decrypt with fixed IV "@@@@&amp;&amp;&amp;&amp;####$$$$".</summary>
-    private static string AesDecrypt(string encryptedBase64, string merchantKey)
-    {
-        var keyBytes = Encoding.UTF8.GetBytes(merchantKey.PadRight(16, '\0')[..16]);
-        var cipherBytes = Convert.FromBase64String(encryptedBase64);
-        using var aes = Aes.Create();
-        aes.Mode = CipherMode.CBC;
-        aes.Padding = PaddingMode.PKCS7;
-        aes.Key = keyBytes;
-        aes.IV = FixedIv;
-        using var decryptor = aes.CreateDecryptor();
-        var decryptedBytes = decryptor.TransformFinalBlock(cipherBytes, 0, cipherBytes.Length);
-        return Encoding.ASCII.GetString(decryptedBytes);
     }
 }

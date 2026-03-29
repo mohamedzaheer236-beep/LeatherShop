@@ -6,6 +6,7 @@ import { CustomerService } from '../../services/customer.service';
 import { Customer, CustomerWithSelection } from '../../models/customer.model';
 import { CUSTOMER_CATEGORIES } from '../../models/customer.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
+import { getCategorySeverity, getCategoryLabel } from '../../../../shared/utils/severity.utils';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { CustomerAddDialogComponent } from '../customer-add-dialog/customer-add-dialog.component';
 import { CustomerEditDialogComponent } from '../customer-edit-dialog/customer-edit-dialog.component';
@@ -176,16 +177,11 @@ export class CustomersComponent implements OnInit {
   }
 
   getCategoryLabel(value: string): string {
-    return CUSTOMER_CATEGORIES.find(c => c.value === value)?.label ?? value;
+    return getCategoryLabel(value, CUSTOMER_CATEGORIES);
   }
 
-  getCategorySeverity(value: string): 'info' | 'warning' | 'secondary' {
-    switch (value) {
-      case 'Reseller': return 'info';
-      case 'DirectCorporate': return 'secondary';
-      case 'FriendsAndFamily': return 'warning';
-      default: return 'secondary';
-    }
+  getCategorySeverity(value: string) {
+    return getCategorySeverity(value);
   }
 
   onPageChange(event: PaginatorState): void {

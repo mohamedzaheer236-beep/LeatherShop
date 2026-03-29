@@ -25,6 +25,19 @@ public static class ChatBotHelpers
     }
 
     /// <summary>
+    /// Resolve a relative image path (e.g., /uploads/abc.jpg) to a full public URL.
+    /// Returns null if the path is empty or no public base URL is available.
+    /// </summary>
+    public static string? ResolveImageUrl(string? relativePath, IConfiguration config)
+    {
+        if (string.IsNullOrEmpty(relativePath)) return null;
+        if (relativePath.StartsWith("http")) return relativePath;
+
+        var baseUrl = GetPublicBaseUrl(config);
+        return baseUrl != null ? $"{baseUrl}{relativePath}" : null;
+    }
+
+    /// <summary>
     /// Parses payload format: {prefix}{productId}_pi{imageId} or {prefix}{productId}
     /// Returns (productId, imageId) where imageId is null if not present, or 0 maps to null (primary).
     /// </summary>

@@ -33,7 +33,7 @@ public class WhatsAppService : IWhatsAppService
 
     private string BaseUrl => $"https://graph.facebook.com/{ApiVersion}/{PhoneNumberId}/messages";
 
-    private readonly JsonSerializerOptions _jsonOptions = new()
+    private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
@@ -377,36 +377,7 @@ public class WhatsAppService : IWhatsAppService
 
     private async Task SendRequest(object payload, CancellationToken ct = default)
     {
-        var json = JsonSerializer.Serialize(payload, _jsonOptions);
-        _logger.LogDebug("WhatsApp API Request: {Json}", json);
-
-        for (int attempt = 0; attempt <= RateLimitMaxRetries; attempt++)
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Post, BaseUrl);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
-            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
-            using var response = await _httpClient.SendAsync(request, ct);
-            var responseBody = await response.Content.ReadAsStringAsync(ct);
-
-            if (response.IsSuccessStatusCode)
-            {
-                _logger.LogDebug("WhatsApp API Success: {Body}", responseBody);
-                return;
-            }
-
-            // Retry only on rate limit errors (Meta code 131056) - all other errors fail immediately
-            if (responseBody.Contains(RateLimitErrorCode) && attempt < RateLimitMaxRetries)
-            {
-                var delay = RateLimitRetryDelaysMs[attempt];
-                _logger.LogWarning("WhatsApp rate limit hit (attempt {Attempt}/{Max}), retrying after {Delay}ms",
-                    attempt + 1, RateLimitMaxRetries + 1, delay);
-                await Task.Delay(delay, ct);
-                continue;
-            }
-
-            _logger.LogError("WhatsApp API Error: {StatusCode} - {Body}", response.StatusCode, responseBody);
-            throw new WhatsAppApiException($"WhatsApp API Error: {response.StatusCode} - {responseBody}");
-        }
+        await SendRequestWithWamId(payload, ct);
     }
 
     /// <summary>

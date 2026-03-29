@@ -34,7 +34,7 @@
       <span>{{ fileError }}</span>
     </div>
     <div class="retry-section">
-      <p-button label="Choose Another File" icon="pi pi-refresh" severity="secondary" [outlined]="true" (onClick)="reset(); cdr.markForCheck()"></p-button>
+      <p-button label="Choose Another File" icon="pi pi-refresh" severity="secondary" [outlined]="true" (onClick)="reset()"></p-button>
     </div>
   }
 
@@ -55,7 +55,7 @@
         }
       </div>
       <div class="retry-section">
-        <p-button label="Upload Fixed File" icon="pi pi-refresh" severity="secondary" [outlined]="true" (onClick)="reset(); cdr.markForCheck()"></p-button>
+        <p-button label="Upload Fixed File" icon="pi pi-refresh" severity="secondary" [outlined]="true" (onClick)="reset()"></p-button>
       </div>
     </div>
   }

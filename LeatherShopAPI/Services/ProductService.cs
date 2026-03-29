@@ -232,7 +232,6 @@ public class ProductService : IProductService
         // Iteratively lower quality to target ~300KB
         const int targetBytes = 300 * 1024;
         int quality = 85;
-        bool saved = false;
         while (quality >= 30)
         {
             using var testStream = new MemoryStream();
@@ -240,18 +239,9 @@ public class ProductService : IProductService
             if (testStream.Length <= targetBytes || quality <= 30)
             {
                 await System.IO.File.WriteAllBytesAsync(filePath, testStream.ToArray());
-                saved = true;
                 break;
             }
             quality -= 10;
-        }
-
-        // Final safety net: if the loop never saved (shouldn't happen with quality <= 30 guard), save at minimum quality
-        if (!saved)
-        {
-            using var fallbackStream = new MemoryStream();
-            await image.SaveAsJpegAsync(fallbackStream, new JpegEncoder { Quality = 30 });
-            await System.IO.File.WriteAllBytesAsync(filePath, fallbackStream.ToArray());
         }
 
         return $"/uploads/{fileName}";
