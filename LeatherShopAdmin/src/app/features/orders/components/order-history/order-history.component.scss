@@ -252,6 +252,30 @@
   }
 }
 
+/* ─── Amount Range Filter ─── */
+.amount-filter-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .amount-sep {
+    color: var(--ls-text-placeholder, #94a3b8);
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+}
+
+.col-filter-num {
+  text-align: center;
+  -moz-appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
 /* ─── Customer Cell ─── */
 .customer-cell {
   display: flex;

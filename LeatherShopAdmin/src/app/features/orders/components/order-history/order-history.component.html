@@ -107,7 +107,11 @@
               (onChange)="applyFilters()" [style]="{'width': '100%', 'font-size': '12.5px'}"
               appendTo="body"></p-dropdown>
           </th>
-          <th></th>
+          <th>
+            <p-dropdown [options]="paidFilterOptions" [(ngModel)]="filters.isPaid"
+              (onChange)="applyFilters()" [style]="{'width': '100%', 'font-size': '12.5px'}"
+              appendTo="body"></p-dropdown>
+          </th>
           <th>
             <p-calendar [(ngModel)]="filters.dateSearch" [showIcon]="true" [showClear]="true"
               dateFormat="dd M yy" placeholder="Pick date" [inputStyleClass]="'col-filter'"

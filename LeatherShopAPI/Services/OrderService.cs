@@ -67,7 +67,9 @@ public class OrderService : IOrderService
     public async Task<PaginatedResult<OrderDto>> GetHistoryAsync(
         int page, int pageSize, string? sortField, string? sortOrder,
         string? customerName, string? customerPhone, string? orderNumber,
-        string? status, string? dateSearch, CancellationToken ct = default)
+        string? status, string? dateSearch,
+        decimal? amountMin = null, decimal? amountMax = null, string? isPaid = null,
+        CancellationToken ct = default)
     {
         var query = _db.Orders.AsNoTracking()
             .Include(o => o.Customer)
@@ -92,6 +94,18 @@ public class OrderService : IOrderService
             var start = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
             var end = start.AddDays(1);
             query = query.Where(o => o.CreatedAt >= start && o.CreatedAt < end);
+        }
+
+        if (amountMin.HasValue)
+            query = query.Where(o => o.TotalAmount >= amountMin.Value);
+
+        if (amountMax.HasValue)
+            query = query.Where(o => o.TotalAmount <= amountMax.Value);
+
+        if (!string.IsNullOrWhiteSpace(isPaid))
+        {
+            if (bool.TryParse(isPaid, out var paidVal))
+                query = query.Where(o => o.IsPaid == paidVal);
         }
 
         var totalCount = await query.CountAsync(ct);

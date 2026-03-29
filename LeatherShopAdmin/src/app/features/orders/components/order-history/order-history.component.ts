@@ -51,6 +51,9 @@ export class OrderHistoryComponent implements OnInit {
     orderNumber: '',
     status: '',
     dateSearch: null as Date | null,
+    amountMin: '',
+    amountMax: '',
+    isPaid: '',
   };
   hasActiveFilters = false;
 
@@ -61,6 +64,12 @@ export class OrderHistoryComponent implements OnInit {
     { label: 'Shipped', value: 'Shipped' },
     { label: 'Delivered', value: 'Delivered' },
     { label: 'Cancelled', value: 'Cancelled' },
+  ];
+
+  paidFilterOptions = [
+    { label: 'All', value: '' },
+    { label: 'Paid', value: 'true' },
+    { label: 'Unpaid', value: 'false' },
   ];
 
   // Download tracking
@@ -86,7 +95,7 @@ export class OrderHistoryComponent implements OnInit {
   resetAll(): void {
     this.sortField = 'createdAt';
     this.sortOrder = -1;
-    this.filters = { customerName: '', customerPhone: '', orderNumber: '', status: '', dateSearch: null };
+    this.filters = { customerName: '', customerPhone: '', orderNumber: '', status: '', dateSearch: null, amountMin: '', amountMax: '', isPaid: '' };
     this.hasActiveFilters = false;
     this.loadHistory(1);
   }
@@ -159,11 +168,14 @@ export class OrderHistoryComponent implements OnInit {
       const d = f.dateSearch;
       active['dateSearch'] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
+    if (f.amountMin.trim()) active['amountMin'] = f.amountMin.trim();
+    if (f.amountMax.trim()) active['amountMax'] = f.amountMax.trim();
+    if (f.isPaid) active['isPaid'] = f.isPaid;
     return Object.keys(active).length > 0 ? active : undefined;
   }
 
   private updateHasActiveFilters(): void {
     const f = this.filters;
-    this.hasActiveFilters = !!(f.customerName.trim() || f.customerPhone.trim() || f.orderNumber.trim() || f.status || f.dateSearch);
+    this.hasActiveFilters = !!(f.customerName.trim() || f.customerPhone.trim() || f.orderNumber.trim() || f.status || f.dateSearch || f.amountMin.trim() || f.amountMax.trim() || f.isPaid);
   }
 }

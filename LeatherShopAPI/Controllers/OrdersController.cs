@@ -48,6 +48,9 @@ public class OrdersController : ControllerBase
         [FromQuery] string? orderNumber = null,
         [FromQuery] string? status = null,
         [FromQuery] string? dateSearch = null,
+        [FromQuery] decimal? amountMin = null,
+        [FromQuery] decimal? amountMax = null,
+        [FromQuery] string? isPaid = null,
         CancellationToken ct = default)
     {
         if (page < 1) page = 1;
@@ -55,7 +58,7 @@ public class OrdersController : ControllerBase
         if (pageSize > 100) pageSize = 100;
 
         var result = await _orderService.GetHistoryAsync(page, pageSize, sortField, sortOrder,
-            customerName, customerPhone, orderNumber, status, dateSearch, ct);
+            customerName, customerPhone, orderNumber, status, dateSearch, amountMin, amountMax, isPaid, ct);
         return Ok(ApiResponse<PaginatedResult<OrderDto>>.Ok(result));
     }
 
