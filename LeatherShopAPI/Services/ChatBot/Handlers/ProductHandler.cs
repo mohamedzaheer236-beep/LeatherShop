@@ -300,7 +300,8 @@ public class ProductHandler
     /// <summary>
     /// Handles "Buy Now" quick-reply from a broadcast template.
     /// Finds the most recent broadcast sent to this customer, extracts the product name
-    /// from the template parameters, and shows the product details with Add to Cart.
+    /// from the template parameters, shows the product image + details, and offers
+    /// Buy Now (add to cart) and View Menu buttons.
     /// </summary>
     public async Task HandleBuyNowFromBroadcast(string phone, CancellationToken ct = default)
     {
@@ -367,7 +368,44 @@ public class ProductHandler
             return;
         }
 
-        // Show product details with Add to Cart button
-        await SendProductDetails(phone, product.Id, ct);
+        // Send product image with details as caption
+        if (!string.IsNullOrEmpty(product.ImageUrl))
+        {
+            var baseUrl = ChatBotHelpers.GetPublicBaseUrl(_config);
+            if (!string.IsNullOrEmpty(baseUrl))
+            {
+                var imageFullUrl = product.ImageUrl.StartsWith("http")
+                    ? product.ImageUrl
+                    : $"{baseUrl}{product.ImageUrl}";
+
+                var caption = $"*{product.Name}*\n\n" +
+                    $"💰 Price: ₹{product.Price}\n" +
+                    $"📦 In Stock: {product.StockQuantity}\n\n" +
+                    $"📝 {product.Description}";
+
+                if (caption.Length > 1024) caption = caption[..1021] + "...";
+
+                try
+                {
+                    await _bot.SendImage(phone, imageFullUrl, caption, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to send product image for Buy Now, falling back to text");
+                }
+            }
+        }
+
+        // Send Buy Now + View Menu buttons
+        await _bot.SendButtons(
+            phone,
+            bodyText: $"Tap *Buy Now* to purchase *{product.Name}* — ₹{product.Price}",
+            buttons: new List<ButtonOption>
+            {
+                new() { Id = $"addcart_{product.Id}", Title = "🛒 Buy Now" },
+                new() { Id = "main_menu", Title = "📋 View Menu" }
+            },
+            ct: ct
+        );
     }
 }
