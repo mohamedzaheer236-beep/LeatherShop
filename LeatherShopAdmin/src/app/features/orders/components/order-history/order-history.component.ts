@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, ChangeDetectorRef, inject, OnInit } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe, UpperCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { trigger, transition, style, animate } from '@angular/animations';
 import { TableModule, TableLazyLoadEvent } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
@@ -15,10 +16,21 @@ import { getStatusSeverity, TagSeverity } from '../../../../shared/utils/severit
 @Component({
   selector: 'app-order-history',
   standalone: true,
-  imports: [DatePipe, DecimalPipe, FormsModule, TableModule, TagModule, ButtonModule, InputTextModule, CalendarModule, DropdownModule, TooltipModule],
+  imports: [DatePipe, DecimalPipe, UpperCasePipe, FormsModule, TableModule, TagModule, ButtonModule, InputTextModule, CalendarModule, DropdownModule, TooltipModule],
   templateUrl: './order-history.component.html',
   styleUrl: './order-history.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  animations: [
+    trigger('filterAnimation', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(-12px)' }),
+        animate('250ms cubic-bezier(0.4, 0, 0.2, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
+      ]),
+      transition(':leave', [
+        animate('200ms cubic-bezier(0.4, 0, 0.2, 1)', style({ opacity: 0, transform: 'translateY(-8px)' })),
+      ]),
+    ]),
+  ],
 })
 export class OrderHistoryComponent implements OnInit {
   private orderService = inject(OrderService);
