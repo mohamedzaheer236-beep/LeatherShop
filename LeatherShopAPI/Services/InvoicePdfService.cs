@@ -7,31 +7,28 @@ using LeatherShopAPI.Services.Interfaces;
 namespace LeatherShopAPI.Services;
 
 /// <summary>
-/// Generates a vintage-styled PDF invoice inspired by classic 1940s British/French ledger invoices.
-/// Uses QuestPDF (Community License) with warm sepia tones and ornamental borders.
+/// Generates a professionally designed PDF invoice for an order.
+/// Uses QuestPDF (Community License) with a premium dark/gold color scheme.
 /// </summary>
 public class InvoicePdfService : IInvoicePdfService
 {
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<InvoicePdfService> _logger;
 
-    // Vintage sepia color palette
-    private const string Ink = "#2C1810";            // Dark sepia ink
-    private const string InkMedium = "#5C3A1E";      // Medium brown
-    private const string InkLight = "#8B6914";        // Antique gold/bronze
-    private const string Parchment = "#FDF8F0";       // Warm cream background
-    private const string ParchmentDark = "#F5E6D0";   // Darker parchment for rows
-    private const string BorderOrnament = "#8B7355";  // Warm brown border
-    private const string BorderLight = "#D4B896";     // Tan border
-    private const string AccentGold = "#A0853C";      // Muted gold
-    private const string StatusGreen = "#2D5016";     // Vintage green
-    private const string StatusRed = "#8B1A1A";       // Vintage red
+    // Brand color palette
+    private const string BrandBlack = "#1a1a2e";
+    private const string BrandGold = "#C9A96E";
+    private const string BrandGoldLight = "#E8D5B5";
+    private const string TextDark = "#1e293b";
+    private const string TextMuted = "#64748b";
+    private const string TextLight = "#94a3b8";
+    private const string BorderLight = "#e2e8f0";
+    private const string BgSubtle = "#f8fafc";
+    private const string StatusGreen = "#16a34a";
+    private const string StatusRed = "#dc2626";
+    private const string StatusBlue = "#3b82f6";
+    private const string StatusAmber = "#d97706";
     private const string White = "#ffffff";
-
-    // Decorative flourish characters
-    private const string Flourish = "— ✦ —";
-    private const string DoubleLine = "══════════════════════════════════════════════════════════════════════════";
-    private const string SingleLine = "──────────────────────────────────────────────────────────────────────────";
 
     public InvoicePdfService(IWebHostEnvironment env, ILogger<InvoicePdfService> logger)
     {
@@ -47,10 +44,7 @@ public class InvoicePdfService : IInvoicePdfService
             {
                 page.Size(PageSizes.A4);
                 page.Margin(0);
-                page.DefaultTextStyle(x => x.FontSize(10).FontColor(Ink));
-
-                // Full parchment background with ornamental border
-                page.Background().Background(Parchment);
+                page.DefaultTextStyle(x => x.FontSize(10).FontColor(TextDark));
 
                 page.Header().Element(c => ComposeHeader(c, order));
                 page.Content().Element(c => ComposeContent(c, order));
@@ -61,112 +55,114 @@ public class InvoicePdfService : IInvoicePdfService
         return document.GeneratePdf();
     }
 
-    // ═══════════════════════ HEADER ═══════════════════════
+    // ───────── HEADER ─────────
 
     private void ComposeHeader(IContainer container, Order order)
     {
-        container.PaddingHorizontal(35).PaddingTop(30).Column(col =>
+        container.Column(col =>
         {
-            // Outer ornamental border (top)
-            col.Item().AlignCenter().Text(DoubleLine).FontSize(7).FontColor(BorderOrnament);
-
-            col.Item().PaddingTop(12).Row(row =>
+            // Dark top banner
+            col.Item().Background(BrandBlack).Padding(30).PaddingBottom(24).Row(row =>
             {
-                // Left: Company logo
-                row.ConstantItem(90).Element(logoContainer =>
+                // Left: Logo/Brand
+                row.RelativeItem().Column(left =>
                 {
+                    // Try to load company logo
                     var logoBytes = TryLoadLogo();
                     if (logoBytes != null)
                     {
-                        logoContainer.Width(80).Height(80).Image(logoBytes);
+                        left.Item().Width(60).Height(60).Image(logoBytes);
+                        left.Item().PaddingTop(8).Text("Cuir Galerie").FontSize(20).Bold().FontColor(White);
                     }
+                    else
+                    {
+                        // Elegant text-only branding
+                        left.Item().Text("CG").FontSize(32).Bold().FontColor(BrandGold).LetterSpacing(0.05f);
+                        left.Item().PaddingTop(4).Text("Cuir Galerie").FontSize(18).Bold().FontColor(White).LetterSpacing(0.02f);
+                    }
+                    left.Item().PaddingTop(2).Text("Premium Handcrafted Leather Products").FontSize(8).FontColor(BrandGoldLight).LetterSpacing(0.05f);
                 });
 
-                // Center: Company branding
-                row.RelativeItem().AlignCenter().Column(center =>
+                // Right: Invoice title + number
+                row.ConstantItem(200).AlignRight().AlignBottom().Column(right =>
                 {
-                    center.Item().AlignCenter().Text("Est. 2024").FontSize(7).FontColor(InkLight).LetterSpacing(0.15f);
-                    center.Item().PaddingTop(2).AlignCenter().Text("CUIR GALERIE").FontSize(24).Bold().FontColor(Ink).LetterSpacing(0.12f);
-                    center.Item().PaddingTop(1).AlignCenter().Text("— Premium Handcrafted Leather Products —").FontSize(8).FontColor(InkMedium).LetterSpacing(0.08f);
-                    center.Item().PaddingTop(6).AlignCenter().Text(Flourish).FontSize(10).FontColor(AccentGold);
-                });
-
-                // Right: Invoice number block
-                row.ConstantItem(90).AlignRight().Column(right =>
-                {
-                    right.Item().AlignRight().Text("Nº").FontSize(7).FontColor(InkLight);
-                    right.Item().AlignRight().Text(order.OrderNumber).FontSize(9).Bold().FontColor(Ink);
+                    right.Item().AlignRight().Text("INVOICE").FontSize(28).Bold().FontColor(BrandGold).LetterSpacing(0.1f);
+                    right.Item().PaddingTop(4).AlignRight().Text($"#{order.OrderNumber}").FontSize(11).FontColor(TextLight);
                 });
             });
 
-            // "INVOICE" title
-            col.Item().PaddingTop(14).AlignCenter().Text("I N V O I C E").FontSize(16).Bold().FontColor(InkMedium).LetterSpacing(0.3f);
+            // Gold accent line
+            col.Item().Height(3).Background(BrandGold);
 
-            col.Item().PaddingTop(4).AlignCenter().Text(SingleLine).FontSize(6).FontColor(BorderLight);
-
-            // Two-column info
-            col.Item().PaddingTop(14).Row(row =>
+            // Info section
+            col.Item().PaddingHorizontal(30).PaddingTop(20).PaddingBottom(16).Row(row =>
             {
                 // Left: Bill To
                 row.RelativeItem().Column(left =>
                 {
-                    left.Item().Text("B I L L   T O").FontSize(7).Bold().FontColor(InkLight).LetterSpacing(0.15f);
+                    left.Item().Text("BILL TO").FontSize(8).Bold().FontColor(BrandGold).LetterSpacing(0.1f);
                     left.Item().PaddingTop(6).Text(string.IsNullOrEmpty(order.Customer?.Name) ? "Customer" : order.Customer.Name)
-                        .FontSize(12).SemiBold().FontColor(Ink);
-                    left.Item().PaddingTop(2).Text($"Tel: {order.Customer?.PhoneNumber ?? "—"}").FontSize(9).FontColor(InkMedium);
+                        .FontSize(13).SemiBold().FontColor(TextDark);
+                    left.Item().PaddingTop(2).Text(order.Customer?.PhoneNumber ?? "").FontSize(10).FontColor(TextMuted);
                     if (!string.IsNullOrWhiteSpace(order.ShippingAddress))
-                        left.Item().PaddingTop(2).Text(order.ShippingAddress).FontSize(9).FontColor(InkMedium).LineHeight(1.4f);
+                        left.Item().PaddingTop(2).Text(order.ShippingAddress).FontSize(9).FontColor(TextMuted).LineHeight(1.4f);
                 });
 
-                // Right: Invoice details
-                row.ConstantItem(190).Column(right =>
+                // Right: Invoice details grid
+                row.ConstantItem(200).Column(right =>
                 {
-                    right.Item().Text("D E T A I L S").FontSize(7).Bold().FontColor(InkLight).LetterSpacing(0.15f);
-
-                    right.Item().PaddingTop(6).Element(c => ComposeDetailRow(c, "Date", order.CreatedAt.ToString("dd MMMM yyyy")));
-                    right.Item().PaddingTop(3).Element(c => ComposeDetailRow(c, "Order", $"#{order.OrderNumber}"));
-                    right.Item().PaddingTop(3).Element(c => ComposeDetailRow(c, "Status", order.Status.ToString(),
-                        order.Status == OrderStatus.Cancelled ? StatusRed : Ink));
-                    right.Item().PaddingTop(3).Element(c => ComposeDetailRow(c, "Payment", order.IsPaid ? "Paid" : "Unpaid",
-                        order.IsPaid ? StatusGreen : StatusRed));
+                    right.Item().Text("INVOICE DETAILS").FontSize(8).Bold().FontColor(BrandGold).LetterSpacing(0.1f);
+                    right.Item().PaddingTop(8).Element(c => ComposeDetailRow(c, "Date", order.CreatedAt.ToString("dd MMM yyyy")));
+                    right.Item().PaddingTop(4).Element(c => ComposeDetailRow(c, "Order ID", order.OrderNumber));
+                    right.Item().PaddingTop(4).Element(c => ComposeStatusRow(c, "Status", order.Status.ToString(), GetStatusColor(order.Status)));
+                    right.Item().PaddingTop(4).Element(c => ComposeStatusRow(c, "Payment", order.IsPaid ? "Paid" : "Unpaid", order.IsPaid ? StatusGreen : StatusRed));
                 });
             });
 
-            col.Item().PaddingTop(16).AlignCenter().Text(DoubleLine).FontSize(7).FontColor(BorderOrnament);
+            // Divider
+            col.Item().PaddingHorizontal(30).LineHorizontal(1).LineColor(BorderLight);
         });
     }
 
-    private static void ComposeDetailRow(IContainer container, string label, string value, string? color = null)
+    private static void ComposeDetailRow(IContainer container, string label, string value)
     {
         container.Row(row =>
         {
-            row.ConstantItem(65).Text($"{label}:").FontSize(9).FontColor(InkMedium);
-            row.RelativeItem().AlignRight().Text(value).FontSize(9).SemiBold().FontColor(color ?? Ink);
+            row.ConstantItem(70).Text(label).FontSize(9).FontColor(TextMuted);
+            row.RelativeItem().AlignRight().Text(value).FontSize(9).SemiBold().FontColor(TextDark);
         });
     }
 
-    // ═══════════════════════ CONTENT ═══════════════════════
+    private static void ComposeStatusRow(IContainer container, string label, string value, string color)
+    {
+        container.Row(row =>
+        {
+            row.ConstantItem(70).Text(label).FontSize(9).FontColor(TextMuted);
+            row.RelativeItem().AlignRight().Text(value).FontSize(9).Bold().FontColor(color);
+        });
+    }
+
+    // ───────── CONTENT ─────────
 
     private void ComposeContent(IContainer container, Order order)
     {
-        container.PaddingHorizontal(35).PaddingTop(14).Column(col =>
+        container.PaddingHorizontal(30).PaddingTop(16).Column(col =>
         {
-            // Section label
-            col.Item().PaddingBottom(8).Text("P A R T I C U L A R S").FontSize(7).Bold().FontColor(InkLight).LetterSpacing(0.15f);
+            // Section title
+            col.Item().PaddingBottom(10).Text("ORDER ITEMS").FontSize(8).Bold().FontColor(BrandGold).LetterSpacing(0.1f);
 
-            // Table header with vintage double-border look
-            col.Item().BorderTop(2).BorderBottom(1).BorderColor(BorderOrnament).PaddingVertical(8).Row(headerRow =>
+            // Table header
+            col.Item().Background(BrandBlack).Padding(0).Row(headerRow =>
             {
-                headerRow.ConstantItem(30).Text("Nº").SemiBold().FontSize(8).FontColor(InkMedium);
-                headerRow.ConstantItem(48).Text("Image").SemiBold().FontSize(8).FontColor(InkMedium);
-                headerRow.RelativeItem().Text("Description").SemiBold().FontSize(8).FontColor(InkMedium);
-                headerRow.ConstantItem(35).AlignCenter().Text("Qty").SemiBold().FontSize(8).FontColor(InkMedium);
-                headerRow.ConstantItem(75).AlignRight().Text("Rate").SemiBold().FontSize(8).FontColor(InkMedium);
-                headerRow.ConstantItem(85).AlignRight().Text("Amount").SemiBold().FontSize(8).FontColor(InkMedium);
+                headerRow.ConstantItem(42).Padding(10).Text("#").SemiBold().FontSize(8).FontColor(BrandGoldLight);
+                headerRow.ConstantItem(50).Padding(10).Text("Image").SemiBold().FontSize(8).FontColor(BrandGoldLight);
+                headerRow.RelativeItem().Padding(10).Text("Product").SemiBold().FontSize(8).FontColor(BrandGoldLight);
+                headerRow.ConstantItem(45).Padding(10).AlignCenter().Text("Qty").SemiBold().FontSize(8).FontColor(BrandGoldLight);
+                headerRow.ConstantItem(80).Padding(10).AlignRight().Text("Price").SemiBold().FontSize(8).FontColor(BrandGoldLight);
+                headerRow.ConstantItem(90).Padding(10).AlignRight().Text("Subtotal").SemiBold().FontSize(8).FontColor(BrandGoldLight);
             });
-            col.Item().BorderTop(1).BorderColor(BorderOrnament);
 
-            // Table rows — alternating parchment shading (classic ledger)
+            // Table rows
             var index = 0;
             foreach (var item in order.OrderItems)
             {
@@ -176,119 +172,128 @@ public class InvoicePdfService : IInvoicePdfService
                 var subtotal = item.UnitPrice * item.Quantity;
 
                 col.Item()
-                    .Background(isEven ? ParchmentDark : Parchment)
+                    .Background(isEven ? BgSubtle : White)
                     .BorderBottom(1).BorderColor(BorderLight)
-                    .PaddingVertical(6).Row(dataRow =>
+                    .Padding(0).Row(dataRow =>
                     {
                         // Row number
-                        dataRow.ConstantItem(30).AlignMiddle()
-                            .Text($"{index}.").FontSize(9).FontColor(InkMedium);
+                        dataRow.ConstantItem(42).Padding(10).AlignMiddle()
+                            .Text(index.ToString()).FontSize(9).FontColor(TextMuted);
 
-                        // Product image
-                        dataRow.ConstantItem(48).AlignMiddle().Element(imgContainer =>
-                        {
-                            if (imageBytes != null)
+                        // Image
+                        dataRow.ConstantItem(50).PaddingVertical(6).PaddingHorizontal(4).AlignCenter().AlignMiddle()
+                            .Element(imgContainer =>
                             {
-                                imgContainer.Width(38).Height(38).Image(imageBytes);
-                            }
-                            else
-                            {
-                                imgContainer.Width(38).Height(38)
-                                    .Background(ParchmentDark).Border(1).BorderColor(BorderLight)
-                                    .AlignCenter().AlignMiddle()
-                                    .Text("—").FontSize(12).FontColor(BorderLight);
-                            }
-                        });
+                                if (imageBytes != null)
+                                {
+                                    imgContainer.Width(40).Height(40).Image(imageBytes);
+                                }
+                                else
+                                {
+                                    imgContainer.Width(40).Height(40)
+                                        .Background("#f1f5f9").AlignCenter().AlignMiddle()
+                                        .Text("—").FontSize(14).FontColor(TextLight);
+                                }
+                            });
 
-                        // Product description
-                        dataRow.RelativeItem().PaddingLeft(6).AlignMiddle()
-                            .Text(item.Product?.Name ?? "Unknown Article").FontSize(10).FontColor(Ink);
+                        // Product name
+                        dataRow.RelativeItem().Padding(10).AlignMiddle()
+                            .Text(item.Product?.Name ?? "Unknown Product").FontSize(10).FontColor(TextDark);
 
                         // Quantity
-                        dataRow.ConstantItem(35).AlignCenter().AlignMiddle()
-                            .Text(item.Quantity.ToString()).FontSize(10).FontColor(Ink);
+                        dataRow.ConstantItem(45).Padding(10).AlignCenter().AlignMiddle()
+                            .Text(item.Quantity.ToString()).FontSize(10);
 
-                        // Unit rate
-                        dataRow.ConstantItem(75).AlignRight().AlignMiddle()
-                            .Text($"₹{item.UnitPrice:N2}").FontSize(9).FontColor(InkMedium);
+                        // Unit price
+                        dataRow.ConstantItem(80).Padding(10).AlignRight().AlignMiddle()
+                            .Text($"₹{item.UnitPrice:N2}").FontSize(10).FontColor(TextMuted);
 
-                        // Amount
-                        dataRow.ConstantItem(85).AlignRight().AlignMiddle()
-                            .Text($"₹{subtotal:N2}").FontSize(10).SemiBold().FontColor(Ink);
+                        // Subtotal
+                        dataRow.ConstantItem(90).Padding(10).AlignRight().AlignMiddle()
+                            .Text($"₹{subtotal:N2}").FontSize(10).SemiBold().FontColor(TextDark);
                     });
             }
 
-            // Bottom border of items table
-            col.Item().BorderTop(2).BorderColor(BorderOrnament);
-
-            // Totals section — right-aligned, classic ledger style
-            col.Item().PaddingTop(12).Row(totalRow =>
+            // Totals section
+            col.Item().PaddingTop(16).Row(totalRow =>
             {
                 totalRow.RelativeItem(); // spacer
 
-                totalRow.ConstantItem(220).Column(totalsCol =>
+                totalRow.ConstantItem(230).Column(totalsCol =>
                 {
-                    // Subtotal
-                    totalsCol.Item().PaddingVertical(4).Row(r =>
+                    // Subtotal line
+                    totalsCol.Item().PaddingVertical(6).PaddingHorizontal(12).Row(r =>
                     {
-                        r.RelativeItem().Text("Subtotal").FontSize(10).FontColor(InkMedium);
-                        r.ConstantItem(100).AlignRight().Text($"₹{order.TotalAmount:N2}").FontSize(10).FontColor(Ink);
+                        r.RelativeItem().Text("Subtotal").FontSize(10).FontColor(TextMuted);
+                        r.ConstantItem(100).AlignRight().Text($"₹{order.TotalAmount:N2}").FontSize(10).FontColor(TextDark);
                     });
 
-                    // Ornamental divider before grand total
-                    totalsCol.Item().PaddingVertical(3).BorderBottom(1).BorderColor(BorderOrnament);
-                    totalsCol.Item().PaddingTop(1).BorderBottom(1).BorderColor(BorderOrnament);
+                    // Divider
+                    totalsCol.Item().PaddingHorizontal(12).LineHorizontal(1).LineColor(BorderLight);
 
-                    // Grand total — prominent classic style
-                    totalsCol.Item().PaddingTop(6).Row(r =>
+                    // Grand total with gold accent
+                    totalsCol.Item().Background(BrandBlack).Padding(12).Row(r =>
                     {
-                        r.RelativeItem().Text("Total Amount Due").FontSize(12).Bold().FontColor(Ink);
-                        r.ConstantItem(110).AlignRight().Text($"₹{order.TotalAmount:N2}").FontSize(14).Bold().FontColor(Ink);
+                        r.RelativeItem().Text("TOTAL").FontSize(13).Bold().FontColor(BrandGold);
+                        r.ConstantItem(110).AlignRight().Text($"₹{order.TotalAmount:N2}").FontSize(14).Bold().FontColor(White);
                     });
-
-                    // Double underline under total
-                    totalsCol.Item().PaddingTop(4).BorderBottom(2).BorderColor(BorderOrnament);
-                    totalsCol.Item().PaddingTop(2).BorderBottom(1).BorderColor(BorderOrnament);
                 });
             });
 
-            // Payment confirmation (vintage stamp-style)
+            // Payment info note
             if (!string.IsNullOrEmpty(order.PaymentId) && order.IsPaid)
             {
-                col.Item().PaddingTop(20).Row(r =>
+                col.Item().PaddingTop(16).PaddingHorizontal(4).Row(r =>
                 {
-                    r.RelativeItem();
-                    r.ConstantItem(180).Border(2).BorderColor(StatusGreen).Padding(10).Column(c =>
+                    r.RelativeItem(); // spacer
+                    r.ConstantItem(230).Background("#f0fdf4").Border(1).BorderColor("#bbf7d0").Padding(10).Column(c =>
                     {
-                        c.Item().AlignCenter().Text("✦  P A I D  ✦").FontSize(12).Bold().FontColor(StatusGreen).LetterSpacing(0.2f);
-                        c.Item().PaddingTop(4).AlignCenter().Text($"Txn: {order.PaymentId}").FontSize(7).FontColor(InkMedium);
+                        c.Item().Text("✓ Payment Confirmed").FontSize(9).Bold().FontColor(StatusGreen);
+                        c.Item().PaddingTop(2).Text($"Transaction ID: {order.PaymentId}").FontSize(8).FontColor(TextMuted);
                     });
                 });
             }
         });
     }
 
-    // ═══════════════════════ FOOTER ═══════════════════════
+    // ───────── FOOTER ─────────
 
     private static void ComposeFooter(IContainer container)
     {
-        container.PaddingHorizontal(35).PaddingBottom(25).Column(col =>
+        container.Column(col =>
         {
-            col.Item().AlignCenter().Text(DoubleLine).FontSize(7).FontColor(BorderOrnament);
+            // Gold accent line
+            col.Item().PaddingHorizontal(30).LineHorizontal(2).LineColor(BrandGold);
 
-            col.Item().PaddingTop(10).AlignCenter().Text("With Compliments").FontSize(10).FontColor(InkMedium);
-
-            col.Item().PaddingTop(4).AlignCenter().Text(text =>
+            col.Item().PaddingHorizontal(30).PaddingVertical(14).Row(row =>
             {
-                text.Span("CUIR GALERIE").FontSize(9).Bold().FontColor(Ink).LetterSpacing(0.1f);
-                text.Span("  ·  Premium Handcrafted Leather Products").FontSize(8).FontColor(InkMedium);
+                row.RelativeItem().AlignCenter().Column(center =>
+                {
+                    center.Item().AlignCenter().Text("Thank you for your purchase!").FontSize(10).SemiBold().FontColor(TextDark);
+                    center.Item().PaddingTop(4).AlignCenter().Text(text =>
+                    {
+                        text.Span("Cuir Galerie").FontSize(8).Bold().FontColor(BrandGold);
+                        text.Span("  •  Premium Handcrafted Leather Products").FontSize(8).FontColor(TextLight);
+                    });
+                });
             });
-
-            col.Item().PaddingTop(6).AlignCenter().Text(Flourish).FontSize(9).FontColor(AccentGold);
         });
     }
 
-    // ═══════════════════════ HELPERS ═══════════════════════
+    // ───────── HELPERS ─────────
+
+    private static string GetStatusColor(OrderStatus status)
+    {
+        return status switch
+        {
+            OrderStatus.Pending => StatusAmber,
+            OrderStatus.Confirmed => StatusBlue,
+            OrderStatus.Shipped => StatusBlue,
+            OrderStatus.Delivered => StatusGreen,
+            OrderStatus.Cancelled => StatusRed,
+            _ => TextMuted
+        };
+    }
 
     /// <summary>Tries to load the company logo from wwwroot/images/logo.png.</summary>
     private byte[]? TryLoadLogo()
@@ -307,7 +312,10 @@ public class InvoicePdfService : IInvoicePdfService
     }
 
     /// <summary>
-    /// Tries to load the image for an order item from wwwroot.
+    /// Tries to load the image for an order item:
+    ///   1. If SelectedImageId is set, look up the ProductImage → use its URL
+    ///   2. Otherwise fall back to Product.ImageUrl (primary)
+    ///   3. Read from wwwroot (local paths) - external URLs are skipped for PDF (they'd slow it down)
     /// Returns null if image can't be loaded (graceful degradation).
     /// </summary>
     private byte[]? TryLoadImage(OrderItem item)
@@ -316,6 +324,7 @@ public class InvoicePdfService : IInvoicePdfService
         {
             string? imageUrl = null;
 
+            // Resolve selected image
             if (item.SelectedImageId.HasValue && item.Product?.Images != null)
             {
                 var selectedImg = item.Product.Images.FirstOrDefault(pi => pi.Id == item.SelectedImageId.Value);
@@ -323,12 +332,15 @@ public class InvoicePdfService : IInvoicePdfService
                     imageUrl = selectedImg.ImageUrl;
             }
 
+            // Fallback to primary
             if (string.IsNullOrEmpty(imageUrl))
                 imageUrl = item.Product?.ImageUrl;
 
             if (string.IsNullOrEmpty(imageUrl))
                 return null;
 
+            // Only load local files (paths starting with / like /uploads/products/...)
+            // Skip external URLs to avoid HTTP calls during PDF generation
             if (imageUrl.StartsWith("http"))
             {
                 _logger.LogDebug("Skipping external image URL for PDF: {Url}", imageUrl);
@@ -337,6 +349,7 @@ public class InvoicePdfService : IInvoicePdfService
 
             var filePath = Path.Combine(_env.WebRootPath, imageUrl.TrimStart('/'));
 
+            // Defense-in-depth: ensure resolved path stays within WebRootPath
             if (!Path.GetFullPath(filePath).StartsWith(Path.GetFullPath(_env.WebRootPath), StringComparison.OrdinalIgnoreCase))
             {
                 _logger.LogWarning("Image path traversal blocked for OrderItem {OrderItemId}: {Path}", item.Id, imageUrl);
