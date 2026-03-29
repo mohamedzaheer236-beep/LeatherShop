@@ -16,7 +16,7 @@
         <h1>{{ greeting }}, Admin</h1>
         <p>
           @if (hasActiveFilter && filterFrom && filterTo) {
-            Showing data from {{ filterFrom | date:'dd MMM yyyy' }} to {{ filterTo | date:'dd MMM yyyy' }}
+            Showing data from {{ filterFrom | date:'MMM yyyy' }} to {{ filterTo | date:'MMM yyyy' }}
           } @else {
             Here's what's happening with Cuir Galerie today
           }
@@ -50,14 +50,14 @@
         <div class="filter-field">
           <label>From</label>
           <p-calendar [(ngModel)]="filterFrom" [showIcon]="true" [showClear]="true"
-            dateFormat="dd M yy" placeholder="Start date"
+            view="month" dateFormat="M yy" placeholder="Start month"
             [style]="{'width': '100%'}" appendTo="body"
             [maxDate]="filterTo!"></p-calendar>
         </div>
         <div class="filter-field">
           <label>To</label>
           <p-calendar [(ngModel)]="filterTo" [showIcon]="true" [showClear]="true"
-            dateFormat="dd M yy" placeholder="End date"
+            view="month" dateFormat="M yy" placeholder="End month"
             [style]="{'width': '100%'}" appendTo="body"
             [minDate]="filterFrom!"></p-calendar>
         </div>
@@ -162,7 +162,7 @@
             <h3>Revenue Analytics</h3>
             <p>Monthly revenue & orders
               @if (hasActiveFilter && filterFrom && filterTo) {
-                for {{ filterFrom | date:'dd MMM yyyy' }} – {{ filterTo | date:'dd MMM yyyy' }}
+                for {{ filterFrom | date:'MMM yyyy' }} – {{ filterTo | date:'MMM yyyy' }}
               } @else {
                 for {{ currentDate | date:'yyyy' }}
               }

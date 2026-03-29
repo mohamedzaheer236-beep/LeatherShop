@@ -106,6 +106,10 @@ export class DashboardComponent implements OnInit {
 
   applyFilter(): void {
     if (!this.filterFrom || !this.filterTo) return;
+    // Normalize to first day of selected month
+    this.filterFrom = new Date(this.filterFrom.getFullYear(), this.filterFrom.getMonth(), 1);
+    // Normalize to last day of selected month
+    this.filterTo = new Date(this.filterTo.getFullYear(), this.filterTo.getMonth() + 1, 0);
     this.hasActiveFilter = true;
     this.loading = true;
     this.cdr.markForCheck();

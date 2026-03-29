@@ -55,18 +55,23 @@ public class DashboardService : IDashboardService
             : await _db.Customers.CountAsync(ct);
         var lowStockProducts = await _db.Products.CountAsync(p => p.IsActive && p.StockQuantity <= LowStockThreshold, ct);
 
-        // Monthly revenue — group by Year+Month within range (or current year default)
+        // Monthly revenue — generate continuous month sequence within range
         IQueryable<Order> monthlyQuery = _db.Orders.AsNoTracking();
-        int chartYear;
+        DateTime seqStart, seqEnd;
         if (hasRange)
         {
             monthlyQuery = monthlyQuery.Where(o => o.CreatedAt >= rangeFrom && o.CreatedAt < rangeTo);
-            chartYear = rangeFrom.Year; // label header uses the start year
+            seqStart = new DateTime(rangeFrom.Year, rangeFrom.Month, 1);
+            // rangeTo is already +1 day, so the user's last selected month:
+            var userEnd = rangeTo.AddDays(-1);
+            seqEnd = new DateTime(userEnd.Year, userEnd.Month, 1);
         }
         else
         {
-            chartYear = now.Year;
+            var chartYear = now.Year;
             monthlyQuery = monthlyQuery.Where(o => o.CreatedAt.Year == chartYear);
+            seqStart = new DateTime(chartYear, 1, 1);
+            seqEnd = new DateTime(chartYear, 12, 1);
         }
 
         var monthlyRaw = await monthlyQuery
@@ -81,32 +86,21 @@ public class DashboardService : IDashboardService
             .OrderBy(x => x.Year).ThenBy(x => x.Month)
             .ToListAsync(ct);
 
-        List<MonthlyRevenueDto> monthlyRevenue;
-        if (hasRange && rangeFrom.Year != rangeTo.AddDays(-1).Year)
+        // Build continuous month buckets from seqStart to seqEnd
+        var monthlyRevenue = new List<MonthlyRevenueDto>();
+        var spanMultipleYears = seqStart.Year != seqEnd.Year;
+        for (var cursor = seqStart; cursor <= seqEnd; cursor = cursor.AddMonths(1))
         {
-            // Multi-year range: use actual months as labels
-            monthlyRevenue = monthlyRaw.Select(r => new MonthlyRevenueDto
+            var data = monthlyRaw.FirstOrDefault(r => r.Year == cursor.Year && r.Month == cursor.Month);
+            monthlyRevenue.Add(new MonthlyRevenueDto
             {
-                Month = r.Month,
-                Label = $"{MonthLabels[r.Month - 1]} {r.Year}",
-                Revenue = r.Revenue,
-                OrderCount = r.OrderCount
-            }).ToList();
-        }
-        else
-        {
-            // Single year: 12-month grid
-            monthlyRevenue = Enumerable.Range(1, 12).Select(m =>
-            {
-                var data = monthlyRaw.FirstOrDefault(r => r.Month == m);
-                return new MonthlyRevenueDto
-                {
-                    Month = m,
-                    Label = MonthLabels[m - 1],
-                    Revenue = data?.Revenue ?? 0,
-                    OrderCount = data?.OrderCount ?? 0
-                };
-            }).ToList();
+                Month = cursor.Month,
+                Label = spanMultipleYears
+                    ? $"{MonthLabels[cursor.Month - 1]} {cursor.Year}"
+                    : MonthLabels[cursor.Month - 1],
+                Revenue = data?.Revenue ?? 0,
+                OrderCount = data?.OrderCount ?? 0
+            });
         }
 
         // Order status distribution (within range)
