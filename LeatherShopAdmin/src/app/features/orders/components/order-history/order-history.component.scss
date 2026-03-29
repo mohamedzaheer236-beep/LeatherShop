@@ -267,13 +267,21 @@
 
 .date-range-wrap {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  gap: 6px;
 
   .date-sep {
-    color: var(--ls-text-placeholder, #94a3b8);
-    font-size: 13px;
-    flex-shrink: 0;
+    display: none;
+  }
+
+  :host ::ng-deep .p-calendar {
+    width: 100% !important;
+
+    .p-inputtext {
+      width: 100%;
+      font-size: 12.5px;
+      padding: 7px 10px;
+    }
   }
 }
 
