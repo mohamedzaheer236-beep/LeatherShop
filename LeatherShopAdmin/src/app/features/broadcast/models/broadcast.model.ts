@@ -93,9 +93,4 @@ export interface BroadcastDeliverySummary {
   retryableCount: number;
 }
 
-export interface BroadcastRetryResult {
-  scheduledCount: number;
-  succeeded: number;
-  failedAgain: number;
-  message: string;
-}
+

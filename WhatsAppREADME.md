@@ -54,6 +54,7 @@ Complete record of the WhatsApp Business setup for Cuir Galerie. This reflects t
 | `store_notification` | UTILITY | ✅ **APPROVED** | Used for welcome messages on customer creation; 1 param | `📢 {{1}}` |
 | `hello_world` | UTILITY | ✅ **APPROVED** | Default Meta template — only works with test numbers | `Hello World!` |
 | `single_product` | MARKETING | ✅ **APPROVED** | IMAGE header; 3 params: product name, price, description | Custom product showcase |
+| `single_product_v2` | MARKETING | ✅ **APPROVED** | Updated IMAGE header; 3 params: product name, price, description. Used in production. | Custom product showcase |
 | `product_gallery` | MARKETING (Carousel) | ✅ **APPROVED** | 2-card product carousel | Variable per card |
 | `product_gallery_3` | MARKETING (Carousel) | ✅ **APPROVED** | 3-card product carousel | Variable per card |
 | `product_gallery_4` | MARKETING (Carousel) | ✅ **APPROVED** | 4-card product carousel | Variable per card |

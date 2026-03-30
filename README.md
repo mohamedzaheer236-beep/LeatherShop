@@ -725,6 +725,7 @@ cd LeatherShop
 | `store_notification` | UTILITY | ✅ **APPROVED** | Used for customer welcome messages on account creation. 1 param `{{1}}`. |
 | `hello_world` | UTILITY | ✅ **APPROVED** | Default Meta template — only works with test numbers. |
 | `single_product` | MARKETING | ✅ **APPROVED** | Standard IMAGE header template. 3 body params: product name, price, description. |
+| `single_product_v2` | MARKETING | ✅ **APPROVED** | Updated IMAGE header template. 3 body params: product name, price, description. Used in production broadcasts. |
 | `product_gallery` | MARKETING (Carousel) | ✅ **APPROVED** | 2-card carousel. |
 | `product_gallery_3` | MARKETING (Carousel) | ✅ **APPROVED** | 3-card carousel. |
 | `product_gallery_4` | MARKETING (Carousel) | ✅ **APPROVED** | 4-card carousel. |
@@ -1117,6 +1118,8 @@ POST /api/payment/verify  (with transactionId + orderId)
 | GET | `/api/v1/broadcast/{id}/status` | Poll broadcast delivery status |
 | GET | `/api/v1/broadcast/templates` | List approved WhatsApp templates from Meta (detects carousel) |
 | GET | `/api/v1/broadcast/stats` | Get total sent message count across all broadcasts |
+| GET | `/api/v1/broadcast/{id}/recipients` | Get paginated delivery recipients for a broadcast. Query: `?page=1&pageSize=20&status=Failed` |
+| GET | `/api/v1/broadcast/{id}/delivery-summary` | Get delivery summary counts for a broadcast |
 | POST | `/api/v1/broadcast/upload-image` | Upload image file for broadcast header/carousel cards |
 
 ### Chat (2-Way Admin ↔ Customer)
@@ -1145,6 +1148,8 @@ POST /api/payment/verify  (with transactionId + orderId)
 | `/hubs/notifications` | `NewMessage` | `{ customerId, customerName, content, timestamp, ... }` | Pushed when customer sends a WhatsApp message |
 | `/hubs/notifications` | `MessageSent` | `{ customerId, content, timestamp, ... }` | Pushed when admin/bot message is delivered |
 | `/hubs/notifications` | `OutboxMessageFailed` | `{ outboxMessageId, customerName, context, lastError, failedAt }` | Pushed when an outbox message permanently fails after 5 retries |
+| `/hubs/notifications` | `BroadcastProgress` | `{ broadcastId, sent, failed, total, status }` | Pushed during broadcast send — live progress updates |
+| `/hubs/notifications` | `BroadcastRetryProgress` | `{ broadcastId, processed, succeeded, failed, total, status }` | Pushed during background auto-retry cycles — live retry progress |
 
 > SignalR hub requires JWT authentication via `?access_token=<token>` query string.
 

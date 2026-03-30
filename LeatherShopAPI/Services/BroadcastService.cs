@@ -16,14 +16,12 @@ public class BroadcastService : IBroadcastService
     private readonly IWhatsAppService _whatsApp;
     private readonly IConfiguration _config;
     private readonly BroadcastChannel _channel;
-    private readonly BroadcastRetryChannel _retryChannel;
 
-    public BroadcastService(AppDbContext db, IWhatsAppService whatsApp, BroadcastChannel channel, BroadcastRetryChannel retryChannel, IConfiguration config)
+    public BroadcastService(AppDbContext db, IWhatsAppService whatsApp, BroadcastChannel channel, IConfiguration config)
     {
         _db = db;
         _whatsApp = whatsApp;
         _channel = channel;
-        _retryChannel = retryChannel;
         _config = config;
     }
 
@@ -311,45 +309,4 @@ public class BroadcastService : IBroadcastService
         };
     }
 
-    public async Task<BroadcastRetryResultDto> RetryFailedRecipientsAsync(int broadcastId, CancellationToken ct = default)
-    {
-        var broadcast = await _db.BroadcastMessages.FirstOrDefaultAsync(b => b.Id == broadcastId, ct);
-        if (broadcast == null)
-            throw new InvalidOperationException("Broadcast not found.");
-
-        // Find all failed recipients for this broadcast that have error 131049 and haven't exhausted retries
-        var failedRecipients = await _db.BroadcastRecipients
-            .Where(r => r.BroadcastMessageId == broadcastId
-                        && r.Status == BroadcastDeliveryStatus.Failed
-                        && r.RetryCount < 3
-                        && (r.ErrorDetail != null && r.ErrorDetail.Contains("131049")))
-            .ToListAsync(ct);
-
-        if (failedRecipients.Count == 0)
-            return new BroadcastRetryResultDto
-            {
-                ScheduledCount = 0,
-                Succeeded = 0,
-                FailedAgain = 0,
-                Message = "No retryable recipients found (only error 131049 with less than 3 retries can be retried)."
-            };
-
-        // Mark all as ready for immediate retry
-        foreach (var r in failedRecipients)
-        {
-            r.NextRetryAt = DateTime.UtcNow;
-        }
-        await _db.SaveChangesAsync(ct);
-
-        // Wake up the background service to process this broadcast immediately
-        await _retryChannel.Writer.WriteAsync(broadcastId, ct);
-
-        return new BroadcastRetryResultDto
-        {
-            ScheduledCount = failedRecipients.Count,
-            Succeeded = 0,
-            FailedAgain = 0,
-            Message = $"Retry started for {failedRecipients.Count} recipients. Progress will be shown in real-time."
-        };
-    }
 }

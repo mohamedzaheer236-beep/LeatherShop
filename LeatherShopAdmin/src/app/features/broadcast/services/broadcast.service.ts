@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map, interval, concatMap, filter, take, EMPTY, catchError } from 'rxjs';
-import { BroadcastRequest, BroadcastResult, BroadcastHistory, WhatsAppTemplate, BroadcastRecipient, BroadcastDeliverySummary, BroadcastRetryResult } from '../models/broadcast.model';
+import { BroadcastRequest, BroadcastResult, BroadcastHistory, WhatsAppTemplate, BroadcastRecipient, BroadcastDeliverySummary } from '../models/broadcast.model';
 import { PaginatedResult } from '../../../core/models/paginated-result.model';
 import { ApiResponse } from '../../../core/models/api-response.model';
 import { environment } from '../../../../environments/environment';
@@ -83,9 +83,4 @@ export class BroadcastService {
       .pipe(map(res => res.data));
   }
 
-  retryFailedRecipients(broadcastId: number): Observable<BroadcastRetryResult> {
-    return this.http
-      .post<ApiResponse<BroadcastRetryResult>>(`${this.baseUrl}/${broadcastId}/retry`, {})
-      .pipe(map(res => res.data));
-  }
 }
