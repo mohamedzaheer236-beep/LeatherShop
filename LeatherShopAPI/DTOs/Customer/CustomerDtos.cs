@@ -15,12 +15,14 @@ public class CreateCustomerDto
     public string? Address { get; set; }
 
     [Required(ErrorMessage = "Category is required.")]
+    [MaxLength(30)]
     public string Category { get; set; } = string.Empty;
 }
 
 public class BulkImportCustomerItem
 {
     [Required(ErrorMessage = "Phone number is required.")]
+    [RegularExpression(@"^\+?[1-9]\d{6,14}$", ErrorMessage = "Invalid phone number format.")]
     public string PhoneNumber { get; set; } = string.Empty;
 
     [MaxLength(200)]
@@ -29,16 +31,19 @@ public class BulkImportCustomerItem
     [MaxLength(500)]
     public string? Address { get; set; }
 
+    [MaxLength(30)]
     public string? Category { get; set; }
 }
 
 public class CheckPhonesRequestDto
 {
+    [MaxLength(1000, ErrorMessage = "Cannot check more than 1000 phone numbers at once.")]
     public List<string> Phones { get; set; } = new();
 }
 
 public class BulkDeleteRequestDto
 {
+    [MaxLength(500, ErrorMessage = "Cannot delete more than 500 customers at once.")]
     public List<int> Ids { get; set; } = new();
 }
 

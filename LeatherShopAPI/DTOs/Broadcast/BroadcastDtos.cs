@@ -5,9 +5,11 @@ namespace LeatherShopAPI.DTOs.Broadcast;
 public class BroadcastRequestDto
 {
     [Required(ErrorMessage = "Template name is required.")]
+    [MaxLength(1000)]
     public string TemplateName { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Language code is required.")]
+    [MaxLength(10)]
     public string LanguageCode { get; set; } = "en";
 
     public List<string>? Parameters { get; set; }

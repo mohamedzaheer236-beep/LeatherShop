@@ -70,14 +70,14 @@ export class CustomerService {
 
   checkPhoneExists(phone: string): Observable<boolean> {
     return this.http
-      .get<{ exists: boolean }>(`${this.baseUrl}/check-phone`, { params: { phone } })
-      .pipe(map(res => res.exists));
+      .get<ApiResponse<{ exists: boolean }>>(`${this.baseUrl}/check-phone`, { params: { phone } })
+      .pipe(map(res => res.data.exists));
   }
 
   checkPhonesExist(phones: string[]): Observable<string[]> {
     return this.http
-      .post<{ existing: string[] }>(`${this.baseUrl}/check-phones`, { phones })
-      .pipe(map(res => res.existing));
+      .post<ApiResponse<{ existing: string[] }>>(`${this.baseUrl}/check-phones`, { phones })
+      .pipe(map(res => res.data.existing));
   }
 
   getSubscriberCount(): Observable<{ subscriberCount: number; totalCount: number }> {

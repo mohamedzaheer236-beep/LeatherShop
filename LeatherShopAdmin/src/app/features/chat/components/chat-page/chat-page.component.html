@@ -35,8 +35,13 @@
         @for (conv of conversations; track trackByConversation($index, conv)) {
           <div
             class="conversation-item"
+            role="option"
+            tabindex="0"
+            [attr.aria-selected]="selectedCustomerId === conv.customerId"
             [class.active]="selectedCustomerId === conv.customerId"
-            (click)="selectConversation(conv)">
+            (click)="selectConversation(conv)"
+            (keydown.enter)="selectConversation(conv)"
+            (keydown.space)="selectConversation(conv); $event.preventDefault()">
             <div class="conv-avatar">
               <i class="pi pi-user"></i>
             </div>

@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using LeatherShopAPI.DTOs.Broadcast;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Models.WhatsApp;
-using LeatherShopAPI.Services;
 using Asp.Versioning;
 using LeatherShopAPI.Services.Interfaces;
 

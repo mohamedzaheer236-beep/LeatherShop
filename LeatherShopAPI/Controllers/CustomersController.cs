@@ -57,18 +57,21 @@ public class CustomersController : ControllerBase
     [HttpGet("check-phone")]
     public async Task<IActionResult> CheckPhone([FromQuery] string phone, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(phone))
+            return BadRequest(ApiResponse.Fail("Phone number is required."));
+
         var exists = await _customerService.PhoneExistsAsync(phone, ct);
-        return Ok(new { exists });
+        return Ok(ApiResponse<object>.Ok(new { exists }));
     }
 
     [HttpPost("check-phones")]
     public async Task<IActionResult> CheckPhones([FromBody] CheckPhonesRequestDto dto, CancellationToken ct)
     {
         if (dto.Phones == null || dto.Phones.Count == 0)
-            return Ok(new { existing = Array.Empty<string>() });
+            return Ok(ApiResponse<object>.Ok(new { existing = Array.Empty<string>() }));
 
         var existing = await _customerService.CheckPhonesAsync(dto.Phones, ct);
-        return Ok(new { existing });
+        return Ok(ApiResponse<object>.Ok(new { existing }));
     }
 
     [HttpPost]

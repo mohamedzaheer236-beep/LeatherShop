@@ -119,11 +119,18 @@ export class SignalRService implements OnDestroy {
   private startWithRetry(attempt = 0): void {
     const maxRetries = 5;
     const delays = [0, 2000, 5000, 10000, 30000];
+    const conn = this.hubConnection;
+    if (!conn) return;
 
-    this.hubConnection?.start().catch(() => {
-      if (attempt < maxRetries && this.hubConnection) {
+    conn.start().catch(() => {
+      if (attempt < maxRetries && this.hubConnection === conn) {
         const delay = delays[Math.min(attempt, delays.length - 1)];
-        setTimeout(() => this.startWithRetry(attempt + 1), delay);
+        setTimeout(() => {
+          // Guard: abort if connection was replaced or stopped during the delay
+          if (this.hubConnection === conn) {
+            this.startWithRetry(attempt + 1);
+          }
+        }, delay);
       }
       // After max retries, give up silently — user can refresh the page
     });
@@ -160,5 +167,6 @@ export class SignalRService implements OnDestroy {
     this.newChatMessage$.complete();
     this.outboxFailed$.complete();
     this.broadcastProgress$.complete();
+    this.broadcastRetryProgress$.complete();
   }
 }

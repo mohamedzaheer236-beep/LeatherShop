@@ -16,6 +16,6 @@ public class AdminNotificationConfiguration : IEntityTypeConfiguration<AdminNoti
         // WHERE IsRead = true AND CreatedAt < @cutoff
         builder.HasIndex(n => n.CreatedAt);
 
-        builder.Property(n => n.Amount).HasColumnType("decimal(18,2)");
+        builder.Property(n => n.Amount).HasColumnType("decimal(10,2)");
     }
 }

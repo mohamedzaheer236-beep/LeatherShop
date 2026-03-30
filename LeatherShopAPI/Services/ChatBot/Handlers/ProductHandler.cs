@@ -341,8 +341,9 @@ public class ProductHandler
         {
             parameters = JsonSerializer.Deserialize<List<string>>(broadcast.ParametersJson);
         }
-        catch
+        catch (JsonException ex)
         {
+            _logger.LogWarning(ex, "Buy Now: failed to deserialize broadcast parameters for phone {Phone}", phone);
             parameters = null;
         }
 

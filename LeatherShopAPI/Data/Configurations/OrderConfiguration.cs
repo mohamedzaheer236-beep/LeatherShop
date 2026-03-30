@@ -26,6 +26,10 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(o => o.OrderNumber)
             .IsUnique();
 
+        builder.Property(o => o.Status)
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
         // Performance indexes for dashboard & filtering
         builder.HasIndex(o => o.Status);
         builder.HasIndex(o => o.CreatedAt);
