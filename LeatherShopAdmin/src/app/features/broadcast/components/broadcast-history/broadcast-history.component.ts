@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Output, ChangeDetectionStrategy, ChangeDetectorRef, inject, OnInit, OnDestroy } from '@angular/core';
-import { DatePipe, DecimalPipe, NgClass } from '@angular/common';
+import { DatePipe, NgClass } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { PaginatorModule, PaginatorState } from 'primeng/paginator';
 import { TableModule, TableLazyLoadEvent } from 'primeng/table';
@@ -15,12 +15,12 @@ import { CalendarModule } from 'primeng/calendar';
 import { BroadcastHistory, BroadcastRecipient, BroadcastDeliverySummary } from '../../models/broadcast.model';
 import { BroadcastService } from '../../services/broadcast.service';
 import { NotificationService } from '../../../../shared/services/notification.service';
-import { SignalRService, BroadcastRetryProgressEvent } from '../../../../core/services/signalr.service';
+import { SignalRService } from '../../../../core/services/signalr.service';
 
 @Component({
   selector: 'app-broadcast-history',
   standalone: true,
-  imports: [DatePipe, DecimalPipe, NgClass, TableModule, TagModule, PaginatorModule, DialogModule, ButtonModule, DropdownModule, TooltipModule, OverlayPanelModule, FormsModule, InputTextModule, CalendarModule],
+  imports: [DatePipe, NgClass, TableModule, TagModule, PaginatorModule, DialogModule, ButtonModule, DropdownModule, TooltipModule, OverlayPanelModule, FormsModule, InputTextModule, CalendarModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './broadcast-history.component.html',
   styleUrl: './broadcast-history.component.scss',
@@ -73,9 +73,6 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
   recipientsLoading = false;
   summary: BroadcastDeliverySummary | null = null;
   statusFilter = '';
-  retrying = false;
-  retryProgress: BroadcastRetryProgressEvent | null = null;
-  private retryProgressSub: Subscription | null = null;
   private liveRefreshSub: Subscription | null = null;
   selectedRetryRecipient: BroadcastRecipient | null = null;
 
@@ -190,7 +187,6 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
     this.liveRefreshSub?.unsubscribe();
     this.liveRefreshSub = this.signalR.broadcastRetryProgress$.subscribe(event => {
       if (event.broadcastId !== broadcast.id) return;
-      this.retryProgress = event;
       this.cdr.markForCheck();
 
       // Refresh summary + recipients every 10 processed (progress events fire every 10)
@@ -206,7 +202,6 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
   onDialogHide(): void {
     this.liveRefreshSub?.unsubscribe();
     this.liveRefreshSub = null;
-    this.retryProgress = null;
   }
 
   onRecipientsPageChange(event: PaginatorState): void {
@@ -236,69 +231,7 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
     }
   }
 
-  retryFailed(): void {
-    if (!this.selectedBroadcast || this.retrying) return;
-    this.retrying = true;
-    this.retryProgress = null;
-    this.cdr.markForCheck();
-
-    const broadcastId = this.selectedBroadcast.id;
-
-    // Subscribe to SignalR retry progress events
-    this.retryProgressSub?.unsubscribe();
-    this.retryProgressSub = this.signalR.broadcastRetryProgress$.subscribe(event => {
-      if (event.broadcastId !== broadcastId) return;
-      this.retryProgress = event;
-      this.cdr.markForCheck();
-
-      if (event.status === 'completed') {
-        this.retrying = false;
-        this.retryProgressSub?.unsubscribe();
-        this.retryProgressSub = null;
-
-        if (event.succeeded > 0 && event.failed === 0) {
-          this.notification.success(`Retry complete: ${event.succeeded} succeeded.`);
-        } else if (event.succeeded > 0) {
-          this.notification.warning(`Retry complete: ${event.succeeded} succeeded, ${event.failed} failed again.`);
-        } else if (event.total > 0) {
-          this.notification.error(`Retry complete: all ${event.failed} failed again.`);
-        }
-
-        // Refresh data
-        if (this.selectedBroadcast) {
-          this.loadSummary(this.selectedBroadcast.id);
-          this.loadRecipients(this.selectedBroadcast.id);
-        }
-        this.loadHistory();
-        this.cdr.markForCheck();
-      }
-    });
-
-    // Trigger the async retry API
-    this.broadcastService.retryFailedRecipients(broadcastId).subscribe({
-      next: result => {
-        if (result.scheduledCount === 0) {
-          // Nothing to retry
-          this.retrying = false;
-          this.retryProgressSub?.unsubscribe();
-          this.retryProgressSub = null;
-          this.notification.info(result.message);
-          this.cdr.markForCheck();
-        }
-        // else: wait for SignalR progress events
-      },
-      error: () => {
-        this.retrying = false;
-        this.retryProgressSub?.unsubscribe();
-        this.retryProgressSub = null;
-        this.notification.error('Retry request failed. Please try again.');
-        this.cdr.markForCheck();
-      },
-    });
-  }
-
   ngOnDestroy(): void {
-    this.retryProgressSub?.unsubscribe();
     this.liveRefreshSub?.unsubscribe();
   }
 
