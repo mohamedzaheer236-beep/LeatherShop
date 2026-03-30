@@ -158,7 +158,7 @@ export class ProductFormComponent implements OnInit, HasUnsavedChanges {
       imageUrl: [''],
       imageUrls: [[] as string[]],
       videoUrl: [''],
-      description: [''],
+      description: ['', [Validators.maxLength(1000)]],
     });
   }
 

@@ -250,6 +250,17 @@ public sealed class BroadcastBackgroundService : BackgroundService
             ? JsonSerializer.Deserialize<List<string>>(broadcast.ParametersJson)
             : null;
 
+        // Safety truncation: Meta limits total template body to 1024 chars.
+        // Truncate any single parameter to 900 chars to leave room for template text + other params.
+        if (parameters != null)
+        {
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                if (parameters[i].Length > 900)
+                    parameters[i] = parameters[i][..900];
+            }
+        }
+
         // Deserialize carousel cards if this is a carousel broadcast
         List<CarouselCard>? carouselCards = null;
         if (broadcast.IsCarousel && !string.IsNullOrEmpty(broadcast.CarouselCardsJson))
