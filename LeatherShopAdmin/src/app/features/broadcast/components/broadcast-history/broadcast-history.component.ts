@@ -89,7 +89,8 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
   ];
 
   ngOnInit(): void {
-    this.loadHistory(1);
+    // PrimeNG lazy table fires onLazyLoad on init, which calls loadHistory.
+    // No need to call loadHistory here — avoids duplicate API call.
   }
 
   applyFilters(): void {
@@ -148,6 +149,7 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.loading = false;
+        this.notification.error('Failed to load broadcast history. Please refresh.');
         this.cdr.markForCheck();
       },
     });
