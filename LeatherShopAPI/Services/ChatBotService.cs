@@ -225,14 +225,26 @@ public class ChatBotService : IChatBotService
             return;
         }
 
-        // View product from carousel (quick_reply) → show individual images + video + Add to Cart buttons
-        // skipCarousel: true prevents sending another carousel (which would loop back here)
+        // View product from broadcast carousel (quick_reply) → show product image carousel + video + buttons
         if (input.StartsWith("view_") && input != "view_cart")
         {
             var (viewProdId, viewImgId) = ChatBotHelpers.ParseProductImagePayload(input, "view_");
             if (viewProdId.HasValue)
             {
-                await _productHandler.SendProductDetails(phone, viewProdId.Value, viewImgId, skipCarousel: true, ct);
+                await _productHandler.SendProductDetails(phone, viewProdId.Value, viewImgId, ct);
+                return;
+            }
+            await _bot.SendText(phone, "Invalid product. Type *menu* to browse.", ct);
+            return;
+        }
+
+        // View product from product image carousel (quick_reply) → show text details + Add to Cart
+        if (input.StartsWith("pview_"))
+        {
+            var (pviewProdId, pviewImgId) = ChatBotHelpers.ParseProductImagePayload(input, "pview_");
+            if (pviewProdId.HasValue)
+            {
+                await _productHandler.SendProductDetailsText(phone, pviewProdId.Value, pviewImgId, ct);
                 return;
             }
             await _bot.SendText(phone, "Invalid product. Type *menu* to browse.", ct);

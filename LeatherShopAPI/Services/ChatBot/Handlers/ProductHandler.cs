@@ -58,7 +58,7 @@ public class ProductHandler
         );
     }
 
-    public async Task SendProductDetails(string to, int productId, int? selectedImageId = null, bool skipCarousel = false, CancellationToken ct = default)
+    public async Task SendProductDetails(string to, int productId, int? selectedImageId = null, CancellationToken ct = default)
     {
         var product = await _db.Products.Include(p => p.Images)
             .FirstOrDefaultAsync(p => p.Id == productId, ct);
@@ -97,8 +97,7 @@ public class ProductHandler
             }
             else try
             {
-                // Skip carousel when called from a carousel View Details click to avoid infinite loop
-                if (!skipCarousel && await TrySendCarousel(to, product, imageUrls, imageIds, baseUrl, ct))
+                if (await TrySendCarousel(to, product, imageUrls, imageIds, baseUrl, ct))
                 {
                     await TrySendProductVideo(to, product, ct);
                     return;
@@ -192,7 +191,7 @@ public class ProductHandler
                 {
                     ImageUrl = imageFullUrl,
                     BodyParam = $"{product.Name} - ₹{product.Price}",
-                    ButtonPayload = $"view_{product.Id}_pi{imgId}"
+                    ButtonPayload = $"pview_{product.Id}_pi{imgId}"
                 });
             }
 
