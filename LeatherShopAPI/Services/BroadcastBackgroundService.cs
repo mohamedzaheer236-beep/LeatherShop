@@ -283,10 +283,42 @@ public sealed class BroadcastBackgroundService : BackgroundService
             }
         }
         // Process in chunks of BatchSize
+        // Track consecutive failures to detect template-level errors (e.g. 132005 text too long)
+        // that will fail identically for ALL recipients — abort early instead of wasting API calls.
+        int consecutiveFailures = 0;
+        string? lastErrorMessage = null;
+        const int ConsecutiveFailThreshold = 30; // abort after 30 consecutive failures with same error
+
         var batches = remaining.Chunk(BatchSize);
         foreach (var batch in batches)
         {
             if (ct.IsCancellationRequested) break;
+
+            // Check early-abort condition before processing next batch
+            if (consecutiveFailures >= ConsecutiveFailThreshold)
+            {
+                _logger.LogWarning(
+                    "Broadcast {BroadcastId}: aborting after {Count} consecutive failures. Error: {Error}",
+                    broadcastId, consecutiveFailures, lastErrorMessage);
+
+                // Mark all remaining Queued recipients as Failed
+                using var abortScope = _scopeFactory.CreateScope();
+                var abortDb = abortScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var abortError = $"Broadcast aborted: {consecutiveFailures} consecutive failures. Last error: {lastErrorMessage?[..Math.Min(lastErrorMessage.Length, 500)]}";
+
+                var abortedCount = await abortDb.BroadcastRecipients
+                    .Where(r => r.BroadcastMessageId == broadcastId && r.Status == BroadcastDeliveryStatus.Queued)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(r => r.Status, BroadcastDeliveryStatus.Failed)
+                        .SetProperty(r => r.ErrorDetail, abortError)
+                        .SetProperty(r => r.FailedAt, DateTime.UtcNow), ct);
+
+                Interlocked.Add(ref failed, abortedCount);
+                _logger.LogWarning("Broadcast {BroadcastId}: marked {Count} queued recipients as failed (early abort)", broadcastId, abortedCount);
+                break;
+            }
+
+            int batchFailed = 0;
 
             var tasks = batch.Select(async phone =>
             {
@@ -320,6 +352,7 @@ public sealed class BroadcastBackgroundService : BackgroundService
                             .SetProperty(r => r.OriginalSentAt, DateTime.UtcNow), ct);
 
                     Interlocked.Increment(ref sent);
+                    Interlocked.Exchange(ref consecutiveFailures, 0); // reset on success
                 }
                 catch (Exception ex)
                 {
@@ -346,6 +379,10 @@ public sealed class BroadcastBackgroundService : BackgroundService
                     }
 
                     Interlocked.Increment(ref failed);
+                    Interlocked.Increment(ref batchFailed);
+                    // Track consecutive failures for early-abort detection
+                    Interlocked.Increment(ref consecutiveFailures);
+                    lastErrorMessage = ex.Message;
                 }
                 finally
                 {
