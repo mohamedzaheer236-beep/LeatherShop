@@ -199,7 +199,9 @@ export class ProductListComponent implements OnInit {
         this.notification.success(`Product ${product.isActive ? 'activated' : 'deactivated'}.`);
         this.cdr.markForCheck();
       },
-      error: () => {},
+      error: () => {
+        this.notification.error('Failed to update product status.');
+      },
     });
   }
 
@@ -216,7 +218,9 @@ export class ProductListComponent implements OnInit {
             this.notification.success('Product deleted successfully.');
             this.cdr.markForCheck();
           },
-          error: () => {},
+          error: () => {
+            this.notification.error('Failed to delete product.');
+          },
         });
       },
     });

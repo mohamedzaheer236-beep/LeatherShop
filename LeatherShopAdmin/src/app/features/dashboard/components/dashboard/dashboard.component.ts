@@ -3,6 +3,7 @@
   ChangeDetectorRef,
   Component,
   OnInit,
+  OnDestroy,
   inject,
   ElementRef,
   NgZone,
@@ -58,7 +59,7 @@ import { DialogModule } from 'primeng/dialog';
     ]),
   ],
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   private dashboardService = inject(DashboardService);
   private cdr = inject(ChangeDetectorRef);
   private el = inject(ElementRef);
@@ -90,9 +91,20 @@ export class DashboardComponent implements OnInit {
   greeting = '';
   currentDate = new Date();
 
+  // Cleanup refs
+  private observer: IntersectionObserver | null = null;
+  private animationFrameId: number | null = null;
+
   ngOnInit(): void {
     this.setGreeting();
     this.loadDashboard();
+  }
+
+  ngOnDestroy(): void {
+    this.observer?.disconnect();
+    if (this.animationFrameId != null) {
+      cancelAnimationFrame(this.animationFrameId);
+    }
   }
 
   retry(): void {
@@ -317,27 +329,28 @@ export class DashboardComponent implements OnInit {
           this.animatedValues[key] = Math.round(targets[key] * ease);
         });
         this.zone.run(() => this.cdr.markForCheck());
-        if (progress < 1) requestAnimationFrame(step);
+        if (progress < 1) this.animationFrameId = requestAnimationFrame(step);
       };
-      requestAnimationFrame(step);
+      this.animationFrameId = requestAnimationFrame(step);
     });
   }
 
   private observeCards(): void {
     if (typeof IntersectionObserver === 'undefined') return;
+    this.observer?.disconnect();
     const cards = this.el.nativeElement.querySelectorAll('.animate-in');
-    const observer = new IntersectionObserver(
+    this.observer = new IntersectionObserver(
       entries => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
             (entry.target as HTMLElement).classList.add('visible');
-            observer.unobserve(entry.target);
+            this.observer!.unobserve(entry.target);
           }
         });
       },
       { threshold: 0.1 }
     );
-    cards.forEach((card: Element) => observer.observe(card));
+    cards.forEach((card: Element) => this.observer!.observe(card));
   }
 
   getSeverity(status: string): TagSeverity {

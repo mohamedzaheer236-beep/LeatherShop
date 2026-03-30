@@ -133,7 +133,7 @@ public class CustomerService : ICustomerService
     public async Task<CustomerCreatedDto> CreateAsync(CreateCustomerDto dto, CancellationToken ct = default)
     {
         var phone = PhoneNumberHelper.Normalize(dto.PhoneNumber);
-        if (string.IsNullOrEmpty(phone) || phone.Length < 5)
+        if (string.IsNullOrEmpty(phone) || phone.Length < 7 || phone.Length > 15 || !phone.All(char.IsDigit))
             throw new ArgumentException("Invalid phone number.");
 
         var existing = await _db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone, ct);
@@ -206,7 +206,7 @@ public class CustomerService : ICustomerService
         foreach (var item in dto.Customers)
         {
             var phone = PhoneNumberHelper.Normalize(item.PhoneNumber);
-            if (string.IsNullOrEmpty(phone) || phone.Length < 5) { skipped++; continue; }
+            if (string.IsNullOrEmpty(phone) || phone.Length < 7 || phone.Length > 15 || !phone.All(char.IsDigit)) { skipped++; continue; }
 
             if (existingPhones.Contains(phone)) { skipped++; continue; }
 

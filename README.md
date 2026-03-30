@@ -1371,7 +1371,7 @@ A comprehensive audit of the entire codebase. Findings organized by severity.
 | M2 | ~~**N+1 Queries in BulkImport**~~ | ~~`CustomerService.cs`~~ | **FIXED** — Replaced per-customer `AnyAsync` query with a single `SELECT PhoneNumber` query that loads all existing phone numbers into a `HashSet<string>`. Then checks containment in O(1) per import entry. Also prevents duplicates within the same import batch by adding to the HashSet as we go. 1000 imports = 1 DB query instead of 1000. |
 | M3 | ~~**`.ToLower()` in LINQ Kills DB Indexes**~~ | ~~`ProductService.cs`, `CustomerService.cs`~~ | **FIXED (F101)** — All `.ToLower()` patterns replaced with `EF.Functions.ILike()`. Search input wildcards (`%`, `_`) escaped via `SqlHelper.EscapeLikePattern()` (F127). |
 | M4 | ~~**No `OnPush` Change Detection**~~ | ~~All Angular components~~ | **FIXED** — All 20 components now use `ChangeDetectionStrategy.OnPush` with `ChangeDetectorRef.markForCheck()` after every async state mutation. Array mutations converted to immutable patterns. |
-| M5 | ~~**Memory Leaks: No Unsubscribe**~~ | All 6 feature components | **FIXED** — Product-list simplified to button-triggered search (no `valueChanges` subscriptions). All HTTP `subscribe()` calls auto-complete — no leak risk. Observable patterns are leak-safe by design. |
+| M5 | ~~**Memory Leaks: No Unsubscribe**~~ | All 6 feature components | **FIXED** — HTTP `subscribe()` calls auto-complete — no leak risk. Dashboard component now implements `OnDestroy` with `IntersectionObserver.disconnect()` and `cancelAnimationFrame()` cleanup (see Round 3 audit). Product-list and customers components use HTTP-only observables that auto-complete. |
 | M6 | ~~**Product Search on Every Keystroke**~~ | `product-list.component.html` | **FIXED** — Removed `(input)="onSearch()"`. API call now fires only via dedicated Search button (`pi pi-search`) or Enter key (`keyup.enter`). No debounce needed — user explicitly triggers search. |
 | M7 | ~~**No `trackBy` on Any `*ngFor`**~~ | ~~All list templates~~ | **FIXED** — Orders list has `trackBy: trackByOrderId` on the main `*ngFor`. Prevents full DOM re-renders when order list is refreshed. Other lists either use `p-table` (handles DOM diffing internally) or have static collections. |
 | M8 | ~~**ChatBotService is a 1053-Line God Class**~~ | ~~`ChatBotService.cs`~~ | **FIXED** — Decomposed into 8 focused files: `CartHandler.cs`, `CheckoutHandler.cs`, `MenuHandler.cs`, `OrderHistoryHandler.cs`, `OrderCancellationHandler.cs`, `ContactHandler.cs`, `ProductHandler.cs`, `BotMessageSender.cs`. Original `ChatBotService.cs` is now a thin router (~200 lines) that delegates to handlers via constructor injection. |
@@ -1470,7 +1470,7 @@ Comprehensive line-by-line audit of the entire codebase. These remain to be fixe
 | 19 | **Route guards** (`AuthGuard`) protecting all admin routes with auto-redirect to login |
 | 20 | **Auth interceptor** attaching Bearer token + error interceptor with smart 401 handling (login vs expired) |
 | 21 | **Dynamic categories** in product form — fetched from API instead of hardcoded |
-| 22 | **Error handlers** on all `subscribe()` calls with user-facing notifications and state rollback |
+| 22 | **Error handlers** on all `subscribe()` calls with user-facing notifications and state rollback (silent swallow on product-list toggleActive/deleteProduct fixed in Round 3 audit) |
 | 23 | **SignalR real-time** WebSocket hub for order notifications + chat messages — no polling, instant push to all connected admins |
 | 24 | **2-way WhatsApp chat** with persistent message history, conversation sidebar, chat bubbles, unread badges |
 | 25 | **Bot pause/resume** system — chatbot auto-pauses when admin takes over a conversation, resumes after timeout |
@@ -1603,6 +1603,28 @@ Second comprehensive parallel audit with 7 code-review agents, each covering a d
 | E6 | **High** | Chat loading spinner stuck forever — quick conversation switching discarded stale response but didn't reset `loadingMessages` flag | `chat-page.component.ts` | ✅ **FIXED** — Added `this.loadingMessages = false; this.cdr.markForCheck();` before the early return in the stale response guard. |
 | E7 | **High** | SignalR reconnect used expired access token — after network drop > token lifetime, reconnect failed indefinitely with stale token | `signalr.service.ts` | ✅ **FIXED** — Changed `accessTokenFactory` from sync `() => this.auth.getToken()!` to async factory that checks `this.auth.isLoggedIn()` and calls `this.auth.refreshAccessToken()` if expired. Uses `firstValueFrom` for Observable→Promise conversion. |
 | E8 | **Medium** | Notification panel always showed "New Order" for all events (new, paid, cancelled) — no visual distinction | `navbar.component.html/ts`, `signalr.service.ts` | ✅ **FIXED** — Added `status` field to `OrderNotificationDto` and `OrderNotification` interface. Notification panel now shows: 🛒 orange "New Order" for Pending, ✅ green "Order Paid" for Confirmed, ❌ red "Order Cancelled" for Cancelled. Toast messages differentiated: `info` / `success` / `warning`. Removed duplicate toast from orders component. |
+
+### 🔍 Deep Code Audit — Round 3 (Jun 2025)
+
+Third comprehensive audit. Cross-verified all previous FIXED claims against actual code. Found 3 genuine issues and dismissed 5 false positives.
+
+#### Fixes Applied
+
+| # | Severity | Issue | File | Fix |
+|---|----------|-------|------|-----|
+| F1 | **Medium** | Dashboard `IntersectionObserver` and `requestAnimationFrame` never cleaned up — resource leak on navigation | `dashboard.component.ts` | ✅ **FIXED** — Added `OnDestroy` lifecycle hook. Observer stored as class field and `.disconnect()` called on destroy. Animation frame ID tracked and `cancelAnimationFrame()` called on destroy. |
+| F2 | **Medium** | Product-list `toggleActive()` and `deleteProduct()` had empty `error: () => {}` — failures silently swallowed with no user feedback | `product-list.component.ts` | ✅ **FIXED** — Added `this.notification.error(...)` calls with descriptive messages in both error handlers. |
+| F3 | **Low** | Phone validation accepted non-numeric strings and very short numbers (min length 5) | `CustomerService.cs` | ✅ **FIXED** — Strengthened validation: minimum length 7, maximum length 15, digits-only check via `phone.All(char.IsDigit)`. Applied to both `CreateAsync` and `BulkImportAsync`. |
+
+#### Verified Non-Issues (False Positives Dismissed)
+
+| Flagged Issue | Why It's NOT a Bug |
+|---------------|-------------------|
+| N+1 query in ChatService `GetConversationsAsync` | EF Core translates the LINQ expression to a single SQL query — no N+1 at the database level. |
+| OrderExpiryHelper needs explicit transaction wrapper | `SaveChangesAsync` already wraps changes in an implicit transaction — explicit transaction is redundant. |
+| Authorization bypass — controllers use `[Authorize]` not `[Authorize(Roles = "Admin")]` | Only admin users can obtain JWT tokens (no public registration endpoint). The Role claim IS present in the JWT (`ClaimTypes.Role, "Admin"` at line 102 of AuthService.cs), so `[Authorize]` is functionally equivalent. |
+| ChatBotService swallows exceptions in webhook handler | Intentional — Meta requires webhook to return 200. If webhook returns error codes, Meta retries the payload, causing duplicate processing. Errors are logged before being swallowed. |
+| Customers component missing OnDestroy | All subscriptions are HTTP observables that auto-complete after the response. No long-lived subscriptions to clean up. |
 
 ### Verified Non-Issues (False Alarms Dismissed)
 
