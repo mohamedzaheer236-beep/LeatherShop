@@ -76,6 +76,7 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
   retrying = false;
   retryProgress: BroadcastRetryProgressEvent | null = null;
   private retryProgressSub: Subscription | null = null;
+  private liveRefreshSub: Subscription | null = null;
   selectedRetryRecipient: BroadcastRecipient | null = null;
 
   statusFilterOptions = [
@@ -182,12 +183,35 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
     this.recipientsPage = 1;
     this.loadSummary(broadcast.id);
     this.loadRecipients(broadcast.id);
+
+    // Live-refresh summary + recipients whenever the background retry emits progress for this broadcast
+    this.liveRefreshSub?.unsubscribe();
+    this.liveRefreshSub = this.signalR.broadcastRetryProgress$.subscribe(event => {
+      if (event.broadcastId !== broadcast.id) return;
+      this.retryProgress = event;
+      this.cdr.markForCheck();
+
+      // Refresh summary + recipients every 10 processed (progress events fire every 10)
+      this.loadSummary(broadcast.id);
+      this.loadRecipients(broadcast.id);
+
+      if (event.status === 'completed') {
+        this.loadHistory();
+      }
+    });
+  }
+
+  onDialogHide(): void {
+    this.liveRefreshSub?.unsubscribe();
+    this.liveRefreshSub = null;
+    this.retryProgress = null;
   }
 
   onRecipientsPageChange(event: PaginatorState): void {
     this.recipientsPage = (event.page ?? 0) + 1;
     this.recipientsPageSize = event.rows ?? this.recipientsPageSize;
     if (this.selectedBroadcast) {
+      this.loadSummary(this.selectedBroadcast.id);
       this.loadRecipients(this.selectedBroadcast.id);
     }
   }
@@ -195,6 +219,7 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
   onStatusFilterChange(): void {
     this.recipientsPage = 1;
     if (this.selectedBroadcast) {
+      this.loadSummary(this.selectedBroadcast.id);
       this.loadRecipients(this.selectedBroadcast.id);
     }
   }
@@ -272,6 +297,7 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.retryProgressSub?.unsubscribe();
+    this.liveRefreshSub?.unsubscribe();
   }
 
   private loadRecipients(broadcastId: number): void {

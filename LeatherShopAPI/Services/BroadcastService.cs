@@ -115,7 +115,7 @@ public class BroadcastService : IBroadcastService
                 FailedCount = b.Recipients.Any()
                     ? b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Failed)
                     : b.FailedCount,
-                DeliveredCount = b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Delivered || r.Status == BroadcastDeliveryStatus.Read),
+                DeliveredCount = b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Delivered),
                 ReadCount = b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Read),
                 SentAt = b.SentAt,
                 Status = b.Status.ToString(),
@@ -156,7 +156,7 @@ public class BroadcastService : IBroadcastService
                 FailedCount = b.Recipients.Any()
                     ? b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Failed)
                     : b.FailedCount,
-                DeliveredCount = b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Delivered || r.Status == BroadcastDeliveryStatus.Read),
+                DeliveredCount = b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Delivered),
                 ReadCount = b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Read),
                 SentAt = b.SentAt,
                 Status = b.Status.ToString(),

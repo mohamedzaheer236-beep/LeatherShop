@@ -160,7 +160,8 @@
   [style]="{ width: '85vw', maxWidth: '950px', background: '#ffffff' }"
   [contentStyle]="{ overflow: 'auto', maxHeight: '75vh', background: '#ffffff' }"
   [maximizable]="true"
-  [draggable]="false">
+  [draggable]="false"
+  (onHide)="onDialogHide()">
 
   @if (selectedBroadcast) {
     <div class="recipients-dialog-header">
