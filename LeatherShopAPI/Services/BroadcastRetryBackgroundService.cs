@@ -1,12 +1,14 @@
 using System.Text.Json;
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using LeatherShopAPI.Data;
 using LeatherShopAPI.DTOs.Broadcast;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Models.WhatsApp;
 using LeatherShopAPI.Services.ChatBot;
 using LeatherShopAPI.Services.Interfaces;
+using LeatherShopAPI.Hubs;
 
 namespace LeatherShopAPI.Services;
 
@@ -17,15 +19,15 @@ namespace LeatherShopAPI.Services;
 /// </summary>
 public sealed class BroadcastRetryChannel
 {
-    private readonly Channel<bool> _channel =
-        Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
+    private readonly Channel<int> _channel =
+        Channel.CreateBounded<int>(new BoundedChannelOptions(8)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
             SingleReader = true
         });
 
-    public ChannelWriter<bool> Writer => _channel.Writer;
-    public ChannelReader<bool> Reader => _channel.Reader;
+    public ChannelWriter<int> Writer => _channel.Writer;
+    public ChannelReader<int> Reader => _channel.Reader;
 }
 
 /// <summary>
@@ -54,6 +56,7 @@ public sealed class BroadcastRetryBackgroundService : BackgroundService
     private readonly IConfiguration _config;
     private readonly ILogger<BroadcastRetryBackgroundService> _logger;
     private readonly BroadcastRetryChannel _retryChannel;
+    private readonly IHubContext<NotificationHub> _hub;
 
     /// <summary>How often to check for retryable recipients.</summary>
     private static readonly TimeSpan CheckInterval = TimeSpan.FromMinutes(30);
@@ -61,19 +64,21 @@ public sealed class BroadcastRetryBackgroundService : BackgroundService
     /// <summary>Maximum retry attempts per recipient.</summary>
     private const int MaxRetries = 3;
 
-    /// <summary>Max recipients to process per cycle (avoid long-running DB locks).</summary>
-    private const int BatchSize = 50;
+    /// <summary>Max recipients to process per timer-based cycle.</summary>
+    private const int TimerBatchSize = 50;
 
     public BroadcastRetryBackgroundService(
         IServiceScopeFactory scopeFactory,
         IConfiguration config,
         ILogger<BroadcastRetryBackgroundService> logger,
-        BroadcastRetryChannel retryChannel)
+        BroadcastRetryChannel retryChannel,
+        IHubContext<NotificationHub> hub)
     {
         _scopeFactory = scopeFactory;
         _config = config;
         _logger = logger;
         _retryChannel = retryChannel;
+        _hub = hub;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -87,7 +92,8 @@ public sealed class BroadcastRetryBackgroundService : BackgroundService
         {
             try
             {
-                await ProcessRetryBatchAsync(stoppingToken);
+                // Timer-based: process a small global batch (all broadcasts, limited to TimerBatchSize)
+                await ProcessTimerBatchAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -95,7 +101,7 @@ public sealed class BroadcastRetryBackgroundService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in BroadcastRetryBackgroundService retry cycle");
+                _logger.LogError(ex, "Error in BroadcastRetryBackgroundService timer retry cycle");
             }
 
             // Wait for either the 30-min interval OR an immediate trigger from admin
@@ -103,42 +109,116 @@ public sealed class BroadcastRetryBackgroundService : BackgroundService
             {
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
                 cts.CancelAfter(CheckInterval);
-                await _retryChannel.Reader.ReadAsync(cts.Token);
-                _logger.LogInformation("BroadcastRetryService: triggered immediately by admin retry request");
+                var broadcastId = await _retryChannel.Reader.ReadAsync(cts.Token);
+
+                if (broadcastId > 0)
+                {
+                    _logger.LogInformation("BroadcastRetryService: admin triggered retry for broadcast {BroadcastId}", broadcastId);
+                    await ProcessAdminRetryAsync(broadcastId, stoppingToken);
+                }
             }
             catch (OperationCanceledException)
             {
                 // Either stoppingToken fired (shutdown) or CancelAfter expired (normal 30-min poll)
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in BroadcastRetryBackgroundService admin retry");
+            }
+
+            // Drain any queued channel items (in case multiple retries were queued)
+            while (_retryChannel.Reader.TryRead(out var queuedId))
+            {
+                if (queuedId > 0)
+                {
+                    try
+                    {
+                        await ProcessAdminRetryAsync(queuedId, stoppingToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error processing queued admin retry for broadcast {BroadcastId}", queuedId);
+                    }
+                }
             }
         }
 
         _logger.LogInformation("BroadcastRetryBackgroundService stopped");
     }
 
-    private async Task ProcessRetryBatchAsync(CancellationToken ct)
+    /// <summary>
+    /// Timer-based: processes a small batch of retryable recipients across all broadcasts.
+    /// Runs every 30 minutes. No SignalR events (background cleanup).
+    /// </summary>
+    private async Task ProcessTimerBatchAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         var now = DateTime.UtcNow;
 
-        // Find recipients due for retry: Failed + NextRetryAt has passed + under retry limit
         var retryableRecipients = await db.BroadcastRecipients
             .Where(r => r.Status == BroadcastDeliveryStatus.Failed
                         && r.NextRetryAt != null
                         && r.NextRetryAt <= now
                         && r.RetryCount < MaxRetries)
             .OrderBy(r => r.NextRetryAt)
-            .Take(BatchSize)
+            .Take(TimerBatchSize)
             .Include(r => r.BroadcastMessage)
             .ToListAsync(ct);
 
         if (retryableRecipients.Count == 0) return;
 
-        _logger.LogInformation("BroadcastRetryService: found {Count} recipients due for retry", retryableRecipients.Count);
+        _logger.LogInformation("BroadcastRetryService: timer batch found {Count} recipients", retryableRecipients.Count);
 
-        // Group by broadcast for efficient parameter reuse
-        var grouped = retryableRecipients.GroupBy(r => r.BroadcastMessageId);
+        await ProcessRecipientList(db, retryableRecipients, broadcastId: 0, emitSignalR: false, ct);
+    }
+
+    /// <summary>
+    /// Admin-triggered: processes ALL retryable recipients for a specific broadcast.
+    /// Emits SignalR progress events so the frontend shows a progress bar.
+    /// </summary>
+    private async Task ProcessAdminRetryAsync(int broadcastId, CancellationToken ct)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var now = DateTime.UtcNow;
+
+        var retryableRecipients = await db.BroadcastRecipients
+            .Where(r => r.BroadcastMessageId == broadcastId
+                        && r.Status == BroadcastDeliveryStatus.Failed
+                        && r.NextRetryAt != null
+                        && r.NextRetryAt <= now
+                        && r.RetryCount < MaxRetries)
+            .OrderBy(r => r.NextRetryAt)
+            .Include(r => r.BroadcastMessage)
+            .ToListAsync(ct);
+
+        if (retryableRecipients.Count == 0)
+        {
+            // Emit completed event even if nothing to process
+            await EmitRetryProgress(broadcastId, 0, 0, 0, 0, "completed");
+            return;
+        }
+
+        _logger.LogInformation("BroadcastRetryService: admin retry for broadcast {BroadcastId}, processing {Count} recipients",
+            broadcastId, retryableRecipients.Count);
+
+        await ProcessRecipientList(db, retryableRecipients, broadcastId, emitSignalR: true, ct);
+    }
+
+    /// <summary>
+    /// Core processing: retries a list of recipients. Optionally emits SignalR progress events.
+    /// </summary>
+    private async Task ProcessRecipientList(
+        AppDbContext db, List<BroadcastRecipient> recipients,
+        int broadcastId, bool emitSignalR, CancellationToken ct)
+    {
+        int total = recipients.Count;
+        int processed = 0, succeeded = 0, failed = 0;
+
+        var grouped = recipients.GroupBy(r => r.BroadcastMessageId);
 
         foreach (var group in grouped)
         {
@@ -165,21 +245,61 @@ public sealed class BroadcastRetryBackgroundService : BackgroundService
 
                 try
                 {
-                    await RetryRecipientAsync(recipient, broadcast, parameters, carouselCards, ct);
+                    var ok = await RetryRecipientAsync(recipient, broadcast, parameters, carouselCards, ct);
+                    if (ok) succeeded++; else failed++;
                 }
                 catch (Exception ex)
                 {
+                    failed++;
                     _logger.LogError(ex, "Unexpected error retrying recipient {RecipientId} (phone {Phone})",
                         recipient.Id, recipient.Phone);
                 }
+
+                processed++;
+
+                // Save + emit progress every 10 recipients
+                if (processed % 10 == 0)
+                {
+                    await db.SaveChangesAsync(ct);
+
+                    if (emitSignalR)
+                    {
+                        await EmitRetryProgress(broadcastId, processed, succeeded, failed, total, "processing");
+                    }
+                }
+
+                // Small delay to avoid Meta rate-limiting
+                await Task.Delay(100, ct);
             }
         }
 
         await db.SaveChangesAsync(ct);
-        _logger.LogInformation("BroadcastRetryService: completed retry cycle");
+
+        if (emitSignalR)
+        {
+            await EmitRetryProgress(broadcastId, processed, succeeded, failed, total, "completed");
+        }
+
+        _logger.LogInformation(
+            "BroadcastRetryService: completed retry for broadcast {BroadcastId}. " +
+            "Processed={Processed}, Succeeded={Succeeded}, Failed={Failed}",
+            broadcastId, processed, succeeded, failed);
     }
 
-    private async Task RetryRecipientAsync(
+    private async Task EmitRetryProgress(int broadcastId, int processed, int succeeded, int failed, int total, string status)
+    {
+        await _hub.Clients.Group("admins").SendAsync("BroadcastRetryProgress", new
+        {
+            broadcastId,
+            processed,
+            succeeded,
+            failed,
+            total,
+            status
+        });
+    }
+
+    private async Task<bool> RetryRecipientAsync(
         BroadcastRecipient recipient,
         BroadcastMessage broadcast,
         List<string>? parameters,
@@ -219,6 +339,8 @@ public sealed class BroadcastRetryBackgroundService : BackgroundService
             _logger.LogInformation(
                 "Retry #{RetryNum} succeeded for recipient {RecipientId} (phone {Phone}, broadcast {BroadcastId}). New wamid: {WamId}",
                 recipient.RetryCount, recipient.Id, recipient.Phone, broadcast.Id, wamId);
+
+            return true;
         }
         catch (Exception ex)
         {
@@ -254,6 +376,8 @@ public sealed class BroadcastRetryBackgroundService : BackgroundService
                     "Retry #{RetryNum} for recipient {RecipientId} (phone {Phone}) failed permanently: {Error}",
                     recipient.RetryCount, recipient.Id, recipient.Phone, errorMsg);
             }
+
+            return false;
         }
     }
 

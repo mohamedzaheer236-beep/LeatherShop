@@ -225,6 +225,23 @@
       }
     </div>
 
+    <!-- Retry Progress Bar -->
+    @if (retryProgress && retrying) {
+      <div class="retry-progress-banner">
+        <div class="retry-progress-info">
+          <i class="pi pi-spin pi-spinner"></i>
+          <span>Retrying: {{ retryProgress.processed }}/{{ retryProgress.total }}
+            ({{ retryProgress.succeeded }} succeeded, {{ retryProgress.failed }} failed)</span>
+        </div>
+        <div class="progress-bar-wrapper">
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="retryProgress.total > 0 ? (retryProgress.processed / retryProgress.total * 100) : 0"></div>
+          </div>
+          <span class="progress-text">{{ retryProgress.total > 0 ? (retryProgress.processed / retryProgress.total * 100 | number:'1.0-0') : 0 }}%</span>
+        </div>
+      </div>
+    }
+
     <!-- Recipients Table -->
     <p-table [value]="recipients" [loading]="recipientsLoading"
       styleClass="p-datatable-sm p-datatable-striped" [tableStyle]="{'min-width': '40rem'}">

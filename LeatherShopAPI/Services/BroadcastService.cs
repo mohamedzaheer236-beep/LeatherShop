@@ -109,7 +109,9 @@ public class BroadcastService : IBroadcastService
                 MessageTemplate = b.MessageTemplate,
                 MessageBody = b.MessageBody,
                 TotalRecipients = b.TotalRecipients,
-                SentCount = b.SentCount,
+                SentCount = b.Recipients.Any()
+                    ? b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Sent)
+                    : b.SentCount,
                 FailedCount = b.Recipients.Any()
                     ? b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Failed)
                     : b.FailedCount,
@@ -131,8 +133,7 @@ public class BroadcastService : IBroadcastService
             query = query.Where(b => b.MessageTemplate.Contains(templateSearch));
         if (recipientsFilter.HasValue)
             query = query.Where(b => b.TotalRecipients == recipientsFilter.Value);
-        if (sentFilter.HasValue)
-            query = query.Where(b => b.SentCount == sentFilter.Value);
+        // sentFilter moved to post-projection (now computed from recipient status)
 
         // Date filter — calendar sends yyyy-MM-dd
         if (!string.IsNullOrWhiteSpace(dateSearch) && DateTime.TryParseExact(dateSearch.Trim(), "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out var parsedDate))
@@ -149,7 +150,9 @@ public class BroadcastService : IBroadcastService
                 MessageTemplate = b.MessageTemplate,
                 MessageBody = b.MessageBody,
                 TotalRecipients = b.TotalRecipients,
-                SentCount = b.SentCount,
+                SentCount = b.Recipients.Any()
+                    ? b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Sent)
+                    : b.SentCount,
                 FailedCount = b.Recipients.Any()
                     ? b.Recipients.Count(r => r.Status == BroadcastDeliveryStatus.Failed)
                     : b.FailedCount,
@@ -161,6 +164,8 @@ public class BroadcastService : IBroadcastService
             });
 
         // Post-projection filters (computed count columns)
+        if (sentFilter.HasValue)
+            projected = projected.Where(b => b.SentCount == sentFilter.Value);
         if (deliveredFilter.HasValue)
             projected = projected.Where(b => b.DeliveredCount == deliveredFilter.Value);
         if (readFilter.HasValue)
@@ -329,105 +334,22 @@ public class BroadcastService : IBroadcastService
                 Message = "No retryable recipients found (only error 131049 with less than 3 retries can be retried)."
             };
 
-        // Prepare template data for re-sending
-        var parameters = !string.IsNullOrEmpty(broadcast.ParametersJson)
-            ? JsonSerializer.Deserialize<List<string>>(broadcast.ParametersJson)
-            : null;
-
-        List<CarouselCard>? carouselCards = null;
-        if (broadcast.IsCarousel && !string.IsNullOrEmpty(broadcast.CarouselCardsJson))
+        // Mark all as ready for immediate retry
+        foreach (var r in failedRecipients)
         {
-            var cardDtos = JsonSerializer.Deserialize<List<CarouselCardDto>>(broadcast.CarouselCardsJson);
-            carouselCards = cardDtos?.Select(c => new CarouselCard
-            {
-                ImageUrl = ChatBotHelpers.ResolveImageUrl(c.ImageUrl, _config) ?? c.ImageUrl,
-                BodyParam = c.BodyParam.Length > 160 ? c.BodyParam[..160] : c.BodyParam,
-                ButtonPayload = c.ButtonPayload
-            }).ToList();
+            r.NextRetryAt = DateTime.UtcNow;
         }
-
-        // Process retries synchronously in batches of 10
-        int succeeded = 0, failedAgain = 0;
-        foreach (var batch in failedRecipients.Chunk(10))
-        {
-            var tasks = batch.Select(async recipient =>
-            {
-                try
-                {
-                    string? wamId;
-                    if (broadcast.IsCarousel && carouselCards != null && carouselCards.Count > 0)
-                    {
-                        wamId = await _whatsApp.SendCarouselTemplateMessage(
-                            recipient.Phone, broadcast.MessageTemplate,
-                            carouselCards, broadcast.LanguageCode);
-                    }
-                    else
-                    {
-                        wamId = await _whatsApp.SendTemplateMessage(
-                            recipient.Phone, broadcast.MessageTemplate, broadcast.LanguageCode,
-                            parameters, ChatBotHelpers.ResolveImageUrl(broadcast.ImageUrl, _config) ?? broadcast.ImageUrl);
-                    }
-
-                    recipient.Status = BroadcastDeliveryStatus.Sent;
-                    recipient.WamId = wamId;
-                    recipient.SentAt = DateTime.UtcNow;
-                    recipient.FailedAt = null;
-                    recipient.ErrorDetail = null;
-                    recipient.NextRetryAt = null;
-                    recipient.RetryCount++;
-                    AppendRetryHistory(recipient, true, null);
-                    Interlocked.Increment(ref succeeded);
-                }
-                catch (Exception ex)
-                {
-                    recipient.RetryCount++;
-                    recipient.FailedAt = DateTime.UtcNow;
-                    var errorMsg = ex.Message.Length > 1000 ? ex.Message[..1000] : ex.Message;
-                    recipient.ErrorDetail = $"Retry #{recipient.RetryCount} failed: {errorMsg}";
-                    AppendRetryHistory(recipient, false, errorMsg);
-
-                    if (ex.Message.Contains("131049") && recipient.RetryCount < 3)
-                    {
-                        var backoffHours = 24 * (recipient.RetryCount + 1);
-                        recipient.NextRetryAt = DateTime.UtcNow.AddHours(backoffHours);
-                    }
-                    else
-                    {
-                        recipient.NextRetryAt = null;
-                    }
-                    Interlocked.Increment(ref failedAgain);
-                }
-            });
-            await Task.WhenAll(tasks);
-            if (!ct.IsCancellationRequested)
-                await Task.Delay(200, ct);
-        }
-
         await _db.SaveChangesAsync(ct);
+
+        // Wake up the background service to process this broadcast immediately
+        await _retryChannel.Writer.WriteAsync(broadcastId, ct);
 
         return new BroadcastRetryResultDto
         {
             ScheduledCount = failedRecipients.Count,
-            Succeeded = succeeded,
-            FailedAgain = failedAgain,
-            Message = $"Retried {failedRecipients.Count}: {succeeded} succeeded, {failedAgain} failed again."
+            Succeeded = 0,
+            FailedAgain = 0,
+            Message = $"Retry started for {failedRecipients.Count} recipients. Progress will be shown in real-time."
         };
-    }
-
-    private static void AppendRetryHistory(BroadcastRecipient recipient, bool succeeded, string? error)
-    {
-        var history = string.IsNullOrEmpty(recipient.RetryHistoryJson)
-            ? new List<RetryAttemptEntry>()
-            : JsonSerializer.Deserialize<List<RetryAttemptEntry>>(recipient.RetryHistoryJson) ?? [];
-
-        history.Add(new RetryAttemptEntry
-        {
-            Attempt = recipient.RetryCount,
-            Timestamp = DateTime.UtcNow,
-            Succeeded = succeeded,
-            Error = error
-        });
-
-        recipient.RetryHistoryJson = JsonSerializer.Serialize(history);
     }
 }
