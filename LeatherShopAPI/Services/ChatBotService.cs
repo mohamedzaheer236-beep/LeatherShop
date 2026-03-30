@@ -225,13 +225,14 @@ public class ChatBotService : IChatBotService
             return;
         }
 
-        // View product from carousel (quick_reply) → show full product details (images + video + buttons)
+        // View product from carousel (quick_reply) → show individual images + video + Add to Cart buttons
+        // skipCarousel: true prevents sending another carousel (which would loop back here)
         if (input.StartsWith("view_") && input != "view_cart")
         {
             var (viewProdId, viewImgId) = ChatBotHelpers.ParseProductImagePayload(input, "view_");
             if (viewProdId.HasValue)
             {
-                await _productHandler.SendProductDetails(phone, viewProdId.Value, viewImgId, ct);
+                await _productHandler.SendProductDetails(phone, viewProdId.Value, viewImgId, skipCarousel: true, ct);
                 return;
             }
             await _bot.SendText(phone, "Invalid product. Type *menu* to browse.", ct);
@@ -325,7 +326,7 @@ public class ChatBotService : IChatBotService
         {
             var (product, imageId) = await _productHandler.ResolveBroadcastProduct(phone, ct);
             if (product != null)
-                await _productHandler.SendProductDetails(phone, product.Id, imageId, ct);
+                await _productHandler.SendProductDetails(phone, product.Id, imageId, ct: ct);
             return;
         }
 
