@@ -170,7 +170,7 @@ export class BroadcastFormHelperService {
     // Strip newlines/tabs — WhatsApp rejects params with these characters.
     const desc = (product.description || 'Premium handcrafted leather product')
       .replace(/[\r\n\t]+/g, ' ').replace(/\s{4,}/g, ' ').trim()
-      .slice(0, 900);
+      .slice(0, 800);
     this.linkedProductParams = [product.name, String(product.price), desc];
     onParamsFilled(this.linkedProductParams.join(', '));
 

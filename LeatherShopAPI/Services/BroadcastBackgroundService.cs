@@ -251,13 +251,13 @@ public sealed class BroadcastBackgroundService : BackgroundService
             : null;
 
         // Safety truncation: Meta limits total template body to 1024 chars.
-        // Truncate any single parameter to 900 chars to leave room for template text + other params.
+        // Truncate any single parameter to 800 chars to leave room for template text + other params.
         if (parameters != null)
         {
             for (var i = 0; i < parameters.Count; i++)
             {
-                if (parameters[i].Length > 900)
-                    parameters[i] = parameters[i][..900];
+                if (parameters[i].Length > 800)
+                    parameters[i] = parameters[i][..800];
             }
         }
 
