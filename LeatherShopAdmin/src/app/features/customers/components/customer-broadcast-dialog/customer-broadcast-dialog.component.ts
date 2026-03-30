@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, Output, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, Output, OnInit, OnDestroy, inject } from '@angular/core';
 
 import {
   ReactiveFormsModule,
@@ -9,12 +9,14 @@ import {
   AbstractControl,
   ValidationErrors,
 } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { BroadcastService } from '../../../broadcast/services/broadcast.service';
 import { BroadcastFormHelperService } from '../../../broadcast/services/broadcast-form-helper.service';
 import { CarouselCard } from '../../../broadcast/models/broadcast.model';
 import { ProductImageItem } from '../../../products/models/product.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { isFieldInvalid as checkFieldInvalid } from '../../../../shared/utils/form.utils';
+import { SignalRService, BroadcastProgressEvent } from '../../../../core/services/signalr.service';
 
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
@@ -30,11 +32,12 @@ import { ButtonModule } from 'primeng/button';
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [BroadcastFormHelperService],
 })
-export class CustomerBroadcastDialogComponent implements OnInit {
+export class CustomerBroadcastDialogComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private broadcastService = inject(BroadcastService);
   private notification = inject(NotificationService);
   private cdr = inject(ChangeDetectorRef);
+  private signalR = inject(SignalRService);
   readonly helper = inject(BroadcastFormHelperService);
 
   @Input() phoneNumbers: string[] = [];
@@ -46,6 +49,12 @@ export class CustomerBroadcastDialogComponent implements OnInit {
   sending = false;
   submitted = false;
 
+  // Progress tracking
+  broadcastProgress: BroadcastProgressEvent | null = null;
+  sendResultMessage = '';
+  private progressSub?: Subscription;
+  private pollingSub?: Subscription;
+
   ngOnInit(): void {
     this.broadcastForm = this.fb.group({
       template: ['', [Validators.required, this.templateValidator.bind(this)]],
@@ -53,6 +62,11 @@ export class CustomerBroadcastDialogComponent implements OnInit {
       imageUrl: [''],
     });
     this.helper.init();
+  }
+
+  ngOnDestroy(): void {
+    this.progressSub?.unsubscribe();
+    this.pollingSub?.unsubscribe();
   }
 
   // ─── Template Selection ───
@@ -154,7 +168,7 @@ export class CustomerBroadcastDialogComponent implements OnInit {
         })
         .subscribe({
           next: res => {
-            this.onSendSuccess(`Carousel sending to ${res.totalRecipients} customer${res.totalRecipients === 1 ? '' : 's'}...`);
+            this.onSendSuccess(res.broadcastId, res.totalRecipients);
           },
           error: () => {
             this.sending = false;
@@ -187,7 +201,7 @@ export class CustomerBroadcastDialogComponent implements OnInit {
         })
         .subscribe({
           next: res => {
-            this.onSendSuccess(`Broadcast sending to ${res.totalRecipients} customer${res.totalRecipients === 1 ? '' : 's'}...`);
+            this.onSendSuccess(res.broadcastId, res.totalRecipients);
           },
           error: () => {
             this.sending = false;
@@ -206,14 +220,61 @@ export class CustomerBroadcastDialogComponent implements OnInit {
     this.submitted = false;
     this.broadcastForm.reset({ template: '', params: '', imageUrl: '' });
     this.helper.reset();
+    this.broadcastProgress = null;
+    this.sendResultMessage = '';
   }
 
   // ─── Private ───
 
-  private onSendSuccess(message: string): void {
+  private onSendSuccess(broadcastId: number, totalRecipients: number): void {
+    this.broadcastProgress = { broadcastId, sent: 0, failed: 0, total: totalRecipients, status: 'processing' };
+    this.sendResultMessage = `Sending to ${totalRecipients} customer${totalRecipients === 1 ? '' : 's'}...`;
+    this.cdr.markForCheck();
+
+    this.progressSub?.unsubscribe();
+    this.progressSub = this.signalR.broadcastProgress$.subscribe(event => {
+      if (event.broadcastId !== broadcastId) return;
+      this.broadcastProgress = event;
+      this.sendResultMessage = `Sending: ${event.sent} sent, ${event.failed} failed — ${event.sent + event.failed} of ${event.total}`;
+      this.cdr.markForCheck();
+
+      if (event.status === 'completed') {
+        this.onTrackingComplete(event);
+      }
+    });
+
+    // Fallback polling
+    this.pollingSub?.unsubscribe();
+    this.pollingSub = this.broadcastService.pollBroadcastStatus(broadcastId, totalRecipients).subscribe({
+      next: status => {
+        if (this.broadcastProgress?.status !== 'completed') {
+          this.onTrackingComplete({
+            broadcastId,
+            sent: status.sentCount,
+            failed: status.failedCount,
+            total: totalRecipients,
+            status: 'completed',
+          });
+        }
+      },
+      error: () => { /* handled by SignalR */ },
+    });
+  }
+
+  private onTrackingComplete(event: BroadcastProgressEvent): void {
+    this.progressSub?.unsubscribe();
+    this.pollingSub?.unsubscribe();
     this.sending = false;
+    this.broadcastProgress = null;
+    this.sendResultMessage = '';
     this.close();
-    this.notification.success(message);
+    if (event.failed > 0 && event.sent > 0) {
+      this.notification.warning(`Broadcast: ${event.sent} sent, ${event.failed} failed.`);
+    } else if (event.failed > 0) {
+      this.notification.error(`Broadcast failed for ${event.failed} recipient(s).`);
+    } else {
+      this.notification.success(`Broadcast sent to ${event.sent} customer${event.sent === 1 ? '' : 's'}.`);
+    }
     this.sent.emit();
   }
 }

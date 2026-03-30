@@ -110,5 +110,7 @@ public class BroadcastDeliverySummaryDto
 public class BroadcastRetryResultDto
 {
     public int ScheduledCount { get; set; }
+    public int Succeeded { get; set; }
+    public int FailedAgain { get; set; }
     public string Message { get; set; } = string.Empty;
 }

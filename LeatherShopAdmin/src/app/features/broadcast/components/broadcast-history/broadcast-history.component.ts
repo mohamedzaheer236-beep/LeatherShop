@@ -13,6 +13,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { CalendarModule } from 'primeng/calendar';
 import { BroadcastHistory, BroadcastRecipient, BroadcastDeliverySummary } from '../../models/broadcast.model';
 import { BroadcastService } from '../../services/broadcast.service';
+import { NotificationService } from '../../../../shared/services/notification.service';
 
 @Component({
   selector: 'app-broadcast-history',
@@ -25,6 +26,7 @@ import { BroadcastService } from '../../services/broadcast.service';
 export class BroadcastHistoryComponent implements OnInit {
   private broadcastService = inject(BroadcastService);
   private cdr = inject(ChangeDetectorRef);
+  private notification = inject(NotificationService);
 
   // History table state — self-managed
   history: BroadcastHistory[] = [];
@@ -205,17 +207,29 @@ export class BroadcastHistoryComponent implements OnInit {
   retryFailed(): void {
     if (!this.selectedBroadcast || this.retrying) return;
     this.retrying = true;
+    this.cdr.markForCheck();
     this.broadcastService.retryFailedRecipients(this.selectedBroadcast.id).subscribe({
       next: result => {
         this.retrying = false;
+        if (result.succeeded > 0 && result.failedAgain === 0) {
+          this.notification.success(`Retry complete: ${result.succeeded} succeeded.`);
+        } else if (result.succeeded > 0) {
+          this.notification.warning(`Retry complete: ${result.succeeded} succeeded, ${result.failedAgain} failed again.`);
+        } else if (result.scheduledCount > 0) {
+          this.notification.error(`Retry complete: all ${result.failedAgain} failed again.`);
+        } else {
+          this.notification.info(result.message);
+        }
         if (this.selectedBroadcast) {
           this.loadSummary(this.selectedBroadcast.id);
           this.loadRecipients(this.selectedBroadcast.id);
         }
+        this.loadHistory();
         this.cdr.markForCheck();
       },
       error: () => {
         this.retrying = false;
+        this.notification.error('Retry request failed. Please try again.');
         this.cdr.markForCheck();
       },
     });

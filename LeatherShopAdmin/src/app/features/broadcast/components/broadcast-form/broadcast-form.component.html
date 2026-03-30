@@ -33,6 +33,14 @@
           <span class="status-title">Broadcast Failed</span>
         }
         <span class="status-detail">{{ resultMessage }}</span>
+        @if (sending && broadcastProgress && broadcastProgress.total > 0) {
+          <div class="progress-bar-wrapper">
+            <div class="progress-bar">
+              <div class="progress-fill" [style.width.%]="(broadcastProgress.sent + broadcastProgress.failed) / broadcastProgress.total * 100"></div>
+            </div>
+            <span class="progress-text">{{ broadcastProgress.sent + broadcastProgress.failed }} / {{ broadcastProgress.total }}</span>
+          </div>
+        }
       </div>
       @if (!sending) {
         <button class="status-close" (click)="resultMessage = ''">

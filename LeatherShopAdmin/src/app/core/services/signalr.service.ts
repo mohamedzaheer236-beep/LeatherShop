@@ -40,6 +40,14 @@ export interface OutboxFailedEvent {
   failedAt: string;
 }
 
+export interface BroadcastProgressEvent {
+  broadcastId: number;
+  sent: number;
+  failed: number;
+  total: number;
+  status: 'processing' | 'completed';
+}
+
 @Injectable({ providedIn: 'root' })
 export class SignalRService implements OnDestroy {
   private auth = inject(AuthService);
@@ -51,6 +59,7 @@ export class SignalRService implements OnDestroy {
   readonly chatMessage$ = new Subject<ChatMessageEvent>();
   readonly newChatMessage$ = new Subject<NewChatMessageEvent>();
   readonly outboxFailed$ = new Subject<OutboxFailedEvent>();
+  readonly broadcastProgress$ = new Subject<BroadcastProgressEvent>();
 
   /** Start the SignalR connection (call after login). */
   start(): void {
@@ -82,6 +91,7 @@ export class SignalRService implements OnDestroy {
     this.hubConnection.on('ReceiveMessage', (data: ChatMessageEvent) => this.chatMessage$.next(data));
     this.hubConnection.on('NewChatMessage', (data: NewChatMessageEvent) => this.newChatMessage$.next(data));
     this.hubConnection.on('OutboxMessageFailed', (data: OutboxFailedEvent) => this.outboxFailed$.next(data));
+    this.hubConnection.on('BroadcastProgress', (data: BroadcastProgressEvent) => this.broadcastProgress$.next(data));
 
     this.hubConnection.onclose(() => {
       this.hubConnection = null; // allow start() to create a new connection
@@ -138,5 +148,6 @@ export class SignalRService implements OnDestroy {
     this.chatMessage$.complete();
     this.newChatMessage$.complete();
     this.outboxFailed$.complete();
+    this.broadcastProgress$.complete();
   }
 }

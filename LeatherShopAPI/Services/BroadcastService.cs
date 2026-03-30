@@ -6,6 +6,7 @@ using LeatherShopAPI.Extensions;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Models.WhatsApp;
 using LeatherShopAPI.Services.Interfaces;
+using LeatherShopAPI.Services.ChatBot;
 
 namespace LeatherShopAPI.Services;
 
@@ -13,15 +14,17 @@ public class BroadcastService : IBroadcastService
 {
     private readonly AppDbContext _db;
     private readonly IWhatsAppService _whatsApp;
+    private readonly IConfiguration _config;
     private readonly BroadcastChannel _channel;
     private readonly BroadcastRetryChannel _retryChannel;
 
-    public BroadcastService(AppDbContext db, IWhatsAppService whatsApp, BroadcastChannel channel, BroadcastRetryChannel retryChannel)
+    public BroadcastService(AppDbContext db, IWhatsAppService whatsApp, BroadcastChannel channel, BroadcastRetryChannel retryChannel, IConfiguration config)
     {
         _db = db;
         _whatsApp = whatsApp;
         _channel = channel;
         _retryChannel = retryChannel;
+        _config = config;
     }
 
     public async Task<BroadcastResultDto> SendBroadcastAsync(BroadcastRequestDto dto, CancellationToken ct = default)
@@ -310,7 +313,6 @@ public class BroadcastService : IBroadcastService
             throw new InvalidOperationException("Broadcast not found.");
 
         // Find all failed recipients for this broadcast that have error 131049 and haven't exhausted retries
-        var now = DateTime.UtcNow;
         var failedRecipients = await _db.BroadcastRecipients
             .Where(r => r.BroadcastMessageId == broadcastId
                         && r.Status == BroadcastDeliveryStatus.Failed
@@ -322,24 +324,110 @@ public class BroadcastService : IBroadcastService
             return new BroadcastRetryResultDto
             {
                 ScheduledCount = 0,
+                Succeeded = 0,
+                FailedAgain = 0,
                 Message = "No retryable recipients found (only error 131049 with less than 3 retries can be retried)."
             };
 
-        foreach (var recipient in failedRecipients)
+        // Prepare template data for re-sending
+        var parameters = !string.IsNullOrEmpty(broadcast.ParametersJson)
+            ? JsonSerializer.Deserialize<List<string>>(broadcast.ParametersJson)
+            : null;
+
+        List<CarouselCard>? carouselCards = null;
+        if (broadcast.IsCarousel && !string.IsNullOrEmpty(broadcast.CarouselCardsJson))
         {
-            // Schedule immediate retry (NextRetryAt = now)
-            recipient.NextRetryAt = now;
+            var cardDtos = JsonSerializer.Deserialize<List<CarouselCardDto>>(broadcast.CarouselCardsJson);
+            carouselCards = cardDtos?.Select(c => new CarouselCard
+            {
+                ImageUrl = ChatBotHelpers.ResolveImageUrl(c.ImageUrl, _config) ?? c.ImageUrl,
+                BodyParam = c.BodyParam.Length > 160 ? c.BodyParam[..160] : c.BodyParam,
+                ButtonPayload = c.ButtonPayload
+            }).ToList();
+        }
+
+        // Process retries synchronously in batches of 10
+        int succeeded = 0, failedAgain = 0;
+        foreach (var batch in failedRecipients.Chunk(10))
+        {
+            var tasks = batch.Select(async recipient =>
+            {
+                try
+                {
+                    string? wamId;
+                    if (broadcast.IsCarousel && carouselCards != null && carouselCards.Count > 0)
+                    {
+                        wamId = await _whatsApp.SendCarouselTemplateMessage(
+                            recipient.Phone, broadcast.MessageTemplate,
+                            carouselCards, broadcast.LanguageCode);
+                    }
+                    else
+                    {
+                        wamId = await _whatsApp.SendTemplateMessage(
+                            recipient.Phone, broadcast.MessageTemplate, broadcast.LanguageCode,
+                            parameters, ChatBotHelpers.ResolveImageUrl(broadcast.ImageUrl, _config) ?? broadcast.ImageUrl);
+                    }
+
+                    recipient.Status = BroadcastDeliveryStatus.Sent;
+                    recipient.WamId = wamId;
+                    recipient.SentAt = DateTime.UtcNow;
+                    recipient.FailedAt = null;
+                    recipient.ErrorDetail = null;
+                    recipient.NextRetryAt = null;
+                    recipient.RetryCount++;
+                    AppendRetryHistory(recipient, true, null);
+                    Interlocked.Increment(ref succeeded);
+                }
+                catch (Exception ex)
+                {
+                    recipient.RetryCount++;
+                    recipient.FailedAt = DateTime.UtcNow;
+                    var errorMsg = ex.Message.Length > 1000 ? ex.Message[..1000] : ex.Message;
+                    recipient.ErrorDetail = $"Retry #{recipient.RetryCount} failed: {errorMsg}";
+                    AppendRetryHistory(recipient, false, errorMsg);
+
+                    if (ex.Message.Contains("131049") && recipient.RetryCount < 3)
+                    {
+                        var backoffHours = 24 * (recipient.RetryCount + 1);
+                        recipient.NextRetryAt = DateTime.UtcNow.AddHours(backoffHours);
+                    }
+                    else
+                    {
+                        recipient.NextRetryAt = null;
+                    }
+                    Interlocked.Increment(ref failedAgain);
+                }
+            });
+            await Task.WhenAll(tasks);
+            if (!ct.IsCancellationRequested)
+                await Task.Delay(200, ct);
         }
 
         await _db.SaveChangesAsync(ct);
 
-        // Wake up the retry background service immediately
-        await _retryChannel.Writer.WriteAsync(true, ct);
-
         return new BroadcastRetryResultDto
         {
             ScheduledCount = failedRecipients.Count,
-            Message = $"Scheduled {failedRecipients.Count} recipient(s) for immediate retry. Processing now."
+            Succeeded = succeeded,
+            FailedAgain = failedAgain,
+            Message = $"Retried {failedRecipients.Count}: {succeeded} succeeded, {failedAgain} failed again."
         };
+    }
+
+    private static void AppendRetryHistory(BroadcastRecipient recipient, bool succeeded, string? error)
+    {
+        var history = string.IsNullOrEmpty(recipient.RetryHistoryJson)
+            ? new List<RetryAttemptEntry>()
+            : JsonSerializer.Deserialize<List<RetryAttemptEntry>>(recipient.RetryHistoryJson) ?? [];
+
+        history.Add(new RetryAttemptEntry
+        {
+            Attempt = recipient.RetryCount,
+            Timestamp = DateTime.UtcNow,
+            Succeeded = succeeded,
+            Error = error
+        });
+
+        recipient.RetryHistoryJson = JsonSerializer.Serialize(history);
     }
 }

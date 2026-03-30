@@ -16,6 +16,7 @@ import { CarouselCard } from '../../models/broadcast.model';
 import { ProductImageItem } from '../../../products/models/product.model';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { isFieldInvalid as checkFieldInvalid } from '../../../../shared/utils/form.utils';
+import { SignalRService, BroadcastProgressEvent } from '../../../../core/services/signalr.service';
 
 import { CardModule } from 'primeng/card';
 import { DropdownModule } from 'primeng/dropdown';
@@ -38,6 +39,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
   private broadcastService = inject(BroadcastService);
   private notification = inject(NotificationService);
   private cdr = inject(ChangeDetectorRef);
+  private signalR = inject(SignalRService);
   readonly helper = inject(BroadcastFormHelperService);
 
   /** Emits when a broadcast has been sent (parent should refresh history). */
@@ -50,6 +52,11 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
   submitted = false;
   categoryOptions = [{ label: 'All Subscribers', value: '' }, ...CUSTOMER_CATEGORIES];
 
+  // Progress tracking via SignalR
+  broadcastProgress: BroadcastProgressEvent | null = null;
+  private activeBroadcastId: number | null = null;
+  private progressSub?: Subscription;
+
   private pollingSubs = new Map<number, Subscription>();
 
   ngOnInit(): void {
@@ -60,6 +67,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.pollingSubs.forEach(sub => sub.unsubscribe());
     this.pollingSubs.clear();
+    this.progressSub?.unsubscribe();
   }
 
   // ─── Form Setup ───
@@ -184,7 +192,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
             this.broadcastForm.reset();
             this.helper.reset();
             this.cdr.markForCheck();
-            this.startPolling(res.broadcastId, res.totalRecipients);
+            this.startTracking(res.broadcastId, res.totalRecipients);
           },
           error: () => {
             this.sending = false;
@@ -216,7 +224,7 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
             this.broadcastForm.reset();
             this.helper.clearHeaderImage();
             this.cdr.markForCheck();
-            this.startPolling(res.broadcastId, res.totalRecipients);
+            this.startTracking(res.broadcastId, res.totalRecipients);
           },
           error: () => {
             this.sending = false;
@@ -228,40 +236,66 @@ export class BroadcastFormComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ─── Polling ───
+  // ─── Real-time Progress via SignalR ───
 
-  private startPolling(broadcastId: number, totalRecipients: number): void {
-    if (this.pollingSubs.has(broadcastId)) return;
+  private startTracking(broadcastId: number, totalRecipients: number): void {
+    this.activeBroadcastId = broadcastId;
+    this.broadcastProgress = { broadcastId, sent: 0, failed: 0, total: totalRecipients, status: 'processing' };
+    this.progressSub?.unsubscribe();
 
-    const sub = this.broadcastService.pollBroadcastStatus(broadcastId, totalRecipients).subscribe({
+    this.progressSub = this.signalR.broadcastProgress$.subscribe(event => {
+      if (event.broadcastId !== broadcastId) return;
+      this.broadcastProgress = event;
+      this.resultMessage = `Sending: ${event.sent} sent, ${event.failed} failed — ${event.sent + event.failed} of ${event.total}`;
+      this.cdr.markForCheck();
+
+      if (event.status === 'completed') {
+        this.onBroadcastComplete(event);
+      }
+    });
+
+    // Fallback: poll after 10s in case SignalR is disconnected
+    const fallbackSub = this.broadcastService.pollBroadcastStatus(broadcastId, totalRecipients).subscribe({
       next: status => {
-        this.pollingSubs.delete(broadcastId);
-        this.sending = this.pollingSubs.size > 0;
-        this.sent.emit();
-        if (status.failedCount > 0 && status.sentCount === 0) {
-          this.resultMessage = `Broadcast failed! ${status.failedCount} message(s) could not be delivered. Check if your template is approved.`;
-          this.resultType = 'error';
-          this.notification.error(`Broadcast failed for ${status.failedCount} recipient(s).`);
-        } else if (status.failedCount > 0) {
-          this.resultMessage = `Broadcast completed: ${status.sentCount} sent, ${status.failedCount} failed.`;
-          this.resultType = 'success';
-          this.notification.warning(`Broadcast: ${status.sentCount} sent, ${status.failedCount} failed.`);
-        } else {
-          this.resultMessage = `Broadcast successful! ${status.sentCount} message(s) delivered.`;
-          this.resultType = 'success';
-          this.notification.success(`Broadcast sent to ${status.sentCount} subscribers.`);
+        // Only use fallback if SignalR hasn't delivered completion yet
+        if (this.activeBroadcastId === broadcastId && this.broadcastProgress?.status !== 'completed') {
+          this.onBroadcastComplete({
+            broadcastId,
+            sent: status.sentCount,
+            failed: status.failedCount,
+            total: totalRecipients,
+            status: 'completed',
+          });
         }
-        this.cdr.markForCheck();
+        this.pollingSubs.delete(broadcastId);
       },
       error: () => {
         this.pollingSubs.delete(broadcastId);
-        this.sending = this.pollingSubs.size > 0;
-        this.resultMessage = 'Could not verify broadcast delivery status.';
-        this.resultType = 'error';
-        this.sent.emit();
-        this.cdr.markForCheck();
       },
     });
-    this.pollingSubs.set(broadcastId, sub);
+    this.pollingSubs.set(broadcastId, fallbackSub);
+  }
+
+  private onBroadcastComplete(event: BroadcastProgressEvent): void {
+    this.progressSub?.unsubscribe();
+    this.activeBroadcastId = null;
+    this.sending = false;
+    this.sent.emit();
+
+    if (event.failed > 0 && event.sent === 0) {
+      this.resultMessage = `Broadcast failed! ${event.failed} message(s) could not be delivered. Check if your template is approved.`;
+      this.resultType = 'error';
+      this.notification.error(`Broadcast failed for ${event.failed} recipient(s).`);
+    } else if (event.failed > 0) {
+      this.resultMessage = `Broadcast completed: ${event.sent} sent, ${event.failed} failed.`;
+      this.resultType = 'success';
+      this.notification.warning(`Broadcast: ${event.sent} sent, ${event.failed} failed.`);
+    } else {
+      this.resultMessage = `Broadcast successful! ${event.sent} message(s) delivered.`;
+      this.resultType = 'success';
+      this.notification.success(`Broadcast sent to ${event.sent} subscribers.`);
+    }
+    this.broadcastProgress = null;
+    this.cdr.markForCheck();
   }
 }

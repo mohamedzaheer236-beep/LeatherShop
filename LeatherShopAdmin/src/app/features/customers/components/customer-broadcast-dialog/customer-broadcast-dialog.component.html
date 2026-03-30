@@ -214,6 +214,22 @@
         </div>
       }
     </div>
+
+    @if (sending && broadcastProgress && broadcastProgress.total > 0) {
+      <div class="status-banner status-sending" style="margin-top:12px">
+        <div class="status-icon"><i class="pi pi-spin pi-spinner"></i></div>
+        <div class="status-content">
+          <span class="status-title">Sending Broadcast</span>
+          <span class="status-detail">{{ sendResultMessage }}</span>
+          <div class="progress-bar-wrapper">
+            <div class="progress-bar">
+              <div class="progress-fill" [style.width.%]="(broadcastProgress.sent + broadcastProgress.failed) / broadcastProgress.total * 100"></div>
+            </div>
+            <span class="progress-text">{{ broadcastProgress.sent + broadcastProgress.failed }} / {{ broadcastProgress.total }}</span>
+          </div>
+        </div>
+      </div>
+    }
   </form>
     <ng-template pTemplate="footer">
       <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="close()" icon="pi pi-times"></p-button>

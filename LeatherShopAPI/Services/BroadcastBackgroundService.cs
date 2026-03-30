@@ -8,6 +8,8 @@ using LeatherShopAPI.Models;
 using LeatherShopAPI.Models.WhatsApp;
 using LeatherShopAPI.Services.Interfaces;
 using LeatherShopAPI.Services.ChatBot;
+using Microsoft.AspNetCore.SignalR;
+using LeatherShopAPI.Hubs;
 
 namespace LeatherShopAPI.Services;
 
@@ -52,6 +54,7 @@ public sealed class BroadcastBackgroundService : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _config;
     private readonly ILogger<BroadcastBackgroundService> _logger;
+    private readonly IHubContext<NotificationHub> _hub;
 
     /// <summary>Max concurrent WhatsApp API calls per batch.</summary>
     private const int BatchSize = 10;
@@ -62,16 +65,24 @@ public sealed class BroadcastBackgroundService : BackgroundService
     /// <summary>Save DB progress every N messages.</summary>
     private const int BatchSaveInterval = 50;
 
+    /// <summary>After this many messages, pause for an extra WaveDelayMs to spread load and reduce Meta spam detection.</summary>
+    private const int WaveSize = 100;
+
+    /// <summary>Extra delay (ms) between waves to reduce Meta's per-user marketing frequency cap triggers.</summary>
+    private const int WaveDelayMs = 2000;
+
     public BroadcastBackgroundService(
         BroadcastChannel channel,
         IServiceScopeFactory scopeFactory,
         IConfiguration config,
-        ILogger<BroadcastBackgroundService> logger)
+        ILogger<BroadcastBackgroundService> logger,
+        IHubContext<NotificationHub> hub)
     {
         _channel = channel;
         _scopeFactory = scopeFactory;
         _config = config;
         _logger = logger;
+        _hub = hub;
     }
 
     /// <summary>
@@ -351,6 +362,25 @@ public sealed class BroadcastBackgroundService : BackgroundService
                 await SaveProgressAsync(broadcastId, Volatile.Read(ref sent), Volatile.Read(ref failed), processedPhones);
             }
 
+            // Emit real-time progress to admin dashboard via SignalR
+            await _hub.Clients.Group("admins").SendAsync("BroadcastProgress", new
+            {
+                broadcastId,
+                sent = Volatile.Read(ref sent),
+                failed = Volatile.Read(ref failed),
+                total = broadcast.TotalRecipients,
+                status = "processing"
+            }, ct);
+
+            // Wave throttle: extra pause every WaveSize messages to spread load
+            if (totalProcessed % WaveSize == 0 && !ct.IsCancellationRequested)
+            {
+                _logger.LogInformation("Broadcast {BroadcastId}: wave pause after {Processed}/{Total}",
+                    broadcastId, totalProcessed, remaining.Count);
+                try { await Task.Delay(WaveDelayMs, ct); }
+                catch (OperationCanceledException) { /* handled below */ }
+            }
+
             // Throttle: pause between batches to avoid Meta per-second rate limit
             if (!ct.IsCancellationRequested)
             {
@@ -381,6 +411,16 @@ public sealed class BroadcastBackgroundService : BackgroundService
 
         // Normal completion - mark done
         await MarkCompletedAsync(broadcastId, sent, failed, processedPhones);
+
+        // Emit final SignalR event
+        await _hub.Clients.Group("admins").SendAsync("BroadcastProgress", new
+        {
+            broadcastId,
+            sent,
+            failed,
+            total = broadcast.TotalRecipients,
+            status = "completed"
+        }, CancellationToken.None);
 
         _logger.LogInformation(
             "Broadcast {BroadcastId} completed. Sent: {Sent}, Failed: {Failed}",
