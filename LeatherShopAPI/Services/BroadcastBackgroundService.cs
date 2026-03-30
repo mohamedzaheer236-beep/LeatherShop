@@ -294,11 +294,16 @@ public sealed class BroadcastBackgroundService : BackgroundService
             }
         }
         // Process in chunks of BatchSize
-        // Track consecutive failures to detect template-level errors (e.g. 132005 text too long)
-        // that will fail identically for ALL recipients — abort early instead of wasting API calls.
-        int consecutiveFailures = 0;
-        string? lastErrorMessage = null;
-        const int ConsecutiveFailThreshold = 30; // abort after 30 consecutive failures with same error
+        // Track consecutive failures to detect TEMPLATE-LEVEL errors (e.g. 132005 text too long,
+        // 132001 template not found) that fail identically for ALL recipients.
+        // Per-user errors (131049 marketing cap, 131026 not on WhatsApp) are NOT counted
+        // because they vary per recipient — the next user may succeed.
+        int consecutiveTemplateFailures = 0;
+        string? lastTemplateError = null;
+        const int TemplateFailThreshold = 20; // abort after 20 consecutive template-level failures
+
+        // Known per-user error codes (do NOT trigger early abort)
+        string[] perUserErrors = ["131049", "131026", "131047", "131051"];
 
         var batches = remaining.Chunk(BatchSize);
         foreach (var batch in batches)
@@ -306,16 +311,16 @@ public sealed class BroadcastBackgroundService : BackgroundService
             if (ct.IsCancellationRequested) break;
 
             // Check early-abort condition before processing next batch
-            if (consecutiveFailures >= ConsecutiveFailThreshold)
+            if (consecutiveTemplateFailures >= TemplateFailThreshold)
             {
                 _logger.LogWarning(
-                    "Broadcast {BroadcastId}: aborting after {Count} consecutive failures. Error: {Error}",
-                    broadcastId, consecutiveFailures, lastErrorMessage);
+                    "Broadcast {BroadcastId}: aborting after {Count} consecutive template-level failures. Error: {Error}",
+                    broadcastId, consecutiveTemplateFailures, lastTemplateError);
 
                 // Mark all remaining Queued recipients as Failed
                 using var abortScope = _scopeFactory.CreateScope();
                 var abortDb = abortScope.ServiceProvider.GetRequiredService<AppDbContext>();
-                var abortError = $"Broadcast aborted: {consecutiveFailures} consecutive failures. Last error: {lastErrorMessage?[..Math.Min(lastErrorMessage.Length, 500)]}";
+                var abortError = $"Broadcast aborted (template error): {lastTemplateError?[..Math.Min(lastTemplateError?.Length ?? 0, 500)]}";
 
                 var abortedCount = await abortDb.BroadcastRecipients
                     .Where(r => r.BroadcastMessageId == broadcastId && r.Status == BroadcastDeliveryStatus.Queued)
@@ -325,11 +330,9 @@ public sealed class BroadcastBackgroundService : BackgroundService
                         .SetProperty(r => r.FailedAt, DateTime.UtcNow), ct);
 
                 Interlocked.Add(ref failed, abortedCount);
-                _logger.LogWarning("Broadcast {BroadcastId}: marked {Count} queued recipients as failed (early abort)", broadcastId, abortedCount);
+                _logger.LogWarning("Broadcast {BroadcastId}: marked {Count} queued recipients as failed (template-level abort)", broadcastId, abortedCount);
                 break;
             }
-
-            int batchFailed = 0;
 
             var tasks = batch.Select(async phone =>
             {
@@ -363,7 +366,7 @@ public sealed class BroadcastBackgroundService : BackgroundService
                             .SetProperty(r => r.OriginalSentAt, DateTime.UtcNow), ct);
 
                     Interlocked.Increment(ref sent);
-                    Interlocked.Exchange(ref consecutiveFailures, 0); // reset on success
+                    Interlocked.Exchange(ref consecutiveTemplateFailures, 0); // reset on success
                 }
                 catch (Exception ex)
                 {
@@ -390,10 +393,13 @@ public sealed class BroadcastBackgroundService : BackgroundService
                     }
 
                     Interlocked.Increment(ref failed);
-                    Interlocked.Increment(ref batchFailed);
-                    // Track consecutive failures for early-abort detection
-                    Interlocked.Increment(ref consecutiveFailures);
-                    lastErrorMessage = ex.Message;
+                    // Only count template-level errors for early-abort (not per-user errors)
+                    var isPerUserError = perUserErrors.Any(code => ex.Message.Contains(code));
+                    if (!isPerUserError)
+                    {
+                        Interlocked.Increment(ref consecutiveTemplateFailures);
+                        lastTemplateError = ex.Message;
+                    }
                 }
                 finally
                 {
