@@ -58,7 +58,7 @@ public class ProductHandler
         );
     }
 
-    public async Task SendProductDetails(string to, int productId, CancellationToken ct = default)
+    public async Task SendProductDetails(string to, int productId, int? selectedImageId = null, CancellationToken ct = default)
     {
         var product = await _db.Products.Include(p => p.Images)
             .FirstOrDefaultAsync(p => p.Id == productId, ct);
@@ -103,7 +103,7 @@ public class ProductHandler
                     return;
                 }
 
-                await SendIndividualImages(to, product, details, imageUrls, baseUrl, ct);
+                await SendIndividualImages(to, product, details, imageUrls, baseUrl, selectedImageId, ct);
                 return;
             }
             catch (Exception ex)
@@ -113,7 +113,7 @@ public class ProductHandler
         }
 
         // Text fallback
-        await SendProductDetailsButtons(to, product, details, ct);
+        await SendProductDetailsButtons(to, product, details, selectedImageId, ct);
     }
 
     public async Task SendProductDetailsText(string to, int productId, int? selectedImageId = null, CancellationToken ct = default)
@@ -206,7 +206,7 @@ public class ProductHandler
     }
 
     private async Task SendIndividualImages(string to, Product product, string details,
-        List<string> imageUrls, string baseUrl, CancellationToken ct = default)
+        List<string> imageUrls, string baseUrl, int? selectedImageId = null, CancellationToken ct = default)
     {
         var caption = details.Length > 1024 ? details[..1021] + "..." : details;
 
@@ -223,6 +223,9 @@ public class ProductHandler
         }
 
         // Send action buttons separately (image messages don't support inline buttons)
+        var addCartPayload = selectedImageId.HasValue
+            ? $"addcart_{product.Id}_pi{selectedImageId.Value}"
+            : $"addcart_{product.Id}";
         try
         {
             await _bot.SendButtons(
@@ -230,7 +233,7 @@ public class ProductHandler
                 bodyText: "What would you like to do?",
                 buttons: new List<ButtonOption>
                 {
-                    new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
+                    new() { Id = addCartPayload, Title = "🛒 Add to Cart" },
                     new() { Id = "browse_categories", Title = "🔙 Categories" },
                     new() { Id = "main_menu", Title = "🏠 Main Menu" }
                 },
@@ -246,8 +249,11 @@ public class ProductHandler
         await TrySendProductVideo(to, product, ct);
     }
 
-    private async Task SendProductDetailsButtons(string to, Product product, string details, CancellationToken ct = default)
+    private async Task SendProductDetailsButtons(string to, Product product, string details, int? selectedImageId = null, CancellationToken ct = default)
     {
+        var addCartPayload = selectedImageId.HasValue
+            ? $"addcart_{product.Id}_pi{selectedImageId.Value}"
+            : $"addcart_{product.Id}";
         var bodyText = details.Length > 1024 ? details[..1021] + "..." : details;
         try
         {
@@ -256,7 +262,7 @@ public class ProductHandler
                 bodyText: bodyText,
                 buttons: new List<ButtonOption>
                 {
-                    new() { Id = $"addcart_{product.Id}", Title = "🛒 Add to Cart" },
+                    new() { Id = addCartPayload, Title = "🛒 Add to Cart" },
                     new() { Id = "browse_categories", Title = "🔙 Categories" },
                     new() { Id = "main_menu", Title = "🏠 Main Menu" }
                 },

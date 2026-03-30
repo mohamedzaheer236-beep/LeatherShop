@@ -218,7 +218,7 @@ public class ChatBotService : IChatBotService
         {
             if (int.TryParse(input.Replace("prod_", ""), out var productId))
             {
-                await _productHandler.SendProductDetails(phone, productId, ct);
+                await _productHandler.SendProductDetails(phone, productId, ct: ct);
                 return;
             }
             await _bot.SendText(phone, "Invalid product. Type *menu* to browse.", ct);
@@ -320,12 +320,12 @@ public class ChatBotService : IChatBotService
             return;
         }
 
-        // Buy Now (quick-reply from broadcast template) → show product details with Add to Cart
+        // Buy Now (quick-reply from broadcast template) → show full product details (images + video + buttons)
         if (input == "buy now")
         {
             var (product, imageId) = await _productHandler.ResolveBroadcastProduct(phone, ct);
             if (product != null)
-                await _productHandler.SendProductDetailsText(phone, product.Id, imageId, ct);
+                await _productHandler.SendProductDetails(phone, product.Id, imageId, ct);
             return;
         }
 
