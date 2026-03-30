@@ -170,9 +170,9 @@ public class ProductHandler
             var cardCount = Math.Min(carouselImageUrls.Count, 4);
             var templateName = cardCount switch
             {
-                2 => "product_gallery",
-                3 => "product_gallery_3",
-                _ => "product_gallery_4"
+                2 => "product_buy",
+                3 => "product_buy_3",
+                _ => "product_buy_4"
             };
 
             var carouselImageIds = imageUrls
