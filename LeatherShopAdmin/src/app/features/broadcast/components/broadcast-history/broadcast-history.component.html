@@ -249,6 +249,7 @@
         [first]="(recipientsPage - 1) * recipientsPageSize"
         [rows]="recipientsPageSize"
         [totalRecords]="recipientsTotalRecords"
+        [dropdownAppendTo]="'body'"
         [rowsPerPageOptions]="[20, 50, 100]"
         (onPageChange)="onRecipientsPageChange($event)"
         [showCurrentPageReport]="true"
