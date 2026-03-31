@@ -76,7 +76,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   hasActiveFilter = false;
 
   // Animated display values
-  animatedValues: Record<string, number> = {};
+  animatedValues: Record<string, number | undefined> = {};
 
   // Chart data
   revenueChartData: any;
