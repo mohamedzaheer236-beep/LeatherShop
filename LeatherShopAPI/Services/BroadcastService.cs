@@ -240,10 +240,7 @@ public class BroadcastService : IBroadcastService
                 r.SentAt,
                 r.DeliveredAt,
                 r.ReadAt,
-                r.FailedAt,
-                r.RetryCount,
-                r.NextRetryAt,
-                r.RetryHistoryJson
+                r.FailedAt
             })
             .ToListAsync(ct);
 
@@ -259,12 +256,7 @@ public class BroadcastService : IBroadcastService
             SentAt = r.SentAt,
             DeliveredAt = r.DeliveredAt,
             ReadAt = r.ReadAt,
-            FailedAt = r.FailedAt,
-            RetryCount = r.RetryCount,
-            NextRetryAt = r.NextRetryAt,
-            RetryHistory = string.IsNullOrEmpty(r.RetryHistoryJson)
-                ? null
-                : JsonSerializer.Deserialize<List<RetryAttemptEntryDto>>(r.RetryHistoryJson)
+            FailedAt = r.FailedAt
         }).ToList();
 
         return new PaginatedResult<BroadcastRecipientDto>
@@ -296,16 +288,7 @@ public class BroadcastService : IBroadcastService
             Sent = lookup.GetValueOrDefault(BroadcastDeliveryStatus.Sent),
             Delivered = lookup.GetValueOrDefault(BroadcastDeliveryStatus.Delivered),
             Read = lookup.GetValueOrDefault(BroadcastDeliveryStatus.Read),
-            Failed = lookup.GetValueOrDefault(BroadcastDeliveryStatus.Failed),
-            RetryScheduled = await _db.BroadcastRecipients
-                .CountAsync(r => r.BroadcastMessageId == broadcastId
-                                 && r.Status == BroadcastDeliveryStatus.Failed
-                                 && r.NextRetryAt != null, ct),
-            RetryableCount = await _db.BroadcastRecipients
-                .CountAsync(r => r.BroadcastMessageId == broadcastId
-                                 && r.Status == BroadcastDeliveryStatus.Failed
-                                 && r.RetryCount < 3
-                                 && r.ErrorDetail != null && r.ErrorDetail.Contains("131049"), ct)
+            Failed = lookup.GetValueOrDefault(BroadcastDeliveryStatus.Failed)
         };
     }
 

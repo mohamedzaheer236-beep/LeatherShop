@@ -107,11 +107,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<BroadcastChannel>();
         services.AddHostedService<BroadcastBackgroundService>();
 
-        // Broadcast retry: retries recipients who failed with 131049 (per-user marketing cap)
-        // Runs every 30 min OR immediately when admin clicks "Retry Failed"
-        // Exponential backoff: 24h → 48h → 72h, max 3 retries
-        services.AddSingleton<BroadcastRetryChannel>();
-        services.AddHostedService<BroadcastRetryBackgroundService>();
+        // NOTE: BroadcastRetryBackgroundService was removed.
+        // Retrying 131049 (per-user marketing cap) errors was flagged by Meta as spam.
+        // Error 131049 means "stop messaging this user" — retrying it fights Meta's
+        // spam protection and risks account restriction/ban.
 
         // Chat cleanup: deletes messages older than 30 days (runs daily)
         services.AddHostedService<ChatCleanupBackgroundService>();

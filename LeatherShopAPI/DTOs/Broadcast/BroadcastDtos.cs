@@ -84,17 +84,6 @@ public class BroadcastRecipientDto
     public DateTime? DeliveredAt { get; set; }
     public DateTime? ReadAt { get; set; }
     public DateTime? FailedAt { get; set; }
-    public int RetryCount { get; set; }
-    public DateTime? NextRetryAt { get; set; }
-    public List<RetryAttemptEntryDto>? RetryHistory { get; set; }
-}
-
-public class RetryAttemptEntryDto
-{
-    public int Attempt { get; set; }
-    public DateTime Timestamp { get; set; }
-    public bool Succeeded { get; set; }
-    public string? Error { get; set; }
 }
 
 public class BroadcastDeliverySummaryDto
@@ -105,6 +94,4 @@ public class BroadcastDeliverySummaryDto
     public int Delivered { get; set; }
     public int Read { get; set; }
     public int Failed { get; set; }
-    public int RetryScheduled { get; set; }
-    public int RetryableCount { get; set; }
 }

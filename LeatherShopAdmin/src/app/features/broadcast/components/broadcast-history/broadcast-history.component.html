@@ -192,12 +192,6 @@
           <span class="summary-count">{{ summary.failed }}</span>
           <span class="summary-label">Failed</span>
         </div>
-        @if (summary.retryScheduled > 0) {
-          <div class="summary-item summary-retry">
-            <span class="summary-count">{{ summary.retryScheduled }}</span>
-            <span class="summary-label">Retry Pending</span>
-          </div>
-        }
       </div>
     }
 
@@ -223,7 +217,6 @@
           <th>Sent At</th>
           <th>Delivered At</th>
           <th>Read At</th>
-          <th>Retry</th>
           <th>Error</th>
         </tr>
       </ng-template>
@@ -235,20 +228,6 @@
           <td>{{ (r.originalSentAt || r.sentAt) ? ((r.originalSentAt || r.sentAt) | date:'dd MMM HH:mm:ss') : '—' }}</td>
           <td>{{ r.deliveredAt ? (r.deliveredAt | date:'dd MMM HH:mm:ss') : '—' }}</td>
           <td>{{ r.readAt ? (r.readAt | date:'dd MMM HH:mm:ss') : '—' }}</td>
-          <td>
-            @if (r.retryCount > 0 || r.nextRetryAt) {
-              <div class="retry-cell">
-                <span class="retry-count">{{ r.retryCount }}/3</span>
-                <i class="pi pi-eye retry-eye" (click)="selectedRetryRecipient = r; retryPanel.toggle($event)"
-                   pTooltip="View retry history" tooltipPosition="left"></i>
-                @if (r.nextRetryAt) {
-                  <i class="pi pi-clock retry-pending" [pTooltip]="'Next retry: ' + (r.nextRetryAt | date:'dd MMM HH:mm')" tooltipPosition="left"></i>
-                }
-              </div>
-            } @else {
-              <span>—</span>
-            }
-          </td>
           <td class="error-cell">
             @if (r.errorDetail) {
               <span [pTooltip]="r.errorDetail" tooltipPosition="left" class="error-text">{{ r.errorDetail }}</span>
@@ -260,160 +239,10 @@
       </ng-template>
       <ng-template pTemplate="emptymessage">
         <tr>
-          <td colspan="8" class="text-center p-4">No recipients found.</td>
+          <td colspan="7" class="text-center p-4">No recipients found.</td>
         </tr>
       </ng-template>
     </p-table>
-
-    <!-- Retry History Overlay Panel -->
-    <p-overlayPanel #retryPanel [style]="{'min-width': '520px', 'max-width': '600px'}" appendTo="body">
-      @if (selectedRetryRecipient) {
-        <div class="retry-history-panel">
-          <div class="retry-header">
-            <i class="pi pi-history"></i>
-            <span>{{ selectedRetryRecipient.name || selectedRetryRecipient.phone }}</span>
-          </div>
-
-          <table class="retry-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Date &amp; Time</th>
-                <th>Action</th>
-                <th>Result</th>
-                <th>Error</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- Original send row -->
-              <tr>
-                <td><span class="attempt-badge original">1st</span></td>
-                <td class="dt-cell">{{ (selectedRetryRecipient.originalSentAt || selectedRetryRecipient.sentAt) | date:'dd MMM yyyy, HH:mm:ss' }}</td>
-                <td>Initial Send</td>
-                <td>
-                  <span class="result-badge failed">
-                    <i class="pi pi-times-circle"></i> Failed
-                  </span>
-                </td>
-                <td class="error-cell-mini">
-                  <span class="error-truncate" [pTooltip]="'Original send failed — triggered retry'" tooltipPosition="left">
-                    Triggered retry
-                  </span>
-                </td>
-              </tr>
-
-              <!-- Retry attempt rows from history -->
-              @if (selectedRetryRecipient.retryHistory && selectedRetryRecipient.retryHistory.length > 0) {
-                @for (entry of selectedRetryRecipient.retryHistory; track entry.attempt) {
-                  <tr>
-                    <td><span class="attempt-badge retry">R{{ entry.attempt }}</span></td>
-                    <td class="dt-cell">{{ entry.timestamp | date:'dd MMM yyyy, HH:mm:ss' }}</td>
-                    <td>Retry #{{ entry.attempt }}</td>
-                    <td>
-                      @if (entry.succeeded) {
-                        <span class="result-badge success">
-                          <i class="pi pi-check-circle"></i> Accepted
-                        </span>
-                      } @else {
-                        <span class="result-badge failed">
-                          <i class="pi pi-times-circle"></i> Failed
-                        </span>
-                      }
-                    </td>
-                    <td class="error-cell-mini">
-                      @if (entry.error) {
-                        <span class="error-truncate" [pTooltip]="entry.error" tooltipPosition="left">
-                          {{ entry.error.length > 40 ? entry.error.substring(0, 40) + '...' : entry.error }}
-                        </span>
-                      } @else {
-                        <span class="no-error">—</span>
-                      }
-                    </td>
-                  </tr>
-                }
-              } @else if (selectedRetryRecipient.retryCount > 0) {
-                <!-- Fallback for records before retry history tracking -->
-                <tr>
-                  <td><span class="attempt-badge retry">R{{ selectedRetryRecipient.retryCount }}</span></td>
-                  <td class="dt-cell">
-                    @if (selectedRetryRecipient.status === 'Failed') {
-                      {{ selectedRetryRecipient.failedAt | date:'dd MMM yyyy, HH:mm:ss' }}
-                    } @else {
-                      {{ selectedRetryRecipient.sentAt | date:'dd MMM yyyy, HH:mm:ss' }}
-                    }
-                  </td>
-                  <td>Retry #{{ selectedRetryRecipient.retryCount }}</td>
-                  <td>
-                    @if (selectedRetryRecipient.status === 'Failed') {
-                      <span class="result-badge failed"><i class="pi pi-times-circle"></i> Failed</span>
-                    } @else {
-                      <span class="result-badge success"><i class="pi pi-check-circle"></i> Accepted</span>
-                    }
-                  </td>
-                  <td class="error-cell-mini"><span class="no-error">—</span></td>
-                </tr>
-              }
-
-              <!-- Next retry scheduled row -->
-              @if (selectedRetryRecipient.nextRetryAt) {
-                <tr class="pending-row">
-                  <td><span class="attempt-badge pending">Next</span></td>
-                  <td class="dt-cell">{{ selectedRetryRecipient.nextRetryAt | date:'dd MMM yyyy, HH:mm' }}</td>
-                  <td>Scheduled</td>
-                  <td>
-                    <span class="result-badge pending">
-                      <i class="pi pi-clock"></i> Waiting
-                    </span>
-                  </td>
-                  <td class="error-cell-mini"><span class="no-error">—</span></td>
-                </tr>
-              }
-            </tbody>
-          </table>
-
-          <!-- Final Outcome -->
-          <div class="final-outcome" [ngClass]="{
-            'outcome-delivered': selectedRetryRecipient.status === 'Delivered' || selectedRetryRecipient.status === 'Read',
-            'outcome-failed': selectedRetryRecipient.status === 'Failed',
-            'outcome-pending': selectedRetryRecipient.status === 'Sent' || selectedRetryRecipient.status === 'Queued'
-          }">
-            @switch (selectedRetryRecipient.status) {
-              @case ('Delivered') {
-                <i class="pi pi-check-circle"></i>
-                <div class="outcome-text">
-                  <strong>Delivered</strong>
-                  <span>Message reached the user's phone{{ selectedRetryRecipient.deliveredAt ? ' on ' + (selectedRetryRecipient.deliveredAt | date:'dd MMM yyyy, HH:mm') : '' }}</span>
-                </div>
-              }
-              @case ('Read') {
-                <i class="pi pi-eye"></i>
-                <div class="outcome-text">
-                  <strong>Read</strong>
-                  <span>Message was read by the user{{ selectedRetryRecipient.readAt ? ' on ' + (selectedRetryRecipient.readAt | date:'dd MMM yyyy, HH:mm') : '' }}</span>
-                </div>
-              }
-              @case ('Failed') {
-                <i class="pi pi-times-circle"></i>
-                <div class="outcome-text">
-                  <strong>Not Delivered</strong>
-                  <span>Message never reached the user's phone{{ selectedRetryRecipient.retryCount >= 3 ? ' — all 3 retries exhausted' : '' }}</span>
-                  @if (selectedRetryRecipient.errorDetail) {
-                    <span class="outcome-error"><i class="pi pi-info-circle"></i> {{ selectedRetryRecipient.errorDetail }}</span>
-                  }
-                </div>
-              }
-              @default {
-                <i class="pi pi-clock"></i>
-                <div class="outcome-text">
-                  <strong>Pending</strong>
-                  <span>Waiting for delivery confirmation from WhatsApp</span>
-                </div>
-              }
-            }
-          </div>
-        </div>
-      }
-    </p-overlayPanel>
 
     @if (recipientsTotalRecords > recipientsPageSize) {
       <p-paginator

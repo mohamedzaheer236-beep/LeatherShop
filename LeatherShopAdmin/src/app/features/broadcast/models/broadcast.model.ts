@@ -70,16 +70,6 @@ export interface BroadcastRecipient {
   deliveredAt: string | null;
   readAt: string | null;
   failedAt: string | null;
-  retryCount: number;
-  nextRetryAt: string | null;
-  retryHistory: RetryAttemptEntry[] | null;
-}
-
-export interface RetryAttemptEntry {
-  attempt: number;
-  timestamp: string;
-  succeeded: boolean;
-  error: string | null;
 }
 
 export interface BroadcastDeliverySummary {
@@ -89,8 +79,6 @@ export interface BroadcastDeliverySummary {
   delivered: number;
   read: number;
   failed: number;
-  retryScheduled: number;
-  retryableCount: number;
 }
 
 

@@ -1,6 +1,5 @@
-import { Component, EventEmitter, Output, ChangeDetectionStrategy, ChangeDetectorRef, inject, OnInit, OnDestroy } from '@angular/core';
-import { DatePipe, NgClass } from '@angular/common';
-import { Subscription } from 'rxjs';
+import { Component, EventEmitter, Output, ChangeDetectionStrategy, ChangeDetectorRef, inject, OnInit } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { PaginatorModule, PaginatorState } from 'primeng/paginator';
 import { TableModule, TableLazyLoadEvent } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -8,28 +7,25 @@ import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
 import { TooltipModule } from 'primeng/tooltip';
-import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { FormsModule } from '@angular/forms';
 import { InputTextModule } from 'primeng/inputtext';
 import { CalendarModule } from 'primeng/calendar';
 import { BroadcastHistory, BroadcastRecipient, BroadcastDeliverySummary } from '../../models/broadcast.model';
 import { BroadcastService } from '../../services/broadcast.service';
 import { NotificationService } from '../../../../shared/services/notification.service';
-import { SignalRService } from '../../../../core/services/signalr.service';
 
 @Component({
   selector: 'app-broadcast-history',
   standalone: true,
-  imports: [DatePipe, NgClass, TableModule, TagModule, PaginatorModule, DialogModule, ButtonModule, DropdownModule, TooltipModule, OverlayPanelModule, FormsModule, InputTextModule, CalendarModule],
+  imports: [DatePipe, TableModule, TagModule, PaginatorModule, DialogModule, ButtonModule, DropdownModule, TooltipModule, FormsModule, InputTextModule, CalendarModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './broadcast-history.component.html',
   styleUrl: './broadcast-history.component.scss',
 })
-export class BroadcastHistoryComponent implements OnInit, OnDestroy {
+export class BroadcastHistoryComponent implements OnInit {
   private broadcastService = inject(BroadcastService);
   private cdr = inject(ChangeDetectorRef);
   private notification = inject(NotificationService);
-  private signalR = inject(SignalRService);
 
   // History table state — self-managed
   history: BroadcastHistory[] = [];
@@ -73,8 +69,6 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
   recipientsLoading = false;
   summary: BroadcastDeliverySummary | null = null;
   statusFilter = '';
-  private liveRefreshSub: Subscription | null = null;
-  selectedRetryRecipient: BroadcastRecipient | null = null;
 
   statusFilterOptions = [
     { label: 'All Statuses', value: '' },
@@ -183,25 +177,11 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
     this.loadSummary(broadcast.id);
     this.loadRecipients(broadcast.id);
 
-    // Live-refresh summary + recipients whenever the background retry emits progress for this broadcast
-    this.liveRefreshSub?.unsubscribe();
-    this.liveRefreshSub = this.signalR.broadcastRetryProgress$.subscribe(event => {
-      if (event.broadcastId !== broadcast.id) return;
-      this.cdr.markForCheck();
 
-      // Refresh summary + recipients every 10 processed (progress events fire every 10)
-      this.loadSummary(broadcast.id);
-      this.loadRecipients(broadcast.id);
-
-      if (event.status === 'completed') {
-        this.loadHistory();
-      }
-    });
   }
 
   onDialogHide(): void {
-    this.liveRefreshSub?.unsubscribe();
-    this.liveRefreshSub = null;
+    // Dialog closed — no cleanup needed
   }
 
   onRecipientsPageChange(event: PaginatorState): void {
@@ -229,10 +209,6 @@ export class BroadcastHistoryComponent implements OnInit, OnDestroy {
       case 'Failed': return 'danger';
       default: return 'secondary';
     }
-  }
-
-  ngOnDestroy(): void {
-    this.liveRefreshSub?.unsubscribe();
   }
 
   private loadRecipients(broadcastId: number): void {
