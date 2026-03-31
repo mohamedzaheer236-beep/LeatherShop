@@ -42,6 +42,10 @@ public class BroadcastService : IBroadcastService
             var query = _db.Customers.Where(c => c.IsSubscribed);
             if (!string.IsNullOrEmpty(dto.Category) && Enum.TryParse<CustomerCategory>(dto.Category, ignoreCase: true, out var cat))
                 query = query.Where(c => c.Category == cat);
+            else
+                // Exclude UtilityOnly customers from "All Subscribers" marketing broadcasts.
+                // They hit Meta's per-user marketing frequency cap (131049) and should only receive utility templates.
+                query = query.Where(c => c.Category != CustomerCategory.UtilityOnly);
 
             recipients = await query
                 .Select(c => c.PhoneNumber)

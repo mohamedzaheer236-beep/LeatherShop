@@ -2,6 +2,7 @@ export const CUSTOMER_CATEGORIES = [
   { label: 'Reseller', value: 'Reseller' },
   { label: 'Direct Corporate', value: 'DirectCorporate' },
   { label: 'Friends And Family', value: 'FriendsAndFamily' },
+  { label: 'Utility Only', value: 'UtilityOnly' },
 ];
 
 export interface Customer {

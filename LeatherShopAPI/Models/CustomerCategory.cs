@@ -4,5 +4,6 @@ public enum CustomerCategory
 {
     Reseller,
     DirectCorporate,
-    FriendsAndFamily
+    FriendsAndFamily,
+    UtilityOnly
 }

@@ -24,6 +24,7 @@ export function getCategorySeverity(value: string): TagSeverity {
     case 'reseller': return 'info';
     case 'directcorporate': return 'secondary';
     case 'friendsandfamily': return 'warning';
+    case 'utilityonly': return 'contrast';
     default: return 'secondary';
   }
 }

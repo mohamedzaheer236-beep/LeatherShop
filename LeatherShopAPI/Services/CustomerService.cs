@@ -147,7 +147,7 @@ public class CustomerService : ICustomerService
             Address = dto.Address?.Trim() ?? "",
             IsSubscribed = true,
             Category = Enum.TryParse<CustomerCategory>(dto.Category, ignoreCase: true, out var cat)
-                ? cat : throw new ArgumentException($"Invalid category: {dto.Category}. Valid values: Reseller, DirectCorporate, FriendsAndFamily")
+                ? cat : throw new ArgumentException($"Invalid category: {dto.Category}. Valid values: Reseller, DirectCorporate, FriendsAndFamily, UtilityOnly")
         };
         _db.Customers.Add(customer);
         await _db.SaveChangesAsync(ct);

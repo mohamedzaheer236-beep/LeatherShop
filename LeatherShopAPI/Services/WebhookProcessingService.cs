@@ -357,6 +357,20 @@ public class WebhookProcessingService : IWebhookProcessingService
                     // Error 131049 = per-user marketing frequency cap.
                     // Previously retried with backoff, but Meta flagged this as spam behavior.
                     // Now treated as a permanent failure — no retry scheduling.
+                    // Auto-categorize the customer as UtilityOnly so future marketing broadcasts skip them.
+                    if (error.Code == 131049)
+                    {
+                        var customer = await _db.Customers.FirstOrDefaultAsync(
+                            c => c.PhoneNumber == recipient.Phone, ct);
+                        if (customer != null && customer.Category != CustomerCategory.UtilityOnly)
+                        {
+                            customer.Category = CustomerCategory.UtilityOnly;
+                            customer.UpdatedAt = DateTime.UtcNow;
+                            _logger.LogInformation(
+                                "Auto-categorized customer {Phone} as UtilityOnly due to 131049 frequency cap",
+                                recipient.Phone);
+                        }
+                    }
                 }
                 break;
 

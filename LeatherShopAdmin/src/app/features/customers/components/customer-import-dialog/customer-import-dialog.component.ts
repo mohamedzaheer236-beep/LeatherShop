@@ -279,7 +279,7 @@ export class CustomerImportDialogComponent {
           this.errors.push({
             row: row.row,
             field: 'Category',
-            message: `Category "${row.category}" is invalid. Must be: Reseller, DirectCorporate, or FriendsAndFamily.`,
+            message: `Category "${row.category}" is invalid. Must be: Reseller, DirectCorporate, FriendsAndFamily, or UtilityOnly.`,
           });
         }
       }
