@@ -95,6 +95,7 @@ export class CustomersComponent implements OnInit {
   pageSize = 25;
   sortField = 'createdAt';
   sortOrder = -1;
+  private _loadId = 0;
 
   // Column filter state
   showFilters = false;
@@ -123,7 +124,6 @@ export class CustomersComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.loadCustomers(1);
     this.loadCounts();
   }
 
@@ -159,13 +159,15 @@ export class CustomersComponent implements OnInit {
   loadCustomers(page = 1): void {
     this.loading = true;
     this.cdr.markForCheck();
+    const loadId = ++this._loadId;
     const sortOrderStr = this.sortOrder === 1 ? 'asc' : 'desc';
-    const subscribedOnly = this.filters.subscribedOnly === 'true' ? true : undefined;
+    const subscribedOnly = this.filters.subscribedOnly === 'true' ? true : this.filters.subscribedOnly === 'false' ? false : undefined;
     this.customerService
       .getCustomers(subscribedOnly, undefined, this.filters.category || undefined, page, this.pageSize,
         this.sortField, sortOrderStr, this.getActiveFilters())
       .subscribe({
         next: result => {
+          if (loadId !== this._loadId) return; // discard stale response
           this.customers = result.items.map(c => ({ ...c, selected: this._selectedMap.has(c.id) }));
           this.totalRecords = result.totalCount;
           this.allSelected = this.customers.length > 0 && this.customers.every(c => c.selected);
@@ -173,6 +175,7 @@ export class CustomersComponent implements OnInit {
           this.cdr.markForCheck();
         },
         error: () => {
+          if (loadId !== this._loadId) return;
           this.loading = false;
           this.cdr.markForCheck();
         },
@@ -313,10 +316,10 @@ export class CustomersComponent implements OnInit {
     const newValue = !customer.isSubscribed;
     this.customerService.toggleSubscription(customer.id, newValue).subscribe({
       next: () => {
-        customer.isSubscribed = newValue;
         this.notification.success(`Subscription ${newValue ? 'enabled' : 'disabled'}.`);
         this.loadCounts();
-        this.cdr.markForCheck();
+        // Reload list to respect active filters (e.g. subscribed-only)
+        this.loadCustomers();
       },
       error: () => {
         // Toast shown by error interceptor

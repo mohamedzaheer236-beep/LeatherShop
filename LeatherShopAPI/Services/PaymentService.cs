@@ -443,7 +443,7 @@ public class PaymentService : IPaymentService
                 $"Transaction ID: {order.PaymentId}\n\n" +
                 $"Your order is confirmed! We'll ship it soon. 🚚";
 
-            await _whatsApp.SendTextMessage(order.Customer.PhoneNumber, paymentMsg);
+            await _whatsApp.SendTextMessage(order.Customer.PhoneNumber, paymentMsg, ct);
             await SaveBotMessageToChat(order.CustomerId, paymentMsg, ct);
         }
         catch (Exception ex)
@@ -463,7 +463,7 @@ public class PaymentService : IPaymentService
                     $"👤 Customer: *{order.Customer.Name}* ({order.Customer.PhoneNumber})\n" +
                     $"💰 Amount: *₹{order.TotalAmount}*\n" +
                     $"💳 Transaction ID: {order.PaymentId}\n\n" +
-                    $"Check the dashboard for details.");
+                    $"Check the dashboard for details.", ct);
             }
         }
         catch (Exception ex)

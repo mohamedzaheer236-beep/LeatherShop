@@ -20,9 +20,12 @@ public class BroadcastRequestDto
     /// </summary>
     public string? ImageUrl { get; set; }
 
+    /// <summary>Explicit recipient phone numbers. Maximum 10,000 per broadcast.</summary>
+    [MaxLength(10000, ErrorMessage = "Cannot send to more than 10,000 recipients at once.")]
     public List<string>? PhoneNumbers { get; set; }
 
     /// <summary>Optional category filter — when set (and PhoneNumbers is empty), only subscribers of this category receive the broadcast.</summary>
+    [MaxLength(30)]
     public string? Category { get; set; }
 
     /// <summary>True if the selected template is a carousel type.</summary>

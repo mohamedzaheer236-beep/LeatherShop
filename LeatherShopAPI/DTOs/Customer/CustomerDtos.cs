@@ -104,6 +104,7 @@ public class UpdateCustomerDto
 
     public bool? IsSubscribed { get; set; }
 
+    [MaxLength(30, ErrorMessage = "Category cannot exceed 30 characters.")]
     public string? Category { get; set; }
 }
 

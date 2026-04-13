@@ -14,15 +14,13 @@ public class BroadcastService : IBroadcastService
 {
     private readonly AppDbContext _db;
     private readonly IWhatsAppService _whatsApp;
-    private readonly IConfiguration _config;
     private readonly BroadcastChannel _channel;
 
-    public BroadcastService(AppDbContext db, IWhatsAppService whatsApp, BroadcastChannel channel, IConfiguration config)
+    public BroadcastService(AppDbContext db, IWhatsAppService whatsApp, BroadcastChannel channel)
     {
         _db = db;
         _whatsApp = whatsApp;
         _channel = channel;
-        _config = config;
     }
 
     public async Task<BroadcastResultDto> SendBroadcastAsync(BroadcastRequestDto dto, CancellationToken ct = default)

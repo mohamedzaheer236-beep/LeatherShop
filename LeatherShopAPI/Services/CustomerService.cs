@@ -29,6 +29,8 @@ public class CustomerService : ICustomerService
 
         if (subscribedOnly == true)
             query = query.Where(c => c.IsSubscribed);
+        else if (subscribedOnly == false)
+            query = query.Where(c => !c.IsSubscribed);
 
         if (!string.IsNullOrEmpty(category) && Enum.TryParse<CustomerCategory>(category, ignoreCase: true, out var parsedCategory))
             query = query.Where(c => c.Category == parsedCategory);

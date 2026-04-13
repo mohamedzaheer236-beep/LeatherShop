@@ -82,6 +82,7 @@ public class AuthController : ControllerBase
     /// <summary>
     /// Logout - revokes the refresh token and clears the cookie.
     /// </summary>
+    [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout(CancellationToken ct)
     {

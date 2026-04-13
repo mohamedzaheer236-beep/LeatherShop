@@ -96,7 +96,7 @@ export class NavbarComponent implements OnInit {
 
   /** Fetch persisted unread notifications from the API (login + page refresh catch-up). */
   private fetchUnreadNotifications(): void {
-    this.notificationApi.getUnread().subscribe({
+    this.notificationApi.getUnread().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: items => {
         this.notifications = items;
         this.cdr.markForCheck();

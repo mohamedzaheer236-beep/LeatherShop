@@ -1,5 +1,4 @@
 using LeatherShopAPI.Data;
-using LeatherShopAPI.DTOs.Chat;
 using LeatherShopAPI.Models;
 using LeatherShopAPI.Models.WhatsApp;
 using LeatherShopAPI.Services;

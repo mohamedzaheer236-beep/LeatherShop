@@ -46,7 +46,7 @@ A complete WhatsApp Business ordering system for a leather goods seller. Custome
 | **Mapping Extensions** | `Extensions/MappingExtensions.cs` | `Product.ToDto()`, `Order.ToDto()`, `OrderItem.ToDto()` — shared entity-to-DTO mapping used by ProductService, OrderService, DashboardService |
 | **Authentication** | `Controllers/AuthController.cs`, `Models/AdminUser.cs`, `DTOs/Auth/AuthDtos.cs`, `Data/Configurations/AdminUserConfiguration.cs` | JWT Bearer authentication — `POST /api/auth/login` validates credentials against `AdminUsers` table (BCrypt hash, case-sensitive). Returns access token (15 min expiry) + HttpOnly refresh token cookie (7 day expiry, auto-rotation). `[Authorize]` attribute on all admin controllers. Admin user auto-seeded on first startup. |
 | **Config** | `appsettings.json`, `appsettings.Development.json`, `appsettings.Production.json` | Environment-specific configuration files |
-| **Data Models** | `Models/Product.cs`, `ProductImage.cs`, `Customer.cs`, `CartItem.cs`, `Order.cs` (includes `OrderItem`), `BroadcastMessage.cs`, `BroadcastRecipient.cs`, `AdminUser.cs`, `ChatMessage.cs`, `RefreshToken.cs`, `AdminNotification.cs`, `WhatsAppOutboxMessage.cs`, `WhatsAppApiException.cs`, `ApiResponse.cs`, `PaginatedResult.cs`, `CustomerCategory.cs`, `WhatsApp/ButtonOption.cs`, `WhatsApp/CarouselCard.cs`, `WhatsApp/ListRow.cs`, `WhatsApp/ListSection.cs`, `WhatsApp/WhatsAppTemplate.cs` | Entity classes with navigation properties, enums, WhatsApp message construction helpers, and response wrappers. 20 model files total (15 in root + 5 in WhatsApp/ subdirectory). `OrderItem` class is defined within `Order.cs`. |
+| **Data Models** | `Models/Product.cs`, `ProductImage.cs`, `Customer.cs`, `CartItem.cs`, `Order.cs` (includes `OrderItem`), `BroadcastMessage.cs`, `BroadcastRecipient.cs`, `AdminUser.cs`, `ChatMessage.cs`, `RefreshToken.cs`, `AdminNotification.cs`, `WhatsAppOutboxMessage.cs`, `WhatsAppApiException.cs`, `ApiResponse.cs`, `PaginatedResult.cs`, `CustomerCategory.cs`, `WhatsApp/ButtonOption.cs`, `WhatsApp/CarouselCard.cs`, `WhatsApp/ListRow.cs`, `WhatsApp/ListSection.cs`, `WhatsApp/WhatsAppTemplate.cs` | Entity classes with navigation properties, enums, WhatsApp message construction helpers, and response wrappers. 21 model files total (16 in root + 5 in WhatsApp/ subdirectory). `OrderItem` class is defined within `Order.cs`. |
 | **Database** | `AppDbContext.cs` | EF Core DbContext — uses `ApplyConfigurationsFromAssembly()` for auto-discovering entity configs. 13 DbSets including AdminUsers, ChatMessages, RefreshTokens, AdminNotifications, BroadcastRecipients. |
 | **Infrastructure** | `Program.cs` | Response compression (Brotli + Gzip), security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`), forwarded headers (`X-Forwarded-For`/`X-Forwarded-Proto` for Railway proxy), ephemeral Data Protection (container-friendly), connection pooling (min 5 / max 50 / idle 60s). |
 | **Invoice PDF** | `Services/InvoicePdfService.cs` | QuestPDF-based invoice generation — downloadable from `GET /api/v1/orders/{id}/invoice`. Path traversal defense via `Path.GetFullPath()` validation. |
@@ -595,6 +595,11 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 │       │   │   ├── notification.service.ts    # Centralized toast notification service
 │       │   │   └── template-loader.service.ts # Shared WhatsApp template loading + validation
 │       │   │                                  #   Used by broadcast + customers components
+│       │   ├── styles/                        # Shared SCSS partials
+│       │   │   ├── _broadcast-form-shared.scss
+│       │   │   ├── _carousel.scss
+│       │   │   ├── _dialog-form.scss
+│       │   │   └── _status-banner.scss
 │       │   └── components/
 │       │       ├── navbar/              # Navigation bar (ts, html, scss)
 │       │       │                        #   Notification bell with badge count
@@ -627,25 +632,29 @@ LeatherShopAdmin/                        # ── Angular 18 Admin Panel ──
 │           │   ├── models/order.model.ts
 │           │   ├── services/order.service.ts      # Uses environment.apiUrl
 │           │   ├── orders.routes.ts
-│           │   └── components/orders/        (ts, html, scss)
+│           │   ├── components/orders/        (ts, html, scss)
+│           │   └── components/order-history/ (ts, html, scss)
 │           │
 │           ├── customers/
 │           │   ├── models/customer.model.ts
 │           │   ├── services/customer.service.ts   # Uses environment.apiUrl
 │           │   ├── customers.routes.ts
 │           │   └── components/customers/     (ts, html, scss)
-│           │       ├── customer-detail-dialog/     # View customer details
-│           │       ├── customer-form-dialog/        # Add/edit customer
+│           │       ├── customer-add-dialog/         # Add new customer with phone validation
+│           │       ├── customer-edit-dialog/         # Edit existing customer details
+│           │       ├── customer-delete-dialog/       # Delete customer confirmation
 │           │       ├── customer-import-dialog/       # Bulk import from Excel/CSV
-│           │       ├── customer-send-message-dialog/ # Send WhatsApp template message
-│           │       └── customer-subscribe-dialog/    # Opt-in/opt-out management
+│           │       └── customer-broadcast-dialog/    # Send WhatsApp template to selected
 │           │
 │           └── broadcast/
 │               ├── models/broadcast.model.ts
 │               ├── services/broadcast.service.ts  # Uses environment.apiUrl
 │               │   └── broadcast-form-helper.service.ts  # Component-level form helper
 │               ├── broadcast.routes.ts
-│               └── components/broadcast/     (ts, html, scss)
+│               └── components/
+│                   ├── broadcast/            (ts, html, scss)  # Main broadcast page
+│                   ├── broadcast-form/       (ts, html, scss)  # Template message form
+│                   └── broadcast-history/    (ts, html, scss)  # Broadcast log + recipients
 │
 │           └── chat/
 │               ├── models/chat.model.ts           # Conversation, ChatMessage, SendMessage interfaces

@@ -53,6 +53,7 @@ public class UpdateTrackingDto
     /// <summary>Corrected courier AWB/tracking number.</summary>
     [Required]
     [MaxLength(100)]
+    [RegularExpression(@"\S+.*", ErrorMessage = "Tracking number cannot be blank.")]
     public string TrackingNumber { get; set; } = string.Empty;
 
     /// <summary>Optional corrected tracking URL.</summary>

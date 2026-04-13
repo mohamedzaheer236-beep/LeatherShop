@@ -25,7 +25,7 @@ export class CustomerService {
     filters?: Record<string, string>,
   ): Observable<PaginatedResult<Customer>> {
     let params = new HttpParams().set('page', page.toString()).set('pageSize', pageSize.toString());
-    if (subscribedOnly) params = params.set('subscribedOnly', 'true');
+    if (subscribedOnly !== undefined) params = params.set('subscribedOnly', String(subscribedOnly));
     if (search) params = params.set('search', search);
     if (category) params = params.set('category', category);
     if (sortField) params = params.set('sortField', sortField);

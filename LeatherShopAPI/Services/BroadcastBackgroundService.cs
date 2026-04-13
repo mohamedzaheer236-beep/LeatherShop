@@ -294,7 +294,7 @@ public sealed class BroadcastBackgroundService : BackgroundService
             }
         }
         // Process in chunks of BatchSize
-        // Track consecutive failures to detect TEMPLATE-LEVEL errors (e.g. 132005 text too long,
+        // Track consecutive template-level failures to detect errors (e.g. 132005 text too long,
         // 132001 template not found) that fail identically for ALL recipients.
         // Per-user errors (131049 marketing cap, 131026 not on WhatsApp) are NOT counted
         // because they vary per recipient — the next user may succeed.
@@ -320,7 +320,9 @@ public sealed class BroadcastBackgroundService : BackgroundService
                 // Mark all remaining Queued recipients as Failed
                 using var abortScope = _scopeFactory.CreateScope();
                 var abortDb = abortScope.ServiceProvider.GetRequiredService<AppDbContext>();
-                var abortError = $"Broadcast aborted (template error): {lastTemplateError?[..Math.Min(lastTemplateError?.Length ?? 0, 500)]}";
+                var truncatedError = lastTemplateError != null && lastTemplateError.Length > 500
+                    ? lastTemplateError[..500] : lastTemplateError ?? "Unknown";
+                var abortError = $"Broadcast aborted (template error): {truncatedError}";
 
                 var abortedCount = await abortDb.BroadcastRecipients
                     .Where(r => r.BroadcastMessageId == broadcastId && r.Status == BroadcastDeliveryStatus.Queued)
@@ -333,6 +335,10 @@ public sealed class BroadcastBackgroundService : BackgroundService
                 _logger.LogWarning("Broadcast {BroadcastId}: marked {Count} queued recipients as failed (template-level abort)", broadcastId, abortedCount);
                 break;
             }
+
+            // Collect per-task results to evaluate template failures AFTER the batch completes
+            // (avoids race condition from concurrent Interlocked operations within the batch)
+            var batchResults = new ConcurrentBag<(bool Success, bool IsTemplateError, string? Error)>();
 
             var tasks = batch.Select(async phone =>
             {
@@ -366,7 +372,7 @@ public sealed class BroadcastBackgroundService : BackgroundService
                             .SetProperty(r => r.OriginalSentAt, DateTime.UtcNow), ct);
 
                     Interlocked.Increment(ref sent);
-                    Interlocked.Exchange(ref consecutiveTemplateFailures, 0); // reset on success
+                    batchResults.Add((Success: true, IsTemplateError: false, Error: null));
                 }
                 catch (Exception ex)
                 {
@@ -393,13 +399,8 @@ public sealed class BroadcastBackgroundService : BackgroundService
                     }
 
                     Interlocked.Increment(ref failed);
-                    // Only count template-level errors for early-abort (not per-user errors)
                     var isPerUserError = perUserErrors.Any(code => ex.Message.Contains(code));
-                    if (!isPerUserError)
-                    {
-                        Interlocked.Increment(ref consecutiveTemplateFailures);
-                        lastTemplateError = ex.Message;
-                    }
+                    batchResults.Add((Success: false, IsTemplateError: !isPerUserError, Error: ex.Message));
                 }
                 finally
                 {
@@ -408,6 +409,31 @@ public sealed class BroadcastBackgroundService : BackgroundService
             });
 
             await Task.WhenAll(tasks);
+
+            // Evaluate template failures sequentially after the batch — no race condition
+            bool batchHadSuccess = false;
+            foreach (var result in batchResults)
+            {
+                if (result.Success)
+                {
+                    batchHadSuccess = true;
+                }
+                else if (result.IsTemplateError)
+                {
+                    lastTemplateError = result.Error;
+                }
+            }
+
+            if (batchHadSuccess)
+            {
+                consecutiveTemplateFailures = 0;
+            }
+            else
+            {
+                // Count only template-level failures in this batch
+                var templateFailsInBatch = batchResults.Count(r => !r.Success && r.IsTemplateError);
+                consecutiveTemplateFailures += templateFailsInBatch;
+            }
 
             // Save progress periodically
             totalProcessed += batch.Length;
