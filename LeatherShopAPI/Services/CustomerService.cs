@@ -72,6 +72,15 @@ public class CustomerService : ICustomerService
             query = query.Where(c => c.CreatedAt < end);
         }
 
+        // Apply sorting for enum-based columns BEFORE projection (so EF can translate to SQL)
+        var sortFieldLower = sortField?.ToLower();
+        var isDesc = string.Equals(sortOrder, "desc", StringComparison.OrdinalIgnoreCase);
+        if (sortFieldLower == "category")
+            query = isDesc ? query.OrderByDescending(c => c.Category) : query.OrderBy(c => c.Category);
+        else if (sortFieldLower != "ordercount" && sortFieldLower != "name" && sortFieldLower != "phonenumber" && sortFieldLower != "address" && sortFieldLower != "issubscribed")
+            // Apply default sort (by CreatedAt) before projection if not a post-projection sort field
+            query = isDesc ? query.OrderByDescending(c => c.CreatedAt) : query.OrderBy(c => c.CreatedAt);
+
         // Order count filters — applied after projection below
         // For now, filter in the projected queryable
 
@@ -96,17 +105,17 @@ public class CustomerService : ICustomerService
 
         var totalCount = await projected.CountAsync(ct);
 
-        // Sorting
-        var isDesc = string.Equals(sortOrder, "desc", StringComparison.OrdinalIgnoreCase);
-        projected = (sortField?.ToLower()) switch
+        // Sorting: apply sorting for calculated/string columns AFTER projection
+        // (category was already sorted on the query, so skip it here)
+        projected = sortFieldLower switch
         {
+            "category" => projected, // Already sorted on query before projection
             "name" => isDesc ? projected.OrderByDescending(c => c.Name) : projected.OrderBy(c => c.Name),
             "phonenumber" => isDesc ? projected.OrderByDescending(c => c.PhoneNumber) : projected.OrderBy(c => c.PhoneNumber),
             "address" => isDesc ? projected.OrderByDescending(c => c.Address) : projected.OrderBy(c => c.Address),
-            "category" => isDesc ? projected.OrderByDescending(c => c.Category) : projected.OrderBy(c => c.Category),
             "issubscribed" => isDesc ? projected.OrderByDescending(c => c.IsSubscribed) : projected.OrderBy(c => c.IsSubscribed),
             "ordercount" => isDesc ? projected.OrderByDescending(c => c.OrderCount) : projected.OrderBy(c => c.OrderCount),
-            _ => isDesc ? projected.OrderByDescending(c => c.CreatedAt) : projected.OrderBy(c => c.CreatedAt),
+            _ => projected, // Default already applied before projection
         };
 
         var items = await projected
